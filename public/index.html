@@ -3,22 +3,40 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Фаза 2 — выбор тем из content/index.json</title>
+  <title>Тренажёр — Фаза 3.1</title>
   <link rel="stylesheet" href="./assets/css/app.css">
+  <script>window.MathJax={tex:{inlineMath:[['\\(','\\)'],['$','$']]},options:{renderActions:{addMenu:[]}}};</script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
   <div class="container">
-    <div class="topbar">
-      <h1>Тренажёр — Фаза 2</h1>
+    <div class="row" style="justify-content:space-between">
+      <h1>Тренажёр по формулам — Фаза 3.1</h1>
       <div class="row">
         <button id="btnTopics" class="secondary">Темы</button>
+        <button id="btnFinish" class="ghost">Завершить</button>
       </div>
     </div>
-    <div id="summary" class="card">
-      <h2>Результат загрузки</h2>
-      <p class="small">Демонстрация: после выбора тем подгружаем соответствующие <code>questions.json</code> и валидируем их.</p>
-      <div id="resultBox" class="small">Ещё ничего не загружено.</div>
+
+    <div class="progress"><div id="progressBar" class="bar"></div></div>
+    <div class="row small" style="justify-content:space-between">
+      <div id="qCounter">Вопрос 0 / 0</div>
+      <div>⏱ <span id="timer">00:00.00</span></div>
     </div>
+
+    <div id="quiz" class="card">
+      <div id="stem" style="margin-bottom:6px"></div>
+      <div id="options" class="options" role="radiogroup"></div>
+      <div class="row" style="justify-content:space-between;margin-top:12px">
+        <button id="btnPrev" class="secondary">Назад</button>
+        <div class="row">
+          <button id="btnClear" class="ghost">Сбросить</button>
+          <button id="btnNext">Дальше</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="summary" class="card" style="display:none;margin-top:12px"></div>
   </div>
 
   <div id="topicModal" class="modal">
@@ -26,7 +44,7 @@
       <h2>Выберите темы</h2>
       <p class="small">Можно выбрать от одной до всех тем. Источник: <code>content/index.json</code>.</p>
       <div id="topics" class="topic-list"></div>
-      <div class="row" style="justify-content:space-between;margin-top:8px">
+      <div class="row" style="justify-content:space-between;margin-top:6px">
         <div class="small" id="hint">Изначально ничего не выбрано</div>
         <div class="row">
           <button id="toggleAll" class="secondary">Выбрать все</button>
@@ -36,6 +54,6 @@
     </div>
   </div>
 
-  <script type="module" src="./phase2.js"></script>
+  <script type="module" src="./phase3_1.js"></script>
 </body>
 </html>
