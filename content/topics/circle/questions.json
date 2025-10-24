@@ -1,45 +1,4 @@
 {
   "topic": "circle",
-  "questions": [
-    {
-      "id": "circle_area",
-      "stem": "Площадь круга равна",
-      "choices": [
-        "\\(\\pi r^2\\)",
-        "\\(2\\pi r^2\\)",
-        "\\(\\pi r\\)",
-        "\\(2\\pi r\\)",
-        "\\(\\tfrac{4}{3}\\pi r^3\\)",
-        "\\(\\pi r^2 h\\)",
-        "\\(\\pi r l\\)",
-        "\\(4\\pi r^2\\)"
-      ],
-      "answer": 0,
-      "tags": [
-        "круг",
-        "площадь"
-      ],
-      "difficulty": 1
-    },
-    {
-      "id": "circle_circumference",
-      "stem": "Длина окружности равна",
-      "choices": [
-        "\\(2\\pi r\\)",
-        "\\(\\pi r^2\\)",
-        "\\(4\\pi r\\)",
-        "\\(\\pi r\\)",
-        "\\(\\tfrac12\\pi r\\)",
-        "\\(2\\pi r^2\\)",
-        "\\(\\tfrac{4}{3}\\pi r^3\\)",
-        "\\(\\pi r^2 h\\)"
-      ],
-      "answer": 0,
-      "tags": [
-        "окружность",
-        "длина"
-      ],
-      "difficulty": 1
-    }
-  ]
+  "questions": []
 }
