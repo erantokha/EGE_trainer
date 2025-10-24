@@ -1,155 +1,179 @@
+// public/phase3_2.js
+// Фаза 3.2 — стабильная версия без optional chaining и с безопасным восстановлением.
+// Завязки: app/core/random.js, app/core/engine.js, app/core/session.js, app/core/validators.js
 
-// public/phase3_2.js (guarded)
-// Исправления:
-// 1) Если восстановилась пустая сессия (0 вопросов) — очищаем storage и показываем модалку тем.
-// 2) Если фильтр/выбор тем приводит к 0 видимых вопросов — возвращаемся к полному списку
-//    или открываем модалку, если банк пуст.
-// 3) Безопасная инициализация: tryRestore() возвращает true ТОЛЬКО если есть вопросы.
+import { createRng, randomSeed } from '../app/core/random.js';
+import { buildOrder, buildViews } from '../app/core/engine.js';
+import { createSession } from '../app/core/session.js';
+import { assertValidBank } from '../app/core/validators.js';
 
-import { createRng, randomSeed }       from '../app/core/random.js';
-import { buildOrder, buildViews }      from '../app/core/engine.js';
-import { createSession }               from '../app/core/session.js';
-import { assertValidBank }             from '../app/core/validators.js';
+/* ----------------------------- DOM helpers ------------------------------ */
+function $(id) { return document.getElementById(id); }
+function q(sel) { return document.querySelector(sel); }
+function on(elOrSel, evt, fn) {
+  var el = typeof elOrSel === 'string' ? ( $(elOrSel) || q(elOrSel) ) : elOrSel;
+  if (el) el.addEventListener(evt, fn);
+  return el;
+}
+function show(el){ if (el) el.style.display = 'block'; }
+function hide(el){ if (el) el.style.display = 'none'; }
+function addClass(el, cls){ if (el && el.classList) el.classList.add(cls); }
+function removeClass(el, cls){ if (el && el.classList) el.classList.remove(cls); }
 
-const $id = (id) => document.getElementById(id);
-const $q  = (sel) => document.querySelector(sel);
-function onClick(el, handler){
-  const node = typeof el === 'string' ? ($id(el) || $q(el)) : el;
-  if (node) node.addEventListener('click', handler);
-  return node;
+/* ------------------------------- Consts --------------------------------- */
+var ROOT         = new URL('../', location.href).href;
+var REGISTRY_URL = ROOT + 'content/index.json';
+var STORAGE_V3   = 'st_session_v3';
+
+/* ------------------------- Static DOM references ------------------------ */
+var modalEl      = $('topicModal');
+var topicsEl     = $('topics');
+var startBtn     = $('startBtn');
+var toggleAllBtn = $('toggleAll');
+
+var btnTopics    = $('btnTopics');
+var btnPause     = $('btnPause');
+var btnFinishTop = $('btnFinish');
+
+var btnPrev      = $('btnPrev');
+var btnNext      = $('btnNext');
+var btnClear     = $('btnClear');
+
+var quizBox      = $('quiz');
+var resultBox    = $('summary');
+var stemEl       = $('stem');
+var optionsEl    = $('options');
+var qCounter     = $('qCounter');
+var progressBar  = $('progressBar');
+var timerEl      = $('timer');
+var filterTopic  = $('filterTopic');
+var hint         = $('hint');
+
+/* ------------------------------- State ---------------------------------- */
+var registry        = null;          // content/index.json
+var bank            = [];            // сводный банк вопросов
+var session         = null;          // сессия ядра
+var seed            = null;          // seed этой попытки
+var selectedTopics  = [];            // выбраны в модалке
+var filterTopicId   = '';            // фильтр селектора
+var visiblePositions= [];            // массив позиций (индексов) в порядке
+var checkboxes      = [];
+var allSelected     = false;
+var tickInt         = null;
+
+/* ------------------------------ Utils ----------------------------------- */
+function fmtTime(ms){
+  var t = Math.max(0, Math.floor(ms||0));
+  var m = Math.floor(t/60000);
+  var s = Math.floor(t/1000)%60;
+  var cs= Math.floor((t%1000)/10);
+  function pad(n,w){ n=String(n); while(n.length<(w||2)) n='0'+n; return n; }
+  return pad(m)+':'+pad(s)+'.'+pad(cs);
 }
 
-const ROOT         = new URL('../', location.href).href;
-const REGISTRY_URL = ROOT + 'content/index.json';
-
-const STORAGE_V3   = 'st_session_v3';
-
-const modalEl      = $id('topicModal');
-const topicsEl     = $id('topics');
-const startBtn     = $id('startBtn');
-const toggleAllBtn = $id('toggleAll');
-
-const btnTopics    = $id('btnTopics');
-const btnPause     = $id('btnPause');
-const btnFinishTop = $id('btnFinish') || $q('[data-action="finish"]') || $q('.btn-finish');
-
-const btnPrev      = $id('btnPrev');
-const btnNext      = $id('btnNext');
-const btnClear     = $id('btnClear');
-
-const quizBox      = $id('quiz');
-const resultBox    = $id('summary');
-const stemEl       = $id('stem');
-const optionsEl    = $id('options');
-const qCounter     = $id('qCounter');
-const progressBar  = $id('progressBar');
-const timerEl      = $id('timer');
-const filterTopic  = $id('filterTopic');
-const hint         = $id('hint');
-
-const fmtTime = (ms) => {
-  const t = Math.floor(ms || 0);
-  const m = Math.floor(t / 60000);
-  const s = Math.floor(t / 1000) % 60;
-  const cs = Math.floor((t % 1000) / 10);
-  const pad = (n, w = 2) => String(n).padStart(w, '0');
-  return `${pad(m)}:${pad(s)}.${pad(cs)}`;
-};
-
-function formatChoice(choice) {
+// Унифицированное отображение пункта ответа
+function formatChoice(choice){
   if (choice == null) return '';
   if (typeof choice === 'string') return choice;
   if (typeof choice === 'object' && typeof choice.text === 'string') return choice.text;
   if (typeof choice === 'object' && ('S' in choice || 'V' in choice)) {
-    const parts = [];
-    if (choice.S != null) parts.push(`S = ${choice.S}`);
-    if (choice.V != null) parts.push(`V = ${choice.V}`);
+    var parts = [];
+    if (choice.S != null) parts.push('S = '+choice.S);
+    if (choice.V != null) parts.push('V = '+choice.V);
     return parts.join(', ');
   }
-  if (typeof choice === 'object') {
-    try { return Object.entries(choice).map(([k,v]) => `${k} = ${v}`).join(', '); } catch {}
-  }
-  return String(choice);
+  try { return JSON.stringify(choice); } catch(e){ return String(choice); }
 }
 
-let registry = null;
-let checkboxes = [];
-let allSelected = false;
+// Текущий порядок из сериализации (снаружи его нет)
+function getOrder(){
+  try {
+    if (!session || !session.serialize) return [];
+    var s = session.serialize();
+    return Array.isArray(s.order) ? s.order : [];
+  } catch(e){ return []; }
+}
 
-let bank = [];
-let session = null;
-let seed = null;
+/* ---------------------------- Modal / Topics ---------------------------- */
+function openTopics(){ removeClass(modalEl, 'hidden'); }
+function closeTopics(){ addClass(modalEl, 'hidden'); }
 
-let filterTopicId = '';
-let visiblePositions = [];
-let tickInt = null;
-
-let selectedTopics = [];
-
-btnTopics && btnTopics.addEventListener('click', () => modalEl?.classList.remove('hidden'));
-
-toggleAllBtn && toggleAllBtn.addEventListener('click', () => {
-  allSelected = !allSelected;
-  checkboxes.forEach(cb => (cb.checked = allSelected));
-  if (toggleAllBtn) toggleAllBtn.textContent = allSelected ? 'Сбросить все' : 'Выбрать все';
-  updateHint();
-});
-
-startBtn && startBtn.addEventListener('click', async () => {
-  const selected = checkboxes.filter(cb => cb.checked).map(cb => cb.value);
-  if (selected.length === 0) { alert('Выберите хотя бы одну тему'); return; }
-  modalEl?.classList.add('hidden');
-  await startNewSession(selected);
-});
-
-function updateHint() {
+function updateHint(){
   if (!hint) return;
-  const n = checkboxes.filter(cb => cb.checked).length;
-  hint.textContent = n === 0 ? 'Изначально ничего не выбрано' : `Выбрано тем: ${n}`;
+  var n = checkboxes.filter(function(cb){ return cb.checked; }).length;
+  hint.textContent = n === 0 ? 'Изначально ничего не выбрано' : ('Выбрано тем: '+n);
 }
 
-async function loadRegistry(){
-  const res = await fetch(REGISTRY_URL, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Не удалось загрузить content/index.json');
-  registry = await res.json();
-
+function renderTopicsList(){
   if (!topicsEl) return;
   topicsEl.innerHTML = '';
   checkboxes = [];
-  for (const t of registry.topics.filter(t => t.enabled)) {
-    const row = document.createElement('label'); row.className = 'topic';
-    const cb  = document.createElement('input'); cb.type = 'checkbox'; cb.value = t.id;
+  var list = (registry && registry.topics) ? registry.topics.filter(function(t){return t.enabled;}) : [];
+  for (var i=0;i<list.length;i++){
+    var t = list[i];
+    var label = document.createElement('label');
+    label.className = 'topic';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = t.id;
     cb.addEventListener('change', updateHint);
-    const span = document.createElement('span'); span.textContent = t.title;
-    row.append(cb, span);
-    topicsEl.appendChild(row);
+    var span = document.createElement('span');
+    span.textContent = t.title;
+    label.appendChild(cb);
+    label.appendChild(span);
+    topicsEl.appendChild(label);
     checkboxes.push(cb);
   }
   updateHint();
 }
 
+/* ------------------------- Loading content index ------------------------ */
+async function loadRegistry(){
+  var res = await fetch(REGISTRY_URL, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Не удалось загрузить content/index.json');
+  registry = await res.json();
+  renderTopicsList();
+}
+
+/* ------------------------- Start / Restore session ---------------------- */
 async function startNewSession(topicIds){
   selectedTopics = topicIds.slice();
-  const selected = registry.topics.filter(t => topicIds.includes(t.id));
-  const packs = await Promise.all(selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json())));
-  bank = packs.flatMap(p => p.questions.map(q => ({ ...q, topic: p.topic })));
+  // собираем банк
+  var enabled = registry.topics.filter(function(t){ return topicIds.indexOf(t.id) >= 0; });
+  var packs = await Promise.all(enabled.map(function(t){
+    return fetch(ROOT+'content/'+t.pack, {cache:'no-store'}).then(function(r){return r.json();});
+  }));
+  bank = [];
+  for (var i=0;i<packs.length;i++){
+    var p = packs[i];
+    var qs = (p && p.questions) ? p.questions : [];
+    for (var j=0;j<qs.length;j++){
+      var q = qs[j];
+      var obj = {};
+      for (var k in q) obj[k] = q[k];
+      obj.topic = p.topic;
+      bank.push(obj);
+    }
+  }
 
+  // валидация банка
   try { assertValidBank(bank); }
-  catch(e){ alert(String(e.message || e)); modalEl?.classList.remove('hidden'); return; }
+  catch(e){ alert('Ошибка в вопросах: '+(e.message||e)); openTopics(); return; }
 
+  // построение порядка, представлений и сессии
   seed = String(randomSeed());
-  const rng   = createRng(seed);
-  const order = buildOrder(bank, rng);
-  const views = buildViews(bank, order, rng);
+  var rng   = createRng(seed);
+  var order = buildOrder(bank, rng);
+  var views = buildViews(bank, order, rng);
 
-  if (!order || order.length === 0) {
-    try { localStorage.removeItem(STORAGE_V3); } catch {}
-    modalEl?.classList.remove('hidden');
-    if (quizBox) quizBox.style.display = 'none';
+  if (!order || order.length === 0){
+    localStorage.removeItem(STORAGE_V3);
+    openTopics();
+    hide(quizBox);
     return;
   }
 
-  session = createSession({ bank, order, views, seed, mode: 'practice' });
+  session = createSession({ bank: bank, order: order, views: views, seed: seed, mode: 'practice' });
   bindSessionEvents();
   buildFilterSelect();
   applyFilterAndRender();
@@ -158,28 +182,41 @@ async function startNewSession(topicIds){
 }
 
 async function tryRestore(){
-  const rawV3 = localStorage.getItem(STORAGE_V3);
-  if (!rawV3) return false;
+  var raw = localStorage.getItem(STORAGE_V3);
+  if (!raw) return false;
   try{
-    const snap = JSON.parse(rawV3);
+    var snap = JSON.parse(raw);
     await loadRegistry();
-    selectedTopics = snap.selectedTopics || [];
+    selectedTopics = Array.isArray(snap.selectedTopics) ? snap.selectedTopics.slice() : [];
     if (!selectedTopics.length) return false;
 
-    const selected = registry.topics.filter(t => selectedTopics.includes(t.id));
-    const packs = await Promise.all(selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json())));
-    bank = packs.flatMap(p => p.questions.map(q => ({ ...q, topic: p.topic })));
+    // восстановим банк по актуальному реестру
+    var enabled = registry.topics.filter(function(t){ return selectedTopics.indexOf(t.id) >= 0; });
+    var packs = await Promise.all(enabled.map(function(t){
+      return fetch(ROOT+'content/'+t.pack, {cache:'no-store'}).then(function(r){return r.json();});
+    }));
+    bank = [];
+    for (var i=0;i<packs.length;i++){
+      var p = packs[i];
+      var qs = (p && p.questions) ? p.questions : [];
+      for (var j=0;j<qs.length;j++){
+        var q = qs[j]; var obj={};
+        for (var k in q) obj[k]=q[k];
+        obj.topic = p.topic;
+        bank.push(obj);
+      }
+    }
 
-    seed = String(snap.session?.seed || randomSeed());
-    const order = snap.session?.order || [];
-    const views = buildViews(bank, order, createRng(seed));
+    // собрать views заново по order из снапшота
+    var savedOrder = (snap.session && Array.isArray(snap.session.order)) ? snap.session.order : [];
+    if (!savedOrder.length) return false;
 
-    if (!order.length) return false;
-
-    session = createSession({ bank, order, views, seed, mode: snap.session?.mode || 'practice' });
+    seed = String((snap.session && snap.session.seed) || randomSeed());
+    var views = buildViews(bank, savedOrder, createRng(seed));
+    session = createSession({ bank: bank, order: savedOrder, views: views, seed: seed, mode: (snap.session && snap.session.mode) || 'practice' });
     session.restore(snap.session);
 
-    if (!session.order || !session.order.length) return false;
+    if (getOrder().length === 0) return false;
 
     bindSessionEvents();
     buildFilterSelect();
@@ -187,21 +224,25 @@ async function tryRestore(){
     applyFilterAndRender();
     startTick();
 
-    modalEl?.classList.add('hidden');
-    resultBox && (resultBox.style.display = 'none');
-    quizBox && (quizBox.style.display = 'block');
+    closeTopics();
+    hide(resultBox);
+    show(quizBox);
     return true;
   }catch(e){
-    console.warn('Restore v3 failed', e);
+    console.warn('Restore failed', e);
     return false;
   }
 }
 
+/* ------------------------- UI wiring / rendering ------------------------ */
 function bindSessionEvents(){
-  session.onChange((type)=>{
+  // простая шина событий
+  session.onChange(function(type){
     if (type === 'pause' || type === 'resume'){
       if (btnPause) btnPause.textContent = session.isPaused() ? 'Продолжить' : 'Пауза';
-      quizBox && quizBox.classList.toggle('paused', session.isPaused());
+      if (quizBox) {
+        if (session.isPaused()) addClass(quizBox, 'paused'); else removeClass(quizBox, 'paused');
+      }
     }
     if (type === 'goto' || type === 'select' || type === 'clear' || type === 'restore'){
       render();
@@ -213,235 +254,286 @@ function bindSessionEvents(){
 function buildFilterSelect(){
   if (!filterTopic) return;
   filterTopic.innerHTML = '<option value="">Все</option>';
-  const uniq = [...new Set(session.order.map(i => bank[i].topic))];
-  uniq.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t; opt.textContent = t;
+
+  var orderArr = getOrder();
+  var topicsSet = {};
+  for (var i=0;i<orderArr.length;i++){
+    var idx = orderArr[i];
+    var t = (bank[idx] && bank[idx].topic) || '';
+    if (t) topicsSet[t] = true;
+  }
+  var uniq = Object.keys(topicsSet);
+  for (var j=0;j<uniq.length;j++){
+    var opt = document.createElement('option');
+    opt.value = uniq[j];
+    opt.textContent = uniq[j];
     filterTopic.appendChild(opt);
-  });
+  }
 }
-filterTopic && filterTopic.addEventListener('change', ()=>{
-  filterTopicId = filterTopic.value;
-  applyFilterAndRender();
-  persistV3();
-});
 
 function applyFilterAndRender(){
-  if (!session || !session.order || session.order.length === 0){
-    modalEl?.classList.remove('hidden');
-    if (quizBox) quizBox.style.display = 'none';
+  var orderArr = getOrder();
+
+  if (!session || orderArr.length === 0){
+    openTopics();
+    hide(quizBox);
     return;
   }
 
-  visiblePositions = session.order
-    .map((idx, pos) => ({ idx, pos }))
-    .filter(x => !filterTopicId || bank[x.idx].topic === filterTopicId)
-    .map(x => x.pos);
+  visiblePositions = [];
+  for (var i=0;i<orderArr.length;i++){
+    var idx = orderArr[i];
+    var tp = (bank[idx] && bank[idx].topic) || '';
+    if (!filterTopicId || tp === filterTopicId) visiblePositions.push(i);
+  }
 
+  // если фильтр дал пусто — сбросить на "Все"
   if (visiblePositions.length === 0){
-    visiblePositions = session.order.map((_, i) => i);
+    visiblePositions = [];
+    for (var j=0;j<orderArr.length;j++) visiblePositions.push(j);
     if (filterTopic) filterTopic.value = '';
     filterTopicId = '';
   }
 
-  const cur = session.currentIndex();
-  if (!visiblePositions.includes(cur)){
-    const first = visiblePositions[0];
-    session.goto(first - cur);
+  var cur = session.currentIndex();
+  var inList = false;
+  for (var k=0;k<visiblePositions.length;k++){ if (visiblePositions[k] === cur){ inList = true; break; } }
+  if (!inList && visiblePositions.length){
+    session.goto(visiblePositions[0] - cur);
   }
 
-  resultBox && (resultBox.style.display = 'none');
-  quizBox && (quizBox.style.display = 'block');
+  hide(resultBox);
+  show(quizBox);
   render();
 }
 
 function render(){
-  const pos = session.currentIndex();
-  const list = visiblePositions;
-  const iInVisible = Math.max(0, list.indexOf(pos));
-  const total = list.length || 0;
+  var orderArr = getOrder();
+  var pos = session.currentIndex();
+  var iInVisible = Math.max(0, visiblePositions.indexOf(pos));
+  var total = visiblePositions.length;
 
-  if (qCounter) qCounter.textContent = `Вопрос ${Math.min(iInVisible + 1, Math.max(total,1))} / ${total}`;
-  if (progressBar) progressBar.style.width = `${(total ? (iInVisible/total) : 0)*100}%`;
+  if (qCounter) qCounter.textContent = 'Вопрос '+ (Math.min(iInVisible+1, Math.max(total,1))) +' / '+ total;
+  if (progressBar) progressBar.style.width = (total ? (iInVisible/total)*100 : 0)+'%';
 
-  const view = session.currentView && session.currentView();
-  if (stemEl) stemEl.innerHTML = (view && view.stem) || '';
+  var view = session.currentView ? session.currentView() : null;
+  if (stemEl) stemEl.innerHTML = view && view.stem ? view.stem : '';
 
   if (optionsEl){
     optionsEl.innerHTML = '';
-    const snap = session.serialize();
-    (view?.choices || []).forEach((ch, idx) => {
-      const label = document.createElement('label'); label.className = 'option'; label.tabIndex = 0;
-      const input = document.createElement('input'); input.type = 'radio'; input.name = 'opt'; input.value = String(idx);
-      const span  = document.createElement('span'); span.innerHTML = formatChoice(ch);
-      if (snap.answers[pos] === idx) input.checked = true;
-      label.append(input, span);
-      label.addEventListener('click', () => { session.select(idx); persistV3(); });
+    var snap = session.serialize ? session.serialize() : null;
+    var chosen = (snap && Array.isArray(snap.answers)) ? snap.answers[pos] : null;
+    var choices = (view && Array.isArray(view.choices)) ? view.choices : [];
+    for (var i=0;i<choices.length;i++){
+      var label = document.createElement('label');
+      label.className = 'option';
+      label.tabIndex = 0;
+      var input = document.createElement('input');
+      input.type = 'radio'; input.name = 'opt'; input.value = String(i);
+      if (chosen === i) input.checked = true;
+      var span = document.createElement('span');
+      span.innerHTML = formatChoice(choices[i]);
+      label.appendChild(input); label.appendChild(span);
+      (function(idx){
+        label.addEventListener('click', function(){ session.select(idx); persistV3(); });
+      })(i);
       optionsEl.appendChild(label);
-    });
+    }
   }
-  if (window.MathJax?.typesetPromise) MathJax.typesetPromise([stemEl, optionsEl]);
+  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise([stemEl, optionsEl]);
 
-  if (btnPrev) btnPrev.disabled = iInVisible <= 0;
-  if (btnNext) btnNext.textContent = (iInVisible === total - 1 && total > 0) ? 'К результатам' : 'Дальше';
-  quizBox && quizBox.classList.toggle('paused', session.isPaused && session.isPaused());
+  if (btnPrev) btnPrev.disabled = (visiblePositions.indexOf(pos) <= 0);
+  if (btnNext) btnNext.textContent = (visiblePositions.indexOf(pos) === total - 1 && total>0) ? 'К результатам' : 'Дальше';
+  if (quizBox) { if (session.isPaused && session.isPaused()) addClass(quizBox, 'paused'); else removeClass(quizBox, 'paused'); }
 }
 
 function gotoFiltered(delta){
-  const pos = session.currentIndex();
-  const list = visiblePositions;
-  const iInVisible = list.indexOf(pos);
-  const nextPosInVisible = iInVisible + delta;
-  if (nextPosInVisible < 0) return;
-  if (nextPosInVisible >= list.length) { finish(); return; }
-  const target = list[nextPosInVisible];
+  var pos = session.currentIndex();
+  var iInVisible = visiblePositions.indexOf(pos);
+  var nextInVis = iInVisible + delta;
+  if (nextInVis < 0) return;
+  if (nextInVis >= visiblePositions.length){ finish(); return; }
+  var target = visiblePositions[nextInVis];
   session.goto(target - pos);
 }
-onClick(btnPrev || '#btnPrev', () => gotoFiltered(-1));
-onClick(btnNext || '#btnNext', () => gotoFiltered(1));
-onClick(btnClear || '#btnClear', () => { session.clear(); render(); persistV3(); });
 
-onClick(btnPause || '#btnPause', () => {
-  if (session.isPaused()) session.resume();
-  else session.pause();
-  persistV3();
-});
-
+/* -------------------------- Timer / Persistence ------------------------- */
 function startTick(){
   if (tickInt) clearInterval(tickInt);
-  tickInt = setInterval(()=>{
-    const ms = session ? session.tick(performance.now()) : 0;
+  tickInt = setInterval(function(){
+    var ms = session ? session.tick(performance.now()) : 0;
     if (timerEl) timerEl.textContent = fmtTime(ms);
   }, 50);
 }
 
+function persistV3(){
+  if (!session || !session.serialize) return;
+  var snap = {
+    selectedTopics: selectedTopics.slice(),
+    filterTopicId: filterTopicId,
+    session: session.serialize()
+  };
+  try { localStorage.setItem(STORAGE_V3, JSON.stringify(snap)); } catch(e){}
+}
+
+/* ----------------------------- Summary ---------------------------------- */
 function finish(){
-  if (!session || !session.order || session.order.length === 0) return;
-  const summary = session.finish();
+  if (!session) return;
+  var summary = session.finish();
   if (tickInt) clearInterval(tickInt);
   renderSummary(summary);
-  try { localStorage.removeItem(STORAGE_V3); } catch {}
-}
-onClick(btnFinishTop || '#btnFinish', finish);
-onClick('[data-action="finish"]', finish);
-
-function renderSummary(summary){
-  if (!resultBox) return;
-  const rows = summary.entries.map(e => `
-    <tr>
-      <td>${e.i}</td>
-      <td>${e.topic}</td>
-      <td>${e.ok ? '<span class="ok">верно</span>' : '<span class="bad">ошибка</span>'}</td>
-      <td>${fmtTime(e.timeMs)}</td>
-      <td>${e.chosenText ? formatChoice(e.chosenText) : '—'}</td>
-      <td>${formatChoice(e.correctText)}</td>
-    </tr>`).join('');
-
-  resultBox.innerHTML = `
-    <h2>Сводка попытки</h2>
-    <div class="row">
-      <div class="badge">Всего: ${summary.total}</div>
-      <div class="badge ok">Верно: ${summary.correct}</div>
-      <div class="badge bad">Ошибок: ${summary.total - summary.correct}</div>
-      <div class="badge">Среднее: ${fmtTime(summary.avgMs)}</div>
-      <button id="btnAgain" class="primary">Ещё раз</button>
-      <button id="btnPick"  class="secondary">Выбрать темы</button>
-      <button id="btnCSV"   class="secondary">CSV</button>
-      <button id="btnJSON"  class="secondary">JSON</button>
-    </div>
-    <div class="progress"><div class="bar" style="width:${(summary.correct/Math.max(summary.total,1))*100}%"></div></div>
-    <div style="overflow:auto;margin-top:10px">
-      <table class="table">
-        <thead><tr><th>#</th><th>Тема</th><th>Статус</th><th>Время</th><th>Ваш ответ</th><th>Правильный</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-
-  if (quizBox) quizBox.style.display = 'none';
-  resultBox.style.display = 'block';
-  if (window.MathJax?.typesetPromise) MathJax.typesetPromise([resultBox]);
-
-  const btnCsv  = $id('btnCSV');
-  const btnJson = $id('btnJSON');
-  const btnAgain = $id('btnAgain');
-  const btnPick  = $id('btnPick');
-  btnCsv  && btnCsv.addEventListener('click', () => exportCSV(summary));
-  btnJson && btnJson.addEventListener('click', () => exportJSON(summary));
-  btnAgain && btnAgain.addEventListener('click', () => restartWithSameTopics());
-  btnPick  && btnPick.addEventListener('click',  () => {
-    try { localStorage.removeItem(STORAGE_V3); } catch {}
-    resultBox.style.display = 'none';
-    quizBox && (quizBox.style.display = 'none');
-    modalEl?.classList.remove('hidden');
-  });
+  try { localStorage.removeItem(STORAGE_V3); } catch(e){}
 }
 
+function htmlEscape(s){
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function exportCSV(summary){
-  const esc = s => '"' + String(s).replaceAll('"','""') + '"';
-  const head = ['#','topic','ok','time_ms','time','answer','correct','stem','seed','mode'];
-  const lines = [head.join(',')];
-  for (const e of summary.entries){
+  function esc(s){ return '"'+String(s).replace(/"/g,'""')+'"'; }
+  var head = ['#','topic','ok','time_ms','time','answer','correct','stem','seed','mode'];
+  var lines = [head.join(',')];
+  for (var i=0;i<summary.entries.length;i++){
+    var e = summary.entries[i];
     lines.push([
-      e.i, e.topic, e.ok ? 1 : 0, e.timeMs, fmtTime(e.timeMs),
-      e.chosenText || '', e.correctText || '', (e.stem || '').replaceAll('',' '),
+      e.i, e.topic, e.ok?1:0, e.timeMs, fmtTime(e.timeMs),
+      e.chosenText||'', e.correctText||'', (e.stem||'').replace(/\n/g,' '),
       summary.seed, summary.mode
     ].map(esc).join(','));
   }
-  const blob = new Blob([lines.join('')], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g,'-') + '.csv'; a.click();
-  URL.revokeObjectURL(a.href);
+  var blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'attempt_'+ new Date().toISOString().replace(/[:.]/g,'-') +'.csv';
+  a.click(); URL.revokeObjectURL(a.href);
 }
 function exportJSON(summary){
-  const blob = new Blob([JSON.stringify({ createdAt: new Date().toISOString(), ...summary }, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g,'-') + '.json'; a.click();
-  URL.revokeObjectURL(a.href);
+  var blob = new Blob([JSON.stringify({createdAt:new Date().toISOString(), summary:summary}, null, 2)], {type:'application/json'});
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'attempt_'+ new Date().toISOString().replace(/[:.]/g,'-') +'.json';
+  a.click(); URL.revokeObjectURL(a.href);
 }
 
-function persistV3(){
-  if (!session || !session.order) return;
-  const snap = { selectedTopics, filterTopicId, session: session.serialize() };
-  try { localStorage.setItem(STORAGE_V3, JSON.stringify(snap)); } catch {}
+function renderSummary(summary){
+  if (!resultBox) return;
+
+  var rows = '';
+  for (var i=0;i<summary.entries.length;i++){
+    var e = summary.entries[i];
+    rows += '<tr>'
+      + '<td>'+ e.i +'</td>'
+      + '<td>'+ htmlEscape(e.topic) +'</td>'
+      + '<td>'+ (e.ok?'<span class="ok">верно</span>':'<span class="bad">ошибка</span>') +'</td>'
+      + '<td>'+ fmtTime(e.timeMs) +'</td>'
+      + '<td>'+ htmlEscape(formatChoice(e.chosenText||'')) +'</td>'
+      + '<td>'+ htmlEscape(formatChoice(e.correctText||'')) +'</td>'
+      + '</tr>';
+  }
+
+  var pct = (summary.correct/Math.max(summary.total,1))*100;
+  resultBox.innerHTML =
+    '<h2>Сводка попытки</h2>'
+    + '<div class="row">'
+      + '<div class="badge">Всего: '+ summary.total +'</div>'
+      + '<div class="badge ok">Верно: '+ summary.correct +'</div>'
+      + '<div class="badge bad">Ошибок: '+ (summary.total-summary.correct) +'</div>'
+      + '<div class="badge">Среднее: '+ fmtTime(summary.avgMs) +'</div>'
+      + '<button id="btnAgain" class="primary">Ещё раз</button>'
+      + '<button id="btnPick"  class="secondary">Выбрать темы</button>'
+      + '<button id="btnCSV"   class="secondary">CSV</button>'
+      + '<button id="btnJSON"  class="secondary">JSON</button>'
+    + '</div>'
+    + '<div class="progress"><div class="bar" style="width:'+ pct +'%;"></div></div>'
+    + '<div style="overflow:auto;margin-top:10px">'
+      + '<table class="table">'
+        + '<thead><tr><th>#</th><th>Тема</th><th>Статус</th><th>Время</th><th>Ваш ответ</th><th>Правильный</th></tr></thead>'
+        + '<tbody>'+ rows +'</tbody>'
+      + '</table>'
+    + '</div>';
+
+  hide(quizBox);
+  show(resultBox);
+  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise([resultBox]);
+
+  on('btnCSV','click', function(){ exportCSV(summary); });
+  on('btnJSON','click', function(){ exportJSON(summary); });
+  on('btnAgain','click', function(){ restartWithSameTopics(); });
+  on('btnPick','click', function(){
+    try { localStorage.removeItem(STORAGE_V3); } catch(e){}
+    hide(resultBox); hide(quizBox); openTopics();
+  });
 }
 
-window.addEventListener('keydown', (e) => {
+async function restartWithSameTopics(){
+  try { localStorage.removeItem(STORAGE_V3); } catch(e){}
+  if (!selectedTopics || !selectedTopics.length){ openTopics(); return; }
+  await startNewSession(selectedTopics);
+  hide(resultBox); show(quizBox);
+}
+
+/* ------------------------------- Events --------------------------------- */
+// Темы/модалка
+on(btnTopics, 'click', function(){ openTopics(); });
+
+on(toggleAllBtn, 'click', function(){
+  allSelected = !allSelected;
+  for (var i=0;i<checkboxes.length;i++) checkboxes[i].checked = allSelected;
+  if (toggleAllBtn) toggleAllBtn.textContent = allSelected ? 'Сбросить все' : 'Выбрать все';
+  updateHint();
+});
+
+on(startBtn, 'click', async function(){
+  var picked = checkboxes.filter(function(cb){return cb.checked;}).map(function(cb){return cb.value;});
+  if (picked.length === 0){ alert('Выберите хотя бы одну тему'); return; }
+  closeTopics();
+  await startNewSession(picked);
+});
+
+// Навигация и действия
+on(btnPrev, 'click', function(){ gotoFiltered(-1); });
+on(btnNext, 'click', function(){ gotoFiltered(1); });
+on(btnClear,'click', function(){ session.clear(); render(); persistV3(); });
+on(btnPause,'click', function(){
+  if (session.isPaused()) session.resume(); else session.pause();
+  persistV3();
+});
+on(btnFinishTop,'click', finish);
+
+// Фильтр тем
+on(filterTopic,'change', function(){
+  filterTopicId = filterTopic ? filterTopic.value : '';
+  applyFilterAndRender();
+  persistV3();
+});
+
+// Горячие клавиши
+window.addEventListener('keydown', function(e){
   if (!session) return;
-  if (!modalEl?.classList.contains('hidden')) return;
+  if (modalEl && !modalEl.classList.contains('hidden')) return;
   if (resultBox && resultBox.style.display === 'block') return;
 
-  if (e.key === 'ArrowLeft') { e.preventDefault(); gotoFiltered(-1); }
-  else if (e.key === 'ArrowRight' || e.key === 'Enter') { e.preventDefault(); gotoFiltered(1); }
-  else if (e.key === 'Backspace' || e.key === '0') { e.preventDefault(); session.clear(); render(); persistV3(); }
-  else if (e.key.toLowerCase() === 'p') { e.preventDefault(); session.isPaused() ? session.resume() : session.pause(); persistV3(); }
-  else if (['1','2','3','4'].includes(e.key)) {
-    const idx = Number(e.key) - 1;
-    const v = session.currentView();
-    if (v && v.choices && v.choices[idx] != null) { session.select(idx); render(); persistV3(); }
+  if (e.key === 'ArrowLeft'){ e.preventDefault(); gotoFiltered(-1); }
+  else if (e.key === 'ArrowRight' || e.key === 'Enter'){ e.preventDefault(); gotoFiltered(1); }
+  else if (e.key === 'Backspace' || e.key === '0'){ e.preventDefault(); session.clear(); render(); persistV3(); }
+  else if (String(e.key).toLowerCase() === 'p'){ e.preventDefault(); session.isPaused()?session.resume():session.pause(); persistV3(); }
+  else if (['1','2','3','4'].indexOf(e.key) >= 0){
+    var idx = Number(e.key) - 1;
+    var v = session.currentView ? session.currentView() : null;
+    if (v && v.choices && v.choices[idx] != null){ session.select(idx); render(); persistV3(); }
   }
 });
 
-async function restartWithSameTopics(){
-  try { localStorage.removeItem(STORAGE_V3); } catch {}
-  if (!selectedTopics || !selectedTopics.length) {
-    modalEl?.classList.remove('hidden');
-    return;
-  }
-  await startNewSession(selectedTopics);
-  resultBox && (resultBox.style.display = 'none');
-  quizBox && (quizBox.style.display = 'block');
-}
-
-(async () => {
-  try {
-    const restored = await tryRestore();
+/* ------------------------------ Bootstrap -------------------------------- */
+(async function(){
+  try{
+    var restored = await tryRestore();
     if (!restored){
       await loadRegistry();
-      modalEl?.classList.remove('hidden');
+      openTopics();
     }
-  } catch (e) {
-    alert('Ошибка инициализации: ' + e.message);
-    try { localStorage.removeItem(STORAGE_V3); } catch {}
-    modalEl?.classList.remove('hidden');
+  }catch(e){
+    alert('Ошибка инициализации: '+ (e.message||e));
+    try { localStorage.removeItem(STORAGE_V3); } catch(_) {}
+    openTopics();
   }
 })();
