@@ -1,100 +1,128 @@
-/**
- * app/core/session.js
- * Состояние, навигация, тайминг, сериализация/восстановление.
- */
-function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
-export function createSession(opts){
-  const bank = opts.bank;
-  const order = opts.order.slice();
-  const views = opts.views.slice();
-  const seed = String(opts.seed);
-  const mode = opts.mode || 'practice';
 
-  const length = order.length;
-  const answers = Array.from({length}, ()=>null);
-  const timeSpent = Array.from({length}, ()=>0);
-  let current = 0;
+// app/core/session.js
+// Ядро сессии: таймер с восстановлением, учёт попыток, сериализация/восстановление
+
+export function createSession({ bank, order, views, seed, mode = 'practice' }) {
+  const N = order.length;
+  const answers = new Array(N).fill(null);
+  let curIndex = 0;
+  let _mode = mode;
+
+  // таймер
+  let elapsedMs = 0;
+  let lastTs = null;
   let paused = false;
-  let startedAt = 0;
-  let elapsed = 0;
-  let qStart = 0;
 
-  let changeCb = null;
-  let finishCb = null;
-  const emitChange = (t='change') => { if(typeof changeCb==='function') changeCb(t); };
-  const emitFinish = () => { if(typeof finishCb==='function') finishCb(); };
+  // время по вопросам
+  const timeMs = new Array(N).fill(0);
 
-  function startQuestion(now){ qStart = now||performance.now(); if(!startedAt) startedAt=qStart; }
-  function stopQuestion(now){
-    if(!qStart) return;
-    const t = now||performance.now();
-    timeSpent[current] += (t - qStart);
-    qStart = t;
+  // попытки
+  let attemptId = Date.now();
+  const answeredIn = new Array(N).fill(null);
+
+  // события
+  const listeners = new Set();
+  const notify = (type) => listeners.forEach(cb => { try { cb(type); } catch {} });
+  function onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); }
+
+  function currentView() { return views[curIndex]; }
+  function currentIndex() { return curIndex; }
+  function isPaused() { return !!paused; }
+
+  function tick(ts = performance.now()) {
+    if (!paused) {
+      if (lastTs == null) lastTs = ts;
+      else {
+        const dt = ts - lastTs;
+        elapsedMs += dt;
+        timeMs[curIndex] += dt;
+        lastTs = ts;
+      }
+    }
+    return elapsedMs;
   }
-  function select(idx){ if(idx==null) return; answers[current]=clamp(idx,0,3); emitChange('select'); }
-  function clear(){ answers[current]=null; emitChange('clear'); }
-  function goto(delta){
-    const pos = current + delta;
-    if(pos<0 || pos>=length) return false;
-    stopQuestion(performance.now());
-    current = pos;
-    startQuestion(performance.now());
-    emitChange('goto'); return true;
+
+  function pause() { tick(performance.now()); paused = true; lastTs = null; notify('pause'); }
+  function resume() { paused = false; lastTs = performance.now(); notify('resume'); }
+
+  function goto(delta) {
+    tick(performance.now());
+    let next = curIndex + delta;
+    if (next < 0) next = 0;
+    if (next >= N) next = N - 1;
+    if (next !== curIndex) {
+      curIndex = next;
+      lastTs = performance.now();
+      notify('goto');
+    }
   }
-  function canPrev(){ return current>0; }
-  function canNext(){ return current<length-1; }
-  function pause(now){
-    if(paused) return;
-    stopQuestion(now||performance.now());
-    elapsed += (now||performance.now()) - startedAt;
-    paused = true; emitChange('pause');
+
+  function select(choiceIdx) {
+    answers[curIndex] = choiceIdx;
+    answeredIn[curIndex] = attemptId;
+    notify('select');
   }
-  function resume(now){
-    if(!paused) return;
-    paused=false; startedAt=now||performance.now(); qStart=startedAt; emitChange('resume');
-  }
-  function isPaused(){ return paused; }
-  function currentIndex(){ return current; }
-  function currentView(){ return views[current]; }
-  function tick(now){ if(paused) return elapsed; const t=now||performance.now(); return elapsed + (startedAt ? (t-startedAt):0); }
-  function finish(){
-    stopQuestion(performance.now());
-    const entries = order.map((qid,i)=>{
-      const v=views[i]; const chosen=answers[i]; const ok = chosen!==null && chosen===v.correctIndex;
-      return { i:i+1, id:v.id, topic:v.topic, ok, timeMs:Math.round(timeSpent[i]), stem:v.stem,
-               chosenIndex:chosen, chosenText: chosen==null?null:v.choices[chosen],
-               correctIndex:v.correctIndex, correctText:v.choices[v.correctIndex] };
+
+  function clear() { answers[curIndex] = null; answeredIn[curIndex] = attemptId; notify('clear'); }
+
+  function finish() {
+    pause();
+    const entriesAll = order.map((qIdx, pos) => {
+      const v = views[pos];
+      const chosen = answers[pos];
+      const ok = (chosen === v.correct);
+      return {
+        i: pos + 1,
+        topic: bank[qIdx].topic,
+        ok,
+        timeMs: Math.round(timeMs[pos] || 0),
+        chosenIndex: chosen,
+        chosenText: chosen != null ? v.choices[chosen] : '',
+        correctIndex: v.correct,
+        correctText: v.choices[v.correct],
+        stem: v.stem,
+        attemptId: answeredIn[pos] || null,
+      };
     });
-    const total=entries.length, correct=entries.filter(e=>e.ok).length, incorrect=total-correct;
-    const avgMs = total ? Math.round(entries.reduce((s,e)=>s+e.timeMs,0)/total) : 0;
-    const summary = { seed, mode, total, correct, incorrect, avgMs, entries };
-    emitFinish(); return summary;
+    const entries = entriesAll.filter(e => e.attemptId === attemptId);
+    const total = entries.length;
+    const correct = entries.filter(e => e.ok).length;
+    const avgMs = total ? Math.round(entries.reduce((s,e)=>s+(e.timeMs||0),0)/total) : 0;
+    return { total, correct, incorrect: total - correct, avgMs, entries, seed, mode: _mode, attemptId };
   }
-  function serialize(){ return { v:3, seed, mode, order:order.slice(), answers:answers.slice(), timeSpent:timeSpent.slice(), current, paused, elapsed }; }
-  function restore(snap){
-    if(!snap) return;
-    const v = snap.v || 0;
-    if(v===2){
-      if(Array.isArray(snap.answers)) snap.answers.forEach((x,i)=>answers[i]=x);
-      if(Array.isArray(snap.timeSpent)) snap.timeSpent.forEach((x,i)=>timeSpent[i]=x);
-      if(typeof snap.current==='number') current = clamp(snap.current,0,length-1);
-      if(typeof snap.paused==='boolean') paused = snap.paused;
-      if(typeof snap.elapsedSession==='number') elapsed = snap.elapsedSession;
-      startedAt=0; qStart=0; emitChange('restore'); return;
-    }
-    if(v===3){
-      if(Array.isArray(snap.answers)) snap.answers.forEach((x,i)=>answers[i]=x);
-      if(Array.isArray(snap.timeSpent)) snap.timeSpent.forEach((x,i)=>timeSpent[i]=x);
-      if(typeof snap.current==='number') current = clamp(snap.current,0,length-1);
-      if(typeof snap.paused==='boolean') paused = snap.paused;
-      if(typeof snap.elapsed==='number') elapsed = snap.elapsed;
-      startedAt=0; qStart=0; emitChange('restore'); return;
-    }
+
+  function newAttempt() {
+    attemptId = Date.now();
+    for (let i=0;i<N;i++){ answers[i]=null; timeMs[i]=0; answeredIn[i]=null; }
+    curIndex = 0; elapsedMs = 0; lastTs = performance.now(); paused = false; notify('restart');
   }
-  function onChange(cb){ changeCb = cb; }
-  function onFinish(cb){ finishCb = cb; }
 
-  startQuestion(performance.now());
+  function serialize() {
+    return { v:3, seed, mode:_mode, order, curIndex, answers, elapsedMs, paused, timeMs, answeredIn, attemptId };
+  }
 
-  return { length, currentIndex, currentView, isPaused, goto, canPrev, canNext, select, clear, startQuestion, stopQuestion, pause, resume, tick, finish, serialize, restore, onChange, onFinish, seed, mode, order, views, answers, timeSpent };
+  function restore(snap) {
+    try {
+      if (typeof snap.curIndex === 'number') curIndex = Math.max(0, Math.min(N-1, snap.curIndex));
+      if (Array.isArray(snap.answers)) snap.answers.forEach((v,i)=>answers[i]=v);
+      elapsedMs = Number(snap.elapsedMs || 0);
+      paused = !!snap.paused;
+      if (Array.isArray(snap.timeMs)) snap.timeMs.forEach((v,i)=>timeMs[i]=Number(v||0));
+      if (Array.isArray(snap.answeredIn)) snap.answeredIn.forEach((v,i)=>answeredIn[i]=v);
+      attemptId = snap.attemptId || Date.now();
+      lastTs = paused ? null : performance.now();
+      notify('restore');
+    } catch(e){ console.warn('session.restore error:', e); }
+  }
+
+  return {
+    onChange,
+    currentIndex, currentView,
+    goto, select, clear,
+    isPaused, pause, resume,
+    tick, finish, newAttempt,
+    serialize, restore,
+    get order(){ return order; },
+    get seed(){ return seed; },
+  };
 }
