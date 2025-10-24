@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "topics": [
+    {
+      "id": "cylinder",
+      "title": "Цилиндр",
+      "pack": "topics/cylinder/questions.json",
+      "enabled": true,
+      "requiresMath": true
+    },
+    {
+      "id": "cone",
+      "title": "Конус",
+      "pack": "topics/cone/questions.json",
+      "enabled": true,
+      "requiresMath": true
+    },
+    {
+      "id": "prism",
+      "title": "Призма",
+      "pack": "topics/prism/questions.json",
+      "enabled": true,
+      "requiresMath": true
+    },
+    {
+      "id": "sphere",
+      "title": "Шар",
+      "pack": "topics/sphere/questions.json",
+      "enabled": true,
+      "requiresMath": true
+    },
+    {
+      "id": "circle",
+      "title": "Круг / Окружность",
+      "pack": "topics/circle/questions.json",
+      "enabled": true,
+      "requiresMath": true
+    }
+  ]
+}

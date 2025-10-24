@@ -1,0 +1,1 @@
+:root{--bg:#0f1115;--text:#e7eaf0}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui} .container{max-width:960px;margin:0 auto;padding:20px}

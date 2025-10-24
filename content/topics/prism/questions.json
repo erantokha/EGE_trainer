@@ -1,0 +1,25 @@
+{
+  "topic": "prism",
+  "questions": [
+    {
+      "id": "prism_vol",
+      "stem": "Объём прямой треугольной призмы равен",
+      "choices": [
+        "\\(V=P_{\\text{осн}}\\cdot h\\)",
+        "\\(V=S_{\\text{осн}}\\cdot h\\)",
+        "\\(V=\\tfrac12 P_{\\text{осн}}\\cdot h\\)",
+        "\\(V=2S_{\\text{осн}}\\cdot h\\)",
+        "\\(V=\\tfrac{S_{\\text{осн}}}{2h}\\)",
+        "\\(V=(S_{\\text{осн}}+P_{\\text{осн}})\\cdot h\\)",
+        "\\(\\pi r^2 h\\)",
+        "\\(\\tfrac{4}{3}\\pi r^3\\)"
+      ],
+      "answer": 1,
+      "tags": [
+        "призма",
+        "объём"
+      ],
+      "difficulty": 1
+    }
+  ]
+}
