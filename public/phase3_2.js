@@ -1,30 +1,27 @@
+
 // public/phase3_2.js
-// UI-слой: работа с ядром + безопасный рендер и надёжные обработчики
+// UI-слой: работа с ядром, сводка, рестарт без перезагрузки, корректный таймер и формулы
 
 import { createRng, randomSeed }       from '../app/core/random.js';
 import { buildOrder, buildViews }      from '../app/core/engine.js';
 import { createSession }               from '../app/core/session.js';
 import { assertValidBank }             from '../app/core/validators.js';
 
-// ---------------- DOM helpers ----------------
 const $id = (id) => document.getElementById(id);
 const $q  = (sel) => document.querySelector(sel);
-function onClick(target, handler) {
-  const el = typeof target === 'string' ? ($id(target) || $q(target)) : target;
-  if (el) el.addEventListener('click', handler);
-  else console.warn('onClick: элемент не найден:', target);
-  return el;
+function onClick(el, handler){
+  const node = typeof el === 'string' ? ($id(el) || $q(el)) : el;
+  if (node) node.addEventListener('click', handler);
+  else console.warn('No node for', el);
+  return node;
 }
 
-// ---------------- Корневые пути ----------------
-const ROOT         = new URL('../', location.href).href; // корень репо из /public/
+const ROOT         = new URL('../', location.href).href;
 const REGISTRY_URL = ROOT + 'content/index.json';
 
-// ---------------- Постоянные ключи ----------------
 const STORAGE_V3   = 'st_session_v3';
 const STORAGE_V2   = 'st_session_v2';
 
-// ---------------- Узлы интерфейса ----------------
 const modalEl      = $id('topicModal');
 const topicsEl     = $id('topics');
 const startBtn     = $id('startBtn');
@@ -32,8 +29,6 @@ const toggleAllBtn = $id('toggleAll');
 
 const btnTopics    = $id('btnTopics');
 const btnPause     = $id('btnPause');
-
-// «Завершить»: пробуем несколько селекторов — на случай разных версий верстки
 const btnFinishTop = $id('btnFinish') || $q('[data-action="finish"]') || $q('.btn-finish');
 
 const btnPrev      = $id('btnPrev');
@@ -51,7 +46,6 @@ const filterTopic  = $id('filterTopic');
 const toast        = $id('toast');
 const hint         = $id('hint');
 
-// ---------------- Утилиты ----------------
 const fmtTime = (ms) => {
   const t = Math.floor(ms || 0);
   const m = Math.floor(t / 60000);
@@ -60,37 +54,25 @@ const fmtTime = (ms) => {
   const pad = (n, w = 2) => String(n).padStart(w, '0');
   return `${pad(m)}:${pad(s)}.${pad(cs)}`;
 };
-const showToast = (msg) => { 
-  if (!toast) return;
-  toast.textContent = msg; 
-  toast.style.display = 'block'; 
-  setTimeout(() => (toast.style.display = 'none'), 1400); 
-};
 
-// Преобразуем вариант ответа в строку (защита от [object Object])
 function formatChoice(choice) {
   if (choice == null) return '';
   if (typeof choice === 'string') return choice;
-
-  // Частый кейс: {S:"...", V:"..."} — оформим красиво
+  if (typeof choice === 'object' && typeof choice.text === 'string') return choice.text;
   if (typeof choice === 'object' && ('S' in choice || 'V' in choice)) {
     const parts = [];
     if (choice.S != null) parts.push(`S = ${choice.S}`);
     if (choice.V != null) parts.push(`V = ${choice.V}`);
     return parts.join(', ');
   }
-  // Обобщённая сборка "ключ = значение"
   if (typeof choice === 'object') {
     try {
-      const parts = Object.entries(choice).map(([k, v]) => `${k} = ${v}`);
-      if (parts.length) return parts.join(', ');
+      return Object.entries(choice).map(([k,v]) => `${k} = ${v}`).join(', ');
     } catch {}
   }
-  // Запасной вариант
   return String(choice);
 }
 
-// ---------------- Состояние UI ----------------
 let registry = null;
 let checkboxes = [];
 let allSelected = false;
@@ -105,7 +87,6 @@ let tickInt = null;
 
 let selectedTopics = [];
 
-// ---------------- Модалка выбора тем ----------------
 btnTopics && btnTopics.addEventListener('click', () => modalEl?.classList.remove('hidden'));
 
 toggleAllBtn && toggleAllBtn.addEventListener('click', () => {
@@ -128,8 +109,7 @@ function updateHint() {
   hint.textContent = n === 0 ? 'Изначально ничего не выбрано' : `Выбрано тем: ${n}`;
 }
 
-// ---------------- Загрузка реестра ----------------
-async function loadRegistry() {
+async function loadRegistry(){
   const res = await fetch(REGISTRY_URL, { cache: 'no-store' });
   if (!res.ok) throw new Error('Не удалось загрузить content/index.json');
   registry = await res.json();
@@ -149,63 +129,42 @@ async function loadRegistry() {
   updateHint();
 }
 
-// ---------------- Старт новой сессии ----------------
-async function startNewSession(topicIds) {
+async function startNewSession(topicIds){
   selectedTopics = topicIds.slice();
-
-  // 1) Пакеты выбранных тем
   const selected = registry.topics.filter(t => topicIds.includes(t.id));
-  const packs = await Promise.all(
-    selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json()))
-  );
+  const packs = await Promise.all(selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json())));
   bank = packs.flatMap(p => p.questions.map(q => ({ ...q, topic: p.topic })));
 
-  // 2) Валидируем контент
   try { assertValidBank(bank); }
-  catch (e) {
-    alert(String(e.message || e));
-    modalEl?.classList.remove('hidden');
-    return;
-  }
+  catch(e){ alert(String(e.message || e)); modalEl?.classList.remove('hidden'); return; }
 
-  // 3) Генерация порядка/представлений
   seed = String(randomSeed());
   const rng   = createRng(seed);
   const order = buildOrder(bank, rng);
   const views = buildViews(bank, order, rng);
 
-  // 4) Сессия ядра
   session = createSession({ bank, order, views, seed, mode: 'practice' });
   bindSessionEvents();
   buildFilterSelect();
   applyFilterAndRender();
   startTick();
-
-  // 5) Персист
   persistV3();
 }
 
-// ---------------- Восстановление ----------------
-async function tryRestore() {
+async function tryRestore(){
   const rawV3 = localStorage.getItem(STORAGE_V3);
-  if (rawV3) {
-    try {
+  if (rawV3){
+    try{
       const snap = JSON.parse(rawV3);
-      if (!snap || !snap.session) throw new Error('bad snapshot');
-
       await loadRegistry();
       selectedTopics = snap.selectedTopics || [];
       const selected = registry.topics.filter(t => selectedTopics.includes(t.id));
-      const packs = await Promise.all(
-        selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json()))
-      );
+      const packs = await Promise.all(selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json())));
       bank = packs.flatMap(p => p.questions.map(q => ({ ...q, topic: p.topic })));
 
       seed = String(snap.session.seed || randomSeed());
-      const rng   = createRng(seed);
-      const order = Array.isArray(snap.session.order) ? snap.session.order.slice() : buildOrder(bank, rng);
-      const views = buildViews(bank, order, rng);
-
+      const order = snap.session.order || [];
+      const views = buildViews(bank, order, createRng(seed));
       session = createSession({ bank, order, views, seed, mode: snap.session.mode || 'practice' });
       session.restore(snap.session);
 
@@ -218,70 +177,26 @@ async function tryRestore() {
       modalEl?.classList.add('hidden');
       resultBox && (resultBox.style.display = 'none');
       quizBox && (quizBox.style.display = 'block');
-      showToast('Сессия восстановлена');
       return true;
-    } catch (e) {
-      console.warn('Restore v3 failed:', e);
-    }
+    }catch(e){ console.warn('Restore v3 failed', e); }
   }
-
-  // Совместимость со старой 3.2
-  const rawV2 = localStorage.getItem(STORAGE_V2);
-  if (rawV2) {
-    try {
-      const snap = JSON.parse(rawV2);
-      if (!snap) throw new Error('bad v2 snapshot');
-
-      await loadRegistry();
-      selectedTopics = snap.selectedTopics || [];
-      const selected = registry.topics.filter(t => selectedTopics.includes(t.id));
-      const packs = await Promise.all(
-        selected.map(t => fetch(ROOT + 'content/' + t.pack, { cache: 'no-store' }).then(r => r.json()))
-      );
-      bank = packs.flatMap(p => p.questions.map(q => ({ ...q, topic: p.topic })));
-
-      const order = snap.order || [];
-      const views = snap.views || [];
-      seed = 'legacy-v2';
-
-      session = createSession({ bank, order, views, seed, mode: 'practice' });
-      session.restore(snap); // путь v:2
-
-      bindSessionEvents();
-      buildFilterSelect();
-      filterTopicId = snap.filterTopicId || '';
-      applyFilterAndRender();
-      startTick();
-
-      modalEl?.classList.add('hidden');
-      resultBox && (resultBox.style.display = 'none');
-      quizBox && (quizBox.style.display = 'block');
-      showToast('Сессия восстановлена (v2)');
-      return true;
-    } catch (e) {
-      console.warn('Restore v2 failed:', e);
-    }
-  }
-
   return false;
 }
 
-// ---------------- Подписки ядра ----------------
-function bindSessionEvents() {
-  session.onChange((type) => {
-    if (type === 'pause' || type === 'resume') {
+function bindSessionEvents(){
+  session.onChange((type)=>{
+    if (type === 'pause' || type === 'resume'){
       if (btnPause) btnPause.textContent = session.isPaused() ? 'Продолжить' : 'Пауза';
       quizBox && quizBox.classList.toggle('paused', session.isPaused());
     }
-    if (type === 'goto' || type === 'select' || type === 'clear' || type === 'restore') {
+    if (type === 'goto' || type === 'select' || type === 'clear' || type === 'restore'){
       render();
     }
     persistV3();
   });
 }
 
-// ---------------- Фильтр ----------------
-function buildFilterSelect() {
+function buildFilterSelect(){
   if (!filterTopic) return;
   filterTopic.innerHTML = '<option value="">Все</option>';
   const uniq = [...new Set(session.order.map(i => bank[i].topic))];
@@ -291,26 +206,26 @@ function buildFilterSelect() {
     filterTopic.appendChild(opt);
   });
 }
-filterTopic && filterTopic.addEventListener('change', () => {
+filterTopic && filterTopic.addEventListener('change', ()=>{
   filterTopicId = filterTopic.value;
   applyFilterAndRender();
   persistV3();
 });
 
-function applyFilterAndRender() {
+function applyFilterAndRender(){
   visiblePositions = session.order
     .map((idx, pos) => ({ idx, pos }))
     .filter(x => !filterTopicId || bank[x.idx].topic === filterTopicId)
     .map(x => x.pos);
 
-  if (visiblePositions.length === 0) {
+  if (visiblePositions.length === 0){
     visiblePositions = session.order.map((_, i) => i);
     if (filterTopic) filterTopic.value = '';
     filterTopicId = '';
   }
 
   const cur = session.currentIndex();
-  if (!visiblePositions.includes(cur)) {
+  if (!visiblePositions.includes(cur)){
     const first = visiblePositions[0];
     session.goto(first - cur);
   }
@@ -320,34 +235,31 @@ function applyFilterAndRender() {
   render();
 }
 
-// ---------------- Рендер текущего вопроса ----------------
-function render() {
+function render(){
   const pos = session.currentIndex();
   const list = visiblePositions;
   const iInVisible = list.indexOf(pos);
   const total = list.length;
 
   if (qCounter) qCounter.textContent = `Вопрос ${iInVisible + 1} / ${total}`;
-  if (progressBar) progressBar.style.width = `${(iInVisible / Math.max(total, 1)) * 100}%`;
+  if (progressBar) progressBar.style.width = `${(iInVisible/Math.max(total,1))*100}%`;
 
   const view = session.currentView();
   if (stemEl) stemEl.innerHTML = view.stem || '';
 
-  if (optionsEl) {
+  if (optionsEl){
     optionsEl.innerHTML = '';
+    const snap = session.serialize();
     view.choices.forEach((ch, idx) => {
-      const text = formatChoice(ch); // защита от объектов
       const label = document.createElement('label'); label.className = 'option'; label.tabIndex = 0;
       const input = document.createElement('input'); input.type = 'radio'; input.name = 'opt'; input.value = String(idx);
-      const chosen = session.answers[pos];
-      if (chosen === idx) input.checked = true;
-      const span = document.createElement('span'); span.innerHTML = text;
+      const span  = document.createElement('span'); span.innerHTML = formatChoice(ch);
+      if (snap.answers[pos] === idx) input.checked = true;
       label.append(input, span);
       label.addEventListener('click', () => { session.select(idx); persistV3(); });
       optionsEl.appendChild(label);
     });
   }
-
   if (window.MathJax?.typesetPromise) MathJax.typesetPromise([stemEl, optionsEl]);
 
   if (btnPrev) btnPrev.disabled = iInVisible <= 0;
@@ -355,16 +267,13 @@ function render() {
   quizBox && quizBox.classList.toggle('paused', session.isPaused());
 }
 
-// ---------------- Навигация ----------------
-function gotoFiltered(delta) {
+function gotoFiltered(delta){
   const pos = session.currentIndex();
   const list = visiblePositions;
   const iInVisible = list.indexOf(pos);
   const nextPosInVisible = iInVisible + delta;
-
   if (nextPosInVisible < 0) return;
   if (nextPosInVisible >= list.length) { finish(); return; }
-
   const target = list[nextPosInVisible];
   session.goto(target - pos);
 }
@@ -372,58 +281,52 @@ onClick(btnPrev || '#btnPrev', () => gotoFiltered(-1));
 onClick(btnNext || '#btnNext', () => gotoFiltered(1));
 onClick(btnClear || '#btnClear', () => { session.clear(); render(); persistV3(); });
 
-// ---------------- Пауза/таймер ----------------
 onClick(btnPause || '#btnPause', () => {
   if (session.isPaused()) session.resume();
   else session.pause();
   persistV3();
 });
-function startTick() {
+
+function startTick(){
   if (tickInt) clearInterval(tickInt);
-  tickInt = setInterval(() => {
+  tickInt = setInterval(()=>{
     const ms = session ? session.tick(performance.now()) : 0;
     if (timerEl) timerEl.textContent = fmtTime(ms);
   }, 50);
 }
 
-// ---------------- Завершение ----------------
-function finish() {
-  // 1) Получаем сводку от ядра
+function finish(){
   const summary = session.finish();
   if (tickInt) clearInterval(tickInt);
-
-  // 2) Рисуем сводку немедленно (отправка — отдельно, чтобы не блокировать UI)
   renderSummary(summary);
-
-  // 3) Сбрасываем сохранённую сессию
   try { localStorage.removeItem(STORAGE_V3); } catch {}
 }
-onClick(btnFinishTop || '#btnFinish', finish);   // верхняя кнопка «Завершить»
-onClick('[data-action="finish"]', finish);       // запасной селектор, если используется дата-атрибут
+onClick(btnFinishTop || '#btnFinish', finish);
+onClick('[data-action="finish"]', finish);
 
-function renderSummary(summary) {
+function renderSummary(summary){
   if (!resultBox) return;
-
-  const rows = summary.entries.map(e =>
-    `<tr>
+  const rows = summary.entries.map(e => `
+    <tr>
       <td>${e.i}</td>
       <td>${e.topic}</td>
       <td>${e.ok ? '<span class="ok">верно</span>' : '<span class="bad">ошибка</span>'}</td>
       <td>${fmtTime(e.timeMs)}</td>
       <td>${e.chosenText ? formatChoice(e.chosenText) : '—'}</td>
       <td>${formatChoice(e.correctText)}</td>
-    </tr>`
-  ).join('');
+    </tr>`).join('');
 
   resultBox.innerHTML = `
     <h2>Сводка попытки</h2>
     <div class="row">
       <div class="badge">Всего: ${summary.total}</div>
       <div class="badge ok">Верно: ${summary.correct}</div>
-      <div class="badge bad">Ошибок: ${summary.incorrect}</div>
+      <div class="badge bad">Ошибок: ${summary.total - summary.correct}</div>
       <div class="badge">Среднее: ${fmtTime(summary.avgMs)}</div>
-      <button id="btnCSV" class="secondary">Экспорт CSV</button>
-      <button id="btnJSON" class="secondary">Экспорт JSON</button>
+      <button id="btnAgain" class="primary">Ещё раз</button>
+      <button id="btnPick"  class="secondary">Выбрать темы</button>
+      <button id="btnCSV"   class="secondary">CSV</button>
+      <button id="btnJSON"  class="secondary">JSON</button>
     </div>
     <div class="progress"><div class="bar" style="width:${(summary.correct/Math.max(summary.total,1))*100}%"></div></div>
     <div style="overflow:auto;margin-top:10px">
@@ -433,56 +336,54 @@ function renderSummary(summary) {
       </table>
     </div>`;
 
-  // Переключаем экраны
   if (quizBox) quizBox.style.display = 'none';
   resultBox.style.display = 'block';
-
-  // MathJax для сводки
   if (window.MathJax?.typesetPromise) MathJax.typesetPromise([resultBox]);
 
-  // Экспорт
   const btnCsv  = $id('btnCSV');
   const btnJson = $id('btnJSON');
+  const btnAgain = $id('btnAgain');
+  const btnPick  = $id('btnPick');
   btnCsv  && btnCsv.addEventListener('click', () => exportCSV(summary));
   btnJson && btnJson.addEventListener('click', () => exportJSON(summary));
+  btnAgain && btnAgain.addEventListener('click', () => restartWithSameTopics());
+  btnPick  && btnPick.addEventListener('click',  () => {
+    try { localStorage.removeItem(STORAGE_V3); } catch {}
+    resultBox.style.display = 'none';
+    quizBox && (quizBox.style.display = 'none');
+    modalEl?.classList.remove('hidden');
+  });
 }
 
-// ---------------- Экспорт ----------------
-function exportCSV(summary) {
-  const esc = s => '"' + String(s).replaceAll('"', '""') + '"';
-  const head = ['#', 'topic', 'ok', 'time_ms', 'time', 'answer', 'correct', 'stem', 'seed', 'mode'];
+function exportCSV(summary){
+  const esc = s => '"' + String(s).replaceAll('"','""') + '"';
+  const head = ['#','topic','ok','time_ms','time','answer','correct','stem','seed','mode'];
   const lines = [head.join(',')];
-  for (const e of summary.entries) {
+  for (const e of summary.entries){
     lines.push([
       e.i, e.topic, e.ok ? 1 : 0, e.timeMs, fmtTime(e.timeMs),
-      e.chosenText || '', e.correctText || '', (e.stem || '').replaceAll('\n', ' '),
+      e.chosenText || '', e.correctText || '', (e.stem || '').replaceAll('\n',' '),
       summary.seed, summary.mode
     ].map(esc).join(','));
   }
   const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g, '-') + '.csv'; a.click();
+  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g,'-') + '.csv'; a.click();
   URL.revokeObjectURL(a.href);
 }
-function exportJSON(summary) {
+function exportJSON(summary){
   const blob = new Blob([JSON.stringify({ createdAt: new Date().toISOString(), ...summary }, null, 2)], { type: 'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g, '-') + '.json'; a.click();
+  a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g,'-') + '.json'; a.click();
   URL.revokeObjectURL(a.href);
 }
 
-// ---------------- Персист ----------------
-function persistV3() {
+function persistV3(){
   if (!session) return;
-  const snap = {
-    selectedTopics,
-    filterTopicId,
-    session: session.serialize()
-  };
+  const snap = { selectedTopics, filterTopicId, session: session.serialize() };
   try { localStorage.setItem(STORAGE_V3, JSON.stringify(snap)); } catch {}
 }
 
-// ---------------- Хоткеи ----------------
 window.addEventListener('keydown', (e) => {
   if (!session) return;
   if (!modalEl?.classList.contains('hidden')) return;
@@ -494,16 +395,26 @@ window.addEventListener('keydown', (e) => {
   else if (e.key.toLowerCase() === 'p') { e.preventDefault(); session.isPaused() ? session.resume() : session.pause(); persistV3(); }
   else if (['1','2','3','4'].includes(e.key)) {
     const idx = Number(e.key) - 1;
-    const view = session.currentView();
-    if (view && view.choices[idx] != null) { session.select(idx); render(); persistV3(); }
+    const v = session.currentView();
+    if (v && v.choices[idx] != null) { session.select(idx); render(); persistV3(); }
   }
 });
 
-// ---------------- Инициализация ----------------
+async function restartWithSameTopics(){
+  try { localStorage.removeItem(STORAGE_V3); } catch {}
+  if (!selectedTopics || !selectedTopics.length) {
+    modalEl?.classList.remove('hidden');
+    return;
+  }
+  await startNewSession(selectedTopics);
+  resultBox && (resultBox.style.display = 'none');
+  quizBox && (quizBox.style.display = 'block');
+}
+
 (async () => {
   try {
     const restored = await tryRestore();
-    if (!restored) {
+    if (!restored){
       await loadRegistry();
       modalEl?.classList.remove('hidden');
     }
