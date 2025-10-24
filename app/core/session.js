@@ -65,31 +65,75 @@ export function createSession({ bank, order, views, seed, mode = 'practice' }) {
 
   function clear() { answers[curIndex] = null; answeredIn[curIndex] = attemptId; notify('clear'); }
 
+
   function finish() {
+    // финальный тик и пауза
     pause();
+
     const entriesAll = order.map((qIdx, pos) => {
       const v = views[pos];
       const chosen = answers[pos];
-      const ok = (chosen === v.correct);
+
+      // --- Определяем корректный индекс максимально надёжно ---
+      let corr = (typeof v.correct === 'number') ? v.correct : undefined;
+      if (typeof corr !== 'number' && Array.isArray(v.choices)) {
+        // 1) ищем по флагам в объектных вариантах
+        let idx = -1;
+        for (let k = 0; k < v.choices.length; k++) {
+          const ch = v.choices[k];
+          if (ch && typeof ch === 'object' &&
+             (ch.isCorrect === true || ch.correct === true || ch.true === true)) {
+            idx = k; break;
+          }
+        }
+        if (idx >= 0) corr = idx;
+      }
+      // 2) fallback по текстовым полям ответа
+      let corrText = undefined;
+      if (typeof corr === 'number' && v.choices && v.choices[corr] != null) {
+        corrText = v.choices[corr];
+      } else {
+        corrText = v.correctText ?? v.answer ?? v.solution ?? '';
+      }
+
+      // Вычисляем корректность
+      let ok = false;
+      if (chosen != null) {
+        if (typeof corr === 'number') ok = (chosen === corr);
+        else if (corrText != null && v.choices && v.choices[chosen] != null) {
+          // мягкое сравнение по тексту
+          const toStr = (x) => (typeof x === 'string') ? x : JSON.stringify(x);
+          ok = toStr(v.choices[chosen]) === toStr(corrText);
+        }
+      }
+
       return {
         i: pos + 1,
         topic: bank[qIdx].topic,
         ok,
         timeMs: Math.round(timeMs[pos] || 0),
         chosenIndex: chosen,
-        chosenText: chosen != null ? v.choices[chosen] : '',
-        correctIndex: v.correct,
-        correctText: v.choices[v.correct],
+        chosenText: chosen != null && v.choices ? v.choices[chosen] : '',
+        correctIndex: (typeof corr === 'number') ? corr : null,
+        correctText: corrText,
         stem: v.stem,
         attemptId: answeredIn[pos] || null,
       };
     });
+
     const entries = entriesAll.filter(e => e.attemptId === attemptId);
     const total = entries.length;
     const correct = entries.filter(e => e.ok).length;
-    const avgMs = total ? Math.round(entries.reduce((s,e)=>s+(e.timeMs||0),0)/total) : 0;
-    return { total, correct, incorrect: total - correct, avgMs, entries, seed, mode: _mode, attemptId };
+    const avgMs = total ? Math.round(entries.reduce((s, e) => s + (e.timeMs || 0), 0) / total) : 0;
+
+    return {
+      total, correct, incorrect: total - correct, avgMs,
+      entries,
+      seed, mode: _mode, attemptId,
+    };
   }
+
+  function newAttempt()  }
 
   function newAttempt() {
     attemptId = Date.now();
