@@ -387,8 +387,7 @@ function exportCSV(summary){
       summary.seed, summary.mode
     ].map(esc).join(','));
   }
-  const blob = new Blob([lines.join('
-')], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob([lines.join('')], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = 'attempt_' + new Date().toISOString().replace(/[:.]/g,'-') + '.csv'; a.click();
   URL.revokeObjectURL(a.href);
