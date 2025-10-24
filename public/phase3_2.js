@@ -383,8 +383,7 @@ function exportCSV(summary){
   for (const e of summary.entries){
     lines.push([
       e.i, e.topic, e.ok ? 1 : 0, e.timeMs, fmtTime(e.timeMs),
-      e.chosenText || '', e.correctText || '', (e.stem || '').replaceAll('
-',' '),
+      e.chosenText || '', e.correctText || '', (e.stem || '').replaceAll('',' '),
       summary.seed, summary.mode
     ].map(esc).join(','));
   }
