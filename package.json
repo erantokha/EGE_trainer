@@ -1,0 +1,8 @@
+{
+  "name": "ege-trainer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate:content": "node tools/validate-content.mjs --max-errors=200"
+  }
+}
