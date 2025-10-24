@@ -1,4 +1,85 @@
 {
   "topic": "cone",
-  "questions": []
+  "questions": [
+    {
+      "id": "cone_vol",
+      "stem": "Объём конуса равен",
+      "choices": [
+        "\\(\\pi r^2 h\\)",
+        "\\(\\tfrac12\\pi r^2 h\\)",
+        "\\(\\tfrac13\\pi r^2 h\\)",
+        "\\(\\tfrac23\\pi r^2 h\\)",
+        "\\(\\pi r l\\)",
+        "\\(\\tfrac{4}{3}\\pi r^3\\)",
+        "\\(\\pi r(h+l)\\)",
+        "\\(2\\pi r h\\)"
+      ],
+      "answer": 2,
+      "tags": [
+        "конус",
+        "объём"
+      ],
+      "difficulty": 1
+    },
+    {
+      "id": "cone_area_total",
+      "stem": "Полная площадь поверхности конуса равна",
+      "choices": [
+        "\\(\\pi r l + \\pi r^2\\)",
+        "\\(2\\pi r l + \\pi r^2\\)",
+        "\\(\\pi r(l+h)\\)",
+        "\\(\\pi r^2 h\\)",
+        "\\(2\\pi r(h+r)\\)",
+        "\\(\\pi r^2 + 2\\pi r h\\)",
+        "\\(\\pi r(l + r/2)\\)",
+        "\\(4\\pi r^2\\)"
+      ],
+      "answer": 0,
+      "tags": [
+        "конус",
+        "площадь"
+      ],
+      "difficulty": 1
+    },
+    {
+      "id": "cone_vol_formula",
+      "stem": "Формула объёма конуса:",
+      "choices": [
+        "\\(V=\\pi r^2\\cdot h\\)",
+        "\\(V=\\tfrac12\\,\\pi r^2\\cdot h\\)",
+        "\\(V=\\tfrac13\\,\\pi r^2\\cdot h\\)",
+        "\\(V=\\tfrac23\\,\\pi r^2\\cdot h\\)",
+        "\\(V=\\pi r^2\\cdot 2h\\)",
+        "\\(V=\\dfrac{\\pi r^2}{3h}\\)",
+        "\\(V=\\tfrac{4}{3}\\,\\pi r^2\\cdot h\\)",
+        "\\(V=\\pi r^2+h\\)"
+      ],
+      "answer": 2,
+      "tags": [
+        "конус",
+        "объём"
+      ],
+      "difficulty": 1
+    },
+    {
+      "id": "cone_area_formula",
+      "stem": "Формула полной площади поверхности конуса:",
+      "choices": [
+        "\\(S_{\\text{полн}}=\\pi r^2+\\pi r l\\)",
+        "\\(S_{\\text{полн}}=2\\pi r^2+\\pi r l\\)",
+        "\\(S_{\\text{полн}}=\\pi r^2+2\\pi r l\\)",
+        "\\(S_{\\text{полн}}=\\pi r l\\)",
+        "\\(S_{\\text{полн}}=\\pi r^2 l\\)",
+        "\\(S_{\\text{полн}}=2\\pi r(h+r)\\)",
+        "\\(S_{\\text{полн}}=\\pi r h+\\pi r^2\\)",
+        "\\(S_{\\text{полн}}=4\\pi r^2\\)"
+      ],
+      "answer": 0,
+      "tags": [
+        "конус",
+        "площадь"
+      ],
+      "difficulty": 1
+    }
+  ]
 }
