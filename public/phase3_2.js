@@ -1,539 +1,239 @@
-// public/phase3_2.js
-// Фаза 3.2 — стабильная версия без optional chaining и с безопасным восстановлением.
-// Завязки: app/core/random.js, app/core/engine.js, app/core/session.js, app/core/validators.js
-
+// public/phase3_2.js — Фаза 3.2 + отправка попыток (исправления по ревью)
 import { createRng, randomSeed } from '../app/core/random.js';
 import { buildOrder, buildViews } from '../app/core/engine.js';
 import { createSession } from '../app/core/session.js';
 import { assertValidBank } from '../app/core/validators.js';
 
-/* ----------------------------- DOM helpers ------------------------------ */
-function $(id) { return document.getElementById(id); }
-function q(sel) { return document.querySelector(sel); }
-function on(elOrSel, evt, fn) {
-  var el = typeof elOrSel === 'string' ? ( $(elOrSel) || q(elOrSel) ) : elOrSel;
-  if (el) el.addEventListener(evt, fn);
-  return el;
-}
-function show(el){ if (el) el.style.display = 'block'; }
-function hide(el){ if (el) el.style.display = 'none'; }
-function addClass(el, cls){ if (el && el.classList) el.classList.add(cls); }
-function removeClass(el, cls){ if (el && el.classList) el.classList.remove(cls); }
+import { CONFIG } from '../app/config.js';
+import { buildAttempt } from '../app/core/attempt.js';
+import * as store from '../app/providers/index.js';
 
-/* ------------------------------- Consts --------------------------------- */
-var ROOT         = new URL('../', location.href).href;
-var REGISTRY_URL = ROOT + 'content/index.json';
-var STORAGE_V3   = 'st_session_v3';
+function $(id){return document.getElementById(id)}
+function q(sel){return document.querySelector(sel)}
+function on(el,ev,fn){(typeof el==='string'?( $(el)||q(el) ):el).addEventListener(ev,fn)}
+function addClass(el,c){el&&el.classList&&el.classList.add(c)}
+function removeClass(el,c){el&&el.classList&&el.classList.remove(c)}
+function show(el){el&&(el.style.display='block')}
+function hide(el){el&&(el.style.display='none')}
 
-/* ------------------------- Static DOM references ------------------------ */
-var modalEl      = $('topicModal');
-var topicsEl     = $('topics');
-var startBtn     = $('startBtn');
-var toggleAllBtn = $('toggleAll');
+const ROOT = new URL('../', location.href).href;
+const REGISTRY_URL = ROOT + 'content/index.json';
+const STORAGE_V3 = 'st_session_v3';
 
-var btnTopics    = $('btnTopics');
-var btnPause     = $('btnPause');
-var btnFinishTop = $('btnFinish');
+const modalEl=$('topicModal'),topicsEl=$('topics'),startBtn=$('startBtn'),toggleAllBtn=$('toggleAll');
+const btnTopics=$('btnTopics'),btnPause=$('btnPause'),btnFinishTop=$('btnFinish');
+const btnPrev=$('btnPrev'),btnNext=$('btnNext'),btnClear=$('btnClear');
+const quizBox=$('quiz'),resultBox=$('summary'),stemEl=$('stem'),optionsEl=$('options'),qCounter=$('qCounter'),progressBar=$('progressBar'),timerEl=$('timer'),filterTopic=$('filterTopic'),hint=$('hint');
+const sendStatus=$('sendStatus'),btnStudent=$('btnStudent'),studentModal=$('studentModal'),studentNameI=$('studentName'),studentEmailI=$('studentEmail'),studentSave=$('studentSave'),studentCancel=$('studentCancel');
 
-var btnPrev      = $('btnPrev');
-var btnNext      = $('btnNext');
-var btnClear     = $('btnClear');
+let registry=null, bank=[], session=null, seed=null;
+let selectedTopics=[], filterTopicId='', visiblePositions=[], checkboxes=[], allSelected=false, tickInt=null;
+let startedAtMs=0;
 
-var quizBox      = $('quiz');
-var resultBox    = $('summary');
-var stemEl       = $('stem');
-var optionsEl    = $('options');
-var qCounter     = $('qCounter');
-var progressBar  = $('progressBar');
-var timerEl      = $('timer');
-var filterTopic  = $('filterTopic');
-var hint         = $('hint');
-
-/* ------------------------------- State ---------------------------------- */
-var registry        = null;          // content/index.json
-var bank            = [];            // сводный банк вопросов
-var session         = null;          // сессия ядра
-var seed            = null;          // seed этой попытки
-var selectedTopics  = [];            // выбраны в модалке
-var filterTopicId   = '';            // фильтр селектора
-var visiblePositions= [];            // массив позиций (индексов) в порядке
-var checkboxes      = [];
-var allSelected     = false;
-var tickInt         = null;
-
-/* ------------------------------ Utils ----------------------------------- */
-function fmtTime(ms){
-  var t = Math.max(0, Math.floor(ms||0));
-  var m = Math.floor(t/60000);
-  var s = Math.floor(t/1000)%60;
-  var cs= Math.floor((t%1000)/10);
-  function pad(n,w){ n=String(n); while(n.length<(w||2)) n='0'+n; return n; }
-  return pad(m)+':'+pad(s)+'.'+pad(cs);
-}
-
-// Унифицированное отображение пункта ответа
-function formatChoice(choice){
-  if (choice == null) return '';
-  if (typeof choice === 'string') return choice;
-  if (typeof choice === 'object' && typeof choice.text === 'string') return choice.text;
-  if (typeof choice === 'object' && ('S' in choice || 'V' in choice)) {
-    var parts = [];
-    if (choice.S != null) parts.push('S = '+choice.S);
-    if (choice.V != null) parts.push('V = '+choice.V);
-    return parts.join(', ');
-  }
-  try { return JSON.stringify(choice); } catch(e){ return String(choice); }
-}
-
-// Текущий порядок из сериализации (снаружи его нет)
-function getOrder(){
-  try {
-    if (!session || !session.serialize) return [];
-    var s = session.serialize();
-    return Array.isArray(s.order) ? s.order : [];
-  } catch(e){ return []; }
-}
+function fmtTime(ms){ms=Math.max(0,Math.floor(ms||0));const m=Math.floor(ms/6e4),s=Math.floor(ms/1e3)%60,cs=Math.floor(ms%1e3/10);const p=n=>('0'+n).slice(-2);return p(m)+':'+p(s)+'.'+p(cs)}
+function formatChoice(c){if(c==null)return'';if(typeof c==='string')return c;if(typeof c==='object'&&typeof c.text==='string')return c.text;if(typeof c==='object'&&('S'in c||'V'in c)){const a=[];if(c.S!=null)a.push('S = '+c.S);if(c.V!=null)a.push('V = '+c.V);return a.join(', ')}try{return JSON.stringify(c)}catch(_){return String(c)}}
+function getOrder(){try{const s=session&&session.serialize?session.serialize():null;return (s&&Array.isArray(s.order))?s.order:[]}catch(_){return[]}}
 
 /* ---------------------------- Modal / Topics ---------------------------- */
-function openTopics(){ removeClass(modalEl, 'hidden'); }
-function closeTopics(){ addClass(modalEl, 'hidden'); }
-
-function updateHint(){
-  if (!hint) return;
-  var n = checkboxes.filter(function(cb){ return cb.checked; }).length;
-  hint.textContent = n === 0 ? 'Изначально ничего не выбрано' : ('Выбрано тем: '+n);
+function openTopics(){
+  allSelected = false;
+  if (toggleAllBtn) toggleAllBtn.textContent = 'Выбрать все';
+  removeClass(modalEl,'hidden');
 }
-
+function closeTopics(){addClass(modalEl,'hidden')}
+function updateHint(){if(!hint)return;const n=checkboxes.filter(cb=>cb.checked).length;hint.textContent=n===0?'Изначально ничего не выбрано':('Выбрано тем: '+n)}
 function renderTopicsList(){
-  if (!topicsEl) return;
-  topicsEl.innerHTML = '';
-  checkboxes = [];
-  var list = (registry && registry.topics) ? registry.topics.filter(function(t){return t.enabled;}) : [];
-  for (var i=0;i<list.length;i++){
-    var t = list[i];
-    var label = document.createElement('label');
-    label.className = 'topic';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.value = t.id;
-    cb.addEventListener('change', updateHint);
-    var span = document.createElement('span');
-    span.textContent = t.title;
-    label.appendChild(cb);
-    label.appendChild(span);
-    topicsEl.appendChild(label);
-    checkboxes.push(cb);
-  }
+  if(!topicsEl)return; topicsEl.innerHTML=''; checkboxes=[];
+  const list=(registry&&registry.topics?registry.topics.filter(t=>t.enabled):[]);
+  list.forEach(t=>{
+    const label=document.createElement('label'); label.className='topic';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.value=t.id; cb.addEventListener('change',updateHint);
+    const span=document.createElement('span'); span.textContent=t.title;
+    label.appendChild(cb); label.appendChild(span); topicsEl.appendChild(label); checkboxes.push(cb);
+  });
   updateHint();
 }
 
 /* ------------------------- Loading content index ------------------------ */
 async function loadRegistry(){
-  var res = await fetch(REGISTRY_URL, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Не удалось загрузить content/index.json');
-  registry = await res.json();
+  const r=await fetch(REGISTRY_URL,{cache:'no-store'});
+  if(!r.ok) throw new Error('Не удалось загрузить content/index.json');
+  registry=await r.json();
   renderTopicsList();
 }
 
 /* ------------------------- Start / Restore session ---------------------- */
 async function startNewSession(topicIds){
-  selectedTopics = topicIds.slice();
-  // собираем банк
-  var enabled = registry.topics.filter(function(t){ return topicIds.indexOf(t.id) >= 0; });
-  var packs = await Promise.all(enabled.map(function(t){
-    return fetch(ROOT+'content/'+t.pack, {cache:'no-store'}).then(function(r){return r.json();});
+  selectedTopics=topicIds.slice();
+  const enabled=registry.topics.filter(t=>topicIds.includes(t.id));
+  const packs=await Promise.all(enabled.map(async (t)=>{
+    const data = await fetch(ROOT+'content/'+t.pack,{cache:'no-store'}).then(r=>r.json());
+    return { topicId: t.id, data };
   }));
-  bank = [];
-  for (var i=0;i<packs.length;i++){
-    var p = packs[i];
-    var qs = (p && p.questions) ? p.questions : [];
-    for (var j=0;j<qs.length;j++){
-      var q = qs[j];
-      var obj = {};
-      for (var k in q) obj[k] = q[k];
-      obj.topic = p.topic;
-      bank.push(obj);
-    }
-  }
-
-  // валидация банка
-  try { assertValidBank(bank); }
-  catch(e){ alert('Ошибка в вопросах: '+(e.message||e)); openTopics(); return; }
-
-  // построение порядка, представлений и сессии
-  seed = String(randomSeed());
-  var rng   = createRng(seed);
-  var order = buildOrder(bank, rng);
-  var views = buildViews(bank, order, rng);
-
-  if (!order || order.length === 0){
-    localStorage.removeItem(STORAGE_V3);
-    openTopics();
-    hide(quizBox);
-    return;
-  }
-
-  session = createSession({ bank: bank, order: order, views: views, seed: seed, mode: 'practice' });
-  bindSessionEvents();
-  buildFilterSelect();
-  applyFilterAndRender();
-  startTick();
-  persistV3();
+  bank=[];
+  packs.forEach(({topicId, data})=>{
+    (data.questions||[]).forEach(q=>{ bank.push({ ...q, topic: topicId }); });
+  });
+  try{assertValidBank(bank)}catch(e){alert('Ошибка в вопросах: '+(e.message||e)); openTopics(); return;}
+  seed=String(randomSeed()); const rng=createRng(seed);
+  const order=buildOrder(bank,rng); const views=buildViews(bank,order,rng);
+  if(!order||order.length===0){localStorage.removeItem(STORAGE_V3); openTopics(); hide(quizBox); return;}
+  session=createSession({bank,order,views,seed,mode:'practice'});
+  bindSessionEvents(); buildFilterSelect(); applyFilterAndRender(); startTick(); persistV3();
+  startedAtMs=Date.now(); updateSendStatus();
 }
 
 async function tryRestore(){
-  var raw = localStorage.getItem(STORAGE_V3);
-  if (!raw) return false;
+  const raw=localStorage.getItem(STORAGE_V3); if(!raw) return false;
   try{
-    var snap = JSON.parse(raw);
-    await loadRegistry();
-    selectedTopics = Array.isArray(snap.selectedTopics) ? snap.selectedTopics.slice() : [];
-    if (!selectedTopics.length) return false;
-
-    // восстановим банк по актуальному реестру
-    var enabled = registry.topics.filter(function(t){ return selectedTopics.indexOf(t.id) >= 0; });
-    var packs = await Promise.all(enabled.map(function(t){
-      return fetch(ROOT+'content/'+t.pack, {cache:'no-store'}).then(function(r){return r.json();});
+    const snap=JSON.parse(raw); await loadRegistry();
+    selectedTopics=Array.isArray(snap.selectedTopics)?snap.selectedTopics.slice():[]; if(!selectedTopics.length) return false;
+    const enabled=registry.topics.filter(t=>selectedTopics.includes(t.id));
+    const packs=await Promise.all(enabled.map(async (t)=>{
+      const data = await fetch(ROOT+'content/'+t.pack,{cache:'no-store'}).then(r=>r.json());
+      return { topicId: t.id, data };
     }));
-    bank = [];
-    for (var i=0;i<packs.length;i++){
-      var p = packs[i];
-      var qs = (p && p.questions) ? p.questions : [];
-      for (var j=0;j<qs.length;j++){
-        var q = qs[j]; var obj={};
-        for (var k in q) obj[k]=q[k];
-        obj.topic = p.topic;
-        bank.push(obj);
-      }
-    }
-
-    // собрать views заново по order из снапшота
-    var savedOrder = (snap.session && Array.isArray(snap.session.order)) ? snap.session.order : [];
-    if (!savedOrder.length) return false;
-
-    seed = String((snap.session && snap.session.seed) || randomSeed());
-    var views = buildViews(bank, savedOrder, createRng(seed));
-    session = createSession({ bank: bank, order: savedOrder, views: views, seed: seed, mode: (snap.session && snap.session.mode) || 'practice' });
-    session.restore(snap.session);
-
-    if (getOrder().length === 0) return false;
-
-    bindSessionEvents();
-    buildFilterSelect();
-    filterTopicId = snap.filterTopicId || '';
-    applyFilterAndRender();
-    startTick();
-
-    closeTopics();
-    hide(resultBox);
-    show(quizBox);
-    return true;
-  }catch(e){
-    console.warn('Restore failed', e);
-    return false;
-  }
+    bank=[];
+    packs.forEach(({topicId, data})=>{
+      (data.questions||[]).forEach(q=>{ bank.push({ ...q, topic: topicId }); });
+    });
+    const savedOrder=(snap.session&&Array.isArray(snap.session.order))?snap.session.order:[]; if(!savedOrder.length) return false;
+    seed=String((snap.session&&snap.session.seed)||randomSeed());
+    const views=buildViews(bank,savedOrder,createRng(seed));
+    session=createSession({bank,order:savedOrder,views,seed,mode:(snap.session&&snap.session.mode)||'practice'});
+    session.restore(snap.session); if(getOrder().length===0) return false;
+    bindSessionEvents(); buildFilterSelect(); filterTopicId=snap.filterTopicId||''; applyFilterAndRender(); startTick();
+    closeTopics(); hide(resultBox); show(quizBox); updateSendStatus(); return true;
+  }catch(e){console.warn('Restore failed',e); return false;}
 }
 
 /* ------------------------- UI wiring / rendering ------------------------ */
 function bindSessionEvents(){
-  // простая шина событий
-  session.onChange(function(type){
-    if (type === 'pause' || type === 'resume'){
-      if (btnPause) btnPause.textContent = session.isPaused() ? 'Продолжить' : 'Пауза';
-      if (quizBox) {
-        if (session.isPaused()) addClass(quizBox, 'paused'); else removeClass(quizBox, 'paused');
-      }
-    }
-    if (type === 'goto' || type === 'select' || type === 'clear' || type === 'restore'){
-      render();
-    }
+  session.onChange(type=>{
+    if(type==='pause'||type==='resume'){ btnPause.textContent=session.isPaused()?'Продолжить':'Пауза'; if(session.isPaused())addClass(quizBox,'paused');else removeClass(quizBox,'paused'); }
+    if(['goto','select','clear','restore'].includes(type)) render();
     persistV3();
   });
 }
-
 function buildFilterSelect(){
-  if (!filterTopic) return;
-  filterTopic.innerHTML = '<option value="">Все</option>';
-
-  var orderArr = getOrder();
-  var topicsSet = {};
-  for (var i=0;i<orderArr.length;i++){
-    var idx = orderArr[i];
-    var t = (bank[idx] && bank[idx].topic) || '';
-    if (t) topicsSet[t] = true;
-  }
-  var uniq = Object.keys(topicsSet);
-  for (var j=0;j<uniq.length;j++){
-    var opt = document.createElement('option');
-    opt.value = uniq[j];
-    opt.textContent = uniq[j];
-    filterTopic.appendChild(opt);
-  }
+  filterTopic.innerHTML='<option value="">Все</option>';
+  const orderArr=getOrder(); const set={};
+  orderArr.forEach(idx=>{const t=(bank[idx]&&bank[idx].topic)||''; if(t) set[t]=true;});
+  Object.keys(set).forEach(id=>{const o=document.createElement('option'); o.value=id; o.textContent=id; filterTopic.appendChild(o);});
 }
-
 function applyFilterAndRender(){
-  var orderArr = getOrder();
-
-  if (!session || orderArr.length === 0){
-    openTopics();
-    hide(quizBox);
-    return;
-  }
-
-  visiblePositions = [];
-  for (var i=0;i<orderArr.length;i++){
-    var idx = orderArr[i];
-    var tp = (bank[idx] && bank[idx].topic) || '';
-    if (!filterTopicId || tp === filterTopicId) visiblePositions.push(i);
-  }
-
-  // если фильтр дал пусто — сбросить на "Все"
-  if (visiblePositions.length === 0){
-    visiblePositions = [];
-    for (var j=0;j<orderArr.length;j++) visiblePositions.push(j);
-    if (filterTopic) filterTopic.value = '';
-    filterTopicId = '';
-  }
-
-  var cur = session.currentIndex();
-  var inList = false;
-  for (var k=0;k<visiblePositions.length;k++){ if (visiblePositions[k] === cur){ inList = true; break; } }
-  if (!inList && visiblePositions.length){
-    session.goto(visiblePositions[0] - cur);
-  }
-
-  hide(resultBox);
-  show(quizBox);
-  render();
+  const orderArr=getOrder(); if(!session||orderArr.length===0){ openTopics(); hide(quizBox); return; }
+  visiblePositions=[];
+  orderArr.forEach((idx,i)=>{const tp=(bank[idx]&&bank[idx].topic)||''; if(!filterTopicId||tp===filterTopicId) visiblePositions.push(i);});
+  if(visiblePositions.length===0){ visiblePositions = orderArr.map((_,i)=>i); filterTopic.value=''; filterTopicId=''; }
+  const cur=session.currentIndex(); if(!visiblePositions.includes(cur)&&visiblePositions.length){ session.goto(visiblePositions[0]-cur); }
+  hide(resultBox); show(quizBox); render();
 }
-
 function render(){
-  var orderArr = getOrder();
-  var pos = session.currentIndex();
-  var iInVisible = Math.max(0, visiblePositions.indexOf(pos));
-  var total = visiblePositions.length;
-
-  if (qCounter) qCounter.textContent = 'Вопрос '+ (Math.min(iInVisible+1, Math.max(total,1))) +' / '+ total;
-  if (progressBar) progressBar.style.width = (total ? (iInVisible/total)*100 : 0)+'%';
-
-  var view = session.currentView ? session.currentView() : null;
-  if (stemEl) stemEl.innerHTML = view && view.stem ? view.stem : '';
-
-  if (optionsEl){
-    optionsEl.innerHTML = '';
-    var snap = session.serialize ? session.serialize() : null;
-    var chosen = (snap && Array.isArray(snap.answers)) ? snap.answers[pos] : null;
-    var choices = (view && Array.isArray(view.choices)) ? view.choices : [];
-    for (var i=0;i<choices.length;i++){
-      var label = document.createElement('label');
-      label.className = 'option';
-      label.tabIndex = 0;
-      var input = document.createElement('input');
-      input.type = 'radio'; input.name = 'opt'; input.value = String(i);
-      if (chosen === i) input.checked = true;
-      var span = document.createElement('span');
-      span.innerHTML = formatChoice(choices[i]);
-      label.appendChild(input); label.appendChild(span);
-      (function(idx){
-        label.addEventListener('click', function(){ session.select(idx); persistV3(); });
-      })(i);
-      optionsEl.appendChild(label);
-    }
-  }
-  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise([stemEl, optionsEl]);
-
-  if (btnPrev) btnPrev.disabled = (visiblePositions.indexOf(pos) <= 0);
-  if (btnNext) btnNext.textContent = (visiblePositions.indexOf(pos) === total - 1 && total>0) ? 'К результатам' : 'Дальше';
-  if (quizBox) { if (session.isPaused && session.isPaused()) addClass(quizBox, 'paused'); else removeClass(quizBox, 'paused'); }
+  const orderArr=getOrder(); const pos=session.currentIndex(); const iInVisible=Math.max(0,visiblePositions.indexOf(pos)); const total=visiblePositions.length;
+  qCounter.textContent='Вопрос '+(Math.min(iInVisible+1,Math.max(total,1)))+' / '+total;
+  progressBar.style.width=(total?(iInVisible/total)*100:0)+'%';
+  const view=session.currentView?session.currentView():null;
+  stemEl.innerHTML=view&&view.stem?view.stem:'';
+  optionsEl.innerHTML='';
+  const snap=session.serialize?session.serialize():null; const chosen=(snap&&Array.isArray(snap.answers))?snap.answers[pos]:null;
+  (view&&Array.isArray(view.choices)?view.choices:[]).forEach((ch,i)=>{
+    const label=document.createElement('label'); label.className='option'; label.tabIndex=0;
+    const input=document.createElement('input'); input.type='radio'; input.name='opt'; input.value=String(i); if(chosen===i) input.checked=true;
+    const span=document.createElement('span'); span.innerHTML=formatChoice(ch); label.appendChild(input); label.appendChild(span);
+    label.addEventListener('click',()=>{session.select(i); persistV3(); render();});
+    optionsEl.appendChild(label);
+  });
+  if(window.MathJax&&window.MathJax.typesetPromise) window.MathJax.typesetPromise([stemEl,optionsEl]);
+  btnPrev.disabled=(visiblePositions.indexOf(pos)<=0);
+  btnNext.textContent=(visiblePositions.indexOf(pos)===total-1&&total>0)?'К результатам':'Дальше';
+  if(session.isPaused()) addClass(quizBox,'paused'); else removeClass(quizBox,'paused');
 }
-
-function gotoFiltered(delta){
-  var pos = session.currentIndex();
-  var iInVisible = visiblePositions.indexOf(pos);
-  var nextInVis = iInVisible + delta;
-  if (nextInVis < 0) return;
-  if (nextInVis >= visiblePositions.length){ finish(); return; }
-  var target = visiblePositions[nextInVis];
-  session.goto(target - pos);
+function gotoFiltered(d){
+  const pos=session.currentIndex(); const i=visiblePositions.indexOf(pos); const n=i+d;
+  if(n<0) return; if(n>=visiblePositions.length){ finish(); return; }
+  session.goto(visiblePositions[n]-pos);
 }
 
 /* -------------------------- Timer / Persistence ------------------------- */
-function startTick(){
-  if (tickInt) clearInterval(tickInt);
-  tickInt = setInterval(function(){
-    var ms = session ? session.tick(performance.now()) : 0;
-    if (timerEl) timerEl.textContent = fmtTime(ms);
-  }, 50);
-}
-
-function persistV3(){
-  if (!session || !session.serialize) return;
-  var snap = {
-    selectedTopics: selectedTopics.slice(),
-    filterTopicId: filterTopicId,
-    session: session.serialize()
-  };
-  try { localStorage.setItem(STORAGE_V3, JSON.stringify(snap)); } catch(e){}
-}
+function startTick(){ if(tickInt) clearInterval(tickInt); tickInt=setInterval(()=>{ const ms=session?session.tick(performance.now()):0; timerEl.textContent=fmtTime(ms); },50); }
+function persistV3(){ if(!session||!session.serialize) return; const snap={selectedTopics:[...selectedTopics], filterTopicId, session:session.serialize()}; localStorage.setItem(STORAGE_V3, JSON.stringify(snap)); }
 
 /* ----------------------------- Summary ---------------------------------- */
-function finish(){
-  if (!session) return;
-  var summary = session.finish();
-  if (tickInt) clearInterval(tickInt);
-  renderSummary(summary);
-  try { localStorage.removeItem(STORAGE_V3); } catch(e){}
-}
-
-function htmlEscape(s){
-  return String(s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
+function htmlEscape(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function exportCSV(summary){
-  function esc(s){ return '"'+String(s).replace(/"/g,'""')+'"'; }
-  var head = ['#','topic','ok','time_ms','time','answer','correct','stem','seed','mode'];
-  var lines = [head.join(',')];
-  for (var i=0;i<summary.entries.length;i++){
-    var e = summary.entries[i];
-    lines.push([
-      e.i, e.topic, e.ok?1:0, e.timeMs, fmtTime(e.timeMs),
-      e.chosenText||'', e.correctText||'', (e.stem||'').replace(/\n/g,' '),
-      summary.seed, summary.mode
-    ].map(esc).join(','));
-  }
-  var blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
-  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_'+ new Date().toISOString().replace(/[:.]/g,'-') +'.csv';
-  a.click(); URL.revokeObjectURL(a.href);
+  const head=['#','topic','ok','time_ms','time','answer','correct','stem','seed','mode'];
+  const rows=[head.join(',')];
+  summary.entries.forEach(e=>rows.push([''+e.i,e.topic,e.ok?1:0,e.timeMs,fmtTime(e.timeMs),e.chosenText||'',e.correctText||'',(e.stem||'').replace(/\n/g,' '),summary.seed,summary.mode].map(x=>`"${String(x).replace(/"/g,'""')}"`).join(',')));
+  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='attempt_'+new Date().toISOString().replace(/[:.]/g,'-')+'.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
-function exportJSON(summary){
-  var blob = new Blob([JSON.stringify({createdAt:new Date().toISOString(), summary:summary}, null, 2)], {type:'application/json'});
-  var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
-  a.download = 'attempt_'+ new Date().toISOString().replace(/[:.]/g,'-') +'.json';
-  a.click(); URL.revokeObjectURL(a.href);
-}
+function exportJSON(summary){ const blob=new Blob([JSON.stringify({createdAt:new Date().toISOString(),summary},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='attempt_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json'; a.click(); URL.revokeObjectURL(a.href); }
 
 function renderSummary(summary){
-  if (!resultBox) return;
+  let rows=''; summary.entries.forEach(e=>{ rows+=`<tr><td>${e.i}</td><td>${htmlEscape(e.topic)}</td><td>${e.ok?'<span class="ok">верно</span>':'<span class="bad">ошибка</span>'}</td><td>${fmtTime(e.timeMs)}</td><td>${htmlEscape(formatChoice(e.chosenText||''))}</td><td>${htmlEscape(formatChoice(e.correctText||''))}</td></tr>`; });
+  const pct=(summary.correct/Math.max(summary.total,1))*100;
+  resultBox.innerHTML=`
+    <h2>Сводка попытки</h2>
+    <div class="row">
+      <div class="badge">Всего: ${summary.total}</div>
+      <div class="badge ok">Верно: ${summary.correct}</div>
+      <div class="badge bad">Ошибок: ${summary.total-summary.correct}</div>
+      <div class="badge">Среднее: ${fmtTime(summary.avgMs)}</div>
+      <button id="btnAgain" class="btn">Ещё раз</button>
+      <button id="btnPick" class="btn secondary">Выбрать темы</button>
+      <button id="btnCSV" class="btn secondary">CSV</button>
+      <button id="btnJSON" class="btn secondary">JSON</button>
+    </div>
+    <div class="bar"><div class="bar" style="height:6px"><div class="bar" style="width:${pct}%;background:#22c55e;height:6px"></div></div></div>
+    <div style="overflow:auto;margin-top:10px">
+      <table class="table">
+        <thead><tr><th>#</th><th>Тема</th><th>Статус</th><th>Время</th><th>Ваш ответ</th><th>Правильный</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  hide(quizBox); show(resultBox); if(window.MathJax&&window.MathJax.typesetPromise) window.MathJax.typesetPromise([resultBox]);
+  on('btnCSV','click',()=>exportCSV(summary));
+  on('btnJSON','click',()=>exportJSON(summary));
+  on('btnAgain','click',()=>restartWithSameTopics());
+  on('btnPick','click',()=>{localStorage.removeItem(STORAGE_V3); hide(resultBox); hide(quizBox); openTopics();});
 
-  var rows = '';
-  for (var i=0;i<summary.entries.length;i++){
-    var e = summary.entries[i];
-    rows += '<tr>'
-      + '<td>'+ e.i +'</td>'
-      + '<td>'+ htmlEscape(e.topic) +'</td>'
-      + '<td>'+ (e.ok?'<span class="ok">верно</span>':'<span class="bad">ошибка</span>') +'</td>'
-      + '<td>'+ fmtTime(e.timeMs) +'</td>'
-      + '<td>'+ htmlEscape(formatChoice(e.chosenText||'')) +'</td>'
-      + '<td>'+ htmlEscape(formatChoice(e.correctText||'')) +'</td>'
-      + '</tr>';
-  }
-
-  var pct = (summary.correct/Math.max(summary.total,1))*100;
-  resultBox.innerHTML =
-    '<h2>Сводка попытки</h2>'
-    + '<div class="row">'
-      + '<div class="badge">Всего: '+ summary.total +'</div>'
-      + '<div class="badge ok">Верно: '+ summary.correct +'</div>'
-      + '<div class="badge bad">Ошибок: '+ (summary.total-summary.correct) +'</div>'
-      + '<div class="badge">Среднее: '+ fmtTime(summary.avgMs) +'</div>'
-      + '<button id="btnAgain" class="primary">Ещё раз</button>'
-      + '<button id="btnPick"  class="secondary">Выбрать темы</button>'
-      + '<button id="btnCSV"   class="secondary">CSV</button>'
-      + '<button id="btnJSON"  class="secondary">JSON</button>'
-    + '</div>'
-    + '<div class="progress"><div class="bar" style="width:'+ pct +'%;"></div></div>'
-    + '<div style="overflow:auto;margin-top:10px">'
-      + '<table class="table">'
-        + '<thead><tr><th>#</th><th>Тема</th><th>Статус</th><th>Время</th><th>Ваш ответ</th><th>Правильный</th></tr></thead>'
-        + '<tbody>'+ rows +'</tbody>'
-      + '</table>'
-    + '</div>';
-
-  hide(quizBox);
-  show(resultBox);
-  if (window.MathJax && window.MathJax.typesetPromise) window.MathJax.typesetPromise([resultBox]);
-
-  on('btnCSV','click', function(){ exportCSV(summary); });
-  on('btnJSON','click', function(){ exportJSON(summary); });
-  on('btnAgain','click', function(){ restartWithSameTopics(); });
-  on('btnPick','click', function(){
-    try { localStorage.removeItem(STORAGE_V3); } catch(e){}
-    hide(resultBox); hide(quizBox); openTopics();
-  });
+  (function(){
+    const sMeta=session.serialize?session.serialize():{};
+    const duration=(typeof sMeta.elapsedMs==='number' ? sMeta.elapsedMs : (startedAtMs? (Date.now()-startedAtMs) : 0));
+    const student=ensureStudent();
+    const attempt=buildAttempt(summary,{topicIds:[...selectedTopics],seed,startedAt:(startedAtMs?new Date(startedAtMs).toISOString():null),finishedAt:new Date().toISOString(),durationMs:duration},student);
+    store.save(attempt).then(res=>{ if(res.status==='ok') updateSendStatus('Отправлено','ok'); else updateSendStatus('В очереди: '+store.getQueueSize(),'warn'); }).catch(()=>updateSendStatus('Ошибка отправки','err'));
+  })();
 }
+function finish(){ if(!session) return; const summary=session.finish(); if(tickInt) clearInterval(tickInt); renderSummary(summary); localStorage.removeItem(STORAGE_V3); }
 
-async function restartWithSameTopics(){
-  try { localStorage.removeItem(STORAGE_V3); } catch(e){}
-  if (!selectedTopics || !selectedTopics.length){ openTopics(); return; }
-  await startNewSession(selectedTopics);
-  hide(resultBox); show(quizBox);
-}
+function getStudent(){ try{return JSON.parse(localStorage.getItem(CONFIG.app.studentKey)||'{}')}catch(_){return{}} }
+function setStudent(s){ try{localStorage.setItem(CONFIG.app.studentKey, JSON.stringify(s||{}));}catch(_){ } }
+function ensureStudent(){ let s=getStudent(); if(!s||!s.id){ const src=(s.name||'')+'|'+(s.email||'')+'|'+navigator.userAgent+'|'+Date.now(); const id='u_'+(Math.abs(hashCode(src))>>>0).toString(36); s={id,name:(s.name||''),email:(s.email||'')}; s.id=id; setStudent(s);} return s;}
+function hashCode(str){let h=0;for(let i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}return h}
+function updateSendStatus(msg,kind){const queued=store.getQueueSize?store.getQueueSize():0; const text=msg|| (queued>0?('В очереди: '+queued):(store.isEnabled()?'Готово':'Offline only')); let cls='pill'; cls+=kind==='ok'?' pill-ok':kind==='warn'?' pill-warn':kind==='err'?' pill-err':' pill-muted'; if(sendStatus){sendStatus.className=cls; sendStatus.textContent=text; sendStatus.style.display='inline-block'; sendStatus.title=text;}}
 
-/* ------------------------------- Events --------------------------------- */
-// Темы/модалка
-on(btnTopics, 'click', function(){ openTopics(); });
+on(btnTopics,'click',openTopics);
+on(toggleAllBtn,'click',()=>{allSelected=!allSelected; checkboxes.forEach(cb=>cb.checked=allSelected); toggleAllBtn.textContent=allSelected?'Сбросить все':'Выбрать все'; updateHint();});
+on(startBtn,'click',async()=>{const picked=checkboxes.filter(cb=>cb.checked).map(cb=>cb.value); if(!picked.length){alert('Выберите хотя бы одну тему');return;} closeTopics(); await startNewSession(picked);});
+on(btnPrev,'click',()=>gotoFiltered(-1)); on(btnNext,'click',()=>gotoFiltered(1)); on(btnClear,'click',()=>{session.clear(); render(); persistV3();});
+on(btnPause,'click',()=>{session.isPaused()?session.resume():session.pause(); persistV3();}); on(btnFinishTop,'click',finish);
+on(filterTopic,'change',()=>{filterTopicId=filterTopic.value; applyFilterAndRender(); persistV3();});
+window.addEventListener('keydown',e=>{ if(!session) return; if(!modalEl.classList.contains('hidden')) return; if(resultBox.style.display==='block') return;
+  if(e.key==='ArrowLeft'){e.preventDefault();gotoFiltered(-1);} else if(e.key==='ArrowRight'||e.key==='Enter'){e.preventDefault();gotoFiltered(1);} else if(e.key==='Backspace'||e.key==='0'){e.preventDefault();session.clear();render();persistV3();} else if(String(e.key).toLowerCase()==='p'){e.preventDefault();session.isPaused()?session.resume():session.pause();persistV3();} else if(['1','2','3','4'].includes(e.key)){const idx=Number(e.key)-1; const v=session.currentView?session.currentView():null; if(v&&v.choices&&v.choices[idx]!=null){session.select(idx); render(); persistV3();}}});
+on(btnStudent,'click',()=>{const s=getStudent(); studentNameI.value=s.name||''; studentEmailI.value=s.email||''; removeClass(studentModal,'hidden');});
+on(studentSave,'click',()=>{let s=getStudent(); s.name=(studentNameI.value||'').trim(); s.email=(studentEmailI.value||'').trim(); if(!s.id) s.id='u_'+(Math.abs(hashCode(s.name+s.email+Date.now()))>>>0).toString(36); setStudent(s); addClass(studentModal,'hidden'); updateSendStatus();});
+on(studentCancel,'click',()=>addClass(studentModal,'hidden'));
+window.addEventListener('online',()=>{ if(store.flush) store.flush().then(()=>updateSendStatus()); });
 
-on(toggleAllBtn, 'click', function(){
-  allSelected = !allSelected;
-  for (var i=0;i<checkboxes.length;i++) checkboxes[i].checked = allSelected;
-  if (toggleAllBtn) toggleAllBtn.textContent = allSelected ? 'Сбросить все' : 'Выбрать все';
-  updateHint();
-});
-
-on(startBtn, 'click', async function(){
-  var picked = checkboxes.filter(function(cb){return cb.checked;}).map(function(cb){return cb.value;});
-  if (picked.length === 0){ alert('Выберите хотя бы одну тему'); return; }
-  closeTopics();
-  await startNewSession(picked);
-});
-
-// Навигация и действия
-on(btnPrev, 'click', function(){ gotoFiltered(-1); });
-on(btnNext, 'click', function(){ gotoFiltered(1); });
-on(btnClear,'click', function(){ session.clear(); render(); persistV3(); });
-on(btnPause,'click', function(){
-  if (session.isPaused()) session.resume(); else session.pause();
-  persistV3();
-});
-on(btnFinishTop,'click', finish);
-
-// Фильтр тем
-on(filterTopic,'change', function(){
-  filterTopicId = filterTopic ? filterTopic.value : '';
-  applyFilterAndRender();
-  persistV3();
-});
-
-// Горячие клавиши
-window.addEventListener('keydown', function(e){
-  if (!session) return;
-  if (modalEl && !modalEl.classList.contains('hidden')) return;
-  if (resultBox && resultBox.style.display === 'block') return;
-
-  if (e.key === 'ArrowLeft'){ e.preventDefault(); gotoFiltered(-1); }
-  else if (e.key === 'ArrowRight' || e.key === 'Enter'){ e.preventDefault(); gotoFiltered(1); }
-  else if (e.key === 'Backspace' || e.key === '0'){ e.preventDefault(); session.clear(); render(); persistV3(); }
-  else if (String(e.key).toLowerCase() === 'p'){ e.preventDefault(); session.isPaused()?session.resume():session.pause(); persistV3(); }
-  else if (['1','2','3','4'].indexOf(e.key) >= 0){
-    var idx = Number(e.key) - 1;
-    var v = session.currentView ? session.currentView() : null;
-    if (v && v.choices && v.choices[idx] != null){ session.select(idx); render(); persistV3(); }
-  }
-});
-
-/* ------------------------------ Bootstrap -------------------------------- */
 (async function(){
   try{
-    var restored = await tryRestore();
-    if (!restored){
-      await loadRegistry();
-      openTopics();
-    }
+    const restored=await tryRestore();
+    if(!restored){ await loadRegistry(); openTopics(); }
+    updateSendStatus();
   }catch(e){
-    alert('Ошибка инициализации: '+ (e.message||e));
-    try { localStorage.removeItem(STORAGE_V3); } catch(_) {}
+    alert('Ошибка инициализации: '+(e.message||e));
+    localStorage.removeItem(STORAGE_V3);
     openTopics();
   }
 })();
