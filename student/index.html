@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Мои результаты</title>
+  <!-- Используем общую тёмную тему админки для единообразия -->
+  <link rel="stylesheet" href="../admin/admin.css">
+  <style>
+    .metrics{display:grid;grid-template-columns:1fr;gap:10px}
+    @media (min-width:900px){ .metrics{grid-template-columns:repeat(4,1fr)} }
+    .metric{background:#0b0f14;border:1px solid var(--border);border-radius:10px;padding:12px}
+    .metric h4{margin:0 0 6px 0;font-size:14px;color:#9ca3af}
+    .metric .val{font-size:20px;font-weight:600}
+    .topic-list{display:grid;grid-template-columns:1fr;gap:8px}
+    @media (min-width:900px){ .topic-list{grid-template-columns:1fr 1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="brand">🎓 Мои результаты</div>
+      <div class="header-actions">
+        <span id="status" class="pill pill-muted">—</span>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2>Код ученика</h2>
+      <p class="muted">Этот код формируется в тренажёре при первом запуске и хранится в браузере. Его видно в админке у каждой попытки.</p>
+      <div class="row">
+        <input id="studentId" class="input" placeholder="например: u_ab12cd" />
+        <button id="btnSave" class="btn">Запомнить</button>
+        <button id="btnLoadLocal" class="btn secondary">Подставить из тренажёра</button>
+      </div>
+      <p id="hint" class="muted"></p>
+    </section>
+
+    <section id="summary" class="panel hidden">
+      <h2>Итоговая статистика</h2>
+      <div class="metrics">
+        <div class="metric"><h4>Всего верно / из всех</h4><div class="val"><span id="mTotalOk">0</span> / <span id="mTotalAll">0</span></div></div>
+        <div class="metric"><h4>Точность</h4><div class="val" id="mAccuracy">0%</div></div>
+        <div class="metric"><h4>Последние 10: верно / ошибки</h4><div class="val"><span id="mLastOk">0</span> / <span id="mLastErr">0</span></div></div>
+        <div class="metric"><h4>Среднее время (последние 10)</h4><div class="val" id="mLastAvg">00:00</div></div>
+      </div>
+    </section>
+
+    <section id="topicsSec" class="panel hidden">
+      <h3>Точность по темам</h3>
+      <div id="topicsList" class="topic-list"></div>
+    </section>
+
+    <section id="tableSec" class="panel hidden">
+      <div class="row" style="gap:10px;margin-bottom:6px">
+        <button id="exportCSV" class="btn secondary">Экспорт CSV</button>
+        <button id="exportJSON" class="btn secondary">Экспорт JSON</button>
+        <span id="countInfo" class="pill pill-muted">—</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="t">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Имя</th>
+              <th>Темы</th>
+              <th>Верно</th>
+              <th>Всего</th>
+              <th>%</th>
+              <th>Среднее</th>
+              <th>Длит.</th>
+              <th>Дата</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="../public/" target="_blank">↗ Открыть тренажёр</a>
+    </footer>
+  </div>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Наш код -->
+  <script type="module" src="./student.js"></script>
+</body>
+</html>
