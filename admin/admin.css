@@ -1,0 +1,47 @@
+/* admin/admin.css */
+:root{
+  --bg:#0f1115; --panel:#111827; --muted:#9ca3af; --text:#e5e7eb;
+  --border:#1f2937; --accent:#2563eb; --accent-2:#60a5fa;
+  --ok:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+.wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+
+.header{display:flex;justify-content:space-between;align-items:center;margin:8px 0 16px}
+.brand{font-size:20px;font-weight:600}
+.header-actions{display:flex;gap:8px;align-items:center}
+
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px;margin:12px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:900px){ .grid{grid-template-columns:1fr 1fr} }
+.card{background:#0b0f14;border:1px solid var(--border);border-radius:10px;padding:10px}
+
+.input{background:#0b0f14;border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;min-width:160px}
+.input:focus{outline:2px solid #2a55ff}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.grow{flex:1}
+
+.btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 12px;cursor:pointer}
+.btn.secondary{background:#374151}
+.btn.danger{background:#8b0000}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+
+.pill{padding:2px 8px;border-radius:999px;border:1px solid var(--border);font-size:12px;color:#bbb}
+.pill-ok{background:#103d19;color:#7dff9b;border:1px solid #2a8f4a}
+.pill-warn{background:#3d2a10;color:#ffd27d;border:1px solid #8f6a2a}
+.pill-err{background:#3d1010;color:#ff9b9b;border:1px solid #8f2a2a}
+.pill-muted{background:#222;color:#bbb;border:1px solid #444}
+
+.table-wrap{overflow:auto}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:8px;border-top:1px solid var(--border);text-align:left;white-space:nowrap}
+.table thead th{position:sticky;top:0;background:#0f1218;z-index:1}
+.muted{color:var(--muted)}
+.hidden{display:none}
+
+.footer{margin:40px 0 20px;opacity:.75}
+
+.auth-row .input{min-width:260px}
+.pager{justify-content:flex-end;gap:8px;margin-top:12px}

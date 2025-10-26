@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Аналитика — Админка</title>
+  <link rel="stylesheet" href="./admin.css">
+  <!-- Chart.js (опционально, для графиков) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <div class="brand">📊 Аналитика</div>
+      <div class="header-actions">
+        <span id="authStatus" class="pill pill-muted">Гость</span>
+        <button id="btnSignIn" class="btn secondary">Войти</button>
+        <button id="btnSignOut" class="btn danger hidden">Выйти</button>
+      </div>
+    </header>
+
+    <!-- Блок авторизации по e-mail (magic link) -->
+    <section id="authBlock" class="panel">
+      <h2>Вход для учителей</h2>
+      <p class="muted">Укажите e-mail, на который придёт ссылка входа (magic link).</p>
+      <div class="row auth-row">
+        <input id="email" type="email" placeholder="name@school.ru" class="input" />
+        <button id="sendMagic" class="btn">Отправить ссылку</button>
+      </div>
+      <p id="authHint" class="muted"></p>
+    </section>
+
+    <!-- Панель фильтров -->
+    <section id="filters" class="panel hidden">
+      <div class="row">
+        <div class="field">
+          <label>С даты</label>
+          <input id="fromDate" type="date" class="input">
+        </div>
+        <div class="field">
+          <label>По дату</label>
+          <input id="toDate" type="date" class="input">
+        </div>
+        <div class="field">
+          <label>Тема</label>
+          <input id="topic" type="text" class="input" placeholder="например: cylinder">
+        </div>
+        <div class="field">
+          <label>Режим</label>
+          <select id="mode" class="input">
+            <option value="">Любой</option>
+            <option value="practice">Учебный</option>
+            <option value="exam">Экзамен</option>
+          </select>
+        </div>
+        <div class="field grow">
+          <label>Поиск</label>
+          <input id="q" type="text" class="input" placeholder="имя, e-mail или ID ученика">
+        </div>
+        <div class="field" style="align-self:flex-end">
+          <button id="apply" class="btn">Применить</button>
+        </div>
+      </div>
+      <div class="row" style="gap:10px;margin-top:8px">
+        <button id="exportCSV" class="btn secondary">Экспорт CSV</button>
+        <button id="exportJSON" class="btn secondary">Экспорт JSON</button>
+        <span id="countInfo" class="pill pill-muted">—</span>
+      </div>
+    </section>
+
+    <!-- Графики -->
+    <section id="charts" class="panel hidden">
+      <h3>Обзор</h3>
+      <div class="grid">
+        <div class="card">
+          <h4>Точность по дням</h4>
+          <canvas id="accuracyLine"></canvas>
+        </div>
+        <div class="card">
+          <h4>Точность по темам</h4>
+          <canvas id="topicsBar"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Таблица попыток -->
+    <section id="tableSection" class="panel hidden">
+      <div class="table-wrap">
+        <table class="table" id="attemptsTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Ученик</th>
+              <th>E-mail</th>
+              <th>Темы</th>
+              <th>Режим</th>
+              <th>Верно</th>
+              <th>Всего</th>
+              <th>%</th>
+              <th>Среднее</th>
+              <th>Длит.</th>
+              <th>Дата</th>
+            </tr>
+          </thead>
+          <tbody id="attemptsBody"></tbody>
+        </table>
+      </div>
+      <div class="row pager">
+        <button id="prevPage" class="btn secondary">Назад</button>
+        <span id="pageInfo" class="muted">1 / 1</span>
+        <button id="nextPage" class="btn secondary">Вперёд</button>
+        <select id="pageSize" class="input">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="../public/" target="_blank">↗ Открыть тренажёр</a>
+    </footer>
+  </div>
+
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Наш код -->
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>
