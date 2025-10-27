@@ -1,31 +1,16 @@
-// app/core/attempt.js
-function clone(x){ try{return JSON.parse(JSON.stringify(x));}catch(e){return x;} }
-export function buildAttempt(summary, meta, student) {
-  const entries = (summary.entries || []).map(e => ({
-    pos: e.i,
-    topic: e.topic || '',
-    ok: !!e.ok,
-    timeMs: Math.round(e.timeMs || 0),
-    chosenIndex: (e.chosenIndex != null ? e.chosenIndex : null),
-    chosenText: e.chosenText != null ? e.chosenText : '',
-    correctIndex: (e.correctIndex != null ? e.correctIndex : null),
-    correctText: e.correctText != null ? e.correctText : '',
-    stem: e.stem != null ? e.stem : ''
-  }));
+// Построение объекта попытки; добавлено поле topic_ids
+export function buildAttempt(summary){
   return {
-    version: 1,
-    studentId: (student && student.id) || '',
-    studentName: (student && student.name) || '',
-    studentEmail: (student && student.email) || '',
-    mode: summary.mode || 'practice',
-    seed: meta.seed || summary.seed || '',
-    topicIds: clone(meta.topicIds || []),
-    startedAt: meta.startedAt || null,
-    finishedAt: meta.finishedAt || null,
-    durationMs: (typeof meta.durationMs === 'number' ? meta.durationMs : 0),
-    total: summary.total || 0,
-    correct: summary.correct || 0,
-    avgMs: summary.avgMs || 0,
-    payload: { summary, entries }
+    id: summary.id,
+    student_id: summary.student_id,
+    student_name: summary.student_name,
+    ts_start: summary.ts_start,
+    ts_end: summary.ts_end || null,
+    mode: summary.mode || 'formulas',
+    topic_ids: Array.isArray(summary.topics) ? Array.from(new Set(summary.topics)) : [],
+    question_count: summary.questions.length,
+    correct_count: summary.questions.filter(q=>q.correct).length,
+    time_ms_total: summary.questions.reduce((s,q)=>s+(q.time_ms||0),0),
+    questions: summary.questions
   };
 }
