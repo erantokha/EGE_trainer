@@ -1,54 +1,35 @@
-// app/providers/supabase-admin.js
-// Универсальные запросы к Supabase для админки/кабинета ученика
 import { CONFIG } from '../config.js';
-const { createClient } = window.supabase;
 
-let client = null;
-function sb(){ if(!client) client = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey); return client; }
+const headers = { apikey: CONFIG.supabase.anonKey, Authorization: `Bearer ${CONFIG.supabase.anonKey}` };
 
-/**
- * Список попыток с фильтрами.
- * @param {{from?:string,to?:string,topic?:string,mode?:string,student?:string,limit?:number,offset?:number,withPayload?:boolean}} p
- */
-export async function listAttempts(p={}){
-  const limit = p.limit ?? 25;
-  const offset = p.offset ?? 0;
-  const withPayload = !!p.withPayload;
-
-  let sel = 'id, student_id, student_name, student_email, topic_ids, mode, total, correct, avg_ms, duration_ms, finished_at, created_at';
-  if(withPayload) sel += ', payload';
-
-  let query = sb().from('attempts').select(sel, { count: 'exact' }).order('finished_at', { ascending:false, nullsFirst:true });
-  if(p.from) query = query.gte('finished_at', p.from);
-  if(p.to) query = query.lte('finished_at', p.to);
-  if(p.mode) query = query.eq('mode', p.mode);
-  if(p.topic) query = query.contains('topic_ids', [p.topic]);
-  if(p.student) query = query.eq('student_id', p.student);
-
-  const { data, error, count } = await query.range(offset, offset + limit - 1);
-  if(error) throw error;
-  return { rows: data||[], count: count||0 };
+/** Возвращает плоский список попыток из view attempts_flat */
+export async function listAttemptsFlat({ from, to, topics, difficulty, onlyFinished, mode, search } = {}) {
+  const url = new URL(`${CONFIG.supabase.url}/rest/v1/attempts_flat`);
+  url.searchParams.set('select', '*');
+  if (from) url.searchParams.append('ts_start', `gte.${from}T00:00:00`);
+  if (to) url.searchParams.append('ts_start', `lte.${to}T23:59:59`);
+  if (onlyFinished) url.searchParams.append('finished', 'is.true');
+  if (mode) url.searchParams.append('mode', `eq.${mode}`);
+  if (difficulty) url.searchParams.append('difficulty', `eq.${difficulty}`);
+  if (topics?.length) url.searchParams.append('topic_ids', `ov.{${topics.join(',')}}`);
+  if (search) url.searchParams.append('student_name', `ilike.*${search}*`);
+  const res = await fetch(url, { headers });
+  if (!res.ok) throw new Error('attempts_flat not available');
+  return res.json();
 }
 
-/**
- * Плоские ответы. Если есть view attempts_flat на бэке — используем, иначе можно собрать на клиенте из payload.
- * @param {{from?:string,to?:string,topic?:string,mode?:string,student?:string,limit?:number,offset?:number}} p
- */
-export async function listFlat(p={}){
-  const view = CONFIG.supabase.flatViewName || 'attempts_flat';
-  try{
-    const limit = p.limit ?? 100;
-    const offset = p.offset ?? 0;
-    let query = sb().from(view).select('attempt_id, student_id, topic, ok, time_ms, finished_at', { count:'exact' }).order('finished_at',{ascending:false,nullsFirst:true});
-    if(p.from) query = query.gte('finished_at', p.from);
-    if(p.to) query = query.lte('finished_at', p.to);
-    if(p.topic) query = query.eq('topic', p.topic);
-    if(p.student) query = query.eq('student_id', p.student);
-    const { data, error, count } = await query.range(offset, offset + limit - 1);
-    if(error) throw error;
-    return { rows:data||[], count:count||0, via:'view' };
-  }catch(e){
-    // Если view нет — можно будет собрать на клиенте: вернём флажок
-    return { rows:[], count:0, via:'fallback' };
-  }
+/** Возвращает построчную статистику вопросов из view questions_flat */
+export async function listQuestionsFlat({ from, to } = {}) {
+  const url = new URL(`${CONFIG.supabase.url}/rest/v1/questions_flat`);
+  url.searchParams.set('select', '*');
+  if (from) url.searchParams.append('attempt_ts_start', `gte.${from}T00:00:00`);
+  if (to) url.searchParams.append('attempt_ts_start', `lte.${to}T23:59:59`);
+  const res = await fetch(url, { headers });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+/** Совместимость со старым кодом */
+export async function listAttempts(filters = {}) {
+  return listAttemptsFlat(filters);
 }
