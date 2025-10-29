@@ -1,6 +1,5 @@
-// tasks/tasks.js
-// Один экран: аккордеон Раздел → Тема → Типы. Выбор количества на каждом уровне.
-// Раннер (проверка ответов, таймер, экспорт, запись в Supabase) сохранён.
+// tasks/tasks.js — двухуровневый аккордеон: Раздел → Тема. Без раскрытия типов в UI.
+// Количество на уровне раздела и темы. Распределение по типам выполняется лишь при старте сессии.
 
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
@@ -11,82 +10,52 @@ const $$ = (s, root=document)=>Array.from(root.querySelectorAll(s));
 const BASE = new URL('../', location.href);
 const asset = (p) => (typeof p==='string' && p.startsWith('content/')) ? new URL(p, BASE).href : p;
 
-// ------------------------ Состояние каталога и выбора ------------------------
-let CATALOG = null;        // исходный массив из content/tasks/index.json
-let SECTIONS = [];         // [{id,title,topics:[{id,title,path,_manifest?}] }]
+// ---------- Состояние каталога и выбора ----------
+let CATALOG = null;        // массив из content/tasks/index.json
+let SECTIONS = [];         // [{id,title,topics:[{id,title,path,_manifest?}]}]
 
-// выборы пользователя
-let CHOICE_TYPES = {};     // typeId -> count (конкретные типы)
-let CHOICE_TOPICS = {};    // topicId -> count (если по типам ноль — распределяем)
+let CHOICE_TOPICS = {};    // topicId -> count
 let CHOICE_SECTIONS = {};  // sectionId -> count
 
-// ------------------------ Состояние раннера ------------------------
-let SESSION = null;        // текущая сессия вопросов
+let SESSION = null;        // состояние раннера
 
-// ------------------------ Загрузка и инициализация ------------------------
+// ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   loadUser();
-
-  // Готовим контейнер аккордеона даже если в HTML его нет
   ensureAccordionScaffold();
-
   try {
     await loadCatalog();
     renderAccordion();
     wireGlobalControls();
   } catch (e) {
     console.error(e);
-    // Фолбэк: если нет index.json — скажем пользователю
     const host = $('#accordion');
-    if (host) host.innerHTML = `<div style="opacity:.8">Не найден content/tasks/index.json. Добавь каталог тем, либо скажи — сделаю фолбэк на 1.1.</div>`;
+    if (host) host.innerHTML = `<div style="opacity:.8">Не найден content/tasks/index.json или JSON невалиден.</div>`;
   }
-
   $('#start')?.addEventListener('click', startSession);
   $('#saveUser')?.addEventListener('click', saveUser);
   $('#restart')?.addEventListener('click', ()=> location.reload());
 });
 
 function ensureAccordionScaffold(){
-  const picker = $('#picker .panel') || $('#picker') || document.body;
-  // Удалим старый список типов, если был
-  const oldTable = $('#types'); if (oldTable) oldTable.closest('table')?.remove();
-  // Верхние кнопки, если отсутствуют — создадим
-  if (!$('.controls', picker)) {
+  const panel = $('#picker .panel') || $('#picker') || document.body;
+  // Добавим панель управления, если её нет
+  if (!$('.controls', panel)) {
     const controls = document.createElement('div');
     controls.className = 'controls';
     controls.innerHTML = `
       <button id="expandAll">Раскрыть всё</button>
       <button id="collapseAll">Свернуть всё</button>
-      <label style="margin-left:8px"><input type="checkbox" id="shuffle" checked> Перемешать задачи</label>
+      <label style="margin-left:8px"><input type="checkbox" id="shuffle" checked> Перемешать</label>
       <div class="sum" style="margin-left:auto">Итого: <span id="sum">0</span></div>
       <button id="start" disabled style="margin-left:8px">Начать</button>
     `;
-    (picker.querySelector('h1')||picker).after(controls);
-  } else {
-    // Обновим id, если нужно
-    if (!$('#expandAll')) {
-      const c = $('.controls');
-      const btnA = document.createElement('button'); btnA.id='expandAll'; btnA.textContent='Раскрыть всё';
-      const btnC = document.createElement('button'); btnC.id='collapseAll'; btnC.textContent='Свернуть всё';
-      c.prepend(btnC); c.prepend(btnA);
-    }
-    if (!$('#shuffle')) {
-      const lab = document.createElement('label'); lab.innerHTML = `<input type="checkbox" id="shuffle" checked> Перемешать задачи`;
-      $('.controls').appendChild(lab);
-    }
-    if (!$('#sum')) {
-      const sum = document.createElement('div'); sum.className='sum'; sum.innerHTML=`Итого: <span id="sum">0</span>`;
-      sum.style.marginLeft='auto';
-      $('.controls').appendChild(sum);
-    }
-    if (!$('#start')) {
-      const b = document.createElement('button'); b.id='start'; b.disabled=true; b.textContent='Начать';
-      $('.controls').appendChild(b);
-    }
+    (panel.querySelector('h1')||panel).after(controls);
   }
   if (!$('#accordion')) {
-    const acc = document.createElement('div'); acc.id='accordion'; acc.className='accordion'; 
-    (picker.querySelector('.controls')||picker).after(acc);
+    const acc = document.createElement('div');
+    acc.id='accordion'; acc.className='accordion';
+    (panel.querySelector('.controls')||panel).after(acc);
   }
 }
 
@@ -108,7 +77,7 @@ function wireGlobalControls(){
   $('#collapseAll')?.addEventListener('click', ()=> $$('.node.section').forEach(n=> n.classList.remove('expanded')));
 }
 
-// ------------------------ Рендер аккордеона ------------------------
+// ---------- Рендер двухуровневого аккордеона ----------
 function renderAccordion(){
   const host = $('#accordion'); host.innerHTML = '';
   for (const sec of SECTIONS){
@@ -124,7 +93,6 @@ function renderSectionNode(sec){
   node.innerHTML = `
     <div class="row">
       <button class="toggle" aria-label="toggle">▸</button>
-      <input type="checkbox" class="cb">
       <div class="title">${esc(`${sec.id}. ${sec.title}`)}</div>
       <div class="spacer"></div>
       <div class="countbox">
@@ -138,31 +106,29 @@ function renderSectionNode(sec){
 
   const ch = $('.children', node);
   for (const t of sec.topics){
-    ch.appendChild(renderTopicNode(sec, t));
+    ch.appendChild(renderTopicRow(sec, t));
   }
 
+  // раскрытие только у разделов
   $('.toggle', node).onclick = ()=> node.classList.toggle('expanded');
   $('.title', node).onclick  = ()=> node.classList.toggle('expanded');
 
-  const cb = $('.cb', node);
+  // счётчик раздела
   const num = $('.count', node);
-  cb.oninput = ()=> { if (cb.checked && Number(num.value||0)===0) num.value=1; setSectionCount(sec.id, Number(num.value||0), cb.checked); };
-  $('.minus', node).onclick = ()=> { num.value = Math.max(0, Number(num.value||0)-1); setSectionCount(sec.id, Number(num.value), cb.checked = Number(num.value)>0); };
-  $('.plus', node).onclick  = ()=> { num.value = Number(num.value||0)+1; setSectionCount(sec.id, Number(num.value), cb.checked = true); };
-  num.oninput = ()=> { const v = Math.max(0, Number(num.value||0)); num.value=v; setSectionCount(sec.id, v, cb.checked = v>0); };
+  $('.minus', node).onclick = ()=> { num.value = Math.max(0, Number(num.value||0)-1); setSectionCount(sec.id, Number(num.value)); };
+  $('.plus', node).onclick  = ()=> { num.value = Number(num.value||0)+1; setSectionCount(sec.id, Number(num.value)); };
+  num.oninput = ()=> { const v = Math.max(0, Number(num.value||0)); num.value=v; setSectionCount(sec.id, v); };
 
   return node;
 }
 
-function renderTopicNode(sec, topic){
-  const node = document.createElement('div');
-  node.className = 'node topic';
-  node.dataset.id = topic.id;
-  node.innerHTML = `
+function renderTopicRow(sec, topic){
+  const row = document.createElement('div');
+  row.className = 'node topic';
+  row.dataset.id = topic.id;
+  row.innerHTML = `
     <div class="row">
-      <button class="toggle" aria-label="toggle">▸</button>
-      <input type="checkbox" class="cb">
-      <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      <div class="title topic-title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       <div class="countbox">
         <button class="btn minus">−</button>
@@ -170,118 +136,55 @@ function renderTopicNode(sec, topic){
         <button class="btn plus">+</button>
       </div>
     </div>
-    <div class="children"></div>
   `;
 
-  const toggle = $('.toggle', node);
-  const title  = $('.title', node);
-  const ch     = $('.children', node);
+  // тема НЕ раскрывается и НЕ кликабельна
+  $('.topic-title', row).style.pointerEvents = 'none';
 
-  async function ensureLoaded(){
-    if (ch.childElementCount>0) return;
-    if (!topic.path) return; // пока темы без контента пропускаем
-    const man = await ensureManifest(topic); if (!man) return;
+  const num = $('.count', row);
+  $('.minus', row).onclick = ()=> { num.value = Math.max(0, Number(num.value||0)-1); setTopicCount(topic.id, Number(num.value)); };
+  $('.plus', row).onclick  = ()=> { num.value = Number(num.value||0)+1; setTopicCount(topic.id, Number(num.value)); };
+  num.oninput = ()=> { const v = Math.max(0, Number(num.value||0)); num.value=v; setTopicCount(topic.id, v); };
 
-    for (const t of man.types){
-      const wrap = document.createElement('div');
-      wrap.className='type-row';
-      wrap.dataset.id = t.id;
-      const img = t.figure?.img ? `<img src="${asset(t.figure.img)}" alt="">` : '<div></div>';
-      wrap.innerHTML = `
-        <input type="checkbox" class="cb">
-        <div class="t-title">${esc(t.title)}</div>
-        ${img}
-        <div class="avail">Доступно: ${t.prototypes.length}</div>
-        <div class="countbox">
-          <button class="btn minus">−</button>
-          <input class="count" type="number" min="0" max="${t.prototypes.length}" step="1" value="${CHOICE_TYPES[t.id]||0}">
-          <button class="btn plus">+</button>
-        </div>
-      `;
-      ch.appendChild(wrap);
-
-      const cb = $('.cb', wrap);
-      const num = $('.count', wrap);
-      const minus = $('.minus', wrap);
-      const plus  = $('.plus', wrap);
-      const max = t.prototypes.length;
-
-      cb.oninput     = ()=> { if (cb.checked && Number(num.value||0)===0) num.value=1; setTypeCount(t.id, clamp(Number(num.value||0),0,max), cb.checked); };
-      minus.onclick  = ()=> { num.value = clamp(Number(num.value||0)-1,0,max); setTypeCount(t.id, Number(num.value), cb.checked = Number(num.value)>0); };
-      plus.onclick   = ()=> { num.value = clamp(Number(num.value||0)+1,0,max); setTypeCount(t.id, Number(num.value), cb.checked = true); };
-      num.oninput    = ()=> { num.value = clamp(Number(num.value||0),0,max); setTypeCount(t.id, Number(num.value), cb.checked = Number(num.value)>0); };
-    }
-  }
-
-  toggle.onclick = async ()=> { node.classList.toggle('expanded'); await ensureLoaded(); };
-  title.onclick  = async ()=> { node.classList.toggle('expanded'); await ensureLoaded(); };
-
-  const cb = $('.cb', node);
-  const num = $('.count', node);
-  cb.oninput = ()=> { if (cb.checked && Number(num.value||0)===0) num.value=1; setTopicCount(topic.id, Number(num.value||0), cb.checked); };
-  $('.minus', node).onclick = ()=> { num.value = Math.max(0, Number(num.value||0)-1); setTopicCount(topic.id, Number(num.value), cb.checked = Number(num.value)>0); };
-  $('.plus', node).onclick  = ()=> { num.value = Number(num.value||0)+1; setTopicCount(topic.id, Number(num.value), cb.checked = true); };
-  num.oninput = ()=> { const v = Math.max(0, Number(num.value||0)); num.value=v; setTopicCount(topic.id, v, cb.checked = v>0); };
-
-  return node;
+  return row;
 }
 
-// ------------------------ Связка сумм и итог ------------------------
-function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
-
-function setTypeCount(typeId, n, enabled){
-  CHOICE_TYPES[typeId] = enabled ? n : 0;
+// ---------- Суммы и доступность кнопки "Начать" ----------
+function setTopicCount(topicId, n){
+  CHOICE_TOPICS[topicId] = n;
   bubbleUpSums();
 }
-function setTopicCount(topicId, n, enabled){
-  CHOICE_TOPICS[topicId] = enabled ? n : 0;
-  bubbleUpSums();
-}
-function setSectionCount(sectionId, n, enabled){
-  CHOICE_SECTIONS[sectionId] = enabled ? n : 0;
+function setSectionCount(sectionId, n){
+  CHOICE_SECTIONS[sectionId] = n;
   bubbleUpSums();
 }
 
 function bubbleUpSums(){
-  // Тема = сумма её типов (если >0)
-  for (const sec of SECTIONS){
-    for (const t of sec.topics){
-      const types = (t._manifest?.types)||[];
-      const sumTypes = types.reduce((s,tt)=> s + (CHOICE_TYPES[tt.id]||0), 0);
-      if (sumTypes>0) CHOICE_TOPICS[t.id] = sumTypes;
-    }
-  }
-  // Раздел = сумма тем (если >0)
+  // Раздел = сумма тем, если сумма тем > 0; иначе — собственное значение раздела.
   for (const sec of SECTIONS){
     const sumTopics = sec.topics.reduce((s,t)=> s + (CHOICE_TOPICS[t.id]||0), 0);
     if (sumTopics>0) CHOICE_SECTIONS[sec.id] = sumTopics;
   }
 
-  // Обновим числа в UI
-  $$('.node.topic .count').forEach(inp=>{
-    const id = inp.closest('.node.topic').dataset.id;
-    const v = CHOICE_TOPICS[id]||0;
-    if (Number(inp.value)!==v) inp.value = v;
-  });
-  $$('.node.section .count').forEach(inp=>{
-    const id = inp.closest('.node.section').dataset.id;
-    const v = CHOICE_SECTIONS[id]||0;
-    if (Number(inp.value)!==v) inp.value = v;
+  // Обновим UI чисел
+  $$('.node.section').forEach(node=>{
+    const id = node.dataset.id;
+    const num = $('.count', node);
+    if (num) { const v = CHOICE_SECTIONS[id]||0; if (Number(num.value)!==v) num.value=v; }
   });
 
   refreshTotalSum();
 }
 
 function refreshTotalSum(){
-  const total =
-    Object.values(CHOICE_TYPES).reduce((s,n)=>s+(n||0),0) ||
-    Object.values(CHOICE_TOPICS).reduce((s,n)=>s+(n||0),0) ||
-    Object.values(CHOICE_SECTIONS).reduce((s,n)=>s+(n||0),0);
+  const sumTopics = Object.values(CHOICE_TOPICS).reduce((s,n)=>s+(n||0),0);
+  const sumSections = Object.values(CHOICE_SECTIONS).reduce((s,n)=>s+(n||0),0);
+  const total = (sumTopics>0 ? sumTopics : sumSections);
   $('#sum').textContent = total;
   $('#start').disabled = total<=0;
 }
 
-// ------------------------ Подбор задач по выбору ------------------------
+// ---------- Загрузка манифестов и подбор задач ----------
 async function ensureManifest(topic){
   if (topic._manifest) return topic._manifest;
   if (!topic.path) return null;
@@ -291,10 +194,8 @@ async function ensureManifest(topic){
   return topic._manifest;
 }
 
-function sample(arr, k){
-  const a = [...arr]; shuffle(a); return a.slice(0, Math.min(k, a.length));
-}
-
+function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+function sample(arr, k){ const a=[...arr]; shuffle(a); return a.slice(0, Math.min(k, a.length)); }
 function distributeNonNegative(buckets, total){
   // buckets: [{id, cap}]
   const out = new Map(buckets.map(b=>[b.id, 0]));
@@ -309,64 +210,60 @@ function distributeNonNegative(buckets, total){
 
 async function pickPrototypes(){
   const chosen = [];
+  const anyTopics = Object.values(CHOICE_TOPICS).some(v=>v>0);
 
-  // 1) Явные выборы по типам — приоритет
-  for (const sec of SECTIONS){
-    for (const t of sec.topics){
-      const man = await ensureManifest(t); if (!man) continue;
-      for (const typ of man.types){
-        const want = CHOICE_TYPES[typ.id]||0; if (!want) continue;
-        chosen.push(...sample(typ.prototypes, want).map(p=> buildQuestion(man, typ, p)));
+  // A) Если задано по темам — приоритет
+  if (anyTopics){
+    for (const sec of SECTIONS){
+      for (const t of sec.topics){
+        const want = CHOICE_TOPICS[t.id]||0; if (!want) continue;
+        const man = await ensureManifest(t); if (!man) continue;
+        const caps = man.types.map(x=>({ id:x.id, cap:x.prototypes.length }));
+        const plan = distributeNonNegative(caps, want);
+        for (const typ of man.types){
+          const k = plan.get(typ.id)||0; if (!k) continue;
+          for (const p of sample(typ.prototypes, k)){
+            chosen.push(buildQuestion(man, typ, p));
+          }
+        }
       }
     }
+    if ($('#shuffle')?.checked) shuffle(chosen);
+    return chosen;
   }
-  if (chosen.length>0) return $('#shuffle').checked ? (shuffle(chosen), chosen) : chosen;
 
-  // 2) По темам: распределим их объём между типами
-  let got = false;
-  for (const sec of SECTIONS){
-    for (const t of sec.topics){
-      const wantTopic = CHOICE_TOPICS[t.id]||0; if (!wantTopic) continue;
-      const man = await ensureManifest(t); if (!man) continue;
-      const caps = man.types.map(x=>({ id:x.id, cap:x.prototypes.length }));
-      const plan = distributeNonNegative(caps, wantTopic);
-      for (const typ of man.types){
-        const want = plan.get(typ.id)||0; if (!want) continue;
-        chosen.push(...sample(typ.prototypes, want).map(p=> buildQuestion(man, typ, p)));
-      }
-      got = true;
-    }
-  }
-  if (got) return $('#shuffle').checked ? (shuffle(chosen), chosen) : chosen;
-
-  // 3) Только разделы: раздел → темы → типы
+  // B) Иначе распределяем по разделам → темам → типам
   for (const sec of SECTIONS){
     const wantSection = CHOICE_SECTIONS[sec.id]||0; if (!wantSection) continue;
 
-    // ёмкости тем (сумма прототипов по всем типам)
+    // ёмкости тем = сумма прототипов по типам
     const topicCaps = [];
     for (const t of sec.topics){
       const man = await ensureManifest(t); if (!man) continue;
       const cap = man.types.reduce((s,x)=> s + x.prototypes.length, 0);
-      topicCaps.push({ id:t.id, cap });
+      topicCaps.push({ id:t.id, cap, _topic:t });
     }
     const planTopics = distributeNonNegative(topicCaps, wantSection);
 
-    for (const t of sec.topics){
-      const wantT = planTopics.get(t.id)||0; if (!wantT) continue;
-      const man = await ensureManifest(t); if (!man) continue;
+    for (const {id} of topicCaps){
+      const wantT = planTopics.get(id)||0; if (!wantT) continue;
+      const topic = sec.topics.find(x=>x.id===id);
+      const man = await ensureManifest(topic); if (!man) continue;
       const caps = man.types.map(x=>({ id:x.id, cap:x.prototypes.length }));
       const plan = distributeNonNegative(caps, wantT);
       for (const typ of man.types){
-        const want = plan.get(typ.id)||0; if (!want) continue;
-        chosen.push(...sample(typ.prototypes, want).map(p=> buildQuestion(man, typ, p)));
+        const k = plan.get(typ.id)||0; if (!k) continue;
+        for (const p of sample(typ.prototypes, k)){
+          chosen.push(buildQuestion(man, typ, p));
+        }
       }
     }
   }
-  return $('#shuffle').checked ? (shuffle(chosen), chosen) : chosen;
+  if ($('#shuffle')?.checked) shuffle(chosen);
+  return chosen;
 }
 
-// ------------------------ Раннер (как раньше) ------------------------
+// ---------- Раннер ----------
 function buildQuestion(manifest, type, proto){
   const params = proto.params||{};
   const stem = interpolate(type.stem_template || type.stem, params);
@@ -501,8 +398,7 @@ function checkFree(spec, raw){
 function normalize(s, kinds){
   let t = s;
   if (kinds.includes('unicode_minus_to_ascii')) t = t.replace(/[\u2212\u2012\u2013\u2014]/g, '-');
-  if (kinds.includes('comma_to_dot')) t = t.replace(/,/g, '.');
-  t = t.trim();
+  if (kinds.includes('comma_to_dot')) t = t.replace(/,/g, '.'); t = t.trim();
   return t;
 }
 function parseNumber(s){
@@ -608,7 +504,7 @@ async function finishSession(){
   }
 }
 
-// ------------------------ Пользователь и утилиты ------------------------
+// ---------- Пользователь и утилиты ----------
 function loadUser(){
   const s = localStorage.getItem('student_info_v1');
   if (s){ try{ const u = JSON.parse(s); $('#studentName') && ($('#studentName').value = u.name||''); $('#studentEmail') && ($('#studentEmail').value = u.email||''); }catch{} }
@@ -618,7 +514,6 @@ function saveUser(){
   localStorage.setItem('student_info_v1', JSON.stringify(u));
 }
 
-function shuffle(a){ for (let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
 function esc(s){ return String(s).replace(/[&<>"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m])); }
 
 function toCsv(questions){

@@ -1,49 +1,9 @@
-/* Минимальные стили */
-:root { color-scheme: dark; }
-html, body { margin:0; padding:0; background:#0f1115; color:#e6e6e6; font:14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
-.top { display:flex; align-items:center; padding:10px 16px; background:#151821; border-bottom:1px solid #232635; position:sticky; top:0; z-index:2; }
-.top .brand { font-weight:700; }
-.top .spacer { flex:1; }
-.top .user input { margin-right:8px; padding:6px 8px; border:1px solid #2a2d36; border-radius:8px; background:#1b1d24; color:#e6e6e6; }
-.top .user button { padding:6px 10px; border-radius:8px; background:#244; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
-main { padding:16px; }
-.panel { background:#12151d; border:1px solid #232635; border-radius:12px; padding:16px; max-width:1100px; margin:0 auto; box-shadow:0 10px 30px rgba(0,0,0,.25); }
-
-.controls { margin:8px 0 12px; }
-.controls button { margin-right:8px; padding:6px 10px; border-radius:8px; background:#1b1d24; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
-.controls .preset { background:#1f2330; }
-
-table { width:100%; border-collapse:collapse; }
-th, td { padding:8px 10px; border-bottom:1px solid #232635; }
-tbody tr:hover { background:#171b25; }
-td img { width:72px; height:48px; object-fit:cover; border-radius:8px; border:1px solid #2a2d36; }
-
-.footer { display:flex; align-items:center; gap:16px; margin-top:12px; }
-.footer .sum { margin-left:auto; font-weight:700; }
-.footer button { padding:8px 12px; border-radius:10px; background:#245; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
-input[type="number"] { width:64px; padding:6px 8px; background:#1b1d24; color:#e6e6e6; border:1px solid #2a2d36; border-radius:8px; }
-.hidden { display:none; }
-
-.run-head { display:flex; align-items:center; gap:16px; margin-bottom:10px; }
-.run-head .progress { margin-left:auto; }
-.qwrap { display:grid; grid-template-columns: 1.3fr .7fr; gap:16px; align-items:start; }
-.qtext { padding:12px; border:1px solid #232635; border-radius:10px; background:#0f131d; min-height:120px; }
-.qfig { padding:12px; border:1px solid #232635; border-radius:10px; background:#0f131d; display:flex; justify-content:center; align-items:center; min-height:120px; }
-.qfig img { max-width:100%; max-height:52vh; object-fit:contain; }
-.answer { margin-top:12px; display:flex; gap:8px; }
-.answer input { flex:1; padding:10px 12px; border-radius:10px; background:#1b1d24; color:#e6e6e6; border:1px solid #2a2d36; }
-.answer button { padding:10px 12px; border-radius:10px; background:#274; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
-.result { margin-top:8px; min-height:24px; }
-.result.ok { color:#4cd964; } .result.bad { color:#ff6b6b; }
-.nav { margin-top:12px; display:flex; gap:8px; justify-content:space-between; }
-.nav button { padding:8px 12px; border-radius:10px; background:#1f2330; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
-.actions { display:flex; gap:12px; margin-top:12px; }
-/* --- Accordion --- */
+/* === Two-level accordion (section/topic), no type UI === */
 .accordion { margin-top: 12px; }
 .node { border-bottom:1px solid #232635; padding:8px 0; }
 .node .row { display:flex; align-items:center; gap:10px; }
 .node .toggle { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
-.node .title { font-weight:600; cursor:pointer; }
+.node.section .title { font-weight:600; cursor:pointer; }
 .node .spacer { flex:1; }
 .countbox { display:flex; align-items:center; gap:6px; }
 .countbox .btn { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
@@ -51,7 +11,6 @@ input[type="number"] { width:64px; padding:6px 8px; background:#1b1d24; color:#e
 .children { margin:8px 0 0 32px; display:none; }
 .node.expanded > .children { display:block; }
 
-.type-row { display:grid; grid-template-columns: 24px 1fr 90px 110px 110px; gap:10px; align-items:center; padding:6px 0; }
-.type-row img { width:90px; height:58px; object-fit:cover; border-radius:8px; border:1px solid #2a2d36; }
-.type-row .avail { opacity:.8; }
-
+/* topic row is not clickable */
+.node.topic .title { cursor:default; }
+.node.topic .title.topic-title { pointer-events:none; }
