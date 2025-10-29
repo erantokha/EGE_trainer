@@ -1,0 +1,414 @@
+{
+  "topic": "1.1.central_inscribed",
+  "title": "Центральные и вписанные углы",
+  "mode": "tasks-free",
+  "types": [
+    {
+      "id": "1.1.T1",
+      "title": "Диаметры: AOD задан, найти ACB",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t1.jpg",
+        "alt": "Два диаметра AC и BD, центр O, угол AOD"
+      },
+      "stem_template": "Отрезки AC и BD — диаметры окружности с центром O. Угол AOD равен ${aod}°. Найдите вписанный угол ACB. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "90 - aod/2",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.1.001",
+          "params": {
+            "aod": 94
+          }
+        },
+        {
+          "id": "1.1.1.002",
+          "params": {
+            "aod": 102
+          }
+        },
+        {
+          "id": "1.1.1.003",
+          "params": {
+            "aod": 116
+          }
+        },
+        {
+          "id": "1.1.1.004",
+          "params": {
+            "aod": 128
+          }
+        },
+        {
+          "id": "1.1.1.005",
+          "params": {
+            "aod": 146
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T2",
+      "title": "Диаметры: ACB задан, найти AOD",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t2.jpg",
+        "alt": "Два диаметра AC и BD, центр O, угол ACB"
+      },
+      "stem_template": "Отрезки AC и BD — диаметры окружности с центром O. Угол ACB равен ${acb}°. Найдите угол AOD. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "180 - 2*acb",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.2.001",
+          "params": {
+            "acb": 24
+          }
+        },
+        {
+          "id": "1.1.2.002",
+          "params": {
+            "acb": 28
+          }
+        },
+        {
+          "id": "1.1.2.003",
+          "params": {
+            "acb": 36
+          }
+        },
+        {
+          "id": "1.1.2.004",
+          "params": {
+            "acb": 50
+          }
+        },
+        {
+          "id": "1.1.2.005",
+          "params": {
+            "acb": 74
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T3",
+      "title": "Центральный больше острого вписанного на d°, найти вписанный",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t3.jpg",
+        "alt": "Центральный и острый вписанный угол на одной дуге"
+      },
+      "stem_template": "Центральный угол на ${d}° больше острого вписанного угла, опирающегося на ту же дугу окружности. Найдите величину вписанного угла. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "d",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.3.001",
+          "params": {
+            "d": 22
+          }
+        },
+        {
+          "id": "1.1.3.002",
+          "params": {
+            "d": 27
+          }
+        },
+        {
+          "id": "1.1.3.003",
+          "params": {
+            "d": 38
+          }
+        },
+        {
+          "id": "1.1.3.004",
+          "params": {
+            "d": 51
+          }
+        },
+        {
+          "id": "1.1.3.005",
+          "params": {
+            "d": 76
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T4",
+      "title": "Центральный больше острого вписанного на d°, найти центральный",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t4.jpg",
+        "alt": "Соотношение центрального и вписанного углов"
+      },
+      "stem_template": "Найдите величину центрального угла, если он на ${d}° больше острого вписанного угла, опирающегося на ту же дугу.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "2*d",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.4.001",
+          "params": {
+            "d": 22
+          }
+        },
+        {
+          "id": "1.1.4.002",
+          "params": {
+            "d": 34
+          }
+        },
+        {
+          "id": "1.1.4.003",
+          "params": {
+            "d": 48
+          }
+        },
+        {
+          "id": "1.1.4.004",
+          "params": {
+            "d": 63
+          }
+        },
+        {
+          "id": "1.1.4.005",
+          "params": {
+            "d": 79
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T5",
+      "title": "Вписанный четырёхугольник: найти ABC по ABD и CAD",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t5.jpg",
+        "alt": "Четырёхугольник ABCD вписан в окружность"
+      },
+      "stem_template": "Четырёхугольник ABCD вписан в окружность. Угол ABD равен ${abd}°, угол CAD равен ${cad}°. Найдите угол ABC. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "abd + cad",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.5.001",
+          "params": {
+            "abd": 26,
+            "cad": 38
+          }
+        },
+        {
+          "id": "1.1.5.002",
+          "params": {
+            "abd": 17,
+            "cad": 29
+          }
+        },
+        {
+          "id": "1.1.5.003",
+          "params": {
+            "abd": 41,
+            "cad": 22
+          }
+        },
+        {
+          "id": "1.1.5.004",
+          "params": {
+            "abd": 35,
+            "cad": 44
+          }
+        },
+        {
+          "id": "1.1.5.005",
+          "params": {
+            "abd": 54,
+            "cad": 21
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T6",
+      "title": "Вписанный четырёхугольник: найти ABD по ABC и CAD",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t6.jpg",
+        "alt": "Четырёхугольник ABCD вписан в окружность"
+      },
+      "stem_template": "Четырёхугольник ABCD вписан в окружность. Угол ABC равен ${abc}°, угол CAD равен ${cad}°. Найдите угол ABD. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "abc - cad",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.6.001",
+          "params": {
+            "abc": 28,
+            "cad": 22
+          }
+        },
+        {
+          "id": "1.1.6.002",
+          "params": {
+            "abc": 35,
+            "cad": 18
+          }
+        },
+        {
+          "id": "1.1.6.003",
+          "params": {
+            "abc": 42,
+            "cad": 24
+          }
+        },
+        {
+          "id": "1.1.6.004",
+          "params": {
+            "abc": 57,
+            "cad": 19
+          }
+        },
+        {
+          "id": "1.1.6.005",
+          "params": {
+            "abc": 63,
+            "cad": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "1.1.T7",
+      "title": "Вписанный четырёхугольник: найти CAD по ABC и ABD",
+      "figure": {
+        "img": "content/tasks/planimetry/1.1/images/t7.jpg",
+        "alt": "Четырёхугольник ABCD вписан в окружность"
+      },
+      "stem_template": "Четырёхугольник ABCD вписан в окружность. Угол ABC равен ${abc}°, угол ABD равен ${abd}°. Найдите угол CAD. Ответ дайте в градусах.",
+      "answer_spec": {
+        "type": "number",
+        "expr": "abc - abd",
+        "tolerance": {
+          "abs": 0
+        },
+        "units": "deg"
+      },
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "comma_to_dot",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "prototypes": [
+        {
+          "id": "1.1.7.001",
+          "params": {
+            "abc": 58,
+            "abd": 21
+          }
+        },
+        {
+          "id": "1.1.7.002",
+          "params": {
+            "abc": 64,
+            "abd": 29
+          }
+        },
+        {
+          "id": "1.1.7.003",
+          "params": {
+            "abc": 75,
+            "abd": 33
+          }
+        },
+        {
+          "id": "1.1.7.004",
+          "params": {
+            "abc": 47,
+            "abd": 18
+          }
+        },
+        {
+          "id": "1.1.7.005",
+          "params": {
+            "abc": 84,
+            "abd": 31
+          }
+        }
+      ]
+    }
+  ]
+}
