@@ -1,16 +1,189 @@
-/* === Two-level accordion (section/topic), no type UI === */
-.accordion { margin-top: 12px; }
-.node { border-bottom:1px solid #232635; padding:8px 0; }
-.node .row { display:flex; align-items:center; gap:10px; }
-.node .toggle { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
-.node.section .title { font-weight:600; cursor:pointer; }
-.node .spacer { flex:1; }
-.countbox { display:flex; align-items:center; gap:6px; }
-.countbox .btn { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
-.countbox input { width:54px; padding:6px 8px; border:1px solid #2a2d36; border-radius:8px; background:#1b1d24; color:#e6e6e6; text-align:center; }
-.children { margin:8px 0 0 32px; display:none; }
-.node.expanded > .children { display:block; }
+/* tasks/tasks.css
+   Универсальные стили для страницы выбора задач (аккордеон 2 уровня),
+   раннера выполнения и итоговой сводки. Темная тема по умолчанию.
+*/
 
-/* topic row is not clickable */
-.node.topic .title { cursor:default; }
-.node.topic .title.topic-title { pointer-events:none; }
+/* ---------- Базовые переменные ---------- */
+:root{
+  --bg:#0e1117;
+  --panel:#111827;
+  --panel-2:#0f1623;
+  --border:#232635;
+  --text:#e6e6e6;
+  --text-dim:#aeb3c2;
+  --accent:#3b82f6;
+  --accent-2:#2563eb;
+  --success:#10b981;
+  --danger:#ef4444;
+  --muted:#1b1d24;
+  --shadow: 0 8px 24px rgba(0,0,0,.25);
+  --radius:12px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* ---------- Общие элементы ---------- */
+.hidden{display:none !important}
+
+h1,h2,h3{margin:0 0 10px}
+h1{font-size:28px}
+h2{font-size:20px}
+p{margin:8px 0}
+
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:16px 18px;
+}
+
+.container{max-width:1080px;margin:28px auto;padding:0 16px}
+
+/* кнопки */
+button{
+  appearance:none;
+  border:1px solid var(--border);
+  background:var(--muted);
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 12px;
+  cursor:pointer;
+  transition:.12s ease-in-out;
+}
+button:hover{filter:brightness(1.06)}
+button:disabled{opacity:.55;cursor:not-allowed}
+
+/* поля ввода */
+input[type="text"],
+input[type="email"],
+input[type="number"]{
+  background:var(--muted);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:8px 10px;
+  outline:none;
+}
+input[type="number"]{width:72px;text-align:center}
+
+/* ссылки */
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ---------- Верхняя панель выбора ---------- */
+#picker .panel{padding:18px}
+#picker .controls{
+  display:flex; align-items:center; gap:8px; margin-top:8px;
+}
+#picker .controls .sum{
+  padding:6px 10px; border:1px dashed var(--border);
+  border-radius:10px; background:var(--panel-2);
+}
+
+/* ---------- Аккордеон: Раздел → Тема ---------- */
+.accordion{margin-top:12px}
+
+.node{border-bottom:1px solid var(--border);padding:8px 0}
+.node:last-child{border-bottom:none}
+
+.node .row{display:flex;align-items:center;gap:10px}
+.node .title{font-weight:600}
+.node .spacer{flex:1}
+
+.node.section .title{cursor:pointer}
+.node.section .toggle{
+  width:26px;height:26px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border); background:var(--muted);
+  border-radius:8px; cursor:pointer; user-select:none;
+}
+.node.section .toggle:after{content:"▸";line-height:1}
+.node.section.expanded .toggle:after{content:"▾"}
+
+.children{margin:8px 0 6px 32px;display:none}
+.node.section.expanded > .children{display:block}
+
+/* Тема — не кликабельна и не раскрывается */
+.node.topic .title{font-weight:500;cursor:default}
+.node.topic .title.topic-title{pointer-events:none}
+
+/* Счётчики */
+.countbox{display:flex;align-items:center;gap:6px}
+.countbox .btn{
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border); background:var(--muted); color:var(--text); border-radius:8px;
+}
+.countbox .btn:active{transform:translateY(1px)}
+
+/* ---------- Блок раннера ---------- */
+#runner .panel{padding:18px}
+.runner-head{
+  display:flex;align-items:center;gap:12px;margin-bottom:10px
+}
+.runner-head .meta{color:var(--text-dim)}
+.runner-head .timer{
+  margin-left:auto; background:var(--panel-2); border:1px solid var(--border);
+  padding:6px 10px;border-radius:10px
+}
+
+.figure-wrap{margin:8px 0 12px}
+.figure-wrap img{
+  max-width:100%; height:auto; border:1px solid var(--border);
+  border-radius:10px; background:#000;
+}
+.stem{white-space:pre-wrap; margin:12px 0}
+
+.answer-row{display:flex; align-items:center; gap:8px; margin:8px 0}
+.answer-row input[type="text"]{width:220px}
+
+.actions{display:flex; gap:8px; margin-top:10px}
+.actions .primary{background:var(--accent);border-color:var(--accent-2)}
+.actions .success{background:var(--success);border-color:#0aa77a}
+.actions .danger{background:var(--danger);border-color:#d53a3a}
+
+/* Результат проверки */
+.result{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2)}
+.result.ok{border-color:#0ea572;background:rgba(16,185,129,.12)}
+.result.bad{border-color:#cf3d3d;background:rgba(239,68,68,.12)}
+
+/* ---------- Итоги ---------- */
+#summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
+#summary .stats > div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
+
+/* ---------- Формы пользователя (имя/почта) ---------- */
+.userbar{
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px;
+}
+.userbar .field{display:flex;gap:6px;align-items:center}
+.userbar .field label{color:var(--text-dim)}
+
+/* ---------- Сообщения/пустые состояния ---------- */
+.blank{
+  border:1px dashed var(--border);
+  background:var(--panel-2);
+  color:var(--text-dim);
+  border-radius:10px;
+  padding:10px;
+  text-align:center;
+}
+
+/* ---------- Адаптив ---------- */
+@media (max-width:640px){
+  .countbox input{width:56px}
+  .runner-head{flex-wrap:wrap}
+  .userbar{flex-direction:column;align-items:flex-start}
+}
+
+/* ---------- Мелочи ---------- */
+/* Подсветка интерактивных элементов при фокусе */
+button:focus, input:focus { outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
