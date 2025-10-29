@@ -3,6 +3,10 @@ import { insertAttempt } from '../app/providers/supabase-write.js';
 const $ = (s, root=document)=>root.querySelector(s);
 const $$ = (s, root=document)=>Array.from(root.querySelectorAll(s));
 
+// База путей для GitHub Pages: /<repo>/tasks/index.html → BASE = /<repo>/
+const BASE = new URL('../', location.href);
+const asset = (p) => (typeof p==='string' && p.startsWith('content/')) ? new URL(p, BASE).href : p;
+
 // ---- State ----
 let MANIFEST = null;
 let TYPES = [];   // [{id,title,fig,prototypes:[...]}]
@@ -21,8 +25,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function loadManifest(){
-  // Only 1.1 for now; index.json may have more later
-  const resp = await fetch('content/tasks/planimetry/1.1/manifest.json');
+  // 1.1 манифест грузим от корня репозитория
+  const url = new URL('content/tasks/planimetry/1.1/manifest.json', BASE).href;
+  const resp = await fetch(url);
   if (!resp.ok) throw new Error('manifest.json not found');
   MANIFEST = await resp.json();
   TYPES = MANIFEST.types.map(t=>({
@@ -57,20 +62,32 @@ function renderTypes(){
 }
 
 function rowHtml(t){
-  const id = esc(t.id), title = esc(t.title);
-  const fig = esc(t.fig?.img || '');
-  return `<tr data-id="${esc(t.id)}">
+  const title = esc(t.title);
+  const figPath = t.fig?.img ? asset(t.fig.img) : '';
+  return `<tr data-id="${css(t.id)}">
     <td><input type="checkbox"></td>
     <td>${title}</td>
-    <td>${fig?`<img src="${fig}" alt="">`:''}</td>
+    <td>${figPath?`<img src="${figPath}" alt="">`:''}</td>
     <td>${t.available}</td>
     <td><input type="number" min="0" max="${t.available}" step="1" value="0"></td>
   </tr>`;
 }
 
 function wirePicker(){
-  $('#btnAll').onclick = ()=> { $$('#types tbody tr').forEach(tr=>{ $('input[type="number"]',tr).value = $('td:nth-child(4)',tr).textContent.trim(); $('input[type="checkbox"]',tr).checked = true; }); syncChoice(); };
-  $('#btnNone').onclick = ()=> { $$('#types tbody tr').forEach(tr=>{ $('input[type="number"]',tr).value = 0; $('input[type="checkbox"]',tr).checked = false; }); syncChoice(); };
+  $('#btnAll').onclick = ()=> {
+    $$('#types tbody tr').forEach(tr=>{
+      $('input[type="number"]',tr).value = $('td:nth-child(4)',tr).textContent.trim();
+      $('input[type="checkbox"]',tr).checked = true;
+    });
+    syncChoice();
+  };
+  $('#btnNone').onclick = ()=> {
+    $$('#types tbody tr').forEach(tr=>{
+      $('input[type="number"]',tr).value = 0;
+      $('input[type="checkbox"]',tr).checked = false;
+    });
+    syncChoice();
+  };
   $$('.preset').forEach(b=> b.onclick = ()=>{
     const n = Number(b.dataset.preset||1);
     $$('#types tbody tr').forEach(tr=>{
@@ -139,10 +156,15 @@ function buildQuestion(manifest, type, proto){
 }
 
 function computeAnswer(type, proto, params){
-  // Prefer explicit answer on proto (not provided now), else evaluate expr
   const spec = type.answerSpec;
   const t = { ...(type.defaults||{}), ...(spec||{}) };
-  let out = { type: t.type || 'number', units: t.units || null, tolerance: t.tolerance || null, accept: t.accept || null, normalize: (type.defaults?.normalize)||[] };
+  const out = {
+    type: t.type || 'number',
+    units: t.units || null,
+    tolerance: t.tolerance || null,
+    accept: t.accept || null,
+    normalize: (type.defaults?.normalize)||[]
+  };
   if (proto.answer && proto.answer.value!=null) out.value = proto.answer.value;
   else if (t.expr){ out.value = evalExpr(t.expr, params); }
   return out;
@@ -153,14 +175,12 @@ function interpolate(tpl, params){
 }
 
 function evalExpr(expr, params){
-  // Safe-ish arithmetic eval on provided params (trusted content)
   const pnames = Object.keys(params);
   const f = new Function(...pnames, `return (${expr});`);
   return f(...pnames.map(k=>params[k]));
 }
 
 async function startSession(){
-  // Restore preset
   const saved = localStorage.getItem('tasks_preset_v1');
   if (saved){
     try { const s = JSON.parse(saved); if (s.choice) CHOICE = s.choice; } catch{}
@@ -175,7 +195,6 @@ async function startSession(){
     total_ms: 0,
     student: { name: $('#studentName').value.trim(), email: $('#studentEmail').value.trim() }
   };
-  // UI
   $('#picker').classList.add('hidden');
   $('#runner').classList.remove('hidden');
   $('#topicTitle').textContent = MANIFEST.title;
@@ -191,7 +210,7 @@ function renderCurrent(){
   $('#idx').textContent = SESSION.idx+1;
   $('#stem').textContent = q.stem;
   const img = $('#figure');
-  if (q.figure?.img){ img.src = q.figure.img; img.alt = q.figure.alt || ''; img.parentElement.style.display=''; }
+  if (q.figure?.img){ img.src = asset(q.figure.img); img.alt = q.figure.alt || ''; img.parentElement.style.display=''; }
   else { img.removeAttribute('src'); img.alt=''; img.parentElement.style.display='none'; }
   $('#answer').value='';
   $('#result').textContent=''; $('#result').className='result';
@@ -199,10 +218,22 @@ function renderCurrent(){
 
 function wireRunner(){
   $('#check').onclick = onCheck;
-  $('#skip').onclick = ()=>{ markAnswer(''); goto(+1); };
+  $('#skip').onclick = ()=>{ skipCurrent(); };
   $('#next').onclick = ()=> goto(+1);
   $('#prev').onclick = ()=> goto(-1);
   $('#finish').onclick = finishSession;
+}
+
+function skipCurrent(){
+  stopTick();
+  saveTimeForCurrent();
+  const q = SESSION.questions[SESSION.idx];
+  // фиксируем пропуск как неверно с пустым вводом
+  q.correct = false;
+  q.chosen_text = '';
+  q.normalized_text = '';
+  q.correct_text = (q.answer && 'value' in q.answer) ? String(q.answer.value) : '';
+  goto(+1);
 }
 
 function goto(delta){
@@ -231,7 +262,7 @@ function checkFree(spec, raw){
     const v = Number(spec.value);
     const ok = compareNumber(x, v, spec.tolerance||{abs:0});
     return { correct: ok, chosen_text, normalized_text: String(x), correct_text: String(v) };
-  } else { // text
+  } else {
     const ok = matchText(norm, spec);
     return { correct: ok, chosen_text, normalized_text: norm, correct_text: spec.accept?.map?.(p=>p.regex||p.exact)?.join(' | ') || '' };
   }
@@ -246,7 +277,7 @@ function normalize(s, kinds){
 }
 
 function parseNumber(s){
-  // support simple a/b fractions
+  // поддержка дробей a/b
   const frac = s.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
   if (frac){ return Number(frac[1]) / Number(frac[2]); }
   const x = Number(s);
@@ -259,8 +290,7 @@ function compareNumber(x, v, tol){
   const rel = (tol && typeof tol.rel==='number') ? tol.rel : null;
   if (abs!=null && Math.abs(x-v) <= abs) return true;
   if (rel!=null && Math.abs(x-v) <= Math.abs(v)*rel) return true;
-  // default strict
-  return Math.abs(x-v) <= 1e-12;
+  return Math.abs(x-v) <= 1e-12; // строго по умолчанию
 }
 
 function matchText(norm, spec){
@@ -304,7 +334,6 @@ async function finishSession(){
   const total = SESSION.questions.length;
   const correct = SESSION.questions.reduce((s,q)=> s + (q.correct?1:0), 0);
   const avg_ms = Math.round(SESSION.total_ms / Math.max(1,total));
-  // Build payload for DB (your schema)
   const payloadQuestions = SESSION.questions.map(q=>({
     topic_id: q.topic_id,
     question_id: q.question_id,
@@ -332,11 +361,9 @@ async function finishSession(){
     created_at: new Date().toISOString()
   };
   const { ok, error } = await insertAttempt(attemptRow);
-  // Show summary
   $('#runner').classList.add('hidden');
   $('#summary').classList.remove('hidden');
   $('#stats').innerHTML = `<div>Всего: ${total}</div><div>Верно: ${correct}</div><div>Точность: ${Math.round(100*correct/Math.max(1,total))}%</div><div>Среднее время: ${Math.round(avg_ms/1000)} c</div>`;
-  // CSV export
   $('#exportCsv').onclick = (e)=>{
     e.preventDefault();
     const csv = toCsv(SESSION.questions);
