@@ -7,8 +7,4 @@
     "path": "content/tasks/planimetry/1.1/manifest.json",
     "enabled": true
   }
-
-  /* сюда добавишь остальные темы по мере готовности:
-     { "id":"1.2", "title":"...", "parent":"1", "path":"..." },
-     { "id":"2", "title":"Векторы", "type":"group" }, и т.п. */
 ]
