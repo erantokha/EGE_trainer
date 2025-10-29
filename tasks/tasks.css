@@ -38,3 +38,20 @@ input[type="number"] { width:64px; padding:6px 8px; background:#1b1d24; color:#e
 .nav { margin-top:12px; display:flex; gap:8px; justify-content:space-between; }
 .nav button { padding:8px 12px; border-radius:10px; background:#1f2330; color:#fff; border:1px solid #2a2d36; cursor:pointer; }
 .actions { display:flex; gap:12px; margin-top:12px; }
+/* --- Accordion --- */
+.accordion { margin-top: 12px; }
+.node { border-bottom:1px solid #232635; padding:8px 0; }
+.node .row { display:flex; align-items:center; gap:10px; }
+.node .toggle { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
+.node .title { font-weight:600; cursor:pointer; }
+.node .spacer { flex:1; }
+.countbox { display:flex; align-items:center; gap:6px; }
+.countbox .btn { width:26px; height:26px; border:1px solid #2a2d36; background:#1b1d24; border-radius:6px; cursor:pointer; }
+.countbox input { width:54px; padding:6px 8px; border:1px solid #2a2d36; border-radius:8px; background:#1b1d24; color:#e6e6e6; text-align:center; }
+.children { margin:8px 0 0 32px; display:none; }
+.node.expanded > .children { display:block; }
+
+.type-row { display:grid; grid-template-columns: 24px 1fr 90px 110px 110px; gap:10px; align-items:center; padding:6px 0; }
+.type-row img { width:90px; height:58px; object-fit:cover; border-radius:8px; border:1px solid #2a2d36; }
+.type-row .avail { opacity:.8; }
+
