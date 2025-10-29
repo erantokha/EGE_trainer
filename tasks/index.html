@@ -21,26 +21,22 @@
     <!-- Шаг 1: выбор тем/типов -->
     <section id="picker">
       <div class="panel">
-        <h1>1. Планиметрия → 1.1. Центральные и вписанные углы</h1>
+        <h1>Выбор заданий</h1>
         <div class="controls">
-          <button id="btnAll">Выбрать всё</button>
-          <button id="btnNone">Снять всё</button>
-          <button data-preset="1" class="preset">По 1 на тип</button>
-          <button data-preset="2" class="preset">По 2 на тип</button>
-        </div>
-        <table id="types">
-          <thead>
-            <tr><th style="width:36px"></th><th>Тип</th><th>Картинка</th><th>Доступно</th><th>Взять</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-        <div class="footer">
+          <button id="expandAll">Раскрыть всё</button>
+          <button id="collapseAll">Свернуть всё</button>
           <label><input type="checkbox" id="shuffle" checked> Перемешать задачи</label>
           <div class="sum">Итого: <span id="sum">0</span></div>
           <button id="start" disabled>Начать</button>
         </div>
+    
+        <!-- Аккордеон строится скриптом -->
+        <div id="accordion" class="accordion"></div>
       </div>
     </section>
+    
+    
+    
 
     <!-- Шаг 2: сессия -->
     <section id="runner" class="hidden">
