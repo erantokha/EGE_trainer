@@ -1,57 +1,86 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Задачи — в разработке</title>
-<style>
-  :root{--bg:#0f1115;--panel:#171a21;--text:#eaeff7;--muted:#a6b0c3;--accent:#5ea1ff;--accent-2:#4ade80;--danger:#f87171;}
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial}
-  .wrap{max-width:880px;margin:0 auto;padding:36px 20px}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-  h1{font-size:28px;margin:0 0 8px}
-  h2{font-size:20px;margin:0 0 8px;color:var(--muted)}
-  .card{background:var(--panel);border-radius:14px;padding:18px 18px;box-shadow:0 10px 30px rgba(0,0,0,.25);}
-  .row{display:flex;gap:16px;flex-wrap:wrap}
-  .col{flex:1 1 280px}
-  label{display:block;margin:10px 0 6px;color:var(--muted)}
-  input[type="text"],input[type="email"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2a3140;background:#0c0f14;color:var(--text);outline:none}
-  input:focus{border-color:var(--accent)}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:12px;border:1px solid #2a3140;background:#19202b;color:var(--text);cursor:pointer;text-decoration:none;min-width:140px}
-  .btn:hover{border-color:#334155}
-  .btn.primary{background:linear-gradient(180deg,#2a7bff,#1554cf);border-color:#1d4ed8}
-  .btn.green{background:linear-gradient(180deg,#22c55e,#16a34a);border-color:#15803d}
-  .btn.ghost{background:transparent}
-  .muted{color:var(--muted)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-  .tile{border:1px solid #2a3140;border-radius:12px;padding:14px;background:#12161d;cursor:pointer}
-  .tile input{margin-right:10px;transform:translateY(1px)}
-  footer{margin-top:26px;color:var(--muted);font-size:13px}
-  .warn{background:#241317;border:1px solid #7f1d1d;color:#fecaca;padding:12px;border-radius:10px}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Тренажёр задач</title>
+  <link rel="stylesheet" href="./tasks.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Задачи</h1>
-      <div class="muted">Раздел в разработке.</div>
-    </div>
-    <div>
-      <a href="../menu/" class="btn">Назад в меню</a>
+  <header class="top">
+    <div class="brand">Тренажёр задач</div>
+    <div class="spacer"></div>
+    <div class="user">
+      <input id="studentName" placeholder="Имя и фамилия" />
+      <input id="studentEmail" placeholder="Email (необязательно)" />
+      <button id="saveUser">Сохранить</button>
     </div>
   </header>
 
-  <div class="card warn">
-    Эта часть будет доступна позже. Вернитесь в меню и выберите «Формулы».
-  </div>
-</div>
+  <main>
+    <!-- Шаг 1: выбор тем/типов -->
+    <section id="picker">
+      <div class="panel">
+        <h1>1. Планиметрия → 1.1. Центральные и вписанные углы</h1>
+        <div class="controls">
+          <button id="btnAll">Выбрать всё</button>
+          <button id="btnNone">Снять всё</button>
+          <button data-preset="1" class="preset">По 1 на тип</button>
+          <button data-preset="2" class="preset">По 2 на тип</button>
+        </div>
+        <table id="types">
+          <thead>
+            <tr><th style="width:36px"></th><th>Тип</th><th>Картинка</th><th>Доступно</th><th>Взять</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="footer">
+          <label><input type="checkbox" id="shuffle" checked> Перемешать задачи</label>
+          <div class="sum">Итого: <span id="sum">0</span></div>
+          <button id="start" disabled>Начать</button>
+        </div>
+      </div>
+    </section>
 
-<script type="module">
-  import { ensureStudentOrRedirect } from '../app/core/student-id.js';
-  ensureStudentOrRedirect('../');
-</script>
+    <!-- Шаг 2: сессия -->
+    <section id="runner" class="hidden">
+      <div class="panel">
+        <div class="run-head">
+          <div class="crumb"><span id="topicTitle"></span></div>
+          <div class="progress"><span id="idx">1</span>/<span id="total">1</span></div>
+          <div class="timer"><span id="tmin">00</span>:<span id="tsec">00</span></div>
+        </div>
+        <div class="qwrap">
+          <div class="qtext" id="stem"></div>
+          <div class="qfig"><img id="figure" alt=""></div>
+        </div>
+        <div class="answer">
+          <input id="answer" placeholder="Ответ" autocomplete="off">
+          <button id="check">Проверить</button>
+        </div>
+        <div class="result" id="result"></div>
+        <div class="nav">
+          <button id="prev">Назад</button>
+          <button id="skip">Пропустить</button>
+          <button id="next">Далее</button>
+          <button id="finish">Завершить</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Шаг 3: итог -->
+    <section id="summary" class="hidden">
+      <div class="panel">
+        <h2>Сессия завершена</h2>
+        <div id="stats"></div>
+        <div class="actions">
+          <button id="restart">Новая сессия</button>
+          <a id="exportCsv" href="#" download="tasks_session.csv">Экспорт CSV</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./tasks.js"></script>
 </body>
 </html>
