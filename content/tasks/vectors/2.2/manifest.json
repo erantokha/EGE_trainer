@@ -5,7 +5,7 @@
     {
       "id": "2.2.1",
       "title": "Длина вектора по координатам (без картинки)",
-      "stem_template": "Даны векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\). Найдите длину вектора ${expr}.",
+      "stem_template": "Даны векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\). Найдите длину вектора \\(${expr}\\).",
       "defaults": {
         "difficulty": 1,
         "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
@@ -22,7 +22,7 @@
             "ay": 0,
             "bx": 1,
             "by": -5,
-            "expr": "\\\\vec{a} - 4\\\\vec{b}"
+            "expr": "\\vec{a} - 4\\vec{b}"
           },
           "answer": {
             "text": "29",
@@ -36,7 +36,7 @@
             "ay": 1,
             "bx": 0,
             "by": 7,
-            "expr": "8\\\\vec{a} + \\\\vec{b}"
+            "expr": "8\\vec{a} + \\vec{b}"
           },
           "answer": {
             "text": "17",
@@ -50,7 +50,7 @@
             "ay": 0,
             "bx": 1,
             "by": 4,
-            "expr": "\\\\vec{a} + 3\\\\vec{b}"
+            "expr": "\\vec{a} + 3\\vec{b}"
           },
           "answer": {
             "text": "13",
@@ -64,7 +64,7 @@
             "ay": 0,
             "bx": 1,
             "by": -1,
-            "expr": "\\\\vec{a} - 24\\\\vec{b}"
+            "expr": "\\vec{a} - 24\\vec{b}"
           },
           "answer": {
             "text": "25",
@@ -90,13 +90,7 @@
           "id": "2.2.2.1",
           "figure": {
             "img": "content/tasks/vectors/2.2/2.2.2_1.png",
-            "alt": "Длина вектора a + 4b"
-          },
-          "params": {
-            "ax": 3,
-            "ay": 4,
-            "bx": 2,
-            "by": -1
+            "alt": "Длина вектора a + 4b (вариант 1)"
           },
           "answer": {
             "text": "11",
