@@ -10,5 +10,24 @@
     "parent": "1",
     "path": "content/tasks/planimetry/1.1/manifest.json",
     "enabled": true
+  },
+  {
+    "id": "2",
+    "title": "Векторы",
+    "type": "group"
+  },
+  {
+    "id": "2.1",
+    "title": "Скалярное произведение",
+    "parent": "2",
+    "path": "content/tasks/vectors/2.1/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "2.2",
+    "title": "Длина вектора",
+    "parent": "2",
+    "path": "content/tasks/vectors/2.2/manifest.json",
+    "enabled": true
   }
 ]
