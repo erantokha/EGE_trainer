@@ -76,6 +76,16 @@ input[type="number"]{
 }
 input[type="number"]{width:72px;text-align:center}
 
+/* убираем стрелки у number-инпутов */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button{
+  -webkit-appearance:none;
+  margin:0;
+}
+input[type="number"]{
+  -moz-appearance:textfield;
+}
+
 /* ссылки */
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
@@ -143,7 +153,6 @@ a:hover{text-decoration:underline}
   justify-content:center;
 }
 .figure-wrap img{
-  /* было max-width:100%; — сейчас ограничиваем примерно вдвое */
   max-width:min(360px, 100%);
   width:100%;
   height:auto;
