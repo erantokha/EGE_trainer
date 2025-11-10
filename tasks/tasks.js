@@ -14,13 +14,13 @@ const asset = (p) =>
     : p;
 
 // ---------- Состояние каталога и выбора ----------
-let CATALOG = null; // массив из content/tasks/index.json
-let SECTIONS = []; // [{id,title,topics:[{id,title,path,_manifest?}]}]
+let CATALOG = null;        // массив из content/tasks/index.json
+let SECTIONS = [];         // [{id,title,topics:[{id,title,path,_manifest?}]}]
 
-let CHOICE_TOPICS = {}; // topicId -> count
-let CHOICE_SECTIONS = {}; // sectionId -> count
+let CHOICE_TOPICS = {};    // topicId -> count
+let CHOICE_SECTIONS = {};  // sectionId -> count
 
-let SESSION = null; // состояние раннера
+let SESSION = null;        // состояние раннера
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -369,7 +369,9 @@ function computeAnswer(type, proto, params) {
     units: t.units || null,
     tolerance: t.tolerance || null,
     accept: t.accept || null,
-    normalize: type.defaults?.normalize || [],
+    normalize: Array.isArray(type.defaults?.normalize)
+      ? type.defaults.normalize
+      : [],
   };
   if (proto.answer) {
     if (proto.answer.value != null) out.value = proto.answer.value;
@@ -419,7 +421,7 @@ async function startSession() {
   wireRunner();
 }
 
-function renderCurrent(){
+function renderCurrent() {
   const q = SESSION.questions[SESSION.idx];
   $('#idx').textContent = SESSION.idx + 1;
 
@@ -429,15 +431,19 @@ function renderCurrent(){
 
   // Перерисовать формулы MathJax'ом
   if (window.MathJax) {
-    if (MathJax.typesetPromise) {
-      MathJax.typesetPromise([stemEl]).catch(err => console.error(err));
-    } else if (MathJax.typeset) {
-      MathJax.typeset([stemEl]);
+    try {
+      if (MathJax.typesetPromise) {
+        MathJax.typesetPromise([stemEl]).catch((err) => console.error(err));
+      } else if (MathJax.typeset) {
+        MathJax.typeset([stemEl]);
+      }
+    } catch (e) {
+      console.error('MathJax typeset error', e);
     }
   }
 
   const img = $('#figure');
-  if (q.figure?.img){
+  if (q.figure?.img) {
     img.src = asset(q.figure.img);
     img.alt = q.figure.alt || '';
     img.parentElement.style.display = '';
@@ -448,10 +454,10 @@ function renderCurrent(){
   }
 
   $('#answer').value = '';
-  $('#result')..textContent = '';
-  $('#result').className = 'result';
+  const res = $('#result');
+  res.textContent = '';
+  res.className = 'result';
 }
-
 
 function wireRunner() {
   $('#check').onclick = onCheck;
