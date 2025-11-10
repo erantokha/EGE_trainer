@@ -419,12 +419,25 @@ async function startSession() {
   wireRunner();
 }
 
-function renderCurrent() {
+function renderCurrent(){
   const q = SESSION.questions[SESSION.idx];
   $('#idx').textContent = SESSION.idx + 1;
-  $('#stem').textContent = q.stem;
+
+  const stemEl = $('#stem');
+  // ВАЖНО: innerHTML, чтобы MathJax увидел разметку \(...\)
+  stemEl.innerHTML = q.stem;
+
+  // Перерисовать формулы MathJax'ом
+  if (window.MathJax) {
+    if (MathJax.typesetPromise) {
+      MathJax.typesetPromise([stemEl]).catch(err => console.error(err));
+    } else if (MathJax.typeset) {
+      MathJax.typeset([stemEl]);
+    }
+  }
+
   const img = $('#figure');
-  if (q.figure?.img) {
+  if (q.figure?.img){
     img.src = asset(q.figure.img);
     img.alt = q.figure.alt || '';
     img.parentElement.style.display = '';
@@ -433,10 +446,12 @@ function renderCurrent() {
     img.alt = '';
     img.parentElement.style.display = 'none';
   }
+
   $('#answer').value = '';
-  $('#result').textContent = '';
+  $('#result')..textContent = '';
   $('#result').className = 'result';
 }
+
 
 function wireRunner() {
   $('#check').onclick = onCheck;
