@@ -125,10 +125,8 @@ a:hover{text-decoration:underline}
 }
 .countbox .btn:active{transform:translateY(1px)}
 
-/* ---------- Блок раннера (общие стили) ---------- */
+/* ---------- Блок раннера ---------- */
 #runner .panel{padding:18px}
-
-/* старая версия класса, если где-то используется */
 .runner-head{
   display:flex;align-items:center;gap:12px;margin-bottom:10px
 }
@@ -138,77 +136,33 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* актуальная вёрстка: .run-head / .qwrap / .qtext / .qfig */
-.run-head{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:10px;
-}
-.run-head .crumb{font-weight:600}
-.run-head .progress{color:var(--text-dim)}
-.run-head .timer{
-  margin-left:auto;
-  background:var(--panel-2);
-  border:1px solid var(--border);
-  padding:6px 10px;
-  border-radius:10px;
-}
-
-.qwrap{
-  margin-top:8px;
-}
-
-.qtext{
-  margin:4px 0 8px;
-  white-space:pre-wrap;
-}
-
-/* обёртка картинки в раннере */
-.qfig{
-  margin-top:8px;
+/* Картинка задачи */
+.figure-wrap{
+  margin:12px 0;
   display:flex;
   justify-content:center;
 }
-
-/* Картинка задачи — унифицированный размер */
-.qfig img{
-  max-width:min(480px, 100%);   /* не шире 480px и контейнера */
-  max-height:360px;             /* ограничение по высоте */
-  width:auto;
+.figure-wrap img{
+  /* было max-width:100%; — сейчас ограничиваем примерно вдвое */
+  max-width:min(360px, 100%);
+  width:100%;
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
   background:#000;
 }
 
-/* старый селектор, если где-то ещё используется */
-.figure-wrap{margin:8px 0 12px}
-.figure-wrap img{
-  max-width:100%; height:auto; border:1px solid var(--border);
-  border-radius:10px; background:#000;
-}
-
+/* Текст условия */
 .stem{white-space:pre-wrap; margin:12px 0}
 
-/* ответ и кнопки под ним */
-.answer{
-  margin-top:10px;
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.answer input[type="text"],
-.answer input[type="number"],
-.answer input[type="email"]{
-  width:220px;
-}
+/* Ответ и кнопки под задачей */
+.answer-row{display:flex; align-items:center; gap:8px; margin:8px 0}
+.answer-row input[type="text"]{width:220px}
 
-.nav{
-  margin-top:10px;
-  display:flex;
-  gap:8px;
-}
+.actions{display:flex; gap:8px; margin-top:10px}
+.actions .primary{background:var(--accent);border-color:var(--accent-2)}
+.actions .success{background:var(--success);border-color:#0aa77a}
+.actions .danger{background:var(--danger);border-color:#d53a3a}
 
 /* Результат проверки */
 .result{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2)}
@@ -240,10 +194,12 @@ a:hover{text-decoration:underline}
 @media (max-width:640px){
   .countbox input{width:56px}
   .runner-head{flex-wrap:wrap}
-  .run-head{flex-wrap:wrap}
   .userbar{flex-direction:column;align-items:flex-start}
 }
 
 /* ---------- Мелочи ---------- */
 /* Подсветка интерактивных элементов при фокусе */
-button:focus, input:focus { outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
+button:focus, input:focus {
+  outline:2px solid rgba(59,130,246,.35);
+  outline-offset:2px;
+}
