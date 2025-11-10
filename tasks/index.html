@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Тренажёр задач</title>
   <link rel="stylesheet" href="./tasks.css">
+
+  <!-- MathJax для отображения формул -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(','\\)'], ['$', '$']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
   <header class="top">
@@ -29,14 +40,11 @@
           <div class="sum">Итого: <span id="sum">0</span></div>
           <button id="start" disabled>Начать</button>
         </div>
-    
+
         <!-- Аккордеон строится скриптом -->
         <div id="accordion" class="accordion"></div>
       </div>
     </section>
-    
-    
-    
 
     <!-- Шаг 2: сессия -->
     <section id="runner" class="hidden">
@@ -76,17 +84,6 @@
       </div>
     </section>
   </main>
-
-    <!-- MathJax для формул -->
-  <script>
-    window.MathJax = {
-      tex: {
-        inlineMath: [['\\(','\\)'], ['$', '$']]
-      },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 
   <!-- Скрипт тренажёра задач -->
   <script type="module" src="./tasks.js"></script>
