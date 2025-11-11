@@ -100,5 +100,67 @@
     "title": "Прикладные задачи по физике и формулам",
     "path": "content/tasks/models/manifest.json",
     "enabled": true
+  },
+
+  {
+    "id": "10",
+    "type": "group",
+    "title": "10. Текстовые задачи"
+  },
+  {
+    "id": "10.1",
+    "type": "topic",
+    "parent": "10",
+    "title": "Движение по воде",
+    "path": "content/tasks/text/10.1/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.2",
+    "type": "topic",
+    "parent": "10",
+    "title": "Движение",
+    "path": "content/tasks/text/10.2/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.3",
+    "type": "topic",
+    "parent": "10",
+    "title": "Работа",
+    "path": "content/tasks/text/10.3/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.4",
+    "type": "topic",
+    "parent": "10",
+    "title": "Совместная работа",
+    "path": "content/tasks/text/10.4/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.5",
+    "type": "topic",
+    "parent": "10",
+    "title": "Сплавы и смеси",
+    "path": "content/tasks/text/10.5/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.6",
+    "type": "topic",
+    "parent": "10",
+    "title": "Средняя скорость",
+    "path": "content/tasks/text/10.6/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "10.7",
+    "type": "topic",
+    "parent": "10",
+    "title": "Два поезда навстречу",
+    "path": "content/tasks/text/10.7/manifest.json",
+    "enabled": true
   }
 ]
