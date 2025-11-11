@@ -1,0 +1,50 @@
+{
+  "topic": "10.4",
+  "title": "Совместная работа",
+  "types": [
+    {
+      "id": "10.4.1.1",
+      "title": "Два мастера",
+      "stem_template": "Один мастер может выполнить заказ за 40 часов, а другой — за 24 часа. За сколько часов выполнят этот заказ оба мастера, работая вместе?",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii", "comma_to_dot"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "10.4.1.1.1",
+          "answer": {
+            "text": "15",
+            "value": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "10.4.2.1",
+      "title": "Два насоса (и третий)",
+      "stem_template": "Первый насос наполняет бак за 11 минут, второй — за 15 минут, а третий — за 1 час 50 минут. За сколько минут наполнят этот бак три насоса, работая одновременно?",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii", "comma_to_dot"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "10.4.2.1.1",
+          "answer": {
+            "text": "6",
+            "value": 6
+          }
+        }
+      ]
+    }
+  ]
+}
