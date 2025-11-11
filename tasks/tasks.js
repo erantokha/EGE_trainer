@@ -1,5 +1,5 @@
-// tasks/tasks.js — двухуровневый аккордеон: Раздел → Тема. Без раскрытия типов в UI.
-// Количество на уровне раздела и темы. Распределение по типам выполняется лишь при старте сессии.
+// tasks/tasks.js — двухуровневый аккордеон: Раздел → Тема.
+// Количество на уровне раздела и темы. Распределение по типам выполняется при старте сессии.
 
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
@@ -14,13 +14,13 @@ const asset = (p) =>
     : p;
 
 // ---------- Состояние каталога и выбора ----------
-let CATALOG = null;        // массив из content/tasks/index.json
-let SECTIONS = [];         // [{id,title,topics:[{id,title,path,_manifest?}]}]
+let CATALOG = null;   // массив из content/tasks/index.json
+let SECTIONS = [];    // [{id,title,topics:[{id,title,path,_manifest?}]}]
 
-let CHOICE_TOPICS = {};    // topicId -> count
-let CHOICE_SECTIONS = {};  // sectionId -> count
+let CHOICE_TOPICS = {};   // topicId -> count
+let CHOICE_SECTIONS = {}; // sectionId -> count
 
-let SESSION = null;        // состояние раннера
+let SESSION = null;       // состояние раннера
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function ensureAccordionScaffold() {
   const panel = $('#picker .panel') || $('#picker') || document.body;
+
   // Добавим панель управления, если её нет
   if (!$('.controls', panel)) {
     const controls = document.createElement('div');
@@ -58,6 +59,7 @@ function ensureAccordionScaffold() {
     `;
     (panel.querySelector('h1') || panel).after(controls);
   }
+
   if (!$('#accordion')) {
     const acc = document.createElement('div');
     acc.id = 'accordion';
@@ -104,7 +106,7 @@ function renderSectionNode(sec) {
   node.dataset.id = sec.id;
   node.innerHTML = `
     <div class="row">
-      <button class="toggle" aria-label="toggle">▸</button>
+      <button class="toggle" aria-label="toggle"></button>
       <div class="title">${esc(`${sec.id}. ${sec.title}`)}</div>
       <div class="spacer"></div>
       <div class="countbox">
@@ -112,6 +114,7 @@ function renderSectionNode(sec) {
         <input class="count" type="number" min="0" step="1" value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus">+</button>
       </div>
+      <button class="btn fill-all" title="Выбрать все уникальные прототипы раздела">Все прототипы</button>
     </div>
     <div class="children"></div>
   `;
@@ -139,6 +142,11 @@ function renderSectionNode(sec) {
     const v = Math.max(0, Number(num.value || 0));
     num.value = v;
     setSectionCount(sec.id, v);
+  };
+
+  // Кнопка "Все прототипы" для раздела (номер 4, 5, 6, ...)
+  $('.fill-all', node).onclick = () => {
+    fillSectionWithAll(sec.id).catch((e) => console.error(e));
   };
 
   return node;
@@ -181,6 +189,30 @@ function renderTopicRow(sec, topic) {
   return row;
 }
 
+// ---------- "Все прототипы" для раздела (номер 4, 5, 6, ...) ----------
+async function fillSectionWithAll(sectionId) {
+  const sec = SECTIONS.find((s) => s.id === sectionId);
+  if (!sec) return;
+
+  let total = 0;
+
+  // пройдём по всем темам раздела, загрузим их манифесты и посчитаем вместимость
+  for (const t of sec.topics) {
+    const man = await ensureManifest(t);
+    if (!man) continue;
+    const capTopic = man.types.reduce(
+      (s, x) => s + x.prototypes.length,
+      0,
+    );
+    CHOICE_TOPICS[t.id] = capTopic;
+    total += capTopic;
+  }
+
+  // выставляем на раздел суммарное количество
+  setSectionCount(sec.id, total);
+  // bubbleUpSums обновит суммы и поля разделов; мы дополним обновление полей тем
+}
+
 // ---------- Суммы и доступность кнопки "Начать" ----------
 function setTopicCount(topicId, n) {
   CHOICE_TOPICS[topicId] = n;
@@ -201,12 +233,22 @@ function bubbleUpSums() {
     if (sumTopics > 0) CHOICE_SECTIONS[sec.id] = sumTopics;
   }
 
-  // Обновим UI чисел
+  // Обновим UI чисел для разделов
   $$('.node.section').forEach((node) => {
     const id = node.dataset.id;
     const num = $('.count', node);
     if (num) {
       const v = CHOICE_SECTIONS[id] || 0;
+      if (Number(num.value) !== v) num.value = v;
+    }
+  });
+
+  // Обновим UI чисел для тем (важно для fillSectionWithAll)
+  $$('.node.topic').forEach((node) => {
+    const id = node.dataset.id;
+    const num = $('.count', node);
+    if (num) {
+      const v = CHOICE_TOPICS[id] || 0;
       if (Number(num.value) !== v) num.value = v;
     }
   });
@@ -369,9 +411,7 @@ function computeAnswer(type, proto, params) {
     units: t.units || null,
     tolerance: t.tolerance || null,
     accept: t.accept || null,
-    normalize: Array.isArray(type.defaults?.normalize)
-      ? type.defaults.normalize
-      : [],
+    normalize: type.defaults?.normalize || [],
   };
   if (proto.answer) {
     if (proto.answer.value != null) out.value = proto.answer.value;
@@ -426,19 +466,17 @@ function renderCurrent() {
   $('#idx').textContent = SESSION.idx + 1;
 
   const stemEl = $('#stem');
-  // ВАЖНО: innerHTML, чтобы MathJax увидел разметку \(...\)
+  // innerHTML, чтобы MathJax увидел разметку \(...\)
   stemEl.innerHTML = q.stem;
 
   // Перерисовать формулы MathJax'ом
   if (window.MathJax) {
-    try {
-      if (MathJax.typesetPromise) {
-        MathJax.typesetPromise([stemEl]).catch((err) => console.error(err));
-      } else if (MathJax.typeset) {
-        MathJax.typeset([stemEl]);
-      }
-    } catch (e) {
-      console.error('MathJax typeset error', e);
+    if (MathJax.typesetPromise) {
+      MathJax.typesetPromise([stemEl]).catch((err) =>
+        console.error(err),
+      );
+    } else if (MathJax.typeset) {
+      MathJax.typeset([stemEl]);
     }
   }
 
