@@ -1,0 +1,50 @@
+{
+  "topic": "12.3",
+  "title": "Тригонометрические функции",
+  "types": [
+    {
+      "id": "12.3.1",
+      "title": "Косинус на отрезке",
+      "stem_template": "Найдите наименьшее значение функции \\( y = 10\\cos x + 14x + 9 \\) на отрезке \\([0; 3\\pi/2]\\).",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.3.1.1",
+          "answer": {
+            "text": "19",
+            "value": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "12.3.2",
+      "title": "Синус на отрезке",
+      "stem_template": "Найдите наибольшее значение функции \\( y = 10\\sin x - \\tfrac{42}{\\pi}x - 12 \\) на отрезке \\([-5\\pi/6; 0]\\).",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.3.2.1",
+          "answer": {
+            "text": "18",
+            "value": 18
+          }
+        }
+      ]
+    }
+  ]
+}
