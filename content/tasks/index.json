@@ -35,7 +35,7 @@
   {
     "id": "4",
     "type": "group",
-    "title": "Простая вероятность"
+    "title": "4. Простая вероятность"
   },
   {
     "id": "4.1",
@@ -49,13 +49,13 @@
   {
     "id": "5",
     "type": "group",
-    "title": "Сложная вероятность"
+    "title": "5. Сложная вероятность"
   },
   {
     "id": "5.1",
     "type": "topic",
     "parent": "5",
-    "title": "Вероятность: независимые события, условная вероятность",
+    "title": "Сложная вероятность",
     "path": "content/tasks/probability5/manifest.json",
     "enabled": true
   },
@@ -63,13 +63,13 @@
   {
     "id": "6",
     "type": "group",
-    "title": "Простейшие уравнения"
+    "title": "6. Уравнения"
   },
   {
     "id": "6.1",
     "type": "topic",
     "parent": "6",
-    "title": "Уравнения с показателями, логарифмами, корнями и дробями",
+    "title": "Разные типы уравнений",
     "path": "content/tasks/equations/manifest.json",
     "enabled": true
   },
@@ -77,7 +77,7 @@
   {
     "id": "7",
     "type": "group",
-    "title": "Вычисление выражений"
+    "title": "7. Вычисление выражений"
   },
   {
     "id": "7.1",
@@ -85,6 +85,20 @@
     "parent": "7",
     "title": "Тригонометрия, логарифмы, степени и корни",
     "path": "content/tasks/expressions/manifest.json",
+    "enabled": true
+  },
+
+  {
+    "id": "9",
+    "type": "group",
+    "title": "9. Прикладные задачи"
+  },
+  {
+    "id": "9.1",
+    "type": "topic",
+    "parent": "9",
+    "title": "Прикладные задачи по физике и формулам",
+    "path": "content/tasks/models/manifest.json",
     "enabled": true
   }
 ]
