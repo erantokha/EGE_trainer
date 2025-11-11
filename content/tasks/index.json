@@ -41,5 +41,17 @@
     "parent": "4",
     "path": "content/tasks/probability/manifest.json",
     "enabled": true
+  },
+  {
+    "id": "5",
+    "title": "Сложная вероятность",
+    "type": "group"
+  },
+  {
+    "id": "5.1",
+    "title": "Сложные задачи на вероятность",
+    "parent": "5",
+    "path": "content/tasks/probability5/manifest.json",
+    "enabled": true
   }
 ]
