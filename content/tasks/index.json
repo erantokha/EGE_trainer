@@ -34,133 +34,155 @@
 
   {
     "id": "4",
-    "type": "group",
-    "title": "4. Простая вероятность"
+    "title": "Простая вероятность",
+    "type": "group"
   },
   {
     "id": "4.1",
-    "type": "topic",
-    "parent": "4",
     "title": "Базовые задачи на вероятность",
+    "parent": "4",
     "path": "content/tasks/probability/manifest.json",
     "enabled": true
   },
 
   {
     "id": "5",
-    "type": "group",
-    "title": "5. Сложная вероятность"
+    "title": "Сложная вероятность",
+    "type": "group"
   },
   {
     "id": "5.1",
-    "type": "topic",
+    "title": "Сложная вероятность (комбинаторика, формулы)",
     "parent": "5",
-    "title": "Сложная вероятность",
     "path": "content/tasks/probability5/manifest.json",
     "enabled": true
   },
 
   {
     "id": "6",
-    "type": "group",
-    "title": "6. Уравнения"
+    "title": "Уравнения",
+    "type": "group"
   },
   {
     "id": "6.1",
-    "type": "topic",
+    "title": "Уравнения (степенные, корни, логарифмы)",
     "parent": "6",
-    "title": "Разные типы уравнений",
     "path": "content/tasks/equations/manifest.json",
     "enabled": true
   },
 
   {
     "id": "7",
-    "type": "group",
-    "title": "7. Вычисление выражений"
+    "title": "Вычисления",
+    "type": "group"
   },
   {
     "id": "7.1",
-    "type": "topic",
-    "parent": "7",
     "title": "Тригонометрия, логарифмы, степени и корни",
+    "parent": "7",
     "path": "content/tasks/expressions/manifest.json",
     "enabled": true
   },
 
   {
     "id": "9",
-    "type": "group",
-    "title": "9. Прикладные задачи"
+    "title": "Текстовые задачи с формулами",
+    "type": "group"
   },
   {
     "id": "9.1",
-    "type": "topic",
+    "title": "Физические и прикладные модели",
     "parent": "9",
-    "title": "Прикладные задачи по физике и формулам",
     "path": "content/tasks/models/manifest.json",
     "enabled": true
   },
 
   {
     "id": "10",
-    "type": "group",
-    "title": "10. Текстовые задачи"
+    "title": "Текстовые задачи (движение, работа, смеси)",
+    "type": "group"
   },
   {
     "id": "10.1",
-    "type": "topic",
-    "parent": "10",
     "title": "Движение по воде",
+    "parent": "10",
     "path": "content/tasks/text/10.1/manifest.json",
     "enabled": true
   },
   {
     "id": "10.2",
-    "type": "topic",
+    "title": "Движение по прямой",
     "parent": "10",
-    "title": "Движение",
     "path": "content/tasks/text/10.2/manifest.json",
     "enabled": true
   },
   {
     "id": "10.3",
-    "type": "topic",
+    "title": "Работа (рабочие, трубы)",
     "parent": "10",
-    "title": "Работа",
     "path": "content/tasks/text/10.3/manifest.json",
     "enabled": true
   },
   {
     "id": "10.4",
-    "type": "topic",
-    "parent": "10",
     "title": "Совместная работа",
+    "parent": "10",
     "path": "content/tasks/text/10.4/manifest.json",
     "enabled": true
   },
   {
     "id": "10.5",
-    "type": "topic",
-    "parent": "10",
     "title": "Сплавы и смеси",
+    "parent": "10",
     "path": "content/tasks/text/10.5/manifest.json",
     "enabled": true
   },
   {
     "id": "10.6",
-    "type": "topic",
-    "parent": "10",
     "title": "Средняя скорость",
+    "parent": "10",
     "path": "content/tasks/text/10.6/manifest.json",
     "enabled": true
   },
   {
     "id": "10.7",
-    "type": "topic",
+    "title": "Поезда навстречу",
     "parent": "10",
-    "title": "Два поезда навстречу",
     "path": "content/tasks/text/10.7/manifest.json",
+    "enabled": true
+  },
+
+  {
+    "id": "12",
+    "title": "Исследование функций (производная)",
+    "type": "group"
+  },
+  {
+    "id": "12.1",
+    "title": "Степенные функции",
+    "parent": "12",
+    "path": "content/tasks/extrema/12.1/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "12.2",
+    "title": "Логарифмические функции",
+    "parent": "12",
+    "path": "content/tasks/extrema/12.2/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "12.3",
+    "title": "Тригонометрические функции",
+    "parent": "12",
+    "path": "content/tasks/extrema/12.3/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "12.4",
+    "title": "Произведение и экспонента",
+    "parent": "12",
+    "path": "content/tasks/extrema/12.4/manifest.json",
     "enabled": true
   }
 ]
