@@ -1,0 +1,50 @@
+{
+  "topic": "10.3",
+  "title": "Работа",
+  "types": [
+    {
+      "id": "10.3.1.1",
+      "title": "Два рабочих",
+      "stem_template": "Заказ на изготовление 198 деталей первый рабочий выполняет на 7 часов быстрее, чем второй. Сколько деталей за час изготавливает первый рабочий, если известно, что он за час изготавливает на 7 деталей больше второго?",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii", "comma_to_dot"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "10.3.1.1.1",
+          "answer": {
+            "text": "18",
+            "value": 18
+          }
+        }
+      ]
+    },
+    {
+      "id": "10.3.2.1",
+      "title": "Две трубы",
+      "stem_template": "Первая труба пропускает на 6 литров воды в минуту меньше, чем вторая. Сколько литров воды в минуту пропускает вторая труба, если резервуар объёмом 112 литров она заполняет на 6 минут быстрее, чем первая труба?",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii", "comma_to_dot"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "10.3.2.1.1",
+          "answer": {
+            "text": "14",
+            "value": 14
+          }
+        }
+      ]
+    }
+  ]
+}
