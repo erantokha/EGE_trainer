@@ -11,6 +11,7 @@
     "path": "content/tasks/planimetry/1.1/manifest.json",
     "enabled": true
   },
+
   {
     "id": "2",
     "title": "Векторы",
@@ -30,40 +31,60 @@
     "path": "content/tasks/vectors/2.2/manifest.json",
     "enabled": true
   },
+
   {
     "id": "4",
-    "title": "Простая вероятность",
-    "type": "group"
+    "type": "group",
+    "title": "4. Простая вероятность"
   },
   {
     "id": "4.1",
-    "title": "Базовые задачи на вероятность",
+    "type": "topic",
     "parent": "4",
+    "title": "Базовые задачи на вероятность",
     "path": "content/tasks/probability/manifest.json",
     "enabled": true
   },
+
   {
     "id": "5",
-    "title": "Сложная вероятность",
-    "type": "group"
+    "type": "group",
+    "title": "5. Сложная вероятность"
   },
   {
     "id": "5.1",
-    "title": "Сложные задачи на вероятность",
+    "type": "topic",
     "parent": "5",
+    "title": "Вероятность: независимые события, условная вероятность",
     "path": "content/tasks/probability5/manifest.json",
     "enabled": true
   },
+
   {
     "id": "6",
-    "title": "Уравнения",
-    "type": "group"
+    "type": "group",
+    "title": "6. Уравнения"
   },
   {
     "id": "6.1",
-    "title": "Простейшие уравнения",
+    "type": "topic",
     "parent": "6",
-    "path": "content/tasks/equations/6.1/manifest.json",
+    "title": "Уравнения с показателями, логарифмами, корнями и дробями",
+    "path": "content/tasks/equations/manifest.json",
+    "enabled": true
+  },
+
+  {
+    "id": "7",
+    "type": "group",
+    "title": "7. Вычисление выражений"
+  },
+  {
+    "id": "7.1",
+    "type": "topic",
+    "parent": "7",
+    "title": "Тригонометрия, логарифмы, степени и корни",
+    "path": "content/tasks/expressions/manifest.json",
     "enabled": true
   }
 ]
