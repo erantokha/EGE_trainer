@@ -1,0 +1,28 @@
+{
+  "topic": "12.4",
+  "title": "Произведение многочлена и экспоненты",
+  "types": [
+    {
+      "id": "12.4.1",
+      "title": "Минимум произведения",
+      "stem_template": "Найдите точку минимума функции \\( y = (8x^2 - 40x + 40) e^{x+4} \\).",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.4.1.1",
+          "answer": {
+            "text": "3",
+            "value": 3
+          }
+        }
+      ]
+    }
+  ]
+}
