@@ -29,5 +29,17 @@
     "parent": "2",
     "path": "content/tasks/vectors/2.2/manifest.json",
     "enabled": true
+  },
+  {
+    "id": "4",
+    "title": "Задача 4. Вероятность",
+    "type": "group"
+  },
+  {
+    "id": "4.1",
+    "title": "Базовые задачи на вероятность",
+    "parent": "4",
+    "path": "content/tasks/probability/manifest.json",
+    "enabled": true
   }
 ]
