@@ -53,5 +53,17 @@
     "parent": "5",
     "path": "content/tasks/probability5/manifest.json",
     "enabled": true
+  },
+  {
+    "id": "6",
+    "title": "Уравнения",
+    "type": "group"
+  },
+  {
+    "id": "6.1",
+    "title": "Простейшие уравнения",
+    "parent": "6",
+    "path": "content/tasks/equations/6.1/manifest.json",
+    "enabled": true
   }
 ]
