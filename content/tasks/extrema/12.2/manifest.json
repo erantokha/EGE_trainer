@@ -1,0 +1,72 @@
+{
+  "topic": "12.2",
+  "title": "Логарифмические функции",
+  "types": [
+    {
+      "id": "12.2.1",
+      "title": "Логарифм (x - 7)",
+      "stem_template": "Найдите точку минимума функции \\( y = 3x - 3\\ln(x - 7) - 8 \\).",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.2.1.1",
+          "answer": {
+            "text": "8",
+            "value": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "12.2.2",
+      "title": "Логарифм (12x) на отрезке",
+      "stem_template": "Найдите наименьшее значение функции \\( y = 12x - \\ln(12x) + 4 \\) на отрезке \\([\\tfrac{1}{24}; \\tfrac{5}{24}]\\).",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.2.2.1",
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "12.2.3",
+      "title": "Логарифм в степени",
+      "stem_template": "Найдите наибольшее значение функции \\( y = \\ln\\big((x + 9)^5\\big) - 5x \\) на отрезке \\([-8{,}5; 0]\\).",
+      "defaults": {
+        "difficulty": 2,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "12.2.3.1",
+          "answer": {
+            "text": "40",
+            "value": 40
+          }
+        }
+      ]
+    }
+  ]
+}
