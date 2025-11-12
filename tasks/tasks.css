@@ -357,3 +357,63 @@ a:hover { text-decoration:underline; }
   .runner-head { flex-wrap:wrap; }
   header.top .user { flex-wrap:wrap; justify-content:flex-end; }
 }
+
+/* ---------- Лист задач по номеру (worksheet) ---------- */
+.worksheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.ws-task {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--panel-2);
+}
+
+.ws-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.ws-id {
+  font-weight: 600;
+}
+
+.ws-topic {
+  font-size: 13px;
+  opacity: .8;
+}
+
+.ws-stem {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+
+.ws-figure {
+  margin: 8px 0;
+  text-align: left;
+}
+
+.ws-figure img {
+  max-width: 260px; /* чтобы не были огромными */
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.ws-answer {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.ws-answer-text {
+  margin-top: 4px;
+}
+
