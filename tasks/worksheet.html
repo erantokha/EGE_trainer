@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Лист задач по номеру</title>
+  <link rel="stylesheet" href="./tasks.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">Тренажёр задач</div>
+    <div class="spacer"></div>
+    <button id="backToTasks">К выбору заданий</button>
+  </header>
+
+  <main>
+    <section id="worksheet">
+      <div class="panel">
+        <h1 id="wsTitle">Задачи</h1>
+        <div id="wsMeta" style="margin-bottom:12px; opacity:.8; font-size:13px;"></div>
+        <div id="wsContent" class="worksheet-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MathJax для формул -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(','\\)'], ['$', '$']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+  <!-- Скрипт списка задач по номеру -->
+  <script type="module" src="./worksheet.js"></script>
+</body>
+</html>
