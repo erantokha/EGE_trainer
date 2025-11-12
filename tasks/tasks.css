@@ -20,14 +20,14 @@
   --radius:12px;
 
   /* --- управление размерами изображений и модалки --- */
-  /* базовая ширина встроенных картинок (в раннере и списке задач) */
-  --figure-w: 520px;      /* можно менять на 420px / 600px и т.п. */
-  /* размеры модального окна c увеличенным изображением (≈ половина экрана по умолчанию) */
+  /* максимальная ширина встроенных картинок (по умолчанию как раньше) */
+  --figure-max-w: 100%;
+  /* размеры всплывающего окна с увеличенным изображением */
   --lb-w: 50vw;
   --lb-h: 50vh;
 }
 
-/* При желании можно задать пресеты размерами так:
+/* пресеты при желании:
    body.lb-sm { --lb-w: 40vw; --lb-h: 40vh; }
    body.lb-md { --lb-w: 50vw; --lb-h: 50vh; }
    body.lb-lg { --lb-w: 70vw; --lb-h: 70vh; }
@@ -89,10 +89,10 @@ input[type="number"]{
 }
 input[type="number"]{width:72px;text-align:center}
 
-/* скрываем стрелки у number в разных браузерах */
+/* скрываем стрелки у number */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-input[type="number"]{ -moz-appearance: textfield; }
+input[type="number"]{ -moz-appearance:textfield }
 
 /* ссылки */
 a{color:var(--accent);text-decoration:none}
@@ -154,10 +154,10 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* Встроенные рисунки задач: одинаковая «умеренная» ширина + возможность увеличения по клику */
+/* Встроенные рисунки задач: прежнее поведение + курсор-лупа */
 .figure-wrap{margin:8px 0 12px}
 .figure-wrap img{
-  width:min(100%, var(--figure-w));
+  max-width:var(--figure-max-w);
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
@@ -202,7 +202,7 @@ img.zoomable{cursor:zoom-in}
   text-align:center;
 }
 
-/* ---------- Lightbox (всплывающее увеличение изображений) ---------- */
+/* ---------- Lightbox ---------- */
 .lightbox-backdrop{
   position:fixed; inset:0;
   background:rgba(0,0,0,.6);
@@ -249,13 +249,8 @@ img.zoomable{cursor:zoom-in}
   .runner-head{flex-wrap:wrap}
   .userbar{flex-direction:column;align-items:flex-start}
 
-  /* На мобильных модалку делаем чуть больше относительно экрана */
-  :root{
-    --lb-w: 78vw;
-    --lb-h: 78vh;
-  }
+  :root{ --lb-w: 78vw; --lb-h: 78vh; }
 }
 
 /* ---------- Мелочи ---------- */
 button:focus, input:focus { outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
-
