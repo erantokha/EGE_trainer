@@ -1,11 +1,10 @@
 // tasks/lightbox.js
 // 1) Lightbox для увеличения картинок по клику
-// 2) Фикс дублей нумерации в аккордеоне: вида "7. 7. Вычисления"
+// 2) Фикс дублей нумерации в аккордеоне: "7. 7. Вычисления" → "7. Вычисления"
 
 (function(){
   function ensureLightbox(){
     if (document.querySelector('.lightbox-backdrop')) return;
-
     const wrap = document.createElement('div');
     wrap.className = 'lightbox-backdrop';
     wrap.setAttribute('role','dialog');
@@ -18,15 +17,13 @@
     `;
     document.body.appendChild(wrap);
 
-    // Закрытие по клику на фон/крестик/ESC
+    // закрытие по клику на фон/крестик/ESC
     wrap.addEventListener('click', (e)=>{
       if (e.target.classList.contains('lightbox-backdrop') || e.target.classList.contains('lightbox-close')){
         closeLightbox();
       }
     });
-    document.addEventListener('keydown', (e)=>{
-      if (e.key === 'Escape') closeLightbox();
-    });
+    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closeLightbox(); });
   }
 
   function openLightbox(src, alt){
@@ -40,40 +37,44 @@
 
   function closeLightbox(){
     const wrap = document.querySelector('.lightbox-backdrop');
-    if (!wrap) return;
-    wrap.classList.remove('show');
+    if (wrap) wrap.classList.remove('show');
   }
 
-  // Помечаем картинки как кликабельные (в раннере и в режиме «задачи списком»)
-  function markZoomable(){
+  // Пометить картинки как zoomable
+  function markZoomable(root=document){
+    // максимально широкий, но безопасный набор селекторов
     const selectors = [
-      '#runner .figure-wrap img',
-      '#sheet img',                 // если на листе задач используется контейнер с id="sheet"
-      '.task-list img',             // на всякий случай, если список оформлен классом
-      '.task-item img'              // и для карточек в списке
+      '.figure-wrap img',
+      '#runner img',
+      '#sheet img',
+      '.task-list img',
+      '.task-item img',
+      '.stem img'
     ];
-    const imgs = document.querySelectorAll(selectors.join(', '));
+    const imgs = root.querySelectorAll(selectors.join(', '));
     imgs.forEach(img=>{
-      img.classList.add('zoomable');
-      img.setAttribute('loading','lazy');
+      if (!img.classList.contains('zoomable')) {
+        img.classList.add('zoomable');
+        img.setAttribute('loading','lazy');
+      }
     });
   }
 
-  // Делегирование клика — открываем лайтбокс
+  // Делегирование клика
   document.addEventListener('click', (e)=>{
     const img = e.target.closest('img.zoomable');
     if (!img) return;
-    // игнорируем встроенные ссылки, если есть
     e.preventDefault();
-    openLightbox(img.src, img.alt);
+    const full = img.dataset.full || img.src; // можно указать data-full для полноразмерной версии
+    openLightbox(full, img.alt);
   });
 
-  // Фикс «7. 7. Вычисления» → оставляем одно число.
-  function fixDuplicateNumbers(){
-    const nodes = document.querySelectorAll('.node .title');
+  // Фикс дублей нумерации
+  function fixDuplicateNumbers(root=document){
+    const nodes = root.querySelectorAll('.node .title');
     nodes.forEach(el=>{
       const t = (el.textContent || '').trim();
-      // варианты: "7. 7. Вычисления" или "8. 8 Производная..."
+      // "8. 8. Производная ..." или "8. 8 Производная ..."
       let m = t.match(/^(\d+)\.\s+\1\.\s*(.*)$/);
       if (m) { el.textContent = `${m[1]}. ${m[2]}`; return; }
       m = t.match(/^(\d+)\.\s+\1\s+(.*)$/);
@@ -82,18 +83,26 @@
   }
 
   // Инициализация
-  document.addEventListener('DOMContentLoaded', ()=>{
+  function init(root=document){
     ensureLightbox();
-    markZoomable();
-    fixDuplicateNumbers();
-  });
+    markZoomable(root);
+    fixDuplicateNumbers(root);
+  }
 
-  // На случай динамической отрисовки (после смены страницы/рендера задач)
-  window.addEventListener('load', ()=>{
-    markZoomable();
-    fixDuplicateNumbers();
-  });
+  document.addEventListener('DOMContentLoaded', ()=> init());
+  window.addEventListener('load', ()=> init());
 
-  // Экспорт для ручного вызова при SPA-перерисовках:
-  window.TasksLightbox = { markZoomable, fixDuplicateNumbers };
+  // На случай SPA — отслеживаем добавление узлов и помечаем новые картинки
+  const mo = new MutationObserver((mutations)=>{
+    for (const m of mutations){
+      for (const node of m.addedNodes){
+        if (!(node instanceof HTMLElement)) continue;
+        init(node);
+      }
+    }
+  });
+  mo.observe(document.documentElement, {childList:true, subtree:true});
+
+  // экспорт для ручного вызова
+  window.TasksLightbox = { markZoomable, fixDuplicateNumbers, init };
 })();
