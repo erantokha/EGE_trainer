@@ -1,10 +1,10 @@
 /* tasks/tasks.css
    Универсальные стили для страницы выбора задач (аккордеон 2 уровня),
-   раннера выполнения и итоговой сводки. Тёмная тема по умолчанию.
+   раннера выполнения и итоговой сводки. Темная тема по умолчанию.
 */
 
 /* ---------- Базовые переменные ---------- */
-:root {
+:root{
   --bg:#0e1117;
   --panel:#111827;
   --panel-2:#0f1623;
@@ -16,58 +16,43 @@
   --success:#10b981;
   --danger:#ef4444;
   --muted:#1b1d24;
-  --shadow:0 8px 24px rgba(0,0,0,.25);
+  --shadow: 0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
+
+  /* --- управление размерами изображений и модалки --- */
+  /* базовая ширина встроенных картинок (в раннере и списке задач) */
+  --figure-w: 520px;      /* можно менять на 420px / 600px и т.п. */
+  /* размеры модального окна c увеличенным изображением (≈ половина экрана по умолчанию) */
+  --lb-w: 50vw;
+  --lb-h: 50vh;
 }
 
-* { box-sizing:border-box; }
+/* При желании можно задать пресеты размерами так:
+   body.lb-sm { --lb-w: 40vw; --lb-h: 40vh; }
+   body.lb-md { --lb-w: 50vw; --lb-h: 50vh; }
+   body.lb-lg { --lb-w: 70vw; --lb-h: 70vh; }
+*/
 
-html,body { height:100%; }
-
-body {
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Cantarell,"Noto Sans",Arial,"Apple Color Emoji","Segoe UI Emoji";
+  font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, "Apple Color Emoji","Segoe UI Emoji";
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
 
-.hidden { display:none !important; }
-
-/* ---------- Верхняя панель ---------- */
-header.top {
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:10px 16px;
-  background:#020617;
-  border-bottom:1px solid var(--border);
-  position:sticky;
-  top:0;
-  z-index:10;
-}
-
-header.top .brand {
-  font-weight:600;
-  font-size:18px;
-}
-
-header.top .spacer { flex:1; }
-
-header.top .user {
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-
 /* ---------- Общие элементы ---------- */
-h1,h2,h3 { margin:0 0 10px; }
-h1 { font-size:28px; }
-h2 { font-size:20px; }
-p  { margin:8px 0; }
+.hidden{display:none !important}
 
-.panel {
+h1,h2,h3{margin:0 0 10px}
+h1{font-size:28px}
+h2{font-size:20px}
+p{margin:8px 0}
+
+.panel{
   background:var(--panel);
   border:1px solid var(--border);
   border-radius:var(--radius);
@@ -75,10 +60,10 @@ p  { margin:8px 0; }
   padding:16px 18px;
 }
 
-.container { max-width:1080px; margin:28px auto; padding:0 16px; }
+.container{max-width:1080px;margin:28px auto;padding:0 16px}
 
 /* кнопки */
-button {
+button{
   appearance:none;
   border:1px solid var(--border);
   background:var(--muted);
@@ -88,14 +73,13 @@ button {
   cursor:pointer;
   transition:.12s ease-in-out;
 }
-button:hover      { filter:brightness(1.06); }
-button:disabled   { opacity:.55; cursor:not-allowed; }
-button:focus      { outline:2px solid rgba(59,130,246,.35); outline-offset:2px; }
+button:hover{filter:brightness(1.06)}
+button:disabled{opacity:.55;cursor:not-allowed}
 
 /* поля ввода */
 input[type="text"],
 input[type="email"],
-input[type="number"] {
+input[type="number"]{
   background:var(--muted);
   color:var(--text);
   border:1px solid var(--border);
@@ -103,245 +87,113 @@ input[type="number"] {
   padding:8px 10px;
   outline:none;
 }
+input[type="number"]{width:72px;text-align:center}
 
-input[type="number"] {
-  width:72px;
-  text-align:center;
-}
-
-/* убираем стрелки у number */
+/* скрываем стрелки у number в разных браузерах */
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button {
-  -webkit-appearance:none;
-  margin:0;
-}
-input[type="number"] {
-  -moz-appearance:textfield;
-}
+input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type="number"]{ -moz-appearance: textfield; }
 
 /* ссылки */
-a { color:var(--accent); text-decoration:none; }
-a:hover { text-decoration:underline; }
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
 
 /* ---------- Верхняя панель выбора ---------- */
-#picker .panel { padding:18px; }
-
-#picker .controls {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-top:8px;
+#picker .panel{padding:18px}
+#picker .controls{
+  display:flex; align-items:center; gap:8px; margin-top:8px;
 }
-
-#picker .controls .sum {
-  padding:6px 10px;
-  border:1px dashed var(--border);
-  border-radius:10px;
-  background:var(--panel-2);
+#picker .controls .sum{
+  padding:6px 10px; border:1px dashed var(--border);
+  border-radius:10px; background:var(--panel-2);
 }
 
 /* ---------- Аккордеон: Раздел → Тема ---------- */
-.accordion { margin-top:12px; }
+.accordion{margin-top:12px}
 
-.node {
-  border-bottom:1px solid var(--border);
-  padding:8px 0;
+.node{border-bottom:1px solid var(--border);padding:8px 0}
+.node:last-child{border-bottom:none}
+
+.node .row{display:flex;align-items:center;gap:10px}
+.node .title{font-weight:600}
+.node .spacer{flex:1}
+
+.node.section .title{cursor:pointer}
+.node.section .toggle{
+  width:26px;height:26px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border); background:var(--muted);
+  border-radius:8px; cursor:pointer; user-select:none;
 }
-.node:last-child { border-bottom:none; }
+.node.section .toggle:after{content:"▸";line-height:1}
+.node.section.expanded .toggle:after{content:"▾"}
 
-.node .row {
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
-.node .title { font-weight:600; }
-.node .spacer { flex:1; }
-
-.node.section .title { cursor:pointer; }
-
-.node.section .toggle {
-  width:26px;
-  height:26px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid var(--border);
-  background:var(--muted);
-  border-radius:8px;
-  cursor:pointer;
-  user-select:none;
-}
-
-.node.section .toggle:after { content:"▸"; line-height:1; }
-.node.section.expanded .toggle:after { content:"▾"; }
-
-.children {
-  margin:8px 0 6px 32px;
-  display:none;
-}
-.node.section.expanded > .children { display:block; }
+.children{margin:8px 0 6px 32px;display:none}
+.node.section.expanded > .children{display:block}
 
 /* Тема — не кликабельна и не раскрывается */
-.node.topic .title { font-weight:500; cursor:default; }
-.node.topic .title.topic-title { pointer-events:none; }
+.node.topic .title{font-weight:500;cursor:default}
+.node.topic .title.topic-title{pointer-events:none}
 
 /* Счётчики */
-.countbox {
-  display:flex;
-  align-items:center;
-  gap:6px;
+.countbox{display:flex;align-items:center;gap:6px}
+.countbox .btn{
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border); background:var(--muted); color:var(--text); border-radius:8px;
 }
-
-.countbox .btn {
-  width:28px;
-  height:28px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid var(--border);
-  background:var(--muted);
-  color:var(--text);
-  border-radius:8px;
-}
-.countbox .btn:active { transform:translateY(1px); }
+.countbox .btn:active{transform:translateY(1px)}
 
 /* ---------- Блок раннера ---------- */
-#runner .panel { padding:18px; }
-
-.run-head,
-.runner-head {            /* на всякий случай поддерживаем оба класса */
-  display:flex;
-  align-items:center;
-  gap:12px;
-  margin-bottom:10px;
+#runner .panel{padding:18px}
+.runner-head{
+  display:flex;align-items:center;gap:12px;margin-bottom:10px
+}
+.runner-head .meta{color:var(--text-dim)}
+.runner-head .timer{
+  margin-left:auto; background:var(--panel-2); border:1px solid var(--border);
+  padding:6px 10px;border-radius:10px
 }
 
-.run-head .progress,
-.runner-head .progress {
-  color:var(--text-dim);
-}
-
-.run-head .timer,
-.runner-head .timer {
-  margin-left:auto;
-  background:var(--panel-2);
-  border:1px solid var(--border);
-  padding:6px 10px;
-  border-radius:10px;
-}
-
-/* текст и картинка задачи */
-.qwrap {
-  margin-top:12px;
-}
-
-.qtext,
-.stem {
-  white-space:pre-wrap;
-  margin:0 0 12px;
-}
-
-/* КОНТЕЙНЕР ДЛЯ КАРТИНКИ */
-.qfig {
-  margin:4px 0 12px;
-  display:flex;
-  justify-content:flex-start;
-}
-
-/* Размер изображения задачи
-   Хочешь ещё меньше/больше — меняй только max-width */
-.qfig img {
-  max-width:300px;  /* примерно вдвое меньше исходных */
-  width:100%;
+/* Встроенные рисунки задач: одинаковая «умеренная» ширина + возможность увеличения по клику */
+.figure-wrap{margin:8px 0 12px}
+.figure-wrap img{
+  width:min(100%, var(--figure-w));
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
   background:#000;
 }
+img.zoomable{cursor:zoom-in}
 
-/* Ответ + кнопка */
-.answer {
-  margin-top:4px;
-}
+/* Стем и ответы */
+.stem{white-space:pre-wrap; margin:12px 0}
 
-.answer-row,
-.answer {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin:8px 0;
-}
+.answer-row{display:flex; align-items:center; gap:8px; margin:8px 0}
+.answer-row input[type="text"]{width:220px}
 
-.answer input[type="text"],
-.answer-row input[type="text"] {
-  width:220px;
-}
-
-/* Навигация по задачам */
-.nav,
-.actions {
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-}
-
-.actions .primary { background:var(--accent); border-color:var(--accent-2); }
-.actions .success { background:var(--success); border-color:#0aa77a; }
-.actions .danger  { background:var(--danger);  border-color:#d53a3a; }
+.actions{display:flex; gap:8px; margin-top:10px}
+.actions .primary{background:var(--accent);border-color:var(--accent-2)}
+.actions .success{background:var(--success);border-color:#0aa77a}
+.actions .danger{background:var(--danger);border-color:#d53a3a}
 
 /* Результат проверки */
-.result {
-  margin-top:8px;
-  padding:8px 10px;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:var(--panel-2);
-}
-.result.ok {
-  border-color:#0ea572;
-  background:rgba(16,185,129,.12);
-}
-.result.bad {
-  border-color:#cf3d3d;
-  background:rgba(239,68,68,.12);
-}
+.result{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2)}
+.result.ok{border-color:#0ea572;background:rgba(16,185,129,.12)}
+.result.bad{border-color:#cf3d3d;background:rgba(239,68,68,.12)}
 
 /* ---------- Итоги ---------- */
-#summary .stats {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-  gap:8px;
-  margin-top:8px;
-}
-
-#summary .stats > div {
-  background:var(--panel-2);
-  border:1px solid var(--border);
-  padding:10px;
-  border-radius:10px;
-}
+#summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
+#summary .stats > div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
 
 /* ---------- Формы пользователя (имя/почта) ---------- */
-.userbar {
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:wrap;
-  margin:10px 0 4px;
+.userbar{
+  display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px;
 }
-
-.userbar .field {
-  display:flex;
-  gap:6px;
-  align-items:center;
-}
-
-.userbar .field label {
-  color:var(--text-dim);
-}
+.userbar .field{display:flex;gap:6px;align-items:center}
+.userbar .field label{color:var(--text-dim)}
 
 /* ---------- Сообщения/пустые состояния ---------- */
-.blank {
+.blank{
   border:1px dashed var(--border);
   background:var(--panel-2);
   color:var(--text-dim);
@@ -350,70 +202,60 @@ a:hover { text-decoration:underline; }
   text-align:center;
 }
 
+/* ---------- Lightbox (всплывающее увеличение изображений) ---------- */
+.lightbox-backdrop{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:9999;
+  padding:24px;
+}
+.lightbox-backdrop.show{display:flex}
+
+.lightbox-dialog{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:12px;
+}
+
+.lightbox-img{
+  display:block;
+  max-width:var(--lb-w);
+  max-height:var(--lb-h);
+  height:auto;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#000;
+}
+
+.lightbox-close{
+  position:absolute; top:8px; right:8px;
+  width:32px; height:32px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--border);
+  background:var(--muted);
+  color:var(--text);
+  border-radius:8px;
+  cursor:pointer;
+}
+
 /* ---------- Адаптив ---------- */
-@media (max-width:640px) {
-  .countbox input { width:56px; }
-  .run-head,
-  .runner-head { flex-wrap:wrap; }
-  header.top .user { flex-wrap:wrap; justify-content:flex-end; }
+@media (max-width:640px){
+  .countbox input{width:56px}
+  .runner-head{flex-wrap:wrap}
+  .userbar{flex-direction:column;align-items:flex-start}
+
+  /* На мобильных модалку делаем чуть больше относительно экрана */
+  :root{
+    --lb-w: 78vw;
+    --lb-h: 78vh;
+  }
 }
 
-/* ---------- Лист задач по номеру (worksheet) ---------- */
-.worksheet-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 8px;
-}
-
-.ws-task {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  background: var(--panel-2);
-}
-
-.ws-header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: baseline;
-  margin-bottom: 6px;
-}
-
-.ws-id {
-  font-weight: 600;
-}
-
-.ws-topic {
-  font-size: 13px;
-  opacity: .8;
-}
-
-.ws-stem {
-  margin: 8px 0;
-  white-space: pre-wrap;
-}
-
-.ws-figure {
-  margin: 8px 0;
-  text-align: left;
-}
-
-.ws-figure img {
-  max-width: 260px; /* чтобы не были огромными */
-  height: auto;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #000;
-}
-
-.ws-answer {
-  margin-top: 6px;
-  font-size: 13px;
-}
-
-.ws-answer-text {
-  margin-top: 4px;
-}
+/* ---------- Мелочи ---------- */
+button:focus, input:focus { outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
 
