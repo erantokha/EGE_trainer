@@ -1,26 +1,215 @@
+[
 {
-  "id": "8",
-  "title": "Производная и графики",
-  "type": "group"
+"id": "1",
+"title": "Планиметрия",
+"type": "group"
 },
 {
-  "id": "8.1",
-  "title": "Значение производной в точке касания",
-  "parent": "8",
-  "path": "content/tasks/derivatives/8.1/manifest.json",
-  "enabled": true
+"id": "1.1",
+"title": "Центральные и вписанные углы",
+"parent": "1",
+"path": "content/tasks/planimetry/1.1/manifest.json",
+"enabled": true
+},
+
+{
+"id": "2",
+"title": "Векторы",
+"type": "group"
 },
 {
-  "id": "8.2",
-  "title": "Свойства функции по графику и знаку производной",
-  "parent": "8",
-  "path": "content/tasks/derivatives/8.2/manifest.json",
-  "enabled": true
+"id": "2.1",
+"title": "Скалярное произведение",
+"parent": "2",
+"path": "content/tasks/vectors/2.1/manifest.json",
+"enabled": true
 },
 {
-  "id": "8.3",
-  "title": "Производная: экстремумы и интервалы",
-  "parent": "8",
-  "path": "content/tasks/derivatives/8.3/manifest.json",
-  "enabled": true
+"id": "2.2",
+"title": "Длина вектора",
+"parent": "2",
+"path": "content/tasks/vectors/2.2/manifest.json",
+"enabled": true
+},
+
+{
+"id": "4",
+"title": "4. Простая вероятность",
+"type": "group"
+},
+{
+"id": "4.1",
+"title": "Базовые задачи на вероятность",
+"parent": "4",
+"path": "content/tasks/probability/manifest.json",
+"enabled": true
+},
+
+{
+"id": "5",
+"title": "5. Сложная вероятность",
+"type": "group"
+},
+{
+"id": "5.1",
+"title": "Сложная вероятность (комбинаторика, формулы)",
+"parent": "5",
+"path": "content/tasks/probability5/manifest.json",
+"enabled": true
+},
+
+{
+"id": "6",
+"title": "6. Уравнения",
+"type": "group"
+},
+{
+"id": "6.1",
+"title": "Уравнения (степенные, корни, логарифмы)",
+"parent": "6",
+"path": "content/tasks/equations/manifest.json",
+"enabled": true
+},
+
+{
+"id": "7",
+"title": "7. Вычисления",
+"type": "group"
+},
+{
+"id": "7.1",
+"title": "Тригонометрия, логарифмы, степени и корни",
+"parent": "7",
+"path": "content/tasks/expressions/manifest.json",
+"enabled": true
+},
+
+{
+"id": "8",
+"title": "8. Производная и графики",
+"type": "group"
+},
+{
+"id": "8.1",
+"title": "Значение производной в точке касания",
+"parent": "8",
+"path": "content/tasks/derivatives/8.1/manifest.json",
+"enabled": true
+},
+{
+"id": "8.2",
+"title": "Дана функция",
+"parent": "8",
+"path": "content/tasks/derivatives/8.2/manifest.json",
+"enabled": true
+},
+{
+"id": "8.3",
+"title": "Дана производная",
+"parent": "8",
+"path": "content/tasks/derivatives/8.3/manifest.json",
+"enabled": true
+},
+
+{
+"id": "9",
+"title": "9. Текстовые задачи с формулами",
+"type": "group"
+},
+{
+"id": "9.1",
+"title": "Физические и прикладные модели",
+"parent": "9",
+"path": "content/tasks/models/manifest.json",
+"enabled": true
+},
+
+{
+"id": "10",
+"title": "10. Текстовые задачи (движение, работа, смеси)",
+"type": "group"
+},
+{
+"id": "10.1",
+"title": "Движение по воде",
+"parent": "10",
+"path": "content/tasks/text/10.1/manifest.json",
+"enabled": true
+},
+{
+"id": "10.2",
+"title": "Движение по прямой",
+"parent": "10",
+"path": "content/tasks/text/10.2/manifest.json",
+"enabled": true
+},
+{
+"id": "10.3",
+"title": "Работа (рабочие, трубы)",
+"parent": "10",
+"path": "content/tasks/text/10.3/manifest.json",
+"enabled": true
+},
+{
+"id": "10.4",
+"title": "Совместная работа",
+"parent": "10",
+"path": "content/tasks/text/10.4/manifest.json",
+"enabled": true
+},
+{
+"id": "10.5",
+"title": "Сплавы и смеси",
+"parent": "10",
+"path": "content/tasks/text/10.5/manifest.json",
+"enabled": true
+},
+{
+"id": "10.6",
+"title": "Средняя скорость",
+"parent": "10",
+"path": "content/tasks/text/10.6/manifest.json",
+"enabled": true
+},
+{
+"id": "10.7",
+"title": "Поезда навстречу",
+"parent": "10",
+"path": "content/tasks/text/10.7/manifest.json",
+"enabled": true
+},
+
+{
+"id": "12",
+"title": "12. Исследование функций (производная)",
+"type": "group"
+},
+{
+"id": "12.1",
+"title": "Степенные функции",
+"parent": "12",
+"path": "content/tasks/extrema/12.1/manifest.json",
+"enabled": true
+},
+{
+"id": "12.2",
+"title": "Логарифмические функции",
+"parent": "12",
+"path": "content/tasks/extrema/12.2/manifest.json",
+"enabled": true
+},
+{
+"id": "12.3",
+"title": "Тригонометрические функции",
+"parent": "12",
+"path": "content/tasks/extrema/12.3/manifest.json",
+"enabled": true
+},
+{
+"id": "12.4",
+"title": "Произведение и экспонента",
+"parent": "12",
+"path": "content/tasks/extrema/12.4/manifest.json",
+"enabled": true
 }
+]
