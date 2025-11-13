@@ -314,7 +314,7 @@ img.zoomable{cursor:zoom-in}
 
   /* для листа задач на мобилках увеличиваем ширину картинок */
   #worksheet{
-    --figure-w: 50vw;
+    --figure-w: 20vw;
     --lb-w: 100vw;
     --lb-h: 100vh;
   }
