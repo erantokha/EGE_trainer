@@ -238,7 +238,7 @@ img.zoomable{cursor:zoom-in}
   object-position: left center;  /* фикс: не центр, а слева */
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #000;              /* при желании можно убрать */
+  /*background: #000;*/             /* при желании можно убрать */
 }
 
 
