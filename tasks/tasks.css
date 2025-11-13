@@ -1,6 +1,6 @@
 /* tasks/tasks.css
-   Стили аккордеона, раннера, листа задач и лайтбокса.
-   Путь к JSON задаётся в JS, этот файл от него не зависит.
+   Стили аккордеона, раннера, листа задач (карточки) и лайтбокса.
+   Путь к JSON задаётся в JS — этот файл от него не зависит.
 */
 
 /* ---------- Переменные ---------- */
@@ -19,12 +19,12 @@
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* базовая ширина встроенных картинок (карточка задачи) */
-  --figure-w:300px;
+  /* базовая ширина встроенных картинок внутри карточек */
+  --figure-w: 340px;
 
-  /* размеры модалки с увеличенным изображением */
-  --lb-w:200vw;
-  --lb-h:200vh;
+  /* размеры лайтбокса (увеличенное изображение) */
+  --lb-w: 60vw;
+  --lb-h: 60vh;
 }
 
 *{box-sizing:border-box}
@@ -133,9 +133,8 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* встроенные рисунки: умеренный размер; «большое» — только в модалке */
+/* рисунки в раннере и т.п.: умеренные по ширине, увеличение — только в лайтбоксе */
 #runner .qfig img,
-#worksheet .worksheet-list img,
 .task-list img,
 .task-item img{
   width:min(100%, var(--figure-w));
@@ -164,39 +163,150 @@ img.zoomable{cursor:zoom-in}
 #summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
 #summary .stats>div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
 
-/* ---------- Лист задач ---------- */
+/* ====================================================================== */
+/*                          Л И С Т   З А Д А Ч                           */
+/*                 Вариант 1 — аккуратные карточки                        */
+/* ====================================================================== */
+
 #worksheet .panel{padding:18px}
 
-/* ---------- Lightbox (всплывающее изображение) ---------- */
-.lightbox-backdrop{
-  position:fixed;inset:0;background:rgba(0,0,0,.6);
-  display:none;align-items:center;justify-content:center;z-index:9999;padding:24px
+/* контейнер карточек */
+.worksheet-list{
+  display:grid;
+  gap:14px;
 }
-.lightbox-backdrop.show{display:flex}
+
+/* 2 колонки на широких (по желанию): добавь класс cards-2cols на контейнер */
+@media (min-width:1100px){
+  .worksheet-list.cards-2cols{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+/* карточка */
+.ws-item{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px 16px;
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+}
+
+/* шапка карточки */
+.ws-head{
+  display:flex; align-items:center; gap:10px;
+  margin-bottom:8px;
+}
+.ws-num{
+  background:var(--accent);
+  color:#fff;
+  font-weight:700;
+  padding:2px 10px;
+  border-radius:999px;
+  letter-spacing:.2px;
+}
+.ws-title{
+  color:var(--text); opacity:.9;
+}
+
+/* условие */
+.ws-stem{
+  margin:8px 0 10px;
+  line-height:1.55;
+  white-space:pre-wrap;
+}
+
+/* картинка в карточке */
+.figure-wrap{ margin:8px 0 10px; }
+.figure-wrap img{
+  width:min(100%, var(--figure-w));
+  height:auto;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:#000;
+  cursor:zoom-in;
+}
+
+/* блок ответа (details) */
+.ws-ans{
+  margin-top:6px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--panel-2);
+  overflow:hidden;
+}
+.ws-ans > summary{
+  list-style:none;
+  cursor:pointer;
+  padding:8px 10px;
+  position:relative;
+  color:var(--text-dim);
+}
+.ws-ans > summary::-webkit-details-marker{ display:none }
+.ws-ans > summary:after{
+  content:"▸";
+  position:absolute; right:10px; top:50%;
+  transform:translateY(-50%);
+  opacity:.6;
+}
+.ws-ans[open] > summary:after{ content:"▾"; opacity:.9 }
+.ws-ans-text{ padding:8px 10px; color:var(--text); }
+
+/* якорь у номера (необязательно, но удобно) */
+.ws-num{ position:relative; }
+.ws-num:hover::after{
+  content:"#";
+  position:absolute; right:-14px; top:50%; transform:translateY(-50%);
+  color:var(--text-dim); opacity:.6; font-weight:400;
+}
+
+/* ---------- Лайтбокс (всплывающее изображение) ---------- */
+.lightbox-backdrop{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.6);
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:9999; padding:24px;
+}
+.lightbox-backdrop.show{ display:flex; }
+
 .lightbox-dialog{
-  position:relative;background:var(--panel);border:1px solid var(--border);
-  border-radius:14px;box-shadow:var(--shadow);padding:12px
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  padding:12px;
 }
 .lightbox-img{
   display:block;
   width:auto; height:auto;
   max-width:var(--lb-w); max-height:var(--lb-h);
   object-fit:contain;
-  border-radius:10px;border:1px solid var(--border);background:#000
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:#000;
 }
 .lightbox-close{
-  position:absolute;top:8px;right:8px;width:32px;height:32px;
-  display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--border);background:var(--muted);color:var(--text);
-  border-radius:8px;cursor:pointer
+  position:absolute; top:8px; right:8px;
+  width:32px; height:32px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--border);
+  background:var(--muted);
+  color:var(--text);
+  border-radius:8px;
+  cursor:pointer;
 }
 
 /* ---------- Адаптив ---------- */
 @media (max-width:640px){
-  .countbox input{width:56px}
-  .run-head,.runner-head{flex-wrap:wrap}
-  :root{ --figure-w:92vw; --lb-w:96vw; --lb-h:80vh; }
+  .countbox input{ width:56px }
+  .run-head,.runner-head{ flex-wrap:wrap }
+
+  /* на мобильных карточки в одну колонку и побольше лайтбокс */
+  .worksheet-list.cards-2cols{ grid-template-columns:1fr; }
+  :root{ --figure-w: 92vw; --lb-w: 78vw; --lb-h: 78vh; }
 }
 
 /* ---------- Фокус ---------- */
-button:focus,input:focus{outline:2px solid rgba(59,130,246,.35);outline-offset:2px}
+button:focus, input:focus{ outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
