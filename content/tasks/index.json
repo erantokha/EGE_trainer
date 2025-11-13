@@ -98,14 +98,14 @@
   },
   {
     "id": "8.2",
-    "title": "Дана функция",
+    "title": "Дана функция (анализ по графику)",
     "parent": "8",
     "path": "content/tasks/derivatives/8.2/manifest.json",
     "enabled": true
   },
   {
     "id": "8.3",
-    "title": "Дана производная",
+    "title": "Дана производная (анализ по графику)",
     "parent": "8",
     "path": "content/tasks/derivatives/8.3/manifest.json",
     "enabled": true
@@ -176,6 +176,75 @@
     "title": "Поезда навстречу",
     "parent": "10",
     "path": "content/tasks/text/10.7/manifest.json",
+    "enabled": true
+  },
+
+  {
+    "id": "11",
+    "title": "Графики функций",
+    "type": "group"
+  },
+  {
+    "id": "11.1",
+    "title": "Прямая (kx+b)",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.1/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.2",
+    "title": "Парабола (ax^2+bx+c)",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.2/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.3",
+    "title": "Гипербола (k/x)",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.3/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.4",
+    "title": "Показательная (a^x)",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.4/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.5",
+    "title": "Логарифмическая (log_a x)",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.5/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.6",
+    "title": "Две прямые: точка пересечения",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.6/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.7",
+    "title": "Прямая и гипербола",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.7/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.8",
+    "title": "Прямая и парабола",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.8/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "11.9",
+    "title": "Прямая и корень",
+    "parent": "11",
+    "path": "content/tasks/graphs/11.9/manifest.json",
     "enabled": true
   },
 
