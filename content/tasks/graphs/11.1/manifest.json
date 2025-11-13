@@ -1,1 +1,21 @@
 
+{
+  "topic": "11.1",
+  "title": "Прямая (f(x)=kx+b)",
+  "types": [
+    {
+      "id": "11.1.1",
+      "title": "Найдите f(7)",
+      "stem_template": "На рисунке изображён график функции $f(x)=kx+b$. Найдите значение $f(7)$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.1.1.1",
+          "figure": { "img": "content/tasks/graphs/11.1/11.1_1.jfif", "alt": "11.1_1" },
+          "answer": { "value": 13 }
+        }
+      ]
+    }
+  ]
+}
