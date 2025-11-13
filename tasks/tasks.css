@@ -229,17 +229,18 @@ img.zoomable{cursor:zoom-in}
 /* картинка в карточке: без фиксирования высоты контейнера */
 .figure-wrap{ margin:8px 0 10px; }
 
-/* РЕЖИМ ЛИСТА: делаем все картинки одной высоты */
+/* РЕЖИМ ЛИСТА: делаем все картинки одной высоты и якорим слева */
 #worksheet .worksheet-list img{
-  display:block;
-  width:100%;                     /* ширину подгоняем под карточку */
-  height:var(--figure-h);         /* фиксируем высоту */
-  object-fit:contain;             /* вписываем без обрезки и искажений */
-  border:1px solid var(--border);
-  border-radius:10px;
-  background:#000;                /* «поля» вокруг картинки */
-  cursor:zoom-in;
+  display: block;
+  width: 100%;
+  height: var(--figure-h);
+  object-fit: contain;
+  object-position: left center;  /* фикс: не центр, а слева */
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #000;              /* при желании можно убрать */
 }
+
 
 /* блок ответа (details) */
 .ws-ans{
