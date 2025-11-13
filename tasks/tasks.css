@@ -1,9 +1,10 @@
 /* tasks/tasks.css
-   Универсальные стили для страницы выбора задач (аккордеон 2 уровня),
-   раннера выполнения и итоговой сводки. Темная тема по умолчанию.
+   Этот файл не зависит от расположения JSON.
+   index.json теперь лежит в /content/tasks/index.json — это учитывается только в JS.
+   Здесь — стили аккордеона, раннера, листа задач и лайтбокса.
 */
 
-/* ---------- Базовые переменные ---------- */
+/* ---------- Переменные ---------- */
 :root{
   --bg:#0e1117;
   --panel:#111827;
@@ -16,12 +17,12 @@
   --success:#10b981;
   --danger:#ef4444;
   --muted:#1b1d24;
-  --shadow: 0 8px 24px rgba(0,0,0,.25);
+  --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* размеры модального окна для увеличенных картинок */
-  --lb-w: 50vw;
-  --lb-h: 50vh;
+  /* размер увеличенного изображения во всплывающем окне */
+  --lb-w:50vw;
+  --lb-h:50vh;
 }
 
 *{box-sizing:border-box}
@@ -30,14 +31,13 @@ body{
   margin:0;
   background:var(--bg);
   color:var(--text);
-  font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, "Apple Color Emoji","Segoe UI Emoji";
+  font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans",Arial,"Apple Color Emoji","Segoe UI Emoji";
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
 }
 
 /* ---------- Общие элементы ---------- */
 .hidden{display:none !important}
-
 h1,h2,h3{margin:0 0 10px}
 h1{font-size:28px}
 h2{font-size:20px}
@@ -68,9 +68,7 @@ button:hover{filter:brightness(1.06)}
 button:disabled{opacity:.55;cursor:not-allowed}
 
 /* поля ввода */
-input[type="text"],
-input[type="email"],
-input[type="number"]{
+input[type="text"],input[type="email"],input[type="number"]{
   background:var(--muted);
   color:var(--text);
   border:1px solid var(--border);
@@ -79,11 +77,9 @@ input[type="number"]{
   outline:none;
 }
 input[type="number"]{width:72px;text-align:center}
-
-/* скрываем стрелки у number */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-input[type="number"]{ -moz-appearance:textfield; }
+input[type="number"]{-moz-appearance:textfield}
 
 /* ссылки */
 a{color:var(--accent);text-decoration:none}
@@ -91,66 +87,55 @@ a:hover{text-decoration:underline}
 
 /* ---------- Верхняя панель выбора ---------- */
 #picker .panel{padding:18px}
-#picker .controls{
-  display:flex; align-items:center; gap:8px; margin-top:8px;
-}
+#picker .controls{display:flex;align-items:center;gap:8px;margin-top:8px}
 #picker .controls .sum{
-  padding:6px 10px; border:1px dashed var(--border);
-  border-radius:10px; background:var(--panel-2);
+  padding:6px 10px;border:1px dashed var(--border);
+  border-radius:10px;background:var(--panel-2);
 }
 
 /* ---------- Аккордеон: Раздел → Тема ---------- */
 .accordion{margin-top:12px}
-
 .node{border-bottom:1px solid var(--border);padding:8px 0}
 .node:last-child{border-bottom:none}
-
 .node .row{display:flex;align-items:center;gap:10px}
 .node .title{font-weight:600}
 .node .spacer{flex:1}
 
 .node.section .title{cursor:pointer}
 .node.section .toggle{
-  width:26px;height:26px;
-  display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--border); background:var(--muted);
-  border-radius:8px; cursor:pointer; user-select:none;
+  width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);background:var(--muted);border-radius:8px;cursor:pointer;user-select:none
 }
 .node.section .toggle:after{content:"▸";line-height:1}
 .node.section.expanded .toggle:after{content:"▾"}
-
 .children{margin:8px 0 6px 32px;display:none}
-.node.section.expanded > .children{display:block}
+.node.section.expanded>.children{display:block}
 
-/* Тема — не кликабельна и не раскрывается */
+/* темы не раскрываются */
 .node.topic .title{font-weight:500;cursor:default}
 .node.topic .title.topic-title{pointer-events:none}
 
-/* Счётчики */
+/* счётчики */
 .countbox{display:flex;align-items:center;gap:6px}
 .countbox .btn{
   width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--border); background:var(--muted); color:var(--text); border-radius:8px;
+  border:1px solid var(--border);background:var(--muted);color:var(--text);border-radius:8px
 }
 .countbox .btn:active{transform:translateY(1px)}
 
-/* ---------- Блок раннера ---------- */
+/* ---------- Раннер ---------- */
 #runner .panel{padding:18px}
-/* поддерживаем оба варианта класса: run-head (в HTML) и runner-head (исторически) */
-.run-head, .runner-head{
-  display:flex;align-items:center;gap:12px;margin-bottom:10px
-}
-.runner-head .meta, .run-head .meta{color:var(--text-dim)}
-.runner-head .timer, .run-head .timer{
-  margin-left:auto; background:var(--panel-2); border:1px solid var(--border);
+.run-head,.runner-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.run-head .timer,.runner-head .timer{
+  margin-left:auto;background:var(--panel-2);border:1px solid var(--border);
   padding:6px 10px;border-radius:10px
 }
 
-/* Рисунки задач: базовый размер как раньше, без искусственного увеличения */
+/* рисунки: базовый размер как раньше, увеличиваются только в модалке */
 #runner .qfig img,
 #worksheet .worksheet-list img{
   width:auto;
-  max-width:min(100%, 520px); /* при желании скорректируй 520px */
+  max-width:min(100%,520px);
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
@@ -158,91 +143,54 @@ a:hover{text-decoration:underline}
 }
 img.zoomable{cursor:zoom-in}
 
-/* Стем и ответы */
-.stem{white-space:pre-wrap; margin:12px 0}
-
-.answer-row{display:flex; align-items:center; gap:8px; margin:8px 0}
+/* текст условия и ответы */
+.stem{white-space:pre-wrap;margin:12px 0}
+.answer-row{display:flex;align-items:center;gap:8px;margin:8px 0}
 .answer-row input[type="text"]{width:220px}
-
-.actions{display:flex; gap:8px; margin-top:10px}
+.actions{display:flex;gap:8px;margin-top:10px}
 .actions .primary{background:var(--accent);border-color:var(--accent-2)}
 .actions .success{background:var(--success);border-color:#0aa77a}
 .actions .danger{background:var(--danger);border-color:#d53a3a}
 
-/* Результат проверки */
+/* результат */
 .result{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2)}
 .result.ok{border-color:#0ea572;background:rgba(16,185,129,.12)}
 .result.bad{border-color:#cf3d3d;background:rgba(239,68,68,.12)}
 
 /* ---------- Итоги ---------- */
 #summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
-#summary .stats > div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
+#summary .stats>div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
 
-/* ---------- Формы пользователя ---------- */
-.userbar{
-  display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px;
-}
-.userbar .field{display:flex;gap:6px;align-items:center}
-.userbar .field label{color:var(--text-dim)}
+/* ---------- Лист задач ---------- */
+#worksheet .panel{padding:18px}
 
-/* ---------- Пустые состояния ---------- */
-.blank{
-  border:1px dashed var(--border);
-  background:var(--panel-2);
-  color:var(--text-dim);
-  border-radius:10px;
-  padding:10px;
-  text-align:center;
-}
-
-/* ---------- Lightbox ---------- */
+/* ---------- Lightbox (всплывающее изображение) ---------- */
 .lightbox-backdrop{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,.6);
-  display:none;
-  align-items:center; justify-content:center;
-  z-index:9999;
-  padding:24px;
+  position:fixed;inset:0;background:rgba(0,0,0,.6);
+  display:none;align-items:center;justify-content:center;z-index:9999;padding:24px
 }
 .lightbox-backdrop.show{display:flex}
-
 .lightbox-dialog{
-  position:relative;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
-  padding:12px;
+  position:relative;background:var(--panel);border:1px solid var(--border);
+  border-radius:14px;box-shadow:var(--shadow);padding:12px
 }
-
 .lightbox-img{
-  display:block;
-  max-width:var(--lb-w);
-  max-height:var(--lb-h);
-  height:auto;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:#000;
+  display:block;max-width:var(--lb-w);max-height:var(--lb-h);
+  height:auto;border-radius:10px;border:1px solid var(--border);background:#000
 }
-
 .lightbox-close{
-  position:absolute; top:8px; right:8px;
-  width:32px; height:32px;
-  display:inline-flex; align-items:center; justify-content:center;
-  border:1px solid var(--border);
-  background:var(--muted);
-  color:var(--text);
-  border-radius:8px;
-  cursor:pointer;
+  position:absolute;top:8px;right:8px;width:32px;height:32px;
+  display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--border);background:var(--muted);color:var(--text);
+  border-radius:8px;cursor:pointer
 }
 
 /* ---------- Адаптив ---------- */
 @media (max-width:640px){
   .countbox input{width:56px}
-  .run-head, .runner-head{flex-wrap:wrap}
-  .userbar{flex-direction:column;align-items:flex-start}
-  :root{ --lb-w:78vw; --lb-h:78vh; }
+  .run-head,.runner-head{flex-wrap:wrap}
+  :root{--lb-w:78vw;--lb-h:78vh}
 }
 
-/* ---------- Мелочи ---------- */
-button:focus, input:focus { outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
+/* ---------- Фокус ---------- */
+button:focus,input:focus{outline:2px solid rgba(59,130,246,.35);outline-offset:2px}
