@@ -19,19 +19,10 @@
   --shadow: 0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* БАЗОВЫЕ РАЗМЕРЫ КАРТИНОК */
-  /* ширина встроенного изображения в карточке/раннере */
-  --figure-max-w: 520px;     /* было 100%, из-за этого всё было слишком крупно */
-  /* размеры лайтбокса (в процентах экрана) */
+  /* размеры модального окна для увеличенных картинок */
   --lb-w: 50vw;
   --lb-h: 50vh;
 }
-
-/* пресеты — можно переключать классом на body: lb-sm / lb-md / lb-lg
-body.lb-sm { --lb-w: 40vw; --lb-h: 40vh; }
-body.lb-md { --lb-w: 50vw; --lb-h: 50vh; }
-body.lb-lg { --lb-w: 70vw; --lb-h: 70vh; }
-*/
 
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -89,10 +80,10 @@ input[type="number"]{
 }
 input[type="number"]{width:72px;text-align:center}
 
-/* убрать стрелки у number */
+/* скрываем стрелки у number */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-input[type="number"]{ -moz-appearance: textfield; }
+input[type="number"]{ -moz-appearance:textfield; }
 
 /* ссылки */
 a{color:var(--accent);text-decoration:none}
@@ -154,13 +145,10 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* ВСТРОЕННЫЕ КАРТИНКИ (и для .figure-wrap, и для .qfig) */
-.figure-wrap{margin:8px 0 12px}
-.qfig{margin:8px 0 12px}
-
-.figure-wrap img,
-.qfig img{
-  max-width: min(100%, var(--figure-max-w)); /* аккуратный дефолтный размер */
+/* Рисунки задач: базовый размер как раньше, без увеличения */
+#runner .qfig img,
+#worksheet .worksheet-list img{
+  max-width:100%;
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
@@ -188,14 +176,14 @@ img.zoomable{cursor:zoom-in}
 #summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
 #summary .stats > div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
 
-/* ---------- Формы пользователя (имя/почта) ---------- */
+/* ---------- Формы пользователя ---------- */
 .userbar{
   display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 4px;
 }
 .userbar .field{display:flex;gap:6px;align-items:center}
 .userbar .field label{color:var(--text-dim)}
 
-/* ---------- Сообщения/пустые состояния ---------- */
+/* ---------- Пустые состояния ---------- */
 .blank{
   border:1px dashed var(--border);
   background:var(--panel-2);
@@ -251,7 +239,7 @@ img.zoomable{cursor:zoom-in}
   .countbox input{width:56px}
   .runner-head{flex-wrap:wrap}
   .userbar{flex-direction:column;align-items:flex-start}
-  :root{ --lb-w:78vw; --lb-h:78vh; } /* на мобилках модалка крупнее */
+  :root{ --lb-w:78vw; --lb-h:78vh; }
 }
 
 /* ---------- Мелочи ---------- */
