@@ -19,17 +19,17 @@
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* общий дефолт, влияет на раннер и всё остальное */
-  --figure-w: 400px;
+  /* базовая ВЫСОТА встроенных изображений */
+  --figure-h: 280px;
 
   /* размеры лайтбокса (увеличенное изображение) */
   --lb-w: 100vw;
   --lb-h: 100vh;
 }
 
-/* ТОЛЬКО для страницы листа задач (режим ознакомления) */
+/* для листа задач можно задать свою высоту картинок */
 #worksheet{
-  --figure-w: 400px; /* ширина картинок в карточках листа */
+  --figure-h: 360px; /* поменяй под себя */
 }
 
 *{box-sizing:border-box}
@@ -138,12 +138,19 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* рисунки в раннере: умеренные по ширине, увеличение — только в лайтбоксе */
+/* картинка в раннере: подгоняем по высоте, ширину не превышаем */
+#runner .qfig{
+  display:flex; align-items:flex-start;
+  min-height: var(--figure-h);
+}
 #runner .qfig img,
 .task-list img,
 .task-item img{
-  width:min(100%, var(--figure-w));
-  height:auto;
+  max-height: var(--figure-h);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   border:1px solid var(--border);
   border-radius:10px;
   background:#000;
@@ -210,9 +217,7 @@ img.zoomable{cursor:zoom-in}
   border-radius:999px;
   letter-spacing:.2px;
 }
-.ws-title{
-  color:var(--text); opacity:.9;
-}
+.ws-title{ color:var(--text); opacity:.9; }
 
 /* условие */
 .ws-stem{
@@ -221,12 +226,20 @@ img.zoomable{cursor:zoom-in}
   white-space:pre-wrap;
 }
 
-/* рендер картинок в листе */
-.figure-wrap{ margin:8px 0 10px; }
+/* картинка в карточке: контейнер фиксированной высоты */
+.figure-wrap{
+  margin:8px 0 10px;
+  height: var(--figure-h);
+  display:flex;
+  align-items:center; /* центр по высоте */
+}
 .figure-wrap img,
 #worksheet .worksheet-list img{
-  width:min(100%, var(--figure-w));
-  height:auto;
+  max-height: 100%;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   border:1px solid var(--border);
   border-radius:10px;
   background:#000;
@@ -258,7 +271,7 @@ img.zoomable{cursor:zoom-in}
 .ws-ans[open] > summary:after{ content:"▾"; opacity:.9 }
 .ws-ans-text{ padding:8px 10px; color:var(--text); }
 
-/* якорь у номера (необязательно, но удобно) */
+/* якорь у номера */
 .ws-num{ position:relative; }
 .ws-num:hover::after{
   content:"#";
@@ -309,15 +322,9 @@ img.zoomable{cursor:zoom-in}
   .countbox input{ width:56px }
   .run-head,.runner-head{ flex-wrap:wrap }
 
-  /* на мобильных карточки в одну колонку и побольше лайтбокс */
+  /* карточки в одну колонку; высоту картинок можно сделать больше экрана */
   .worksheet-list.cards-2cols{ grid-template-columns:1fr; }
-
-  /* для листа задач на мобилках увеличиваем ширину картинок */
-  #worksheet{
-    --figure-w: 20vw;
-    --lb-w: 100vw;
-    --lb-h: 100vh;
-  }
+  #worksheet{ --figure-h: 46vh; }
 }
 
 /* ---------- Фокус ---------- */
