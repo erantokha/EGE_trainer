@@ -23,8 +23,8 @@
   --figure-w:300px;
 
   /* размеры модалки с увеличенным изображением */
-  --lb-w:150vw;
-  --lb-h:150vh;
+  --lb-w:200vw;
+  --lb-h:200vh;
 }
 
 *{box-sizing:border-box}
