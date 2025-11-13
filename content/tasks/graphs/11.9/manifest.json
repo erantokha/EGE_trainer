@@ -1,0 +1,20 @@
+{
+  "topic": "11.9",
+  "title": "Прямая и корень",
+  "types": [
+    {
+      "id": "11.9.1",
+      "title": "Абсцисса точки B",
+      "stem_template": "На рисунке изображены графики функций $f(x)=a\\sqrt{x}$ и $g(x)=kx$, пересекающиеся в точках $A$ и $B$. Найдите абсциссу точки $B$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.9.1.1",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_1.jfif", "alt": "11.9_1" },
+          "answer": { "value": 100 }
+        }
+      ]
+    }
+  ]
+}
