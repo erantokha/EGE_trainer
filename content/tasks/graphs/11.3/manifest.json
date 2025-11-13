@@ -1,0 +1,20 @@
+{
+  "topic": "11.3",
+  "title": "Гипербола (k/x)",
+  "types": [
+    {
+      "id": "11.3.1",
+      "title": "Найдите f(10)",
+      "stem_template": "На рисунке изображён график функции $f(x)=\\dfrac{k}{x}$. Найдите значение $f(10)$.",
+      "answer_spec": { "type": "string", "format": "ege_decimal", "normalize": [] },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.3.1.1",
+          "figure": { "img": "content/tasks/graphs/11.3/11.3_1.jfif", "alt": "11.3_1" },
+          "answer": { "text": "0,2" }
+        }
+      ]
+    }
+  ]
+}
