@@ -1,0 +1,20 @@
+{
+  "topic": "11.5",
+  "title": "Логарифм (log_a x)",
+  "types": [
+    {
+      "id": "11.5.1",
+      "title": "Найдите f(8)",
+      "stem_template": "На рисунке изображён график функции $f(x)=\\log_a x$. Найдите значение $f(8)$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.5.1.1",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_1.jfif", "alt": "11.5_1" },
+          "answer": { "value": -3 }
+        }
+      ]
+    }
+  ]
+}
