@@ -1,0 +1,20 @@
+{
+  "topic": "11.8",
+  "title": "Прямая и парабола",
+  "types": [
+    {
+      "id": "11.8.1",
+      "title": "Абсцисса точки B",
+      "stem_template": "На рисунке изображены графики $f(x)=ax^2+bx+c$ и $g(x)=kx$, пересекающиеся в точках $A$ и $B$. Найдите абсциссу точки $B$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.8.1.1",
+          "figure": { "img": "content/tasks/graphs/11.8/11.8_1.jfif", "alt": "11.8_1" },
+          "answer": { "value": 5 }
+        }
+      ]
+    }
+  ]
+}
