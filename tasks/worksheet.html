@@ -26,16 +26,15 @@
   <!-- MathJax для формул -->
   <script>
     window.MathJax = {
-      tex: {
-        inlineMath: [['\\(','\\)'], ['$', '$']]
-      },
+      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
       svg: { fontCache: 'global' }
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 
-  <script src="tasks/lightbox.js"></script>
-  
+  <!-- Важно: путь относительный к текущей папке -->
+  <script src="./lightbox.js"></script>
+
   <!-- Скрипт списка задач по номеру -->
   <script type="module" src="./worksheet.js"></script>
 </body>
