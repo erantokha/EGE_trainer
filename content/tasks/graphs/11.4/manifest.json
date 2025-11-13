@@ -1,0 +1,20 @@
+{
+  "topic": "11.4",
+  "title": "Показательная (a^x)",
+  "types": [
+    {
+      "id": "11.4.1",
+      "title": "Найдите f(-3)",
+      "stem_template": "На рисунке изображён график функции $f(x)=a^x$. Найдите значение $f(-3)$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.4.1.1",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_1.jfif", "alt": "11.4_1" },
+          "answer": { "value": 64 }
+        }
+      ]
+    }
+  ]
+}
