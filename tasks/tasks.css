@@ -136,19 +136,21 @@ a:hover{text-decoration:underline}
 
 /* ---------- Блок раннера ---------- */
 #runner .panel{padding:18px}
-.runner-head{
+/* поддерживаем оба варианта класса: run-head (в HTML) и runner-head (исторически) */
+.run-head, .runner-head{
   display:flex;align-items:center;gap:12px;margin-bottom:10px
 }
-.runner-head .meta{color:var(--text-dim)}
-.runner-head .timer{
+.runner-head .meta, .run-head .meta{color:var(--text-dim)}
+.runner-head .timer, .run-head .timer{
   margin-left:auto; background:var(--panel-2); border:1px solid var(--border);
   padding:6px 10px;border-radius:10px
 }
 
-/* Рисунки задач: базовый размер как раньше, без увеличения */
+/* Рисунки задач: базовый размер как раньше, без искусственного увеличения */
 #runner .qfig img,
 #worksheet .worksheet-list img{
-  max-width:100%;
+  width:auto;
+  max-width:min(100%, 520px); /* при желании скорректируй 520px */
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
@@ -237,7 +239,7 @@ img.zoomable{cursor:zoom-in}
 /* ---------- Адаптив ---------- */
 @media (max-width:640px){
   .countbox input{width:56px}
-  .runner-head{flex-wrap:wrap}
+  .run-head, .runner-head{flex-wrap:wrap}
   .userbar{flex-direction:column;align-items:flex-start}
   :root{ --lb-w:78vw; --lb-h:78vh; }
 }
