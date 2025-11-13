@@ -1,7 +1,6 @@
 /* tasks/tasks.css
-   Этот файл не зависит от расположения JSON.
-   index.json теперь лежит в /content/tasks/index.json — это учитывается только в JS.
-   Здесь — стили аккордеона, раннера, листа задач и лайтбокса.
+   Стили аккордеона, раннера, листа задач и лайтбокса.
+   Путь к JSON задаётся в JS, этот файл от него не зависит.
 */
 
 /* ---------- Переменные ---------- */
@@ -20,9 +19,12 @@
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* размер увеличенного изображения во всплывающем окне */
-  --lb-w:50vw;
-  --lb-h:50vh;
+  /* базовая ширина встроенных картинок (карточка задачи) */
+  --figure-w:460px;
+
+  /* размеры модалки с увеличенным изображением */
+  --lb-w:85vw;
+  --lb-h:85vh;
 }
 
 *{box-sizing:border-box}
@@ -131,11 +133,12 @@ a:hover{text-decoration:underline}
   padding:6px 10px;border-radius:10px
 }
 
-/* рисунки: базовый размер как раньше, увеличиваются только в модалке */
+/* встроенные рисунки: умеренный размер; «большое» — только в модалке */
 #runner .qfig img,
-#worksheet .worksheet-list img{
-  width:auto;
-  max-width:min(100%,520px);
+#worksheet .worksheet-list img,
+.task-list img,
+.task-item img{
+  width:min(100%, var(--figure-w));
   height:auto;
   border:1px solid var(--border);
   border-radius:10px;
@@ -175,8 +178,11 @@ img.zoomable{cursor:zoom-in}
   border-radius:14px;box-shadow:var(--shadow);padding:12px
 }
 .lightbox-img{
-  display:block;max-width:var(--lb-w);max-height:var(--lb-h);
-  height:auto;border-radius:10px;border:1px solid var(--border);background:#000
+  display:block;
+  width:auto; height:auto;
+  max-width:var(--lb-w); max-height:var(--lb-h);
+  object-fit:contain;
+  border-radius:10px;border:1px solid var(--border);background:#000
 }
 .lightbox-close{
   position:absolute;top:8px;right:8px;width:32px;height:32px;
@@ -189,7 +195,7 @@ img.zoomable{cursor:zoom-in}
 @media (max-width:640px){
   .countbox input{width:56px}
   .run-head,.runner-head{flex-wrap:wrap}
-  :root{--lb-w:78vw;--lb-h:78vh}
+  :root{ --figure-w:92vw; --lb-w:96vw; --lb-h:80vh; }
 }
 
 /* ---------- Фокус ---------- */
