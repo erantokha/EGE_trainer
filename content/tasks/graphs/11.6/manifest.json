@@ -1,0 +1,20 @@
+{
+  "topic": "11.6",
+  "title": "Две прямые: точка пересечения",
+  "types": [
+    {
+      "id": "11.6.1",
+      "title": "Абсцисса точки A",
+      "stem_template": "На рисунке изображены графики двух линейных функций, пересекающиеся в точке $A$. Найдите абсциссу точки $A$.",
+      "answer_spec": { "type": "number" },
+      "defaults": { "difficulty": 1 },
+      "prototypes": [
+        {
+          "id": "11.6.1.1",
+          "figure": { "img": "content/tasks/graphs/11.6/11.6_1.jfif", "alt": "11.6_1" },
+          "answer": { "value": 3 }
+        }
+      ]
+    }
+  ]
+}
