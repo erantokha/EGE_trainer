@@ -19,7 +19,7 @@
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
 
-  /* базовая ВЫСОТА встроенных изображений */
+  /* высота картинок по умолчанию (можно поменять) */
   --figure-h: 280px;
 
   /* размеры лайтбокса (увеличенное изображение) */
@@ -27,9 +27,9 @@
   --lb-h: 100vh;
 }
 
-/* для листа задач можно задать свою высоту картинок */
+/* для листа задач можно задать свою высоту */
 #worksheet{
-  --figure-h: 280px; /* поменяй под себя */
+  --figure-h: 360px;     /* выставь нужное значение */
 }
 
 *{box-sizing:border-box}
@@ -226,23 +226,18 @@ img.zoomable{cursor:zoom-in}
   white-space:pre-wrap;
 }
 
-/* картинка в карточке: контейнер фиксированной высоты */
-.figure-wrap{
-  margin:8px 0 10px;
-  height: var(--figure-h);
-  display:flex;
-  align-items:center; /* центр по высоте */
-}
-.figure-wrap img,
+/* картинка в карточке: без фиксирования высоты контейнера */
+.figure-wrap{ margin:8px 0 10px; }
+
+/* РЕЖИМ ЛИСТА: делаем все картинки одной высоты */
 #worksheet .worksheet-list img{
-  max-height: 100%;
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
+  display:block;
+  width:100%;                     /* ширину подгоняем под карточку */
+  height:var(--figure-h);         /* фиксируем высоту */
+  object-fit:contain;             /* вписываем без обрезки и искажений */
   border:1px solid var(--border);
   border-radius:10px;
-  background:#000;
+  background:#000;                /* «поля» вокруг картинки */
   cursor:zoom-in;
 }
 
