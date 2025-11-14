@@ -130,6 +130,37 @@ a:hover{text-decoration:underline}
 }
 .countbox .btn:active{transform:translateY(1px)}
 
+/* ---------- ДОБАВЛЕНО: счётчики слева, скрыть стрелку, быстрые кнопки, яркий Start ---------- */
+
+/* ставим блок countbox слева от заголовка */
+.node .countbox{order:-1;margin-right:8px}
+.node .title{order:0}
+.node .spacer{order:1}
+
+/* полностью прячем «стрелочку»; отступ детей убираем */
+.node.section .toggle{display:none !important}
+.node.section .toggle:after{display:none !important;content:''}
+.children{margin:8px 0 6px 0}
+
+/* быстрые кнопки «все / уник» справа от заголовка */
+.node .qa{display:flex;gap:6px;margin:0 8px}
+.node .qa a{
+  display:inline-block;height:24px;padding:0 10px;
+  border:1px solid var(--border);border-radius:8px;
+  background:var(--muted);color:var(--text);
+  font-size:12px;line-height:22px;text-decoration:none;
+}
+.node .qa a:hover{filter:brightness(1.08)}
+
+/* кнопка «Начать» заметная, когда активна */
+#start:not(:disabled){
+  background:var(--accent);
+  border-color:var(--accent-2);
+  color:#fff;
+  box-shadow:0 6px 18px rgba(59,130,246,.35);
+}
+#start:not(:disabled):hover{filter:brightness(1.06)}
+
 /* ---------- Раннер ---------- */
 #runner .panel{padding:18px}
 .run-head,.runner-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
@@ -238,9 +269,8 @@ img.zoomable{cursor:zoom-in}
   object-position: left center;  /* фикс: не центр, а слева */
   border: 1px solid var(--border);
   border-radius: 10px;
-  /*background: #000;*/             /* при желании можно убрать */
+  /*background: #000;*/
 }
-
 
 /* блок ответа (details) */
 .ws-ans{
