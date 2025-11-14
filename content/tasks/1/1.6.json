@@ -5,7 +5,7 @@
     {
       "id": "1.6.1",
       "title": "ACB",
-      "figure": { "img": "content/img/1/1_6.jfif", "alt": "Диаметры AC и BD, центр O" },
+      "figure": { "img": "content/tasks/1/img/1_6.jfif", "alt": "Диаметры AC и BD, центр O" },
       "prototypes": [
         {
           "id": "1.6.1.1",
@@ -17,7 +17,7 @@
     {
       "id": "1.6.2",
       "title": "AOD",
-      "figure": { "img": "content/img/1/1_6.jfif", "alt": "Диаметры AC и BD, центр O" },
+      "figure": { "img": "content/tasks/1/img/1_6.jfif", "alt": "Диаметры AC и BD, центр O" },
       "prototypes": [
         {
           "id": "1.6.2.1",
