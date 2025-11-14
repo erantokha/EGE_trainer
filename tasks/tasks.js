@@ -173,16 +173,7 @@ function renderTopicRow(sec, topic) {
   row.className = 'node topic';
   row.dataset.id = topic.id;
 
-  // ссылки «все/уник» по номеру (секции), рядом с каждой темой
-  const allHref = new URL(
-    `worksheet.html?section=${encodeURIComponent(sec.id)}`,
-    location.href,
-  ).href;
-  const uniqHref = new URL(
-    `worksheet.html?section=${encodeURIComponent(sec.id)}&mode=unique`,
-    location.href,
-  ).href;
-
+  // у подтем «все/уник» БОЛЬШЕ НЕТ
   row.innerHTML = `
     <div class="row">
       <div class="countbox">
@@ -191,10 +182,6 @@ function renderTopicRow(sec, topic) {
         <button class="btn plus">+</button>
       </div>
       <div class="title topic-title">${esc(`${topic.id}. ${topic.title}`)}</div>
-      <div class="qa">
-        <a href="${allHref}">все</a>
-        <a href="${uniqHref}">уник</a>
-      </div>
       <div class="spacer"></div>
     </div>
   `;
