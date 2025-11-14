@@ -5,7 +5,7 @@
     {
       "id": "1.9.1",
       "title": "Больший угол",
-      "figure": { "img": "content/img/1/1_9.jfif", "alt": "Вписанный четырёхугольник" },
+      "figure": { "img": "content/tasks/1/img/1_9.jfif", "alt": "Вписанный четырёхугольник" },
       "prototypes": [
         {
           "id": "1.9.1.1",
