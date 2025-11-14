@@ -5,7 +5,7 @@
     {
       "id": "1.1.1",
       "title": "Высоты параллелограмма",
-      "figure": { "img": "content/img/1/1.1_1.jfif", "alt": "Высоты параллелограмма" },
+      "figure": { "img": "content/tasks/1/img/1.1_1.jfif", "alt": "Высоты параллелограмма" },
       "prototypes": [
         {
           "id": "1.1.1.1",
