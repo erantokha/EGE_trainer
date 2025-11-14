@@ -6,9 +6,107 @@
   },
   {
     "id": "1.1",
-    "title": "Центральные и вписанные углы",
+    "title": "Площадь через высоты",
     "parent": "1",
-    "path": "content/tasks/planimetry/1.1/manifest.json",
+    "path": "content/tasks/1/1.1.json",
+    "enabled": true
+  },
+  {
+    "id": "1.2",
+    "title": "Биссектриса треугольника",
+    "parent": "1",
+    "path": "content/tasks/1/1.2.json",
+    "enabled": true
+  },
+  {
+    "id": "1.3",
+    "title": "sin, cos",
+    "parent": "1",
+    "path": "content/tasks/1/1.3.json",
+    "enabled": true
+  },
+  {
+    "id": "1.4",
+    "title": "Центральный и вписанный",
+    "parent": "1",
+    "path": "content/tasks/1/1.4.json",
+    "enabled": true
+  },
+  {
+    "id": "1.5",
+    "title": "Биссектриса/медиана/высота из прямого угла",
+    "parent": "1",
+    "path": "content/tasks/1/1.5.json",
+    "enabled": true
+  },
+  {
+    "id": "1.6",
+    "title": "Диаметры",
+    "parent": "1",
+    "path": "content/tasks/1/1.6.json",
+    "enabled": true
+  },
+  {
+    "id": "1.7",
+    "title": "Четырёхугольник (сумма, разность углов)",
+    "parent": "1",
+    "path": "content/tasks/1/1.7.json",
+    "enabled": true
+  },
+  {
+    "id": "1.8",
+    "title": "Окружность в четырёхугольнике",
+    "parent": "1",
+    "path": "content/tasks/1/1.8.json",
+    "enabled": true
+  },
+  {
+    "id": "1.9",
+    "title": "Четырёхугольник в окружности, больший угол",
+    "parent": "1",
+    "path": "content/tasks/1/1.9.json",
+    "enabled": true
+  },
+  {
+    "id": "1.10",
+    "title": "Четырёхугольник в окружность: угол",
+    "parent": "1",
+    "path": "content/tasks/1/1.10.json",
+    "enabled": true
+  },
+  {
+    "id": "1.11",
+    "title": "Подобные треугольники",
+    "parent": "1",
+    "path": "content/tasks/1/1.11.json",
+    "enabled": true
+  },
+  {
+    "id": "1.12",
+    "title": "Разбиение параллелограмма",
+    "parent": "1",
+    "path": "content/tasks/1/1.12.json",
+    "enabled": true
+  },
+  {
+    "id": "1.13",
+    "title": "Теорема синусов",
+    "parent": "1",
+    "path": "content/tasks/1/1.13.json",
+    "enabled": true
+  },
+  {
+    "id": "1.14",
+    "title": "Внешний угол",
+    "parent": "1",
+    "path": "content/tasks/1/1.14.json",
+    "enabled": true
+  },
+  {
+    "id": "1.15",
+    "title": "Касательная к окружности",
+    "parent": "1",
+    "path": "content/tasks/1/1.15.json",
     "enabled": true
   },
 
