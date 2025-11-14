@@ -7,7 +7,6 @@
   <title>Тренажер по задачам из банка ФИПИ</title>
   <link rel="stylesheet" href="./tasks.css">
 
-  <!-- MathJax для отображения формул -->
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
@@ -18,7 +17,6 @@
 </head>
 <body>
   <main>
-    <!-- Шаг 1: выбор тем/типов -->
     <section id="picker">
       <div class="panel">
         <h1>Тренажер по задачам из банка ФИПИ</h1>
@@ -26,12 +24,10 @@
           <div class="sum">Итого: <span id="sum">0</span></div>
           <button id="start" disabled>Начать</button>
         </div>
-
         <div id="accordion" class="accordion"></div>
       </div>
     </section>
 
-    <!-- Шаг 2: сессия -->
     <section id="runner" class="hidden">
       <div class="panel">
         <div class="run-head">
@@ -57,7 +53,6 @@
       </div>
     </section>
 
-    <!-- Шаг 3: итог -->
     <section id="summary" class="hidden">
       <div class="panel">
         <h2>Сессия завершена</h2>
@@ -70,7 +65,6 @@
     </section>
   </main>
 
-  <!-- Скрипт тренажёра задач -->
   <script type="module" src="./tasks.js"></script>
   <script src="./lightbox.js"></script>
 </body>
