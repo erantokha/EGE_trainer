@@ -47,19 +47,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Создаём каркас аккордеона, если в index.html его нет
 function ensureAccordionScaffold() {
   const panel = $('#picker .panel') || $('#picker') || document.body;
-  // Панель управления
+
+  // Панель управления (упрощённая: только Итого и Начать)
   if (!$('.controls', panel)) {
     const controls = document.createElement('div');
     controls.className = 'controls';
     controls.innerHTML = `
-      <button id="expandAll">Раскрыть всё</button>
-      <button id="collapseAll">Свернуть всё</button>
-      <label style="margin-left:8px"><input type="checkbox" id="shuffle" checked> Перемешать</label>
-      <div class="sum" style="margin-left:auto">Итого: <span id="sum">0</span></div>
-      <button id="start" disabled style="margin-left:8px">Начать</button>
+      <div class="sum">Итого: <span id="sum">0</span></div>
+      <button id="start" disabled>Начать</button>
     `;
     (panel.querySelector('h1') || panel).after(controls);
   }
+
   // Контейнер аккордеона
   if (!$('#accordion')) {
     const acc = document.createElement('div');
@@ -83,12 +82,7 @@ async function loadCatalog() {
 }
 
 function wireGlobalControls() {
-  $('#expandAll')?.addEventListener('click', () =>
-    $$('.node.section').forEach((n) => n.classList.add('expanded')),
-  );
-  $('#collapseAll')?.addEventListener('click', () =>
-    $$('.node.section').forEach((n) => n.classList.remove('expanded')),
-  );
+  // оставлено на будущее; сейчас панель без кнопок раскрытия/перемешивания
 }
 
 // ---------- Рендер двухуровневого аккордеона ----------
@@ -258,8 +252,6 @@ function refreshTotalSum() {
   // доступность и подсветка "Начать"
   const startBtn = $('#start');
   if (startBtn) startBtn.disabled = total <= 0;
-  const picker = $('#picker');
-  if (picker) picker.classList.toggle('has-selection', total > 0);
 }
 
 // ---------- Загрузка манифестов и подбор задач ----------
@@ -471,7 +463,7 @@ function renderCurrent() {
           window.MathJax.typesetPromise([stemEl]).catch((err) =>
             console.error(err),
           );
-        } else if (window[MathJax.typeset]) {
+        } else if (window.MathJax.typeset) {
           window.MathJax.typeset([stemEl]);
         }
       } catch (e) {
