@@ -5,7 +5,7 @@
     {
       "id": "1.15.1",
       "title": "Дуга AB",
-      "figure": { "img": "content/img/1/1_15.jfif", "alt": "Касательная и секущая" },
+      "figure": { "img": "content/tasks/1/img/1_15.jfif", "alt": "Касательная и секущая" },
       "prototypes": [
         {
           "id": "1.15.1.1",
@@ -17,7 +17,7 @@
     {
       "id": "1.15.2",
       "title": "Величина угла ACO",
-      "figure": { "img": "content/img/1/1_15.jfif", "alt": "Касательная и секущая" },
+      "figure": { "img": "content/tasks/1/img/1_15.jfif", "alt": "Касательная и секущая" },
       "prototypes": [
         {
           "id": "1.15.2.1",
