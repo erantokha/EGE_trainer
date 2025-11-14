@@ -30,8 +30,16 @@ function getSectionIdFromQuery() {
   return sec && sec.trim() ? sec.trim() : null;
 }
 
+// режим листа: all | unique
+function getModeFromQuery() {
+  const params = new URLSearchParams(location.search);
+  const m = (params.get('mode') || 'all').toLowerCase();
+  return m === 'unique' ? 'unique' : 'all';
+}
+
 async function initWorksheet() {
   const sectionId = getSectionIdFromQuery();
+  const mode = getModeFromQuery();
   const titleEl = $('#wsTitle');
   const metaEl = $('#wsMeta');
   const host = $('#wsContent');
@@ -67,7 +75,9 @@ async function initWorksheet() {
   }
   if (metaEl) {
     metaEl.textContent =
-      'Ниже приведены все прототипы задач по выбранному номеру (все темы данного раздела).';
+      mode === 'unique'
+        ? 'Ниже приведены уникальные прототипы по выбранному номеру (повторы скрыты).'
+        : 'Ниже приведены все прототипы задач по выбранному номеру (все темы данного раздела).';
   }
 
   const topics = catalog.filter(
@@ -117,6 +127,28 @@ async function initWorksheet() {
         });
       }
     }
+  }
+
+  // режим "unique": убираем повторы по подписи (тип + нормализованный текст + картинка)
+  if (mode === 'unique') {
+    const seen = new Set();
+    const norm = (s) =>
+      String(s || '')
+        .replace(/\s+/g, ' ')
+        .replace(/[0-9]+/g, '#') // числа не считаем отличием
+        .trim();
+
+    const unique = [];
+    for (const q of questions) {
+      const figKey = q.figure && q.figure.img ? q.figure.img : '';
+      const sig = [q.typeId || '', norm(q.stem || ''), figKey].join('::');
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        unique.push(q);
+      }
+    }
+    questions.length = 0;
+    questions.push(...unique);
   }
 
   // Сортируем по id прототипа (4.1.1.1, 4.1.1.2, ...)
