@@ -107,7 +107,12 @@ a:hover{text-decoration:underline}
 .node:last-child{border-bottom:none}
 
 /* Ряд аккордеона: управляем отступами адресно (без общего gap) */
-.node .row{display:flex;align-items:center}
+/*.node .row{display:flex;align-items:center} */
+.node .row{ display:flex; align-items:center; gap:10px; }
+/* добавочные 10px к gap, итого 20px между счетчиком и названием раздела */
+.node.section .title{ margin-left:20px; }
+
+
 .node .title{font-weight:600}
 /* уровень раздела/темы: 20px между счётчиком и названием */
 .node .row .countbox{ margin-right:20px; }
