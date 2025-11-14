@@ -83,10 +83,11 @@ input[type="text"],input[type="email"],input[type="number"]{
   padding:8px 10px;
   outline:none;
 }
-input[type="number"]{width:72px;text-align:center}
+input[type="number"]{width:72px;text-align:center;appearance:textfield}
+/* скрываем спиннеры у number во всех движках */
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin_button{-webkit-appearance:none;margin:0}
-input[type="number"]{-moz-appearance:textfield}
+input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
+input[type="number"]{ -moz-appearance:textfield }
 
 /* ссылки */
 a{color:var(--accent);text-decoration:none}
@@ -104,19 +105,35 @@ a:hover{text-decoration:underline}
 .accordion{margin-top:12px}
 .node{border-bottom:1px solid var(--border);padding:8px 0}
 .node:last-child{border-bottom:none}
-.node .row{display:flex;align-items:center;gap:10px}
+
+/* Ряд аккордеона: управляем отступами адресно (без общего gap) */
+.node .row{display:flex;align-items:center}
 .node .title{font-weight:600}
-/* доп. отступ от счётчика до названия = 20px (10px gap + 10px margin) */
-.node .row .title{margin-left:10px}
+/* уровень раздела/темы: 20px между счётчиком и названием */
+.node .row .countbox{ margin-right:20px; }
+/* небольшой отступ между названием и блоком "все/уник" */
+.node .row .qa{ margin-left:10px; }
 .node .spacer{flex:1}
 
+/* раскрытие раздела — по клику на заголовок */
 .node.section .title{cursor:pointer}
-.node.section .toggle{
-  width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--border);background:var(--muted);border-radius:8px;cursor:pointer;user-select:none
+
+/* блок ссылок "все/уник" (стиль как на скрине) */
+.node .qa{ display:flex; align-items:center; gap:8px; }
+.node .qa a{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:6px 10px;
+  border:1px solid var(--border);
+  background:var(--muted);
+  color:var(--text);
+  border-radius:12px;
+  text-decoration:none;
+  font-weight:600;
+  text-transform:lowercase;
 }
-.node.section .toggle:after{content:"▸";line-height:1}
-.node.section.expanded .toggle:after{content:"▾"}
+.node .qa a:hover{ filter:brightness(1.06) }
+
+/* дочерние темы показываются при раскрытии секции */
 .children{margin:8px 0 6px 32px;display:none}
 .node.section.expanded>.children{display:block}
 
@@ -237,10 +254,9 @@ img.zoomable{cursor:zoom-in}
   width: 100%;
   height: var(--figure-h);
   object-fit: contain;
-  object-position: left center;  /* фикс: не центр, а слева */
+  object-position: left center;
   border: 1px solid var(--border);
   border-radius: 10px;
-  /*background: #000;*/             /* при желании можно убрать */
 }
 
 /* блок ответа (details) */
@@ -318,8 +334,6 @@ img.zoomable{cursor:zoom-in}
 @media (max-width:640px){
   .countbox input{ width:56px }
   .run-head,.runner-head{ flex-wrap:wrap }
-
-  /* карточки в одну колонку; высоту картинок можно сделать больше экрана */
   .worksheet-list.cards-2cols{ grid-template-columns:1fr; }
   #worksheet{ --figure-h: 46vh; }
 }
