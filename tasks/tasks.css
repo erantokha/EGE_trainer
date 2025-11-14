@@ -85,7 +85,7 @@ input[type="text"],input[type="email"],input[type="number"]{
 }
 input[type="number"]{width:72px;text-align:center}
 input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+input[type="number"]::-webkit-inner-spin_button{-webkit-appearance:none;margin:0}
 input[type="number"]{-moz-appearance:textfield}
 
 /* ссылки */
@@ -106,6 +106,8 @@ a:hover{text-decoration:underline}
 .node:last-child{border-bottom:none}
 .node .row{display:flex;align-items:center;gap:10px}
 .node .title{font-weight:600}
+/* доп. отступ от счётчика до названия = 20px (10px gap + 10px margin) */
+.node .row .title{margin-left:10px}
 .node .spacer{flex:1}
 
 .node.section .title{cursor:pointer}
@@ -129,37 +131,6 @@ a:hover{text-decoration:underline}
   border:1px solid var(--border);background:var(--muted);color:var(--text);border-radius:8px
 }
 .countbox .btn:active{transform:translateY(1px)}
-
-/* ---------- ДОБАВЛЕНО: счётчики слева, скрыть стрелку, быстрые кнопки, яркий Start ---------- */
-
-/* ставим блок countbox слева от заголовка */
-.node .countbox{order:-1;margin-right:8px}
-.node .title{order:0}
-.node .spacer{order:1}
-
-/* полностью прячем «стрелочку»; отступ детей убираем */
-.node.section .toggle{display:none !important}
-.node.section .toggle:after{display:none !important;content:''}
-.children{margin:8px 0 6px 0}
-
-/* быстрые кнопки «все / уник» справа от заголовка */
-.node .qa{display:flex;gap:6px;margin:0 8px}
-.node .qa a{
-  display:inline-block;height:24px;padding:0 10px;
-  border:1px solid var(--border);border-radius:8px;
-  background:var(--muted);color:var(--text);
-  font-size:12px;line-height:22px;text-decoration:none;
-}
-.node .qa a:hover{filter:brightness(1.08)}
-
-/* кнопка «Начать» заметная, когда активна */
-#start:not(:disabled){
-  background:var(--accent);
-  border-color:var(--accent-2);
-  color:#fff;
-  box-shadow:0 6px 18px rgba(59,130,246,.35);
-}
-#start:not(:disabled):hover{filter:brightness(1.06)}
 
 /* ---------- Раннер ---------- */
 #runner .panel{padding:18px}
@@ -269,7 +240,7 @@ img.zoomable{cursor:zoom-in}
   object-position: left center;  /* фикс: не центр, а слева */
   border: 1px solid var(--border);
   border-radius: 10px;
-  /*background: #000;*/
+  /*background: #000;*/             /* при желании можно убрать */
 }
 
 /* блок ответа (details) */
