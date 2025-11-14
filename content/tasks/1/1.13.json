@@ -5,7 +5,7 @@
     {
       "id": "1.13.1",
       "title": "Радиус описанной окружности",
-      "figure": { "img": "content/img/1/1_13.jfif", "alt": "Теорема синусов" },
+      "figure": { "img": "content/tasks/1/img/1_13.jfif", "alt": "Теорема синусов" },
       "prototypes": [
         {
           "id": "1.13.1.1",
