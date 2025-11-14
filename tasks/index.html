@@ -1,9 +1,10 @@
+<!-- tasks/index.html -->
 <!doctype html>
 <html lang="ru">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Тренажёр задач</title>
+  <title>Тренажер по задачам из банка ФИПИ</title>
   <link rel="stylesheet" href="./tasks.css">
 
   <!-- MathJax для отображения формул -->
@@ -16,25 +17,12 @@
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
-  <header class="top">
-    <div class="brand">Тренажёр задач</div>
-    <div class="spacer"></div>
-    <div class="user">
-      <input id="studentName" placeholder="Имя и фамилия" />
-      <input id="studentEmail" placeholder="Email (необязательно)" />
-      <button id="saveUser">Сохранить</button>
-    </div>
-  </header>
-
   <main>
     <!-- Шаг 1: выбор тем/типов -->
     <section id="picker">
       <div class="panel">
-        <h1>Выбор заданий</h1>
+        <h1>Тренажер по задачам из банка ФИПИ</h1>
         <div class="controls">
-          <button id="expandAll">Раскрыть всё</button>
-          <button id="collapseAll">Свернуть всё</button>
-          <label><input type="checkbox" id="shuffle" checked> Перемешать задачи</label>
           <div class="sum">Итого: <span id="sum">0</span></div>
           <button id="start" disabled>Начать</button>
         </div>
@@ -82,13 +70,8 @@
     </section>
   </main>
 
-
-
   <!-- Скрипт тренажёра задач -->
   <script type="module" src="./tasks.js"></script>
-
-    <!-- Важно: путь относительный к текущей папке -->
   <script src="./lightbox.js"></script>
-  
 </body>
 </html>
