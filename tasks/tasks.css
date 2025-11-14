@@ -101,30 +101,48 @@ a:hover{text-decoration:underline}
   border-radius:10px;background:var(--panel-2);
 }
 
+/* кнопка "Начать" — базовый вид и подсветка при активном выборе */
+#picker #start{
+  padding:10px 16px;
+  border-radius:12px;
+  transition:.18s ease-in-out;
+}
+#picker #start[disabled]{
+  background:var(--muted);
+  border:1px solid var(--border);
+  color:var(--text-dim);
+}
+#picker #start:not([disabled]){
+  background:var(--accent);
+  border:1px solid var(--accent-2);
+  color:#fff;
+  box-shadow:0 6px 22px rgba(37,99,235,.28);
+}
+#picker #start:not([disabled]):hover{
+  filter:brightness(1.06);
+  transform:translateY(-1px);
+}
+
 /* ---------- Аккордеон: Раздел → Тема ---------- */
 .accordion{margin-top:12px}
 .node{border-bottom:1px solid var(--border);padding:8px 0}
 .node:last-child{border-bottom:none}
 
-/* Ряд аккордеона: управляем отступами адресно (без общего gap) */
-/*.node .row{display:flex;align-items:center} */
+/* Ряд аккордеона */
 .node .row{ display:flex; align-items:center; gap:10px; }
-/* добавочные 10px к gap, итого 20px между счетчиком и названием раздела */
-.node.section .title{ margin-left:20px; }
 
+/* 20px между счетчиком и названием (gap 10px + доп. 10px) */
+.node.section .title{ margin-left:10px; }
+.node.topic .title{ margin-left:10px; }
 
 .node .title{font-weight:600}
-/* уровень раздела/темы: 20px между счётчиком и названием */
-.node .row .countbox{ margin-right:20px; }
-/* небольшой отступ между названием и блоком "все/уник" */
-.node .row .qa{ margin-left:10px; }
 .node .spacer{flex:1}
 
 /* раскрытие раздела — по клику на заголовок */
 .node.section .title{cursor:pointer}
 
 /* блок ссылок "все/уник" (стиль как на скрине) */
-.node .qa{ display:flex; align-items:center; gap:8px; }
+.node .qa{ display:flex; align-items:center; gap:8px; margin-left:10px; }
 .node .qa a{
   display:inline-flex; align-items:center; justify-content:center;
   padding:6px 10px;
