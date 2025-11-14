@@ -250,10 +250,16 @@ function refreshTotalSum() {
     0,
   );
   const total = sumTopics > 0 ? sumTopics : sumSections;
+
+  // «Итого»
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
+
+  // доступность и подсветка "Начать"
   const startBtn = $('#start');
   if (startBtn) startBtn.disabled = total <= 0;
+  const picker = $('#picker');
+  if (picker) picker.classList.toggle('has-selection', total > 0);
 }
 
 // ---------- Загрузка манифестов и подбор задач ----------
@@ -465,7 +471,7 @@ function renderCurrent() {
           window.MathJax.typesetPromise([stemEl]).catch((err) =>
             console.error(err),
           );
-        } else if (window.MathJax.typeset) {
+        } else if (window[MathJax.typeset]) {
           window.MathJax.typeset([stemEl]);
         }
       } catch (e) {
@@ -590,7 +596,7 @@ function checkFree(spec, raw) {
       chosen_text,
       normalized_text: norm,
       correct_text:
-        spec.accept?.map?.((p) => p.regex или p.exact)?.join(' | ') || '',
+        (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '',
     };
   }
 }
@@ -612,7 +618,7 @@ function normalize(s, kinds) {
 
 function parseNumber(s) {
   const frac = s.match(
-    /^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\д+)?)\s*$/,
+    /^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/,
   );
   if (frac) {
     return Number(frac[1]) / Number(frac[2]);
@@ -745,8 +751,8 @@ function loadUser() {
   if (s) {
     try {
       const u = JSON.parse(s);
-      if ($('#studentName')) $('#studentName'].value = u.name || '';
-      if ($('#studentEmail')) $('#studentEmail'].value = u.email || '';
+      if ($('#studentName')) $('#studentName').value = u.name || '';
+      if ($('#studentEmail')) $('#studentEmail').value = u.email || '';
     } catch {
       // ignore
     }
