@@ -139,7 +139,7 @@ function renderSectionNode(sec) {
     ch.appendChild(renderTopicRow(sec, t));
   }
 
-  // Клик по названию раздела — только раскрытие/сворачивание
+  // Клик по названию раздела — раскрыть/свернуть
   const titleEl = $('.title', node);
   if (titleEl) {
     titleEl.style.cursor = 'pointer';
@@ -173,7 +173,7 @@ function renderTopicRow(sec, topic) {
   row.className = 'node topic';
   row.dataset.id = topic.id;
 
-  // у подтем «все/уник» БОЛЬШЕ НЕТ
+  // у подтем «все/уник» нет
   row.innerHTML = `
     <div class="row">
       <div class="countbox">
@@ -186,7 +186,7 @@ function renderTopicRow(sec, topic) {
     </div>
   `;
 
-  // тема НЕ раскрывается и НЕ кликабельна
+  // тема НЕ кликабельна
   $('.topic-title', row).style.pointerEvents = 'none';
 
   const num = $('.count', row);
@@ -590,7 +590,7 @@ function checkFree(spec, raw) {
       chosen_text,
       normalized_text: norm,
       correct_text:
-        spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ') || '',
+        spec.accept?.map?.((p) => p.regex или p.exact)?.join(' | ') || '',
     };
   }
 }
@@ -612,7 +612,7 @@ function normalize(s, kinds) {
 
 function parseNumber(s) {
   const frac = s.match(
-    /^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/,
+    /^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\д+)?)\s*$/,
   );
   if (frac) {
     return Number(frac[1]) / Number(frac[2]);
@@ -745,8 +745,8 @@ function loadUser() {
   if (s) {
     try {
       const u = JSON.parse(s);
-      if ($('#studentName')) $('#studentName').value = u.name || '';
-      if ($('#studentEmail')) $('#studentEmail').value = u.email || '';
+      if ($('#studentName')) $('#studentName'].value = u.name || '';
+      if ($('#studentEmail')) $('#studentEmail'].value = u.email || '';
     } catch {
       // ignore
     }
