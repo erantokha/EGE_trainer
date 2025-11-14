@@ -18,7 +18,7 @@ const asset = (p) =>
 let CATALOG = null;      // массив из content/tasks/index.json
 let SECTIONS = [];       // [{id,title,topics:[{id,title,path,_manifest?}]}]
 
-let CHOICE_TOPICS = {};  // topicId -> count
+let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
 
 let SESSION = null;      // состояние раннера
@@ -106,18 +106,30 @@ function renderSectionNode(sec) {
   const node = document.createElement('div');
   node.className = 'node section';
   node.dataset.id = sec.id;
+
+  // ссылки на лист по номеру (все / уник)
+  const allHref = new URL(
+    `worksheet.html?section=${encodeURIComponent(sec.id)}`,
+    location.href,
+  ).href;
+  const uniqHref = new URL(
+    `worksheet.html?section=${encodeURIComponent(sec.id)}&mode=unique`,
+    location.href,
+  ).href;
+
   node.innerHTML = `
     <div class="row">
-      <button class="toggle" aria-label="toggle"></button>
-      <div class="title">${esc(`${sec.id}. ${sec.title}`)}</div>
-      <div class="spacer"></div>
       <div class="countbox">
         <button class="btn minus">−</button>
-        <input class="count" type="number" min="0" step="1" value="${
-          CHOICE_SECTIONS[sec.id] || 0
-        }">
+        <input class="count" type="number" min="0" step="1" value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus">+</button>
       </div>
+      <div class="title">${esc(`${sec.id}. ${sec.title}`)}</div>
+      <div class="qa">
+        <a href="${allHref}">все</a>
+        <a href="${uniqHref}">уник</a>
+      </div>
+      <div class="spacer"></div>
     </div>
     <div class="children"></div>
   `;
@@ -127,28 +139,13 @@ function renderSectionNode(sec) {
     ch.appendChild(renderTopicRow(sec, t));
   }
 
-  // Стрелка — только раскрывает / сворачивает
-  const toggle = $('.toggle', node);
-  if (toggle) {
-    toggle.textContent = '▸';
-    toggle.onclick = () => {
-      node.classList.toggle('expanded');
-      toggle.textContent = node.classList.contains('expanded') ? '▾' : '▸';
-    };
-  }
-
-  // Клик по названию раздела — переход на страницу списка задач
+  // Клик по названию раздела — только раскрытие/сворачивание
   const titleEl = $('.title', node);
   if (titleEl) {
     titleEl.style.cursor = 'pointer';
     titleEl.onclick = (ev) => {
       ev.preventDefault();
-      const secId = sec.id;
-      const url = new URL(
-        `worksheet.html?section=${encodeURIComponent(secId)}`,
-        location.href,
-      );
-      location.href = url.href;
+      node.classList.toggle('expanded');
     };
   }
 
@@ -175,17 +172,30 @@ function renderTopicRow(sec, topic) {
   const row = document.createElement('div');
   row.className = 'node topic';
   row.dataset.id = topic.id;
+
+  // ссылки «все/уник» по номеру (секции), рядом с каждой темой
+  const allHref = new URL(
+    `worksheet.html?section=${encodeURIComponent(sec.id)}`,
+    location.href,
+  ).href;
+  const uniqHref = new URL(
+    `worksheet.html?section=${encodeURIComponent(sec.id)}&mode=unique`,
+    location.href,
+  ).href;
+
   row.innerHTML = `
     <div class="row">
-      <div class="title topic-title">${esc(`${topic.id}. ${topic.title}`)}</div>
-      <div class="spacer"></div>
       <div class="countbox">
         <button class="btn minus">−</button>
-        <input class="count" type="number" min="0" step="1" value="${
-          CHOICE_TOPICS[topic.id] || 0
-        }">
+        <input class="count" type="number" min="0" step="1" value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus">+</button>
       </div>
+      <div class="title topic-title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      <div class="qa">
+        <a href="${allHref}">все</a>
+        <a href="${uniqHref}">уник</a>
+      </div>
+      <div class="spacer"></div>
     </div>
   `;
 
