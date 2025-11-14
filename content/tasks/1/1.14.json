@@ -5,7 +5,7 @@
     {
       "id": "1.14.1",
       "title": "Угол C",
-      "figure": { "img": "content/img/1/1_14.jfif", "alt": "Внешний угол, равнобедренный" },
+      "figure": { "img": "content/tasks/1/img/1_14.jfif", "alt": "Внешний угол, равнобедренный" },
       "prototypes": [
         {
           "id": "1.14.1.1",
@@ -17,7 +17,7 @@
     {
       "id": "1.14.2",
       "title": "Внешний при B",
-      "figure": { "img": "content/img/1/1_14.jfif", "alt": "Внешний угол, равнобедренный" },
+      "figure": { "img": "content/tasks/1/img/1_14.jfif", "alt": "Внешний угол, равнобедренный" },
       "prototypes": [
         {
           "id": "1.14.2.1",
