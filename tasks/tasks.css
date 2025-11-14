@@ -1,9 +1,5 @@
-/* tasks/tasks.css
-   Стили аккордеона, раннера, листа задач (карточки) и лайтбокса.
-   Путь к JSON задаётся в JS — этот файл от него не зависит.
-*/
+/* tasks/tasks.css */
 
-/* ---------- Переменные ---------- */
 :root{
   --bg:#0e1117;
   --panel:#111827;
@@ -18,19 +14,11 @@
   --muted:#1b1d24;
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
-
-  /* высота картинок по умолчанию (можно поменять) */
   --figure-h: 300px;
-
-  /* размеры лайтбокса (увеличенное изображение) */
   --lb-w: 100vw;
   --lb-h: 100vh;
 }
-
-/* для листа задач можно задать свою высоту */
-#worksheet{
-  --figure-h: 300px;     /* выставь нужное значение */
-}
+#worksheet{ --figure-h: 300px; }
 
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -43,7 +31,6 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
-/* ---------- Общие элементы ---------- */
 .hidden{display:none !important}
 h1,h2,h3{margin:0 0 10px}
 h1{font-size:28px}
@@ -57,7 +44,6 @@ p{margin:8px 0}
   box-shadow:var(--shadow);
   padding:16px 18px;
 }
-
 .container{max-width:1080px;margin:28px auto;padding:0 16px}
 
 /* кнопки */
@@ -74,7 +60,7 @@ button{
 button:hover{filter:brightness(1.06)}
 button:disabled{opacity:.55;cursor:not-allowed}
 
-/* поля ввода */
+/* инпуты */
 input[type="text"],input[type="email"],input[type="number"]{
   background:var(--muted);
   color:var(--text);
@@ -84,7 +70,6 @@ input[type="text"],input[type="email"],input[type="number"]{
   outline:none;
 }
 input[type="number"]{width:72px;text-align:center;appearance:textfield}
-/* скрываем спиннеры у number во всех движках */
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0 }
 input[type="number"]{ -moz-appearance:textfield }
@@ -93,7 +78,7 @@ input[type="number"]{ -moz-appearance:textfield }
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
-/* ---------- Верхняя панель выбора ---------- */
+/* панель выбора */
 #picker .panel{padding:18px}
 #picker .controls{display:flex;align-items:center;gap:8px;margin-top:8px}
 #picker .controls .sum{
@@ -101,48 +86,37 @@ a:hover{text-decoration:underline}
   border-radius:10px;background:var(--panel-2);
 }
 
-/* кнопка "Начать" — базовый вид и подсветка при активном выборе */
+/* кнопка Начать */
 #picker #start{
-  padding:10px 16px;
-  border-radius:12px;
-  transition:.18s ease-in-out;
+  padding:10px 16px;border-radius:12px;transition:.18s ease-in-out;
 }
-#picker #start[disabled]{
-  background:var(--muted);
-  border:1px solid var(--border);
-  color:var(--text-dim);
-}
+#picker #start[disabled]{background:var(--muted);border:1px solid var(--border);color:var(--text-dim)}
 #picker #start:not([disabled]){
-  background:var(--accent);
-  border:1px solid var(--accent-2);
-  color:#fff;
+  background:var(--accent);border:1px solid var(--accent-2);color:#fff;
   box-shadow:0 6px 22px rgba(37,99,235,.28);
 }
-#picker #start:not([disabled]):hover{
-  filter:brightness(1.06);
-  transform:translateY(-1px);
-}
+#picker #start:not([disabled]):hover{filter:brightness(1.06);transform:translateY(-1px)}
 
-/* ---------- Аккордеон: Раздел → Тема ---------- */
+/* аккордеон */
 .accordion{margin-top:12px}
 .node{border-bottom:1px solid var(--border);padding:8px 0}
 .node:last-child{border-bottom:none}
-
-/* Ряд аккордеона */
 .node .row{ display:flex; align-items:center; gap:10px; }
 
-/* 20px между счетчиком и названием (gap 10px + доп. 10px) */
-.node.section .title{ margin-left:10px; }
+/* расстояние между счетчиком и заголовком */
+.node.section .title{ margin-left:20px; }
 .node.topic .title{ margin-left:10px; }
 
 .node .title{font-weight:600}
 .node .spacer{flex:1}
-
-/* раскрытие раздела — по клику на заголовок */
 .node.section .title{cursor:pointer}
 
-/* блок ссылок "все/уник" (стиль как на скрине) */
-.node .qa{ display:flex; align-items:center; gap:8px; margin-left:10px; }
+/* «все/уник» — скрыты по умолчанию, видны у активного раздела */
+.node .qa{
+  display:none;                 /* скрыто по умолчанию */
+  align-items:center; gap:8px; margin-left:10px;
+}
+.node.section.show-qa .qa{ display:flex; }
 .node .qa a{
   display:inline-flex; align-items:center; justify-content:center;
   padding:6px 10px;
@@ -156,11 +130,10 @@ a:hover{text-decoration:underline}
 }
 .node .qa a:hover{ filter:brightness(1.06) }
 
-/* дочерние темы показываются при раскрытии секции */
+/* подпункты */
 .children{margin:8px 0 6px 32px;display:none}
 .node.section.expanded>.children{display:block}
 
-/* темы не раскрываются */
 .node.topic .title{font-weight:500;cursor:default}
 .node.topic .title.topic-title{pointer-events:none}
 
@@ -172,34 +145,23 @@ a:hover{text-decoration:underline}
 }
 .countbox .btn:active{transform:translateY(1px)}
 
-/* ---------- Раннер ---------- */
+/* раннер */
 #runner .panel{padding:18px}
 .run-head,.runner-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .run-head .timer,.runner-head .timer{
   margin-left:auto;background:var(--panel-2);border:1px solid var(--border);
   padding:6px 10px;border-radius:10px
 }
-
-/* картинка в раннере: подгоняем по высоте, ширину не превышаем */
-#runner .qfig{
-  display:flex; align-items:flex-start;
-  min-height: var(--figure-h);
-}
+#runner .qfig{ display:flex; align-items:flex-start; min-height: var(--figure-h); }
 #runner .qfig img,
-.task-list img,
-.task-item img{
-  max-height: var(--figure-h);
-  max-width: 100%;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  border:1px solid var(--border);
-  border-radius:10px;
-  background:#000;
+.task-list img,.task-item img{
+  max-height: var(--figure-h); max-width: 100%;
+  width: auto; height: auto; object-fit: contain;
+  border:1px solid var(--border); border-radius:10px; background:#000;
 }
 img.zoomable{cursor:zoom-in}
 
-/* текст условия и ответы */
+/* прочее */
 .stem{white-space:pre-wrap;margin:12px 0}
 .answer-row{display:flex;align-items:center;gap:8px;margin:8px 0}
 .answer-row input[type="text"]{width:220px}
@@ -207,153 +169,44 @@ img.zoomable{cursor:zoom-in}
 .actions .primary{background:var(--accent);border-color:var(--accent-2)}
 .actions .success{background:var(--success);border-color:#0aa77a}
 .actions .danger{background:var(--danger);border-color:#d53a3a}
-
-/* результат */
 .result{margin-top:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--panel-2)}
 .result.ok{border-color:#0ea572;background:rgba(16,185,129,.12)}
 .result.bad{border-color:#cf3d3d;background:rgba(239,68,68,.12)}
 
-/* ---------- Итоги ---------- */
 #summary .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:8px}
 #summary .stats>div{background:var(--panel-2);border:1px solid var(--border);padding:10px;border-radius:10px}
 
-/* ====================================================================== */
-/*                          Л И С Т   З А Д А Ч                           */
-/*                 Вариант 1 — аккуратные карточки                        */
-/* ====================================================================== */
-
+/* карточки листа */
 #worksheet .panel{padding:18px}
-
-/* контейнер карточек */
-.worksheet-list{
-  display:grid;
-  gap:14px;
-}
-
-/* 2 колонки на широких (по желанию): добавь класс cards-2cols на контейнер */
-@media (min-width:1100px){
-  .worksheet-list.cards-2cols{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-}
-
-/* карточка */
-.ws-item{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:14px 16px;
-  box-shadow:0 8px 24px rgba(0,0,0,.18);
-}
-
-/* шапка карточки */
-.ws-head{
-  display:flex; align-items:center; gap:10px;
-  margin-bottom:8px;
-}
-.ws-num{
-  background:var(--accent);
-  color:#fff;
-  font-weight:700;
-  padding:2px 10px;
-  border-radius:999px;
-  letter-spacing:.2px;
-}
-.ws-title{ color:var(--text); opacity:.9; }
-
-/* условие */
-.ws-stem{
-  margin:8px 0 10px;
-  line-height:1.55;
-  white-space:pre-wrap;
-}
-
-/* картинка в карточке: без фиксирования высоты контейнера */
-.figure-wrap{ margin:8px 0 10px; }
-
-/* РЕЖИМ ЛИСТА: делаем все картинки одной высоты и якорим слева */
+.worksheet-list{display:grid;gap:14px}
+@media (min-width:1100px){ .worksheet-list.cards-2cols{grid-template-columns:repeat(2,minmax(0,1fr));} }
+.ws-item{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.ws-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ws-num{background:var(--accent);color:#fff;font-weight:700;padding:2px 10px;border-radius:999px;letter-spacing:.2px}
+.ws-title{color:var(--text);opacity:.9}
+.ws-stem{margin:8px 0 10px;line-height:1.55;white-space:pre-wrap}
+.figure-wrap{margin:8px 0 10px}
 #worksheet .worksheet-list img{
-  display: block;
-  width: 100%;
-  height: var(--figure-h);
-  object-fit: contain;
-  object-position: left center;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  display:block;width:100%;height:var(--figure-h);object-fit:contain;object-position:left center;
+  border:1px solid var(--border);border-radius:10px;
 }
+.ws-ans{margin-top:6px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2);overflow:hidden}
+.ws-ans>summary{list-style:none;cursor:pointer;padding:8px 10px;position:relative;color:var(--text-dim)}
+.ws-ans>summary::-webkit-details-marker{display:none}
+.ws-ans>summary:after{content:"▸";position:absolute;right:10px;top:50%;transform:translateY(-50%);opacity:.6}
+.ws-ans[open]>summary:after{content:"▾";opacity:.9}
+.ws-ans-text{padding:8px 10px;color:var(--text)}
+.ws-num{position:relative}
+.ws-num:hover::after{content:"#";position:absolute;right:-14px;top:50%;transform:translateY(-50%);color:var(--text-dim);opacity:.6;font-weight:400}
 
-/* блок ответа (details) */
-.ws-ans{
-  margin-top:6px;
-  border:1px solid var(--border);
-  border-radius:10px;
-  background:var(--panel-2);
-  overflow:hidden;
-}
-.ws-ans > summary{
-  list-style:none;
-  cursor:pointer;
-  padding:8px 10px;
-  position:relative;
-  color:var(--text-dim);
-}
-.ws-ans > summary::-webkit-details-marker{ display:none }
-.ws-ans > summary:after{
-  content:"▸";
-  position:absolute; right:10px; top:50%;
-  transform:translateY(-50%);
-  opacity:.6;
-}
-.ws-ans[open] > summary:after{ content:"▾"; opacity:.9 }
-.ws-ans-text{ padding:8px 10px; color:var(--text); }
+/* лайтбокс */
+.lightbox-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
+.lightbox-backdrop.show{display:flex}
+.lightbox-dialog{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:12px}
+.lightbox-img{display:block;width:auto;height:auto;max-width:var(--lb-w);max-height:var(--lb-h);object-fit:contain;border-radius:10px;border:1px solid var(--border);background:#000}
+.lightbox-close{position:absolute;top:8px;right:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border);background:var(--muted);color:var(--text);border-radius:8px;cursor:pointer}
 
-/* якорь у номера */
-.ws-num{ position:relative; }
-.ws-num:hover::after{
-  content:"#";
-  position:absolute; right:-14px; top:50%; transform:translateY(-50%);
-  color:var(--text-dim); opacity:.6; font-weight:400;
-}
-
-/* ---------- Лайтбокс (всплывающее изображение) ---------- */
-.lightbox-backdrop{
-  position:fixed; inset:0;
-  background:rgba(0,0,0,.6);
-  display:none;
-  align-items:center; justify-content:center;
-  z-index:9999; padding:24px;
-}
-.lightbox-backdrop.show{ display:flex; }
-
-.lightbox-dialog{
-  position:relative;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
-  padding:12px;
-}
-.lightbox-img{
-  display:block;
-  width:auto; height:auto;
-  max-width:var(--lb-w); max-height:var(--lb-h);
-  object-fit:contain;
-  border-radius:10px;
-  border:1px solid var(--border);
-  background:#000;
-}
-.lightbox-close{
-  position:absolute; top:8px; right:8px;
-  width:32px; height:32px;
-  display:inline-flex; align-items:center; justify-content:center;
-  border:1px solid var(--border);
-  background:var(--muted);
-  color:var(--text);
-  border-radius:8px;
-  cursor:pointer;
-}
-
-/* ---------- Адаптив ---------- */
+/* адаптив */
 @media (max-width:640px){
   .countbox input{ width:56px }
   .run-head,.runner-head{ flex-wrap:wrap }
@@ -361,5 +214,4 @@ img.zoomable{cursor:zoom-in}
   #worksheet{ --figure-h: 46vh; }
 }
 
-/* ---------- Фокус ---------- */
 button:focus, input:focus{ outline:2px solid rgba(59,130,246,.35); outline-offset:2px }
