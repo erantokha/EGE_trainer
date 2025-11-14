@@ -5,7 +5,7 @@
     {
       "id": "1.7.1",
       "title": "ABC",
-      "figure": { "img": "content/img/1/1_7.jfif", "alt": "Вписанный четырёхугольник" },
+      "figure": { "img": "content/tasks/1/img/1_7.jfif", "alt": "Вписанный четырёхугольник" },
       "prototypes": [
         {
           "id": "1.7.1.1",
@@ -17,7 +17,7 @@
     {
       "id": "1.7.2",
       "title": "ABD",
-      "figure": { "img": "content/img/1/1_7.jfif", "alt": "Вписанный четырёхугольник" },
+      "figure": { "img": "content/tasks/1/img/1_7.jfif", "alt": "Вписанный четырёхугольник" },
       "prototypes": [
         {
           "id": "1.7.2.1",
