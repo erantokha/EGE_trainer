@@ -39,6 +39,34 @@
 
   { "id": "6", "title": "Простейшие уравнения", "type": "group" },
   { "id": "6.1", "title": "Показательные уравнения", "parent": "6", "path": "content/tasks/equations/6.1.json", "enabled": true},
+  {
+  "id": "6.2",
+  "title": "Уравнения с корнем",
+  "parent": "6",
+  "path": "content/tasks/equations/6.2.json",
+  "enabled": true
+},
+{
+  "id": "6.3",
+  "title": "Логарифмические уравнения",
+  "parent": "6",
+  "path": "content/tasks/equations/6.3.json",
+  "enabled": true
+},
+{
+  "id": "6.4",
+  "title": "Скобка в степени",
+  "parent": "6",
+  "path": "content/tasks/equations/6.4.json",
+  "enabled": true
+},
+{
+  "id": "6.5",
+  "title": "Дробь",
+  "parent": "6",
+  "path": "content/tasks/equations/6.5.json",
+  "enabled": true
+}
 
   { "id": "7", "title": "Вычисления и преобразования", "type": "group" },
   { "id": "7.1", "title": "Тригонометрия, логарифмы, степени и корни", "parent": "7", "path": "content/tasks/expressions/manifest.json", "enabled": true },
