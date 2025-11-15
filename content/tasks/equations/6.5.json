@@ -1,0 +1,22 @@
+{
+  "topic": "6.5",
+  "title": "Дробь",
+  "types": [
+    {
+      "id": "6.5.1",
+      "title": "",
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal",
+        "normalize": ["strip_spaces"]
+      },
+      "prototypes": [
+        {
+          "id": "6.5.1.1",
+          "stem": "Найдите корень уравнения \\(\\frac{1}{3x-4}=5\\).",
+          "answer": { "text": "1,4" }
+        }
+      ]
+    }
+  ]
+}
