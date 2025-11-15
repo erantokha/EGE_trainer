@@ -3,6 +3,13 @@
 // При клике по разделу появляется кнопка «Уникальные прототипы»,
 // повторный клик сворачивает раздел и скрывает кнопку.
 
+- // const BASE = new URL('../', location.href);
+- // function asset(...) { ... }
+- // async function loadCatalog() { ... }
+
++ import { loadCatalogIndex, makeSections, asset } from './shared/js/catalog.js';
+
+
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
 const $ = (s, root = document) => root.querySelector(s);
