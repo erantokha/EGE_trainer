@@ -38,7 +38,7 @@
   { "id": "5.1", "title": "Сложная вероятность (комбинаторика, формулы)", "parent": "5", "path": "content/tasks/probability5/manifest.json", "enabled": true },
 
   { "id": "6", "title": "Простейшие уравнения", "type": "group" },
-  { "id": "6.1", "title": "Уравнения (степенные, корни, логарифмы)", "parent": "6", "path": "content/tasks/equations/manifest.json", "enabled": true },
+  { "id": "6.1", "title": "Уравнения (степенные, корни, логарифмы)", "parent": "6", "path": "content/tasks/equations/6.1/manifest.json", "enabled": true },
 
   { "id": "7", "title": "Вычисления и преобразования", "type": "group" },
   { "id": "7.1", "title": "Тригонометрия, логарифмы, степени и корни", "parent": "7", "path": "content/tasks/expressions/manifest.json", "enabled": true },
