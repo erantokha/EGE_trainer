@@ -111,24 +111,20 @@ a:hover{text-decoration:underline}
 .node .spacer{flex:1}
 .node.section .title{cursor:pointer}
 
-/* «все/уник» — скрыты по умолчанию, видны у активного раздела */
-.node .qa{
-  display:none;                 /* скрыто по умолчанию */
-  align-items:center; gap:8px; margin-left:10px;
-}
-.node.section.show-qa .qa{ display:flex; }
-.node .qa a{
+/* контейнер кнопки «Уникальные прототипы» */
+.node .uniqwrap{ display:none; margin-left:10px; }
+.node.section.show-uniq .uniqwrap{ display:block; }
+
+.unique-btn{
   display:inline-flex; align-items:center; justify-content:center;
-  padding:6px 10px;
-  border:1px solid var(--border);
-  background:var(--muted);
-  color:var(--text);
+  padding:6px 12px;
+  border:1px solid var(--accent-2);
+  background:var(--accent);
+  color:#fff;
   border-radius:12px;
-  text-decoration:none;
   font-weight:600;
-  text-transform:lowercase;
 }
-.node .qa a:hover{ filter:brightness(1.06) }
+.unique-btn:hover{ filter:brightness(1.06) }
 
 /* подпункты */
 .children{margin:8px 0 6px 32px;display:none}
