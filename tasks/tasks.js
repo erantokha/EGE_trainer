@@ -3,37 +3,28 @@
 // При клике по разделу появляется кнопка «Уникальные прототипы»,
 // повторный клик сворачивает раздел и скрывает кнопку.
 
-- // const BASE = new URL('../', location.href);
-- // function asset(...) { ... }
-- // async function loadCatalog() { ... }
-
-+ import { loadCatalogIndex, makeSections, asset } from './shared/js/catalog.js';
-
-
+import { loadCatalogIndex, makeSections, asset } from './shared/js/catalog.js';
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
-const BASE = new URL('../', location.href);
-const asset = (p) =>
-  typeof p === 'string' && p.startsWith('content/')
-    ? new URL(p, BASE).href
-    : p;
+// ---------- Состояние ----------
+let CATALOG = null;      // массив из content/tasks/index.json
+let SECTIONS = [];       // [{id,title,topics:[{id,title,path,_manifest?}]}]
 
-let CATALOG = null;
-let SECTIONS = [];
+let CHOICE_TOPICS = {};   // topicId -> count
+let CHOICE_SECTIONS = {}; // sectionId -> count
 
-let CHOICE_TOPICS = {};
-let CHOICE_SECTIONS = {};
+let SESSION = null;      // состояние раннера
 
-let SESSION = null;
-
+// ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   loadUser();
   ensureAccordionScaffold();
   try {
-    await loadCatalog();
+    CATALOG = await loadCatalogIndex();
+    SECTIONS = makeSections(CATALOG);
     renderAccordion();
   } catch (e) {
     console.error(e);
@@ -48,8 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#restart')?.addEventListener('click', () => location.reload());
 });
 
+// Создаём каркас аккордеона, если в index.html его нет
 function ensureAccordionScaffold() {
   const panel = $('#picker .panel') || $('#picker') || document.body;
+  // Панель управления
   if (!$('.controls', panel)) {
     const controls = document.createElement('div');
     controls.className = 'controls';
@@ -59,6 +52,7 @@ function ensureAccordionScaffold() {
     `;
     (panel.querySelector('h1') || panel).after(controls);
   }
+  // Контейнер аккордеона
   if (!$('#accordion')) {
     const acc = document.createElement('div');
     acc.id = 'accordion';
@@ -67,20 +61,7 @@ function ensureAccordionScaffold() {
   }
 }
 
-async function loadCatalog() {
-  const url = new URL('content/tasks/index.json', BASE).href;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('index.json not found');
-  CATALOG = await resp.json();
-
-  const sections = CATALOG.filter((x) => x.type === 'group');
-  for (const sec of sections) {
-    sec.topics = CATALOG.filter((x) => x.parent === sec.id);
-  }
-  SECTIONS = sections;
-}
-
-// ---------- Аккордеон ----------
+// ---------- Рендер двухуровневого аккордеона ----------
 function renderAccordion() {
   const host = $('#accordion');
   if (!host) return;
@@ -122,7 +103,6 @@ function renderSectionNode(sec) {
   titleEl.onclick = (ev) => {
     ev.preventDefault();
 
-    // если текущий раздел уже открыт — просто закрываем и прячем кнопку
     const wasExpanded = node.classList.contains('expanded');
 
     // свернуть другие разделы и убрать кнопку у них
@@ -178,6 +158,7 @@ function renderTopicRow(sec, topic) {
     </div>
   `;
 
+  // тема НЕ кликабельна
   $('.topic-title', row).style.pointerEvents = 'none';
 
   const num = $('.count', row);
@@ -198,7 +179,7 @@ function renderTopicRow(sec, topic) {
   return row;
 }
 
-// ---------- Суммы ----------
+// ---------- Суммы и доступность кнопки "Начать" ----------
 function setTopicCount(topicId, n) {
   CHOICE_TOPICS[topicId] = n;
   bubbleUpSums();
@@ -207,7 +188,9 @@ function setSectionCount(sectionId, n) {
   CHOICE_SECTIONS[sectionId] = n;
   bubbleUpSums();
 }
+
 function bubbleUpSums() {
+  // Раздел = сумма тем, если сумма тем > 0; иначе — собственное значение раздела.
   for (const sec of SECTIONS) {
     const sumTopics = sec.topics.reduce(
       (s, t) => s + (CHOICE_TOPICS[t.id] || 0),
@@ -216,6 +199,7 @@ function bubbleUpSums() {
     if (sumTopics > 0) CHOICE_SECTIONS[sec.id] = sumTopics;
   }
 
+  // Обновим UI чисел
   $$('.node.section').forEach((node) => {
     const id = node.dataset.id;
     const num = $('.count', node);
@@ -227,28 +211,38 @@ function bubbleUpSums() {
 
   refreshTotalSum();
 }
+
 function refreshTotalSum() {
-  const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
-  const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
+  const sumTopics = Object.values(CHOICE_TOPICS).reduce(
+    (s, n) => s + (n || 0),
+    0,
+  );
+  const sumSections = Object.values(CHOICE_SECTIONS).reduce(
+    (s, n) => s + (n || 0),
+    0,
+  );
   const total = sumTopics > 0 ? sumTopics : sumSections;
 
+  // «Итого»
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
 
+  // доступность "Начать"
   const startBtn = $('#start');
   if (startBtn) startBtn.disabled = total <= 0;
 }
 
-// ---------- Подбор задач ----------
+// ---------- Загрузка манифестов и подбор задач ----------
 async function ensureManifest(topic) {
   if (topic._manifest) return topic._manifest;
   if (!topic.path) return null;
-  const url = new URL(topic.path, BASE).href;
+  const url = asset(topic.path); // надёжный абсолютный URL
   const resp = await fetch(url);
   if (!resp.ok) return null;
   topic._manifest = await resp.json();
   return topic._manifest;
 }
+
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -261,6 +255,7 @@ function sample(arr, k) {
   return a.slice(0, Math.min(k, a.length));
 }
 function distributeNonNegative(buckets, total) {
+  // buckets: [{id, cap}]
   const out = new Map(buckets.map((b) => [b.id, 0]));
   let left = total;
   let i = 0;
@@ -272,13 +267,14 @@ function distributeNonNegative(buckets, total) {
     }
     i++;
   }
-  return out;
+  return out; // Map id -> count
 }
 
 async function pickPrototypes() {
   const chosen = [];
   const anyTopics = Object.values(CHOICE_TOPICS).some((v) => v > 0);
 
+  // A) Если задано по темам — приоритет
   if (anyTopics) {
     for (const sec of SECTIONS) {
       for (const t of sec.topics) {
@@ -286,7 +282,10 @@ async function pickPrototypes() {
         if (!want) continue;
         const man = await ensureManifest(t);
         if (!man) continue;
-        const caps = (man.types || []).map((x) => ({ id: x.id, cap: (x.prototypes || []).length }));
+        const caps = (man.types || []).map((x) => ({
+          id: x.id,
+          cap: (x.prototypes || []).length,
+        }));
         const plan = distributeNonNegative(caps, want);
         for (const typ of man.types || []) {
           const k = plan.get(typ.id) || 0;
@@ -300,15 +299,20 @@ async function pickPrototypes() {
     return chosen;
   }
 
+  // B) Иначе распределяем по разделам → темам → типам
   for (const sec of SECTIONS) {
     const wantSection = CHOICE_SECTIONS[sec.id] || 0;
     if (!wantSection) continue;
 
+    // ёмкости тем = сумма прототипов по типам
     const topicCaps = [];
     for (const t of sec.topics) {
       const man = await ensureManifest(t);
       if (!man) continue;
-      const cap = (man.types || []).reduce((s, x) => s + (x.prototypes || []).length, 0);
+      const cap = (man.types || []).reduce(
+        (s, x) => s + (x.prototypes || []).length,
+        0,
+      );
       topicCaps.push({ id: t.id, cap, _topic: t });
     }
     const planTopics = distributeNonNegative(topicCaps, wantSection);
@@ -319,7 +323,10 @@ async function pickPrototypes() {
       const topic = sec.topics.find((x) => x.id === id);
       const man = await ensureManifest(topic);
       if (!man) continue;
-      const caps = (man.types || []).map((x) => ({ id: x.id, cap: (x.prototypes || []).length }));
+      const caps = (man.types || []).map((x) => ({
+        id: x.id,
+        cap: (x.prototypes || []).length,
+      }));
       const plan = distributeNonNegative(caps, wantT);
       for (const typ of man.types || []) {
         const k = plan.get(typ.id) || 0;
@@ -355,6 +362,7 @@ function buildQuestion(manifest, type, proto) {
     time_ms: 0,
   };
 }
+
 function computeAnswer(type, proto, params) {
   const spec = type.answer_spec || type.answerSpec;
   const t = { ...(type.defaults || {}), ...(spec || {}) };
@@ -374,6 +382,7 @@ function computeAnswer(type, proto, params) {
   }
   return out;
 }
+
 function interpolate(tpl, params) {
   return String(tpl || '').replace(
     /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
@@ -382,6 +391,7 @@ function interpolate(tpl, params) {
 }
 function evalExpr(expr, params) {
   const pnames = Object.keys(params || {});
+  // eslint-disable-next-line no-new-func
   const f = new Function(...pnames, `return (${expr});`);
   return f(...pnames.map((k) => params[k]));
 }
@@ -419,12 +429,17 @@ function renderCurrent() {
 
   const stemEl = $('#stem');
   if (stemEl) {
+    // ВАЖНО: innerHTML, чтобы MathJax увидел разметку \(...\)
     stemEl.innerHTML = q.stem;
+
+    // Перерисовать формулы MathJax'ом
     if (window.MathJax) {
       try {
         if (window.MathJax.typesetPromise) {
-          window.MathJax.typesetPromise([stemEl]).catch((err) => console.error(err));
-        } else if (window.MathJax.typeset) {
+          window.MathJax.typesetPromise([stemEl]).catch((err) =>
+            console.error(err),
+          );
+        } else if (window[MathJax.typeset]) {
           window.MathJax.typeset([stemEl]);
         }
       } catch (e) {
@@ -457,11 +472,14 @@ function renderCurrent() {
 
 function wireRunner() {
   $('#check').onclick = onCheck;
-  $('#skip').onclick = () => { skipCurrent(); };
+  $('#skip').onclick = () => {
+    skipCurrent();
+  };
   $('#next').onclick = () => goto(+1);
   $('#prev').onclick = () => goto(-1);
   $('#finish').onclick = finishSession;
 }
+
 function skipCurrent() {
   stopTick();
   saveTimeForCurrent();
@@ -477,17 +495,25 @@ function skipCurrent() {
   q.correct_text = correct_text;
   goto(+1);
 }
+
 function goto(delta) {
   stopTick();
   saveTimeForCurrent();
-  SESSION.idx = Math.max(0, Math.min(SESSION.questions.length - 1, SESSION.idx + delta));
+  SESSION.idx = Math.max(
+    0,
+    Math.min(SESSION.questions.length - 1, SESSION.idx + delta),
+  );
   renderCurrent();
   startTick();
 }
+
 function onCheck() {
   const input = $('#answer').value;
   const q = SESSION.questions[SESSION.idx];
-  const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, input);
+  const { correct, chosen_text, normalized_text, correct_text } = checkFree(
+    q.answer,
+    input,
+  );
   q.correct = correct;
   q.chosen_text = chosen_text;
   q.normalized_text = normalized_text;
@@ -502,41 +528,71 @@ function onCheck() {
     r.className = 'result bad';
   }
 }
+
 function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
   const norm = normalize(chosen_text, spec.normalize || []);
+
+  // ЕГЭ-формат десятичных ответов: строка с запятой, строгий матч
   if (spec.type === 'string' && spec.format === 'ege_decimal') {
-    const expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
+    const expected = String(
+      spec.text != null ? spec.text : spec.value != null ? spec.value : '',
+    );
     const ok = norm === expected;
-    return { correct: ok, chosen_text, normalized_text: norm, correct_text: expected };
+    return {
+      correct: ok,
+      chosen_text,
+      normalized_text: norm,
+      correct_text: expected,
+    };
   }
+
   if (spec.type === 'number') {
     const x = parseNumber(norm);
     const v = Number(spec.value);
     const ok = compareNumber(x, v, spec.tolerance || { abs: 0 });
-    return { correct: ok, chosen_text, normalized_text: String(x), correct_text: String(v) };
+    return {
+      correct: ok,
+      chosen_text,
+      normalized_text: String(x),
+      correct_text: String(v),
+    };
   } else {
     const ok = matchText(norm, spec);
     return {
       correct: ok,
       chosen_text,
       normalized_text: norm,
-      correct_text: (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '',
+      correct_text:
+        (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '',
     };
   }
 }
+
 function normalize(s, kinds) {
   let t = s == null ? '' : String(s);
   t = t.trim();
-  if (kinds.includes('strip_spaces')) t = t.replace(/\s+/g, '');
-  if (kinds.includes('unicode_minus_to_ascii')) t = t.replace(/[\u2212\u2012\u2013\u2014]/g, '-');
-  if (kinds.includes('comma_to_dot')) t = t.replace(/,/g, '.');
+  if (kinds.includes('strip_spaces')) {
+    t = t.replace(/\s+/g, '');
+  }
+  if (kinds.includes('unicode_minus_to_ascii')) {
+    t = t.replace(/[\u2212\u2012\u2013\u2014]/g, '-');
+  }
+  if (kinds.includes('comma_to_dot')) {
+    t = t.replace(/,/g, '.');
+  }
   return t;
 }
+
 function parseNumber(s) {
-  const frac = s.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
-  if (frac) return Number(frac[1]) / Number(frac[2]);
-  return Number(s);
+  const frac = s.match(
+    /^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/,
+  );
+  if (frac) {
+    return Number(frac[1]) / Number(frac[2]);
+  }
+  const x = Number(s);
+  return x;
 }
 function compareNumber(x, v, tol) {
   if (!Number.isFinite(x)) return false;
@@ -595,7 +651,10 @@ async function finishSession() {
   stopTick();
   saveTimeForCurrent();
   const total = SESSION.questions.length;
-  const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
+  const correct = SESSION.questions.reduce(
+    (s, q) => s + (q.correct ? 1 : 0),
+    0,
+  );
   const avg_ms = Math.round(SESSION.total_ms / Math.max(1, total));
 
   const payloadQuestions = SESSION.questions.map((q) => ({
@@ -609,7 +668,9 @@ async function finishSession() {
     correct_text: q.correct_text,
   }));
 
-  const topic_ids = Array.from(new Set(SESSION.questions.map((q) => q.topic_id)));
+  const topic_ids = Array.from(
+    new Set(SESSION.questions.map((q) => q.topic_id)),
+  );
 
   const attemptRow = {
     student_id: SESSION.student.name || null,
@@ -652,7 +713,7 @@ async function finishSession() {
   }
 }
 
-// Пользователь и утилиты
+// ---------- Пользователь и утилиты ----------
 function loadUser() {
   const s = localStorage.getItem('student_info_v1');
   if (s) {
@@ -660,7 +721,9 @@ function loadUser() {
       const u = JSON.parse(s);
       if ($('#studentName')) $('#studentName').value = u.name || '';
       if ($('#studentEmail')) $('#studentEmail').value = u.email || '';
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
 }
 function saveUser() {
@@ -670,6 +733,7 @@ function saveUser() {
   };
   localStorage.setItem('student_info_v1', JSON.stringify(u));
 }
+
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (m) => ({
     '&': '&amp;',
@@ -678,6 +742,7 @@ function esc(s) {
     '"': '&quot;',
   })[m]);
 }
+
 function toCsv(questions) {
   const rows = questions.map((q) => ({
     question_id: q.question_id,
@@ -689,7 +754,8 @@ function toCsv(questions) {
     correct_text: q.correct_text,
   }));
   const cols = Object.keys(rows[0] || { question_id: 1 });
-  const escCell = (v) => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const escCell = (v) =>
+    '"' + String(v ?? '').replace(/"/g, '""') + '"';
   return [
     cols.join(','),
     ...rows.map((r) => cols.map((c) => escCell(r[c])).join(',')),
