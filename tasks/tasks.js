@@ -1,6 +1,7 @@
 // tasks/tasks.js
-// Двухуровневый аккордеон: Раздел → Тема. Подбор и раннер.
-// Кнопки «все/уник» видимы только у активного раздела.
+// Аккордеон «Раздел → Тема». Кнопки «все/уник» удалены.
+// При клике по разделу появляется кнопка «Уникальные прототипы»,
+// повторный клик сворачивает раздел и скрывает кнопку.
 
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
@@ -27,7 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadCatalog();
     renderAccordion();
-    wireGlobalControls();
   } catch (e) {
     console.error(e);
     const host = $('#accordion');
@@ -73,8 +73,6 @@ async function loadCatalog() {
   SECTIONS = sections;
 }
 
-function wireGlobalControls() {}
-
 // ---------- Аккордеон ----------
 function renderAccordion() {
   const host = $('#accordion');
@@ -91,15 +89,6 @@ function renderSectionNode(sec) {
   node.className = 'node section';
   node.dataset.id = sec.id;
 
-  const allHref = new URL(
-    `worksheet.html?section=${encodeURIComponent(sec.id)}`,
-    location.href,
-  ).href;
-  const uniqHref = new URL(
-    `worksheet.html?section=${encodeURIComponent(sec.id)}&mode=unique`,
-    location.href,
-  ).href;
-
   node.innerHTML = `
     <div class="row">
       <div class="countbox">
@@ -108,10 +97,7 @@ function renderSectionNode(sec) {
         <button class="btn plus">+</button>
       </div>
       <div class="title">${esc(`${sec.id}. ${sec.title}`)}</div>
-      <div class="qa">
-        <a href="${allHref}">все</a>
-        <a href="${uniqHref}">уник</a>
-      </div>
+      <div class="uniqwrap"><button class="unique-btn" type="button">Уникальные прототипы</button></div>
       <div class="spacer"></div>
     </div>
     <div class="children"></div>
@@ -123,21 +109,31 @@ function renderSectionNode(sec) {
     ch.appendChild(renderTopicRow(sec, t));
   }
 
-  // Клик по названию раздела:
-  // 1) раскрыть/свернуть темы
-  // 2) показать кнопки «все/уник» только у этого раздела (переключатель)
+  // Показ/скрытие подразделов и кнопки «Уникальные прототипы»
   const titleEl = $('.title', node);
   titleEl.style.cursor = 'pointer';
   titleEl.onclick = (ev) => {
     ev.preventDefault();
-    // переключаем список тем
-    node.classList.toggle('expanded');
 
-    // показать/скрыть qa у текущего и скрыть у всех остальных
-    const isShown = node.classList.contains('show-qa');
-    $$('.node.section.show-qa').forEach((n) => n.classList.remove('show-qa'));
-    if (!isShown) node.classList.add('show-qa');
+    // если текущий раздел уже открыт — просто закрываем и прячем кнопку
+    const wasExpanded = node.classList.contains('expanded');
+
+    // свернуть другие разделы и убрать кнопку у них
+    $$('.node.section.expanded').forEach((n) => n.classList.remove('expanded'));
+    $$('.node.section.show-uniq').forEach((n) => n.classList.remove('show-uniq'));
+
+    if (!wasExpanded) {
+      node.classList.add('expanded');
+      node.classList.add('show-uniq'); // показываем кнопку
+    }
   };
+
+  // Кнопка «Уникальные прототипы»
+  $('.unique-btn', node)?.addEventListener('click', () => {
+    const url = new URL('unique.html', location.href);
+    url.searchParams.set('section', sec.id);
+    window.open(url.toString(), '_blank', 'noopener');
+  });
 
   // Счётчик раздела
   const num = $('.count', node);
@@ -204,7 +200,6 @@ function setSectionCount(sectionId, n) {
   CHOICE_SECTIONS[sectionId] = n;
   bubbleUpSums();
 }
-
 function bubbleUpSums() {
   for (const sec of SECTIONS) {
     const sumTopics = sec.topics.reduce(
@@ -225,7 +220,6 @@ function bubbleUpSums() {
 
   refreshTotalSum();
 }
-
 function refreshTotalSum() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
@@ -354,7 +348,6 @@ function buildQuestion(manifest, type, proto) {
     time_ms: 0,
   };
 }
-
 function computeAnswer(type, proto, params) {
   const spec = type.answer_spec || type.answerSpec;
   const t = { ...(type.defaults || {}), ...(spec || {}) };
@@ -374,7 +367,6 @@ function computeAnswer(type, proto, params) {
   }
   return out;
 }
-
 function interpolate(tpl, params) {
   return String(tpl || '').replace(
     /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
@@ -463,7 +455,6 @@ function wireRunner() {
   $('#prev').onclick = () => goto(-1);
   $('#finish').onclick = finishSession;
 }
-
 function skipCurrent() {
   stopTick();
   saveTimeForCurrent();
@@ -479,7 +470,6 @@ function skipCurrent() {
   q.correct_text = correct_text;
   goto(+1);
 }
-
 function goto(delta) {
   stopTick();
   saveTimeForCurrent();
@@ -487,7 +477,6 @@ function goto(delta) {
   renderCurrent();
   startTick();
 }
-
 function onCheck() {
   const input = $('#answer').value;
   const q = SESSION.questions[SESSION.idx];
@@ -506,17 +495,14 @@ function onCheck() {
     r.className = 'result bad';
   }
 }
-
 function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
   const norm = normalize(chosen_text, spec.normalize || []);
-
   if (spec.type === 'string' && spec.format === 'ege_decimal') {
     const expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
     const ok = norm === expected;
     return { correct: ok, chosen_text, normalized_text: norm, correct_text: expected };
   }
-
   if (spec.type === 'number') {
     const x = parseNumber(norm);
     const v = Number(spec.value);
@@ -532,7 +518,6 @@ function checkFree(spec, raw) {
     };
   }
 }
-
 function normalize(s, kinds) {
   let t = s == null ? '' : String(s);
   t = t.trim();
@@ -678,7 +663,6 @@ function saveUser() {
   };
   localStorage.setItem('student_info_v1', JSON.stringify(u));
 }
-
 function esc(s) {
   return String(s).replace(/[&<>"]/g, (m) => ({
     '&': '&amp;',
@@ -687,7 +671,6 @@ function esc(s) {
     '"': '&quot;',
   })[m]);
 }
-
 function toCsv(questions) {
   const rows = questions.map((q) => ({
     question_id: q.question_id,
