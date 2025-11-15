@@ -17,8 +17,8 @@
   { "id": "1.15", "title": "Касательная к окружности", "parent": "1", "path": "content/tasks/1/1.15.json", "enabled": true },
 
   { "id": "2", "title": "Векторы", "type": "group" },
-  { "id": "", "title": "Скалярное произведение", "parent": "2", "path": "content/tasks/vectors/2.1/manifest.json", "enabled": true },
-  { "id": "", "title": "Длина вектора", "parent": "2", "path": "content/tasks/vectors/2.2/manifest.json", "enabled": true },
+  { "title": "Скалярное произведение", "parent": "2", "path": "content/tasks/vectors/2.1/manifest.json", "enabled": true },
+  { "title": "Длина вектора", "parent": "2", "path": "content/tasks/vectors/2.2/manifest.json", "enabled": true },
 
   { "id": "3", "title": "Стереометрия", "type": "group" },
   { "id": "3.1.1", "title": "Треугольная призма", "parent": "3", "path": "content/tasks/3/3.1.1.json", "enabled": true },
