@@ -1,0 +1,29 @@
+
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Лист задач по разделу</title>
+  <link rel="stylesheet" href="../../shared/css/tokens.css">
+  <link rel="stylesheet" href="../../shared/css/base.css">
+  <link rel="stylesheet" href="../../shared/css/components.css">
+  <link rel="stylesheet" href="../../shared/css/worksheet.css">
+  <script>
+    window.MathJax = { tex:{ inlineMath:[['\\(','\\)'],['$','$']] }, svg:{ fontCache:'global' } };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" defer></script>
+</head>
+<body>
+  <main class="container" id="worksheet">
+    <section>
+      <div class="panel">
+        <h1 id="wsTitle">Раздел</h1>
+        <div id="wsMeta" style="opacity:.8;margin-top:4px"></div>
+        <div id="wsContent" class="worksheet-list cards-2cols" style="margin-top:12px"></div>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="./worksheet.js"></script>
+</body>
+</html>

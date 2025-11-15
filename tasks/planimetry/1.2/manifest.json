@@ -1,0 +1,80 @@
+{
+  "topic": "1.2",
+  "title": "Окружность вписана в четырехугольник",
+  "types": [
+    {
+      "id": "1.2.1",
+      "title": "Периметр по AB и CD",
+      "stem_template": "В четырёхугольник ABCD вписана окружность, AB = ${ab}, CD = ${cd}. Найдите периметр четырёхугольника ABCD.",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "unicode_minus_to_ascii",
+          "comma_to_dot"
+        ]
+      },
+      "answer_spec": {
+        "type": "number",
+        "tolerance": {
+          "abs": 0
+        }
+      },
+      "figure": {
+        "img": "content/tasks/images/planimetry/1.2/t1.svg",
+        "alt": "Окружность, вписанная в четырёхугольник"
+      },
+      "prototypes": [
+        {
+          "id": "1.2.1.001",
+          "params": {
+            "ab": 7,
+            "cd": 12
+          },
+          "answer": {
+            "value": 38
+          }
+        },
+        {
+          "id": "1.2.1.002",
+          "params": {
+            "ab": 14,
+            "cd": 11
+          },
+          "answer": {
+            "value": 50
+          }
+        },
+        {
+          "id": "1.2.1.003",
+          "params": {
+            "ab": 9,
+            "cd": 17
+          },
+          "answer": {
+            "value": 52
+          }
+        },
+        {
+          "id": "1.2.1.004",
+          "params": {
+            "ab": 18,
+            "cd": 5
+          },
+          "answer": {
+            "value": 46
+          }
+        },
+        {
+          "id": "1.2.1.005",
+          "params": {
+            "ab": 23,
+            "cd": 12
+          },
+          "answer": {
+            "value": 70
+          }
+        }
+      ]
+    }
+  ]
+}

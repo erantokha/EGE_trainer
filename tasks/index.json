@@ -1,0 +1,21 @@
+[
+  {
+    "id": "1",
+    "title": "Планиметрия",
+    "type": "group"
+  },
+  {
+    "id": "1.1",
+    "title": "Центральные и вписанные углы",
+    "parent": "1",
+    "path": "content/tasks/planimetry/1.1/manifest.json",
+    "enabled": true
+  },
+  {
+    "id": "1.2",
+    "title": "Окружность вписана в четырехугольник",
+    "parent": "1",
+    "path": "content/tasks/planimetry/1.2/manifest.json",
+    "enabled": true
+  }
+]
