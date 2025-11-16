@@ -1,167 +1,181 @@
 // tasks/unique.js
-// Страница «Уникальные прототипы» по разделу ?section=ID.
-// Рисует аккордеон тем раздела; в теме показываются прототипы с unic:true.
+// Страница "Уникальные прототипы" для выбранного раздела (?section=<id>):
+// Рендерит аккордеон «Тема → уникальные прототипы (prototype.unic = true | tags включает 'unic')».
+// Остаёмся на этой же странице, без переходов.
+
+import { loadCatalogIndex, makeSections, asset } from './shared/js/catalog.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const $$ = (s, root = document) => Array.from(root.querySelectorAll(s));
 
-const BASE = new URL('../', location.href);
-const asset = (p) =>
-  typeof p === 'string' && p.startsWith('content/')
-    ? new URL(p, BASE).href
-    : p;
-
-let CATALOG = null;
-let SECTION = null;
-let TOPICS = [];
-
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
-  const id = new URL(location.href).searchParams.get('section');
-  if (!id) {
-    $('#pageTitle').textContent = 'Уникальные прототипы — секция не указана';
+  const params = new URLSearchParams(location.search);
+  const sectionId = params.get('section');
+
+  const host = $('#unique-root') || document.body;
+
+  if (!sectionId) {
+    host.innerHTML = `<div style="opacity:.85">Не указан параметр <code>?section=ID</code>.</div>`;
     return;
   }
-  await loadIndex();
 
-  SECTION = CATALOG.find((x) => x.id === id && x.type === 'group');
-  if (!SECTION) {
-    $('#pageTitle').textContent = `Уникальные прототипы — раздел ${id} не найден`;
-    return;
-  }
-  TOPICS = CATALOG.filter((x) => x.parent === SECTION.id);
+  try {
+    const catalog = await loadCatalogIndex();
+    const sections = makeSections(catalog);
+    const section = sections.find(s => s.id === sectionId);
+    if (!section) {
+      host.innerHTML = `<div style="opacity:.85">Раздел <code>${escapeHtml(sectionId)}</code> не найден.</div>`;
+      return;
+    }
 
-  $('#pageTitle').textContent =
-    `Уникальные прототипы ФИПИ по номеру ${SECTION.id}. ${SECTION.title}`;
+    document.title = `Уникальные прототипы ФИПИ по номеру ${section.id}. ${section.title}`;
 
-  renderTopics();
-}
+    // Заголовок и контейнер аккордеона
+    host.innerHTML = `
+      <div class="panel">
+        <h1>Уникальные прототипы ФИПИ по номеру ${escapeHtml(section.id + '. ' + section.title)}</h1>
+        <div id="u-accordion" class="accordion"></div>
+      </div>
+    `;
 
-async function loadIndex() {
-  const url = new URL('content/tasks/index.json', BASE).href;
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error('index.json not found');
-  CATALOG = await resp.json();
-}
+    const acc = $('#u-accordion', host);
 
-function renderTopics() {
-  const host = $('#uniqueAccordion');
-  host.innerHTML = '';
-  for (const t of TOPICS) {
-    host.appendChild(renderTopicNode(t));
+    // Для каждой темы — своя секция аккордеона
+    for (const topic of section.topics) {
+      const node = renderTopicNode(topic);
+      acc.appendChild(node);
+
+      // Лениво загружаем манифест при первом раскрытии
+      const title = $('.title', node);
+      title.addEventListener('click', async () => {
+        const expanded = node.classList.toggle('expanded');
+        if (expanded && !node.dataset.loaded) {
+          node.classList.add('loading');
+          try {
+            const manifest = await loadManifest(topic.path);
+            const unicList = pickUnic(manifest);
+            renderUnicList($('.children', node), unicList, manifest, topic);
+            node.dataset.loaded = '1';
+            node.classList.remove('loading');
+            retypesetMath(node);
+          } catch (e) {
+            console.error(e);
+            $('.children', node).innerHTML = `<div style="color:#d33">Ошибка: ${escapeHtml(String(e.message || e))}</div>`;
+            node.classList.remove('loading');
+            node.dataset.loaded = '1';
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error(e);
+    host.innerHTML = `<div style="color:#d33">Ошибка загрузки: ${escapeHtml(String(e.message || e))}</div>`;
   }
 }
 
 function renderTopicNode(topic) {
   const node = document.createElement('div');
-  node.className = 'node section'; // используем общий стиль «section» для клика
+  node.className = 'node section'; // тот же стиль, что и обычный аккордеон
   node.dataset.id = topic.id;
 
   node.innerHTML = `
     <div class="row">
-      <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      <div class="title" style="cursor:pointer">${escapeHtml(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
     </div>
-    <div class="children"></div>
+    <div class="children" style="display:block"></div>
   `;
-
-  const title = $('.title', node);
-  title.style.cursor = 'pointer';
-  title.onclick = async (e) => {
-    e.preventDefault();
-    const expanded = node.classList.toggle('expanded');
-    if (expanded && !node.dataset.loaded) {
-      const list = await loadUniqueList(topic);
-      const ch = $('.children', node);
-      ch.innerHTML = '';
-      ch.appendChild(list);
-      node.dataset.loaded = '1';
-      // прогнать MathJax по вставленному фрагменту
-      if (window.MathJax?.typesetPromise) {
-        window.MathJax.typesetPromise([ch]).catch(console.error);
-      } else if (window.MathJax?.typeset) {
-        window.MathJax.typeset([ch]);
-      }
-    }
-  };
-
   return node;
 }
 
-async function loadUniqueList(topic) {
-  const wrap = document.createElement('div');
-  wrap.style.margin = '8px 0 6px 0';
+async function loadManifest(path) {
+  if (!path) throw new Error('У темы отсутствует path к манифесту.');
+  const url = asset(path);
+  const resp = await fetch(url, { cache: 'no-store' });
+  if (!resp.ok) throw new Error(`Не удалось загрузить манифест ${url}`);
+  return resp.json();
+}
 
-  if (!topic.path) {
-    wrap.textContent = 'Нет данных по теме.';
-    return wrap;
+/**
+ * Возвращает список уникальных прототипов в формате:
+ * [{ type, proto, stem, figure }, ...]
+ */
+function pickUnic(manifest) {
+  const out = [];
+  for (const type of (manifest.types || [])) {
+    for (const p of (type.prototypes || [])) {
+      const isUnic =
+        p.unic === true ||
+        p?.flags?.unic === true ||
+        p?.meta?.unic === true ||
+        (Array.isArray(p.tags) && p.tags.includes('unic'));
+      if (!isUnic) continue;
+
+      const fig = p.figure || type.figure || null;
+      const stemTpl = p.stem || type.stem_template || type.stem || '';
+      const stem = interpolate(stemTpl, p.params || {});
+      out.push({
+        type,
+        proto: p,
+        stem,
+        figure: fig,
+      });
+    }
   }
-  try {
-    const resp = await fetch(new URL(topic.path, BASE).href);
-    if (!resp.ok) throw new Error('manifest not found');
-    const man = await resp.json();
+  return out;
+}
 
-    const items = [];
-    for (const typ of man.types || []) {
-      for (const p of typ.prototypes || []) {
-        if (p.unic) {
-          items.push({ type: typ, proto: p, manifest: man });
-        }
-      }
-    }
+function renderUnicList(container, list, manifest, topic) {
+  if (!list.length) {
+    container.innerHTML = `<div style="opacity:.7">В этой теме уникальные прототипы не найдены.</div>`;
+    return;
+  }
+  container.innerHTML = '';
+  let i = 1;
+  for (const it of list) {
+    const block = document.createElement('div');
+    block.className = 'u-item';
 
-    if (!items.length) {
-      wrap.textContent = 'Уникальные прототипы отсутствуют.';
-      return wrap;
-    }
+    const figHtml = it.figure?.img
+      ? `<div class="figure"><img loading="lazy" alt="${escapeAttr(it.figure.alt || '')}" src="${asset(it.figure.img)}"></div>`
+      : '';
 
-    const list = document.createElement('div');
-    list.className = 'worksheet-list'; // аккуратная сетка карточек
-    for (const { type, proto, manifest } of items) {
-      const card = document.createElement('div');
-      card.className = 'ws-item';
-
-      const title = `${proto.id} — ${manifest.title || ''}`.trim();
-      const stemTpl = proto.stem || type.stem_template || type.stem || '';
-      const stem = interpolate(stemTpl, proto.params || {});
-      const fig = proto.figure || type.figure || null;
-
-      card.innerHTML = `
-        <div class="ws-head">
-          <span class="ws-num">${proto.id}</span>
-          <span class="ws-title">${esc(title)}</span>
-        </div>
-        ${fig?.img ? `<div class="figure-wrap"><img alt="" src="${asset(fig.img)}"></div>` : '' }
-        <div class="ws-stem">${stem}</div>
-        ${proto.answer?.text != null || proto.answer?.value != null
-          ? `<details class="ws-ans"><summary>Ответ</summary><div class="ws-ans-text">${
-              esc(String(proto.answer.text ?? proto.answer.value ?? ''))
-            }</div></details>`
-          : ''
-        }
-      `;
-      list.appendChild(card);
-    }
-
-    wrap.appendChild(list);
-    return wrap;
-  } catch (e) {
-    console.error(e);
-    wrap.textContent = 'Ошибка загрузки манифеста темы.';
-    return wrap;
+    block.innerHTML = `
+      <div class="u-head">
+        <span class="u-no">${i}.</span>
+        <span class="u-id">${escapeHtml(it.proto.id || '')}</span>
+      </div>
+      ${figHtml}
+      <div class="u-stem">${it.stem}</div>
+    `;
+    container.appendChild(block);
+    i++;
   }
 }
 
-// helpers
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, (m) => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'
-  })[m]);
-}
 function interpolate(tpl, params) {
-  return String(tpl || '').replace(
-    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
-    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
+  return String(tpl || '').replace(/\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g, (_, k) =>
+    params[k] !== undefined ? String(params[k]) : '',
   );
 }
+
+function retypesetMath(root) {
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([root]);
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([root]);
+      }
+    } catch (e) {
+      console.warn('MathJax error', e);
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+}
+function escapeAttr(s) { return escapeHtml(s); }
