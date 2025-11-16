@@ -1,4 +1,4 @@
-/ tasks/shared/js/data/manifests.js
+// tasks/shared/js/data/manifests.js
 // Загрузка манифестов тем (content/.../*.json) и нормализация путей.
 
 // Поднимаемся из /tasks/pages/*/ к корню репозитория:
