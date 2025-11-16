@@ -1,30 +1,41 @@
 // tasks/shared/js/data/manifests.js
-// Загрузка манифестов тем (content/.../*.json) и нормализация путей.
+// Загрузка и кэширование манифестов тем (content/tasks/**.json)
 
-// Поднимаемся из /tasks/pages/*/ к корню репозитория:
-const BASE = new URL('../../../', location.href);
+import { baseHref, asset } from './catalog.js';
 
-/**
- * Сформировать абсолютный URL к файлу манифеста/картинке.
- */
-export function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
-    ? new URL(p, BASE).href
-    : p;
+/** Абсолютный URL к файлу манифеста темы. */
+function manifestUrl(topic) {
+  if (!topic || !topic.path) throw new Error('Topic has no path');
+  const root = baseHref();                 // https://…/EGE_trainer/
+  return new URL(asset(topic.path), root).href;
 }
 
 /**
- * Загрузить манифест по объекту темы (с полем path) или по строковому пути.
- * Возвращает JSON манифеста.
+ * Загружает и кэширует манифест в topic._manifest.
+ * Возвращает объект манифеста.
  */
-export async function loadManifest(topicOrPath) {
-  const path = typeof topicOrPath === 'string' ? topicOrPath : topicOrPath?.path;
-  if (!path) throw new Error('loadManifest: empty path');
+export async function ensureManifest(topic) {
+  if (!topic) return null;
+  if (topic._manifest) return topic._manifest;
 
-  const url = new URL(path, BASE).href;
+  const url = manifestUrl(topic);
   const resp = await fetch(url, { cache: 'no-store' });
-  if (!resp.ok) {
-    throw new Error(`manifest not found (${resp.status}) at ${url}`);
-  }
-  return resp.json();
+  if (!resp.ok) throw new Error(`Manifest not found (${resp.status}) at ${url}`);
+
+  const man = await resp.json();
+  // Заполняем базовые поля, если их нет в JSON
+  if (!man.topic) man.topic = topic.id || '';
+  if (!man.title) man.title = topic.title || '';
+
+  topic._manifest = man;
+  return man;
 }
+
+/** Суммарная «вместимость» (кол-во прототипов) по манифесту. */
+export function prototypesCapacity(manifest) {
+  return (manifest?.types || []).reduce((s, t) => s + (t.prototypes?.length || 0), 0);
+}
+
+// На всякий случай — default-экспорт совместимости,
+// если где-то вдруг импортировали по умолчанию.
+export default { ensureManifest, prototypesCapacity };
