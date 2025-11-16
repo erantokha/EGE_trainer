@@ -1,7 +1,30 @@
 // tasks/shared/js/catalog.js
-// Общие утилиты каталога: загрузка index.json, построение разделов, резолвинг путей к ассетам.
+// Общие утилиты каталога: загрузка index.json, построение разделов,
+// корректное вычисление BASE для GitHub Pages при любой вложенности страниц.
 
-const BASE = new URL('../', location.href); // страницы лежат в /tasks/*.html — поднимаемся на уровень вверх к корню
+/**
+ * Определяем базу репозитория (до папки /tasks/).
+ * Работает как из /tasks/index.html, так и из /tasks/pages/*.html, /tasks/unique.html и т.п.
+ * Примеры:
+ *   https://site.io/EGE_trainer/tasks/index.html           → https://site.io/EGE_trainer/
+ *   https://site.io/EGE_trainer/tasks/pages/index.html     → https://site.io/EGE_trainer/
+ *   http://localhost:5173/tasks/pages/index.html           → http://localhost:5173/
+ */
+function computeRepoBaseHref() {
+  const { origin, pathname } = location; // напр. "/EGE_trainer/tasks/pages/index.html"
+  const idx = pathname.indexOf('/tasks/'); // позиция сегмента "/tasks/"
+  if (idx >= 0) {
+    // Берём всё до "/tasks/" (включая завершающий "/")
+    const rootPath = pathname.slice(0, idx + 1); // напр. "/EGE_trainer/"
+    return origin + rootPath;
+  }
+  // Фолбэк: поднимемся на два уровня (страховка для нетипичных путей)
+  const u = new URL('../../', location.href);
+  return u.href;
+}
+
+// База репозитория, к которой относительно подключаем /content/...
+const REPO_BASE = computeRepoBaseHref();
 
 /**
  * Преобразует относительный путь вида "content/..." в абсолютный URL.
@@ -10,16 +33,16 @@ const BASE = new URL('../', location.href); // страницы лежат в /t
  */
 export function asset(p) {
   return (typeof p === 'string' && p.startsWith('content/'))
-    ? new URL(p, BASE).href
+    ? new URL(p, REPO_BASE).href
     : p;
 }
 
 /**
  * Загружает общий индекс каталога задач.
- * Ожидается файл /content/tasks/index.json
+ * Ожидается файл /content/tasks/index.json (относительно корня репозитория).
  */
 export async function loadCatalogIndex() {
-  const url = new URL('content/tasks/index.json', BASE).href;
+  const url = new URL('content/tasks/index.json', REPO_BASE).href;
   const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) {
     throw new Error(`Не удалось загрузить ${url}: ${resp.status} ${resp.statusText}`);
@@ -45,7 +68,6 @@ export function makeSections(catalog) {
     s.topics = topics.filter(t => t.parent === s.id).sort(byId);
   }
 
-  // Отсортируем и сами разделы
   sections.sort(byId);
   return sections;
 }
@@ -62,3 +84,6 @@ function cmpId(a, b) {
   }
   return 0;
 }
+
+// Экспортируем на всякий случай базу — удобно для диагностики в консоли
+export const __DEBUG_BASE__ = REPO_BASE;
