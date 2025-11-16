@@ -1,11 +1,10 @@
 // tasks/shared/js/catalog.js
-// Шим-обёртка: реэкспорт всего из data/catalog.js,
-// чтобы можно было импортировать как
-//   import { loadCatalogIndex, makeSections, asset, baseHref } from './shared/js/catalog.js';
-// и при этом сохранить совместимость.
+// Тонкий адаптер: реэкспорт всего из data/catalog.js,
+// чтобы импорт можно было писать коротко:
+//   import { loadCatalogIndex, makeSections, asset, baseHref } from '../../shared/js/catalog.js';
 
 export * from './data/catalog.js';
 
-// На случай default-импорта в старых страницах:
+// Опциональный default-экспорт для старых страниц:
 import * as Catalog from './data/catalog.js';
 export default Catalog;
