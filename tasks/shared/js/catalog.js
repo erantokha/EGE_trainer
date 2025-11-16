@@ -1,40 +1,48 @@
-// Общие утилиты каталога: загрузка index.json, построение разделов, резолвинг ассетов.
+// tasks/shared/js/data/catalog.js
+// Общие утилиты каталога: загрузка index.json, построение разделов,
+// резолвинг путей к ассетам.
 
-// Определяем корень репозитория до сегмента "/tasks/"
-const ROOT = (() => {
-  const u = new URL(location.href);
-  const i = u.pathname.indexOf('/tasks/');
-  // если страница внутри /tasks/... → обрезаем до корня репо, иначе оставляем текущую директорию
-  u.pathname = i !== -1 ? u.pathname.slice(0, i + 1) : u.pathname.replace(/[^/]*$/, '');
-  u.search = '';
-  u.hash = '';
-  return u.origin + u.pathname; // оканчивается на "/"
-})();
+// ВНИМАНИЕ: страницы лежат в /tasks/pages/*/index.html.
+// Чтобы попасть в корень репозитория (/EGE_trainer/), поднимаемся на 3 уровня.
+const BASE = new URL('../../../', location.href);
 
-/** Преобразует "content/…" в абсолютный URL от корня репозитория. */
+/**
+ * Преобразует относительный путь вида "content/..." в абсолютный URL.
+ * Абсолютные ссылки/пустые значения возвращает как есть.
+ */
 export function asset(p) {
   return (typeof p === 'string' && p.startsWith('content/'))
-    ? new URL(p, ROOT).href
+    ? new URL(p, BASE).href
     : p;
 }
 
-/** Загружает общий индекс каталога задач: /content/tasks/index.json */
+/**
+ * Загружает общий индекс каталога задач: /content/tasks/index.json
+ */
 export async function loadCatalogIndex() {
-  const url = new URL('content/tasks/index.json', ROOT).href;
+  const url = new URL('content/tasks/index.json', BASE).href;
   const resp = await fetch(url, { cache: 'no-store' });
-  if (!resp.ok) throw new Error(`index.json not found at ${url}`);
+  if (!resp.ok) {
+    throw new Error(`index.json not found (${resp.status}) at ${url}`);
+  }
   return resp.json();
 }
 
-/** Строит структуру "Раздел → Темы" из плоского индекса. */
+/**
+ * Строит структуру "Раздел → Темы" из плоского индекса.
+ * Возвращает массив разделов вида:
+ * [{ id, title, topics: [{id,title,path}, ...] }, ...]
+ */
 export function makeSections(catalog) {
   const sections = catalog.filter(x => x.type === 'group');
   const topics   = catalog.filter(x => !!x.parent && x.enabled !== false);
 
   const byId = (a, b) => cmpId(a.id, b.id);
+
   for (const s of sections) {
     s.topics = topics.filter(t => t.parent === s.id).sort(byId);
   }
+
   sections.sort(byId);
   return sections;
 }
@@ -45,11 +53,9 @@ function cmpId(a, b) {
   const bs = String(b).split('.').map(Number);
   const L = Math.max(as.length, bs.length);
   for (let i = 0; i < L; i++) {
-    const da = as[i] ?? 0, db = bs[i] ?? 0;
-    if (da !== db) return da - db;
+    const ai = as[i] ?? 0;
+    const bi = bs[i] ?? 0;
+    if (ai !== bi) return ai - bi;
   }
   return 0;
 }
-
-// Небольшой хелпер для отладки в консоли (не обязателен)
-export function __CATALOG_DEBUG__() { return { href: location.href, ROOT }; }
