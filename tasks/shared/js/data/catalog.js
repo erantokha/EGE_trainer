@@ -1,26 +1,25 @@
 // tasks/shared/js/data/catalog.js
-// Общие утилиты каталога: загрузка index.json, построение разделов,
-// резолвинг путей к ассетам + обратная совместимость со старыми импортами.
+// Общие утилиты каталога: загрузка index.json, построение "раздел → темы",
+// и резолвинг путей к ассетам. Никаких RegExp здесь нет.
 
-/**
- * Корень репозитория на GitHub Pages, например:
- * https://erantokha.github.io/EGE_trainer/
- *
- * Возвращает объект URL (можно использовать и как строку).
- * Делает два шага:
- *  1) основной способ — origin + /{repo}/
- *  2) запасной — подняться на три уровня от страницы /tasks/pages/*/index.html
- */
+// Корневой href репозитория (например, https://erantokha.github.io/EGE_trainer/).
+// Работает и локально (file:/ или http://localhost/...).
 export function baseHref() {
-  try {
-    const repo = (location.pathname.split('/')[1] || '').trim(); // 'EGE_trainer'
-    if (repo) {
-      return new URL(`/${repo}/`, location.origin);
-    }
-  } catch {}
-  // запасной вариант
-  return new URL('../../../', location.href);
+  // Возможность принудительно задать корень при отладке:
+  if (typeof window !== "undefined" && typeof window.__DEBUG_ROOT__ === "function") {
+    try { const u = String(window.__DEBUG_ROOT__()); if (u) return u; } catch {}
+  }
+
+  // Пример pathname: /EGE_trainer/tasks/pages/picker/index.html
+  const { origin, pathname } = location;
+  const parts = pathname.split('/').filter(Boolean);
+  // parts[0] — имя репозитория (EGE_trainer)
+  const repo = parts[0] || '';
+  return repo ? `${origin}/${repo}/` : `${origin}/`;
 }
+
+// Абсолютный BASE для построения ссылок.
+const BASE = baseHref();
 
 /**
  * Преобразует относительный путь вида "content/..." в абсолютный URL.
@@ -28,16 +27,15 @@ export function baseHref() {
  */
 export function asset(p) {
   return (typeof p === 'string' && p.startsWith('content/'))
-    ? new URL(p, baseHref()).href
+    ? new URL(p, BASE).href
     : p;
 }
 
 /**
  * Загружает общий индекс каталога задач: /content/tasks/index.json
- * Новый экспорт.
  */
 export async function loadCatalogIndex() {
-  const url = new URL('content/tasks/index.json', baseHref()).href;
+  const url = new URL('content/tasks/index.json', BASE).href;
   const resp = await fetch(url, { cache: 'no-store' });
   if (!resp.ok) {
     throw new Error(`index.json not found (${resp.status}) at ${url}`);
@@ -46,26 +44,20 @@ export async function loadCatalogIndex() {
 }
 
 /**
- * Совместимость со старыми страницами:
- * они импортируют { loadCatalog, baseHref } из этого файла.
- * Оставляем алиас.
- */
-export const loadCatalog = loadCatalogIndex;
-
-/**
  * Строит структуру "Раздел → Темы" из плоского индекса.
  * Возвращает массив разделов вида:
  * [{ id, title, topics: [{id,title,path}, ...] }, ...]
  */
 export function makeSections(catalog) {
   const sections = catalog.filter((x) => x.type === 'group');
-  const topics = catalog.filter((x) => !!x.parent && x.enabled !== false);
+  const topics   = catalog.filter((x) => !!x.parent && x.enabled !== false);
 
   const byId = (a, b) => cmpId(a.id, b.id);
 
   for (const s of sections) {
     s.topics = topics.filter((t) => t.parent === s.id).sort(byId);
   }
+
   sections.sort(byId);
   return sections;
 }
