@@ -27,7 +27,8 @@
           "answer": {
             "text": "29",
             "value": 29
-          }
+          },
+          "unic": true
         },
         {
           "id": "2.2.1.2",
@@ -95,7 +96,8 @@
           "answer": {
             "text": "11",
             "value": 11
-          }
+          },
+          "unic": true
         }
       ]
     }
