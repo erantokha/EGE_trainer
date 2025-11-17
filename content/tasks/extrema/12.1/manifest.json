@@ -89,7 +89,8 @@
           "answer": {
             "text": "8",
             "value": 8
-          }
+          },
+          "unic": true
         }
       ]
     }
