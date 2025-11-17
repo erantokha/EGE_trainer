@@ -5,14 +5,6 @@
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="./trainer.css">
-
-  <script>
-    window.MathJax = {
-      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
-      svg: { fontCache: 'global' }
-    };
-  </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
 </head>
 <body>
   <main class="container">
@@ -26,48 +18,8 @@
         <div id="accordion" class="accordion"></div>
       </div>
     </section>
-
-    <section id="runner" class="hidden">
-      <div class="panel">
-        <div class="run-head">
-          <div class="crumb"><span id="topicTitle"></span></div>
-          <div class="progress"><span id="idx">1</span>/<span id="total">1</span></div>
-          <div class="timer"><span id="tmin">00</span>:<span id="tsec">00</span></div>
-        </div>
-
-        <div class="qwrap">
-          <div class="qtext" id="stem"></div>
-          <div class="qfig"><img id="figure" alt=""></div>
-        </div>
-
-        <div class="answer-row">
-          <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
-          <button id="check">Проверить</button>
-        </div>
-
-        <div class="result" id="result"></div>
-
-        <div class="nav">
-          <button id="prev">Назад</button>
-          <button id="skip">Пропустить</button>
-          <button id="next">Далее</button>
-          <button id="finish">Завершить</button>
-        </div>
-      </div>
-    </section>
-
-    <section id="summary" class="hidden">
-      <div class="panel">
-        <h2>Сессия завершена</h2>
-        <div id="stats" class="stats"></div>
-        <div class="actions">
-          <button id="restart">Новая сессия</button>
-          <a id="exportCsv" href="#" download="tasks_session.csv">Экспорт CSV</a>
-        </div>
-      </div>
-    </section>
   </main>
 
-  <script type="module" src="./trainer.js"></script>
+  <script type="module" src="./picker.js"></script>
 </body>
 </html>
