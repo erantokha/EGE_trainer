@@ -32,7 +32,12 @@
   { "id": "3.2.5", "title": "Два цилиндра", "parent": "3", "path": "content/tasks/3/3.2.5.json", "enabled": true },
 
   { "id": "4", "title": "Простая вероятность", "type": "group" },
-  { "id": "4.1", "title": "Базовые задачи на вероятность", "parent": "4", "path": "content/tasks/probability/manifest.json", "enabled": true },
+  { "id": "4.1", "title": "Классическая вероятность", "parent": "4", "path": "content/tasks/probability/4.1.json", "enabled": true },
+  { "id": "4.2", "title": "Жеребьёвка", "parent": "4", "path": "content/tasks/probability/4.2.json", "enabled": true },
+  { "id": "4.3", "title": "Группа туристов", "parent": "4", "path": "content/tasks/probability/4.3.json", "enabled": true },
+  { "id": "4.4", "title": "Монета", "parent": "4", "path": "content/tasks/probability/4.4.json", "enabled": true },
+  { "id": "4.5", "title": "Интервальная вероятность", "parent": "4", "path": "content/tasks/probability/4.5.json", "enabled": true },
+
 
   { "id": "5", "title": "Сложная вероятность", "type": "group" },
   { "id": "5.1", "title": "Сложная вероятность (комбинаторика, формулы)", "parent": "5", "path": "content/tasks/probability5/manifest.json", "enabled": true },
