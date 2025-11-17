@@ -1,0 +1,23 @@
+{
+  "topic": "7.4",
+  "title": "Корни/степени (остальное)",
+  "types": [
+    {
+      "id": "7.4.1",
+      "title": "Возведение в квадрат произведения числа и корня",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.4.1.1.1",
+          "stem": "Найдите значение выражения (3√8)² / 6.",
+          "answer": { "text": "12", "value": 12 },
+          "unic": true
+        }
+      ]
+    }
+  ]
+}
