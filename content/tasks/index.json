@@ -69,7 +69,21 @@
   { "id": "8.3", "title": "Дана производная (анализ по графику)", "parent": "8", "path": "content/tasks/derivatives/8.3/manifest.json", "enabled": true },
 
   { "id": "9", "title": "Прикладные задачи (формулы)", "type": "group" },
-  { "id": "9.1", "title": "Физические и прикладные модели", "parent": "9", "path": "content/tasks/models/manifest.json", "enabled": true },
+  { "id": "9.1", "title": "Логарифм", "parent": "9", "path": "content/tasks/models/9.1.json", "enabled": true },
+  { "id": "9.2", "title": "Распад изотопа", "parent": "9", "path": "content/tasks/models/9.2.json", "enabled": true },
+  { "id": "9.3", "title": "Корень", "parent": "9", "path": "content/tasks/models/9.3.json", "enabled": true },
+  { "id": "9.4", "title": "Квадратичные модели", "parent": "9", "path": "content/tasks/models/9.4.json", "enabled": true },
+  { "id": "9.5", "title": "Закон Ома", "parent": "9", "path": "content/tasks/models/9.5.json", "enabled": true },
+  { "id": "9.6", "title": "Источник ЭДС", "parent": "9", "path": "content/tasks/models/9.6.json", "enabled": true },
+  { "id": "9.7", "title": "Гудок тепловоза", "parent": "9", "path": "content/tasks/models/9.7.json", "enabled": true },
+  { "id": "9.8", "title": "Угол между телами", "parent": "9", "path": "content/tasks/models/9.8.json", "enabled": true },
+  { "id": "9.9", "title": "Локатор батискафа", "parent": "9", "path": "content/tasks/models/9.9.json", "enabled": true },
+  { "id": "9.10", "title": "Температура звёзд", "parent": "9", "path": "content/tasks/models/9.10.json", "enabled": true },
+  { "id": "9.11", "title": "Источник и приёмник", "parent": "9", "path": "content/tasks/models/9.11.json", "enabled": true },
+  { "id": "9.12", "title": "Адиабатический процесс", "parent": "9", "path": "content/tasks/models/9.12.json", "enabled": true },
+  { "id": "9.13", "title": "Духовка и обогреватель", "parent": "9", "path": "content/tasks/models/9.13.json", "enabled": true },
+  { "id": "9.14", "title": "Линза", "parent": "9", "path": "content/tasks/models/9.14.json", "enabled": true },
+
 
   { "id": "10", "title": "Текстовые задачи", "type": "group" },
   { "id": "10.1", "title": "Движение по воде", "parent": "10", "path": "content/tasks/text/10.1/manifest.json", "enabled": true },
