@@ -41,8 +41,8 @@ async function init() {
     .filter(x => x.parent === section.id && x.enabled !== false)
     .sort(compareIdObj);
 
-  $('#uniqSubtitle').textContent =
-    `Темы раздела: ${topics.map(t => t.id + '. ' + t.title).join('; ')}`;
+  //$('#uniqSubtitle').textContent =
+    //`Темы раздела: ${topics.map(t => t.id + '. ' + t.title).join('; ')}`;
 
   const host = $('#uniqAccordion');
   host.innerHTML = '';
