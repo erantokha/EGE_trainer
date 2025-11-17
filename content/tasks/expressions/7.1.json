@@ -1,0 +1,116 @@
+{
+  "topic": "7.1",
+  "title": "Тригонометрия",
+  "types": [
+    {
+      "id": "7.1.1",
+      "title": "Дробь (двойные углы, формулы приведения)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.1.1.1.1",
+          "stem": "Найдите значение выражения (2·sin 136°) / (sin 68°·sin 22°).",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.2.1",
+          "stem": "Найдите значение выражения (8·sin 64°·cos 64°) / sin 128°.",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.1.2",
+      "title": "Формулы двойных углов",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.1.2.1.1",
+          "stem": "Найдите значение выражения 2√3·cos²(13π/12) − √3.",
+          "answer": { "text": "1,5", "value": 1.5 },
+          "unic": true
+        },
+        {
+          "id": "7.1.2.2.1",
+          "stem": "Найдите значение выражения 4√2 − 8√2·sin²(7π/8).",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.2.3.1",
+          "stem": "Найдите значение выражения 4√3·cos²(23π/12) − 4√3·sin²(23π/12).",
+          "answer": { "text": "6", "value": 6 },
+          "unic": true
+        },
+        {
+          "id": "7.1.2.4.1",
+          "stem": "Найдите значение выражения 5√2·sin(3π/8)·cos(3π/8).",
+          "answer": { "text": "2,5", "value": 2.5 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.1.3",
+      "title": "ОТТ (основные тригонометрические тождества)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.1.3.1.1",
+          "stem": "Найдите значение выражения 6·cos 2α, если sin α = −0,8.",
+          "answer": { "text": "−1,68", "value": -1.68 },
+          "unic": true
+        },
+        {
+          "id": "7.1.3.2.1",
+          "stem": "Найдите tg α, если sin α = √26/26 и α ∈ (0; π/2).",
+          "answer": { "text": "0,2", "value": 0.2 },
+          "unic": true
+        },
+        {
+          "id": "7.1.3.3.1",
+          "stem": "Найдите sin α, если cos α = −√21/5 и α ∈ (π/2; π).",
+          "answer": { "text": "0,4", "value": 0.4 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.1.4",
+      "title": "Вычисление в лоб",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.1.4.1.1",
+          "stem": "Найдите значение выражения 26√2·cos(π/4)·cos(4π/3).",
+          "answer": { "text": "−13", "value": -13 },
+          "unic": true
+        },
+        {
+          "id": "7.1.4.2.1",
+          "stem": "Найдите значение выражения 18√2·tg(π/4)·sin(π/4).",
+          "answer": { "text": "18", "value": 18 },
+          "unic": true
+        }
+      ]
+    }
+  ]
+}
