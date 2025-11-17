@@ -1,0 +1,96 @@
+{
+  "topic": "7.3",
+  "title": "Степени",
+  "types": [
+    {
+      "id": "7.3.1",
+      "title": "Разбиение основания на множители",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.3.1.1.1",
+          "stem": "Найдите значение выражения 14^{6,4}·7^{−5,4} / 2^{4,4}.",
+          "answer": { "text": "28", "value": 28 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.3.2",
+      "title": "Разность степеней (общее основание)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.3.2.1.1",
+          "stem": "Найдите значение выражения (64^9)^3 : (16^5)^8.",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.3.3",
+      "title": "Общее основание (частное)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.3.3.1.1",
+          "stem": "Найдите значение выражения 81^{2,6} / 9^{3,7}.",
+          "answer": { "text": "27", "value": 27 },
+          "unic": true
+        }
+      ]
+    },
+    {
+      "id": "7.3.4",
+      "title": "Общее основание (произведение)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.3.4.1.1",
+          "stem": "Найдите значение выражения 5^{0,06}·25^{0,97}.",
+          "answer": { "text": "25", "value": 25 },
+          "unic": true
+        },
+        {
+          "id": "7.3.4.1.2",
+          "stem": "Найдите значение выражения 4^{1/5}·16^{9/10}.",
+          "answer": { "text": "16", "value": 16 }
+        }
+      ]
+    },
+    {
+      "id": "7.3.5",
+      "title": "Корень n-ой степени (через степень)",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "7.3.5.1.1",
+          "stem": "Найдите значение выражения ∛36·√[5]{36} / √[30]{36}.",
+          "answer": { "text": "6", "value": 6 },
+          "unic": true
+        }
+      ]
+    }
+  ]
+}
