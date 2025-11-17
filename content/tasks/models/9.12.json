@@ -1,0 +1,23 @@
+{
+  "topic": "9.12",
+  "title": "Адиабатический процесс",
+  "types": [
+    {
+      "id": "9.12.1",
+      "title": "Закон pV^k = const",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "prototypes": [
+        {
+          "id": "9.12.1.1.1",
+          "stem": "При адиабатическом процессе для идеального газа выполняется закон p V^k = 6,4·10^6 Па·м^5, где p — давление в газе в паскалях, V — объём газа (в м³), k = 5/3. Найдите, какой объём V (в м³) будет занимать газ при давлении p, равном 2·10^5 Па.",
+          "answer": { "text": "8", "value": 8 },
+          "unic": true
+        }
+      ]
+    }
+  ]
+}
