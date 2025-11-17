@@ -20,7 +20,8 @@
           "answer": {
             "text": "-15",
             "value": -15
-          }
+          },
+          "unic": true
         }
       ]
     },
@@ -42,7 +43,8 @@
           "answer": {
             "text": "13",
             "value": 13
-          }
+          },
+          "unic": true
         }
       ]
     },
@@ -64,7 +66,8 @@
           "answer": {
             "text": "4",
             "value": 4
-          }
+          },
+          "unic": true
         }
       ]
     },
