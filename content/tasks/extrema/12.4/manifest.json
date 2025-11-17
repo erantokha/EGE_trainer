@@ -20,7 +20,8 @@
           "answer": {
             "text": "3",
             "value": 3
-          }
+          },
+          "unic": true
         }
       ]
     }
