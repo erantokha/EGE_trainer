@@ -1,5 +1,7 @@
 // tasks/unique.js
 // Страница «Уникальные прототипы» для одного раздела.
+// Версия с безопасным вызовом MathJax: если tex-svg порождает NaN-размеры,
+// мы откатываемся к исходному TeX-тексту, чтобы не ломать верстку.
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -24,7 +26,8 @@ async function init() {
   } catch (e) {
     console.error(e);
     $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
-    $('#uniqSubtitle').textContent = 'Не удалось прочитать ../content/tasks/index.json';
+    $('#uniqSubtitle').textContent =
+      'Не удалось прочитать ../content/tasks/index.json';
     return;
   }
 
@@ -41,8 +44,8 @@ async function init() {
     .filter(x => x.parent === section.id && x.enabled !== false)
     .sort(compareIdObj);
 
-  //$('#uniqSubtitle').textContent =
-    //`Темы раздела: ${topics.map(t => t.id + '. ' + t.title).join('; ')}`;
+  // Подзаголовок убираем/оставляем пустым, чтобы не засорять страницу
+  $('#uniqSubtitle').textContent = '';
 
   const host = $('#uniqAccordion');
   host.innerHTML = '';
@@ -67,7 +70,9 @@ function renderTopicNode(topic) {
 
   node.innerHTML = `
     <div class="row">
-      <button class="section-title" type="button">${esc(`${topic.id}. ${topic.title}`)}</button>
+      <button class="section-title" type="button">${esc(
+        `${topic.id}. ${topic.title}`,
+      )}</button>
       <div class="spacer"></div>
     </div>
     <div class="children"></div>
@@ -93,7 +98,8 @@ function renderTopicNode(topic) {
         renderUnicTasks(children, tasks);
       } catch (e) {
         console.error(e);
-        children.innerHTML = '<div style="opacity:.8">Ошибка загрузки манифеста.</div>';
+        children.innerHTML =
+          '<div style="opacity:.8">Ошибка загрузки манифеста.</div>';
       }
     }
   });
@@ -171,6 +177,7 @@ function renderUnicTasks(container, tasks) {
 
     const stemEl = document.createElement('div');
     stemEl.className = 'ws-stem';
+    // вставляем TeX как HTML (как и раньше)
     stemEl.innerHTML = t.stem;
 
     const ans = document.createElement('details');
@@ -208,15 +215,40 @@ function renderUnicTasks(container, tasks) {
     }
 
     list.appendChild(item);
-
-    // прогон через MathJax
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise([stemEl]).catch(err => console.error(err));
-    }
   }
 
+  // Вставляем весь список в DOM
   container.innerHTML = '';
   container.appendChild(list);
+
+  // Безопасный прогон через MathJax: если tex-svg порождает NaN-атрибуты,
+  // возвращаемся к исходному TeX-тексту (без рендеринга), чтобы не ломать верстку.
+  typesetSafe(container);
+}
+
+// ---------- безопасный вызов MathJax ----------
+function typesetSafe(root) {
+  if (!window.MathJax || !window.MathJax.typesetPromise) return;
+
+  const backupHTML = root.innerHTML;
+
+  window.MathJax.typesetPromise([root])
+    .then(() => {
+      // ищем "битые" svg от tex-svg (width/height/viewBox содержат NaN)
+      const badSvg = root.querySelector(
+        'svg[width*="NaN"],svg[height*="NaN"],svg[viewBox*="NaN"]',
+      );
+      if (badSvg) {
+        console.warn(
+          '[unique.js] MathJax создал SVG с NaN-размерами, откатываемся к исходному TeX.',
+        );
+        root.innerHTML = backupHTML;
+      }
+    })
+    .catch(err => {
+      console.error('[unique.js] Ошибка MathJax.typesetPromise:', err);
+      root.innerHTML = backupHTML;
+    });
 }
 
 // ---------- утилиты ----------
@@ -252,7 +284,7 @@ function interpolate(tpl, params) {
 }
 
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
+  return typeof p === 'string' && p.startsWith('content/')
     ? '../' + p
     : p;
 }
