@@ -20,7 +20,8 @@
           "answer": {
             "text": "750",
             "value": 750
-          }
+          },
+          "unic": true
         }
       ]
     }
