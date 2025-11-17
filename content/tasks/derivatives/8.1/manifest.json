@@ -14,7 +14,8 @@
       "prototypes": [
         { "id": "8.1.1.1.1",
           "figure": { "img": "content/tasks/derivatives/8.1/8.1.1.1_1.jfif", "alt": "Касательная: производная > 0 (вариант 1)" },
-          "answer": { "text": "0,4" } },
+          "answer": { "text": "0,4" },
+          "unic": true},
         { "id": "8.1.1.1.2",
           "figure": { "img": "content/tasks/derivatives/8.1/8.1.1.1_2.jfif", "alt": "Касательная: производная > 0 (вариант 2)" },
           "answer": { "text": "1,6" } },
@@ -53,7 +54,8 @@
       "prototypes": [
         { "id": "8.1.1.2.1",
           "figure": { "img": "content/tasks/derivatives/8.1/8.1.1.2_1.jfif", "alt": "Касательная: производная < 0 (вариант 1)" },
-          "answer": { "text": "-1,25" } },
+          "answer": { "text": "-1,25" },
+          "unic": true},
         { "id": "8.1.1.2.2",
           "figure": { "img": "content/tasks/derivatives/8.1/8.1.1.2_2.jfif", "alt": "Касательная: производная < 0 (вариант 2)" },
           "answer": { "text": "-1,4" } },
