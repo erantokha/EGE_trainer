@@ -56,7 +56,12 @@
   { "id": "6.5", "title": "Дробь", "parent": "6", "path": "content/tasks/equations/6.5.json", "enabled": true },
 
   { "id": "7", "title": "Вычисления и преобразования", "type": "group" },
-  { "id": "7.1", "title": "Тригонометрия, логарифмы, степени и корни", "parent": "7", "path": "content/tasks/expressions/manifest.json", "enabled": true },
+  { "id": "7.1", "title": "Тригонометрия", "parent": "7", "path": "content/tasks/expressions/7.1.json", "enabled": true },
+  { "id": "7.2", "title": "Логарифмы", "parent": "7", "path": "content/tasks/expressions/7.2.json", "enabled": true },
+  { "id": "7.3", "title": "Степени", "parent": "7", "path": "content/tasks/expressions/7.3.json", "enabled": true },
+  { "id": "7.4", "title": "Корни/степени (остальное)", "parent": "7", "path": "content/tasks/expressions/7.4.json", "enabled": true },
+  { "id": "7.5", "title": "Корни (разности и произведения)", "parent": "7", "path": "content/tasks/expressions/7.5.json", "enabled": true },
+
 
   { "id": "8", "title": "Производная и графики", "type": "group" },
   { "id": "8.1", "title": "Значение производной в точке касания", "parent": "8", "path": "content/tasks/derivatives/8.1/manifest.json", "enabled": true },
