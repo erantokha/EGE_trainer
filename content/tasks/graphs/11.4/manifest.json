@@ -12,7 +12,8 @@
         {
           "id": "11.4.1.1",
           "figure": { "img": "content/tasks/graphs/11.4/11.4_1.jfif", "alt": "11.4_1" },
-          "answer": { "value": 64 }
+          "answer": { "value": 64 },
+          "unic": true
         }
       ]
     }
