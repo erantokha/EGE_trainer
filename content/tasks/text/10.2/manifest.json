@@ -42,7 +42,8 @@
           "answer": {
             "text": "14",
             "value": 14
-          }
+          },
+          "unic": true
         }
       ]
     },
@@ -64,7 +65,8 @@
           "answer": {
             "text": "8",
             "value": 8
-          }
+          },
+          "unic": true
         }
       ]
     }
