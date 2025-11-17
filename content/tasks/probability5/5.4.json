@@ -1,0 +1,26 @@
+{
+  "topic": "5.4",
+  "title": "Игральная кость",
+  "types": [
+    {
+      "id": "5.4.1",
+      "title": "Условная вероятность для кости",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "5.4.1.1",
+          "stem": "Игральную кость бросили два раза. Известно, что шесть очков не выпало ни разу. Найдите при этом условии вероятность события «сумма очков равна 8».",
+          "answer": { "text": "0,12", "value": 0.12 },
+          "unic": true
+        }
+      ]
+    }
+  ]
+}
