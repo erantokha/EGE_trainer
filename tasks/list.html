@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Тренажер ЕГЭ — список задач</title>
+
+    <link rel="stylesheet" href="./trainer.css" />
+
+    <script>
+      window.MathJax = {
+        tex: {
+          inlineMath: [['\\(', '\\)'], ['$', '$']]
+        },
+        svg: {
+          fontCache: 'global'
+        }
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <!-- Основной контейнер, в который list.js будет рендерить список задач -->
+      <section id="runner">
+        <div class="panel">
+          <header class="run-head">
+            <div class="crumb">
+              Список задач
+            </div>
+            <div class="actions">
+              <button id="restart" type="button">
+                Вернуться к выбору задач
+              </button>
+            </div>
+          </header>
+
+          <div class="run-body">
+            <p>
+              Задачи загружаются на основе выбранных разделов и тем.
+              Если список не появился, убедитесь, что вы сделали выбор на стартовой странице.
+            </p>
+            <noscript>
+              Для отображения списка задач необходим JavaScript.
+            </noscript>
+          </div>
+        </div>
+      </section>
+
+      <!-- Резервный блок summary: list.js его просто скрывает, но он может понадобиться для
+           совместимости со стилями/разметкой других страниц -->
+      <section id="summary" class="hidden">
+        <div class="panel">
+          <div class="run-head">
+            <div class="crumb">
+              Итоги
+            </div>
+          </div>
+          <div class="run-body">
+            <p>
+              Здесь может отображаться дополнительная информация по выбранным задачам.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./list.js"></script>
+  </body>
+</html>
