@@ -18,7 +18,8 @@ let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessi
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
 
 let SESSION = null;
-let MODE = 'test';        // 'test' | 'list'
+let MODE = 'test';         // 'test' | 'list'
+let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -27,6 +28,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     sessionStorage.removeItem('tasks_selection_v1');
     location.href = './index.html';
   });
+
+  // Скрываем интерфейс тренажёра и показываем оверлей загрузки,
+  // чтобы не было «мигающего» пустого экрана 1/1 при большом объёме задач.
+  const runnerEl = $('#runner');
+  const summaryEl = $('#summary');
+  runnerEl?.classList.add('hidden');
+  summaryEl?.classList.add('hidden');
+
+  let overlay = $('#loadingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.textContent = 'Загружаем задачи...';
+    document.body.appendChild(overlay);
+  } else {
+    overlay.classList.remove('hidden');
+  }
 
   const rawSel = sessionStorage.getItem('tasks_selection_v1');
   if (!rawSel) {
@@ -46,6 +64,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   CHOICE_TOPICS = sel.topics || {};
   CHOICE_SECTIONS = sel.sections || {};
+
+  // флаг «перемешать задачи» (по умолчанию false, если поле отсутствует)
+  SHUFFLE_TASKS = !!sel.shuffle;
 
   // 1) режим из URL ?mode=list|test
   const urlMode = new URLSearchParams(location.search).get('mode');
@@ -70,9 +91,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? $('#runner') || $('#summary') || document.body
         : $('#runner') || document.body;
     if (host) {
+      host.classList.remove('hidden');
       host.innerHTML =
         '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
     }
+  } finally {
+    // в любом случае убираем оверлей, чтобы пользователь не остался
+    // с «вечной» заставкой
+    $('#loadingOverlay')?.classList.add('hidden');
   }
 });
 
@@ -160,7 +186,11 @@ async function pickPrototypes() {
         }
       }
     }
-    shuffle(chosen);
+
+    // Перемешиваем итоговый список только если включён флаг «перемешать задачи»
+    if (SHUFFLE_TASKS) {
+      shuffle(chosen);
+    }
     return chosen;
   }
 
@@ -203,7 +233,11 @@ async function pickPrototypes() {
       }
     }
   }
-  shuffle(chosen);
+
+  // Перемешивание только по флагу
+  if (SHUFFLE_TASKS) {
+    shuffle(chosen);
+  }
   return chosen;
 }
 
@@ -272,6 +306,7 @@ async function startSession(questions) {
         ? $('#runner') || $('#summary') || document.body
         : $('#runner') || document.body;
     if (host) {
+      host.classList.remove('hidden');
       host.innerHTML =
         '<div style="opacity:.8;padding:8px 0">Не удалось подобрать задачи. Вернитесь на страницу выбора и проверьте настройки.</div>';
     }
@@ -438,7 +473,7 @@ function renderTaskList(questions) {
   list.style.margin = '12px 0 0';
   list.style.paddingLeft = '20px';
 
-  questions.forEach((q, idx) => {
+  questions.forEach((q) => {
     const li = document.createElement('li');
     li.style.marginBottom = '12px';
 
