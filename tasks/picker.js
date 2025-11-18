@@ -1,10 +1,10 @@
 // tasks/picker.js
 // Страница выбора задач: аккордеон «раздел → тема» + сохранение выбора и переход к тренажёру.
+// Поддерживает режимы "Список задач"/"Тестирование" и флаг "Перемешать задачи".
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// индекс лежит в content/tasks/index.json
 const INDEX_URL = '../content/tasks/index.json';
 
 let CATALOG = null;
@@ -13,11 +13,14 @@ let SECTIONS = [];
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
 let CURRENT_MODE = 'list'; // 'list' | 'test'
+let SHUFFLE_TASKS = false;
+
+let LAST_SELECTION = null;
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  // инициализируем переключатель режимов
   initModeToggle();
+  initShuffleToggle();
 
   try {
     await loadCatalog();
@@ -35,6 +38,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveSelectionAndGo();
   });
 });
+
+// ---------- Чтение предыдущего выбора ----------
+function getLastSelection() {
+  if (LAST_SELECTION !== null) return LAST_SELECTION;
+  try {
+    const raw = sessionStorage.getItem('tasks_selection_v1');
+    if (!raw) {
+      LAST_SELECTION = null;
+    } else {
+      LAST_SELECTION = JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Не удалось прочитать selection из sessionStorage', e);
+    LAST_SELECTION = null;
+  }
+  return LAST_SELECTION;
+}
 
 // ---------- Переключатель режимов ----------
 function initModeToggle() {
@@ -60,24 +80,34 @@ function initModeToggle() {
     }
   };
 
-  // пробуем восстановить режим из прошлой сессии
   let initial = 'list';
-  try {
-    const raw = sessionStorage.getItem('tasks_selection_v1');
-    if (raw) {
-      const prev = JSON.parse(raw);
-      if (prev.mode === 'list' || prev.mode === 'test') {
-        initial = prev.mode;
-      }
-    }
-  } catch (e) {
-    console.warn('Не удалось прочитать режим из sessionStorage', e);
+  const prev = getLastSelection();
+  if (prev && (prev.mode === 'list' || prev.mode === 'test')) {
+    initial = prev.mode;
   }
 
   applyMode(initial);
 
   listBtn.addEventListener('click', () => applyMode('list'));
   testBtn.addEventListener('click', () => applyMode('test'));
+}
+
+// ---------- Чекбокс "Перемешать задачи" ----------
+function initShuffleToggle() {
+  const cb = $('#shuffleToggle');
+  if (!cb) return;
+
+  const prev = getLastSelection();
+  if (prev && typeof prev.shuffle === 'boolean') {
+    SHUFFLE_TASKS = prev.shuffle;
+  } else {
+    SHUFFLE_TASKS = false;
+  }
+  cb.checked = SHUFFLE_TASKS;
+
+  cb.addEventListener('change', () => {
+    SHUFFLE_TASKS = cb.checked;
+  });
 }
 
 // ---------- Загрузка каталога ----------
@@ -140,7 +170,6 @@ function renderSectionNode(sec) {
   titleBtn.addEventListener('click', () => {
     const wasExpanded = node.classList.contains('expanded');
 
-    // свернуть остальные
     $$('.node.section').forEach(n => n.classList.remove('expanded', 'show-uniq'));
 
     if (!wasExpanded) {
@@ -148,7 +177,6 @@ function renderSectionNode(sec) {
     }
   });
 
-  // переход на страницу уникальных прототипов
   const uniqBtn = $('.unique-btn', node);
   uniqBtn.addEventListener('click', () => {
     const url = new URL('./unique.html', location.href);
@@ -156,7 +184,6 @@ function renderSectionNode(sec) {
     window.open(url.toString(), '_blank', 'noopener');
   });
 
-  // счётчик на уровне раздела
   const num = $('.count', node);
   $('.minus', node).onclick = () => {
     num.value = Math.max(0, Number(num.value || 0) - 1);
@@ -230,7 +257,6 @@ function bubbleUpSums() {
     if (sumTopics > 0) CHOICE_SECTIONS[sec.id] = sumTopics;
   }
 
-  // синхронизируем инпуты разделов
   $$('.node.section').forEach(node => {
     const id = node.dataset.id;
     const num = $('.count', node);
@@ -263,6 +289,7 @@ function saveSelectionAndGo() {
     topics: CHOICE_TOPICS,
     sections: CHOICE_SECTIONS,
     mode,
+    shuffle: SHUFFLE_TASKS,
   };
 
   try {
@@ -271,7 +298,6 @@ function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  // передаём режим также через query-параметр
   const url = new URL('./trainer.html', location.href);
   url.searchParams.set('mode', mode);
   location.href = url.toString();
