@@ -11,10 +11,33 @@
     <section id="picker">
       <div class="panel">
         <h1>Тренажер по задачам из банка ФИПИ</h1>
+
         <div class="controls">
+          <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+            <button
+              type="button"
+              class="mode-btn active"
+              id="modeList"
+              data-mode="list"
+              aria-selected="true"
+            >
+              Список задач
+            </button>
+            <button
+              type="button"
+              class="mode-btn"
+              id="modeTest"
+              data-mode="test"
+              aria-selected="false"
+            >
+              Тестирование
+            </button>
+          </div>
+
           <div class="sum">Итого: <span id="sum">0</span></div>
           <button id="start" disabled>Начать</button>
         </div>
+
         <div id="accordion" class="accordion"></div>
       </div>
     </section>
