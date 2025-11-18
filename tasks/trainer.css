@@ -32,7 +32,11 @@ h1{font-size:26px}
 h2{font-size:20px}
 p{margin:8px 0}
 
-.container{max-width:1080px;margin:28px auto;padding:0 16px}
+.container{
+  max-width:1080px;
+  margin:28px auto;
+  padding:0 16px;
+}
 
 .panel{
   background:var(--panel);
@@ -73,7 +77,8 @@ input[type="number"]{
 }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button{
-  -webkit-appearance:none;margin:0;
+  -webkit-appearance:none;
+  margin:0;
 }
 input[type="number"]{-moz-appearance:textfield}
 
@@ -87,12 +92,41 @@ a:hover{text-decoration:underline}
   align-items:center;
   gap:8px;
   margin-top:8px;
+  flex-wrap:wrap;
 }
 #picker .controls .sum{
   padding:6px 10px;
   border:1px dashed var(--border);
   border-radius:10px;
   background:var(--panel-2);
+}
+
+/* переключатель режимов */
+.mode-toggle{
+  display:inline-flex;
+  align-items:center;
+  padding:2px;
+  border-radius:999px;
+  background:var(--panel-2);
+  border:1px solid var(--border);
+}
+.mode-toggle .mode-btn{
+  border:none;
+  background:transparent;
+  padding:6px 12px;
+  border-radius:999px;
+  color:var(--text-dim);
+  font-size:13px;
+  font-weight:500;
+  box-shadow:none;
+}
+.mode-toggle .mode-btn:hover:not(.active){
+  background:rgba(148,163,184,.12);
+}
+.mode-toggle .mode-btn.active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(59,130,246,.6);
 }
 
 /* аккордеон */
