@@ -1,5 +1,8 @@
 // tasks/trainer.js
-// Страница сессии: подбор задач по сохранённому выбору, проведение теста, запись попытки.
+// Страница сессии: подбор задач по сохранённому выбору.
+// Теперь поддерживаются два режима:
+//   MODE = 'test' — обычный тренажёр (как раньше),
+//   MODE = 'list' — список задач (как лист с прототипами, нумерация 1..N).
 
 import { insertAttempt } from '../app/providers/supabase-write.js';
 
@@ -15,6 +18,7 @@ let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessi
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
 
 let SESSION = null;
+let MODE = 'test';        // 'test' | 'list'
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -43,12 +47,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   CHOICE_TOPICS = sel.topics || {};
   CHOICE_SECTIONS = sel.sections || {};
 
+  // 1) режим из URL ?mode=list|test
+  const urlMode = new URLSearchParams(location.search).get('mode');
+  if (urlMode === 'list' || urlMode === 'test') {
+    MODE = urlMode;
+  } else if (sel.mode === 'list' || sel.mode === 'test') {
+    // 2) режим из сохранённого выбора
+    MODE = sel.mode;
+  } else {
+    // 3) дефолт — тестирование (чтобы не ломать старый сценарий)
+    MODE = 'test';
+  }
+
   try {
     await loadCatalog();
-    await startSession();
+    const questions = await pickPrototypes();
+    await startSession(questions);
   } catch (e) {
     console.error(e);
-    const host = $('#runner');
+    const host =
+      MODE === 'list'
+        ? $('#runner') || $('#summary') || document.body
+        : $('#runner') || document.body;
     if (host) {
       host.innerHTML =
         '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
@@ -243,11 +263,14 @@ function evalExpr(expr, params) {
   return f(...pnames.map(k => params[k]));
 }
 
-// ---------- сессия ----------
-async function startSession() {
-  const arr = await pickPrototypes();
+// ---------- запуск сессии (режим list | test) ----------
+async function startSession(questions) {
+  const arr = questions || [];
   if (!arr.length) {
-    const host = $('#runner');
+    const host =
+      MODE === 'list'
+        ? $('#runner') || $('#summary') || document.body
+        : $('#runner') || document.body;
     if (host) {
       host.innerHTML =
         '<div style="opacity:.8;padding:8px 0">Не удалось подобрать задачи. Вернитесь на страницу выбора и проверьте настройки.</div>';
@@ -255,6 +278,18 @@ async function startSession() {
     return;
   }
 
+  if (MODE === 'list') {
+    // Режим списка задач: без таймера, без Supabase, просто показать все задачи.
+    renderTaskList(arr);
+    return;
+  }
+
+  // Режим теста (старое поведение)
+  startTestSession(arr);
+}
+
+// ---------- Режим ТЕСТИРОВАНИЯ ----------
+function startTestSession(arr) {
   SESSION = {
     questions: arr,
     idx: 0,
@@ -267,6 +302,7 @@ async function startSession() {
   // #picker на этой странице нет, но проверка безопасна
   $('#picker')?.classList.add('hidden');
   $('#runner')?.classList.remove('hidden');
+  $('#summary')?.classList.add('hidden');
 
   $('#topicTitle').textContent = 'Подборка задач';
   $('#total').textContent = SESSION.questions.length;
@@ -376,6 +412,93 @@ function onCheck() {
   }
 }
 
+// ---------- Режим СПИСКА ЗАДАЧ ----------
+function renderTaskList(questions) {
+  const runner = $('#runner') || $('#summary') || document.body;
+  if (!runner) return;
+
+  // на всякий случай прячем summary, если он есть
+  $('#summary')?.classList.add('hidden');
+  runner.classList.remove('hidden');
+
+  // Полностью перерисовываем содержимое runner под "лист задач"
+  const total = questions.length;
+  runner.innerHTML = '';
+
+  const title = document.createElement('h2');
+  title.textContent = 'Список задач';
+  runner.appendChild(title);
+
+  const meta = document.createElement('div');
+  meta.className = 'run-head';
+  meta.innerHTML = `<div>Всего задач: ${total}</div>`;
+  runner.appendChild(meta);
+
+  const list = document.createElement('ol');
+  list.style.margin = '12px 0 0';
+  list.style.paddingLeft = '20px';
+
+  questions.forEach((q, idx) => {
+    const li = document.createElement('li');
+    li.style.marginBottom = '12px';
+
+    const stem = document.createElement('div');
+    stem.innerHTML = q.stem;
+
+    li.appendChild(stem);
+
+    if (q.figure?.img) {
+      const fig = document.createElement('div');
+      fig.style.marginTop = '6px';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      img.style.maxWidth = '100%';
+      img.style.height = 'auto';
+      fig.appendChild(img);
+      li.appendChild(fig);
+    }
+
+    // Блок "Ответ" по желанию можно скрывать/показывать
+    const details = document.createElement('details');
+    details.style.marginTop = '6px';
+
+    const summary = document.createElement('summary');
+    summary.textContent = 'Ответ';
+    details.appendChild(summary);
+
+    const ans = document.createElement('div');
+    const correctText =
+      q.answer && q.answer.text != null
+        ? String(q.answer.text)
+        : q.answer && q.answer.value != null
+          ? String(q.answer.value)
+          : '';
+    ans.textContent = correctText;
+    ans.style.marginTop = '4px';
+
+    details.appendChild(ans);
+    li.appendChild(details);
+
+    list.appendChild(li);
+  });
+
+  runner.appendChild(list);
+
+  // Применяем MathJax к новому контенту
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([runner]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([runner]);
+      }
+    } catch (e) {
+      console.error('MathJax error in list mode', e);
+    }
+  }
+}
+
 // ---------- проверка ответа ----------
 function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
@@ -453,13 +576,13 @@ function matchText(norm, spec) {
   return false;
 }
 
-// ---------- таймер ----------
+// ---------- таймер (только для режима test) ----------
 function startTimer() {
   SESSION.t0 = Date.now();
   SESSION.timerId = setInterval(tick, 1000);
 }
 function stopTick() {
-  if (SESSION.timerId) {
+  if (SESSION?.timerId) {
     clearInterval(SESSION.timerId);
     SESSION.timerId = null;
   }
@@ -486,7 +609,7 @@ function saveTimeForCurrent() {
   SESSION.t0 = now;
 }
 
-// ---------- завершение сессии ----------
+// ---------- завершение сессии (только режим test) ----------
 async function finishSession() {
   stopTick();
   saveTimeForCurrent();
