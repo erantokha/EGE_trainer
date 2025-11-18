@@ -1,5 +1,7 @@
 // tasks/list.js
-// Страница Список задач: вывод всех подобранных задач 1..N (как лист с прототипами).
+// Страница "Список задач": вывод всех подобранных задач 1..N (как лист с прототипами).
+// Новая логика выбора: по каждой теме задачи берутся случайно из общего пула
+// всех прототипов темы (из всех типов), а не распределяются по типам.
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -92,6 +94,7 @@ async function loadCatalog() {
 }
 
 // ---------- выбор задач ----------
+
 async function ensureManifest(topic) {
   if (topic._manifest) return topic._manifest;
   if (!topic.path) return null;
@@ -100,6 +103,17 @@ async function ensureManifest(topic) {
   if (!resp.ok) return null;
   topic._manifest = await resp.json();
   return topic._manifest;
+}
+
+// собрать общий пул прототипов темы: [{ type, proto }]
+function collectAllPrototypes(manifest) {
+  const pool = [];
+  for (const typ of manifest.types || []) {
+    for (const p of typ.prototypes || []) {
+      pool.push({ type: typ, proto: p });
+    }
+  }
+  return pool;
 }
 
 function shuffle(a) {
@@ -113,8 +127,10 @@ function sample(arr, k) {
   shuffle(a);
   return a.slice(0, Math.min(k, a.length));
 }
+
+// распределение целого total по "ведрам" с ограничениями cap
+// buckets: [{id,cap}]
 function distributeNonNegative(buckets, total) {
-  // buckets: [{id,cap}]
   const out = new Map(buckets.map(b => [b.id, 0]));
   let left = total;
   let i = 0;
@@ -139,21 +155,17 @@ async function pickPrototypes() {
       for (const t of sec.topics) {
         const want = CHOICE_TOPICS[t.id] || 0;
         if (!want) continue;
+
         const man = await ensureManifest(t);
         if (!man) continue;
 
-        const caps = (man.types || []).map(x => ({
-          id: x.id,
-          cap: (x.prototypes || []).length,
-        }));
-        const plan = distributeNonNegative(caps, want);
+        // общий пул всех прототипов темы
+        const pool = collectAllPrototypes(man);
+        if (!pool.length) continue;
 
-        for (const typ of man.types || []) {
-          const k = plan.get(typ.id) || 0;
-          if (!k) continue;
-          for (const p of sample(typ.prototypes || [], k)) {
-            chosen.push(buildQuestion(man, typ, p));
-          }
+        const picked = sample(pool, want);
+        for (const item of picked) {
+          chosen.push(buildQuestion(man, item.type, item.proto));
         }
       }
     }
@@ -169,6 +181,7 @@ async function pickPrototypes() {
     const wantSection = CHOICE_SECTIONS[sec.id] || 0;
     if (!wantSection) continue;
 
+    // считаем "вместимости" тем внутри раздела (общее число прототипов по теме)
     const topicCaps = [];
     for (const t of sec.topics) {
       const man = await ensureManifest(t);
@@ -179,27 +192,26 @@ async function pickPrototypes() {
       );
       topicCaps.push({ id: t.id, cap, _topic: t });
     }
+
+    if (!topicCaps.length) continue;
+
+    // распределяем общее количество задач wantSection по темам раздела
     const planTopics = distributeNonNegative(topicCaps, wantSection);
 
     for (const { id } of topicCaps) {
       const wantT = planTopics.get(id) || 0;
       if (!wantT) continue;
+
       const topic = sec.topics.find(x => x.id === id);
       const man = await ensureManifest(topic);
       if (!man) continue;
 
-      const caps = (man.types || []).map(x => ({
-        id: x.id,
-        cap: (x.prototypes || []).length,
-      }));
-      const plan = distributeNonNegative(caps, wantT);
+      const pool = collectAllPrototypes(man);
+      if (!pool.length) continue;
 
-      for (const typ of man.types || []) {
-        const k = plan.get(typ.id) || 0;
-        if (!k) continue;
-        for (const p of sample(typ.prototypes || [], k)) {
-          chosen.push(buildQuestion(man, typ, p));
-        }
+      const picked = sample(pool, wantT);
+      for (const item of picked) {
+        chosen.push(buildQuestion(man, item.type, item.proto));
       }
     }
   }
