@@ -46,6 +46,19 @@ p{margin:8px 0}
   padding:16px 18px;
 }
 
+/* оверлей загрузки */
+#loadingOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.94);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+  font-size:15px;
+  color:var(--text-dim);
+}
+
 /* кнопки */
 button{
   appearance:none;
@@ -99,6 +112,18 @@ a:hover{text-decoration:underline}
   border:1px dashed var(--border);
   border-radius:10px;
   background:var(--panel-2);
+}
+
+/* чекбокс "Перемешать задачи" */
+#picker .controls .shuffle{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  color:var(--text-dim);
+}
+#picker .controls .shuffle input{
+  margin:0;
 }
 
 /* переключатель режимов */
