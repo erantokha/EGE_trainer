@@ -281,7 +281,7 @@ function refreshTotalSum() {
   if (startBtn) startBtn.disabled = total <= 0;
 }
 
-// ---------- передача выбора в тренажёр ----------
+// ---------- передача выбора в тренажёр / список ----------
 function saveSelectionAndGo() {
   const mode = CURRENT_MODE || 'list';
 
@@ -298,7 +298,10 @@ function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  const url = new URL('./trainer.html', location.href);
+  // выбор целевой страницы по режиму
+  const targetPage = mode === 'test' ? './trainer.html' : './list.html';
+
+  const url = new URL(targetPage, location.href);
   url.searchParams.set('mode', mode);
   location.href = url.toString();
 }
