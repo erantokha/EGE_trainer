@@ -298,13 +298,10 @@ function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  // выбор целевой страницы по режиму
   const targetPage = mode === 'test' ? './trainer.html' : './list.html';
-
-  const url = new URL(targetPage, location.href);
-  url.searchParams.set('mode', mode);
-  location.href = url.toString();
+  location.href = targetPage;
 }
+
 
 // ---------- утилиты ----------
 function esc(s) {
