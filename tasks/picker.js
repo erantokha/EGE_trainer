@@ -12,9 +12,13 @@ let SECTIONS = [];
 
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
+let CURRENT_MODE = 'list'; // 'list' | 'test'
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
+  // инициализируем переключатель режимов
+  initModeToggle();
+
   try {
     await loadCatalog();
     renderAccordion();
@@ -31,6 +35,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveSelectionAndGo();
   });
 });
+
+// ---------- Переключатель режимов ----------
+function initModeToggle() {
+  const listBtn = $('#modeList');
+  const testBtn = $('#modeTest');
+  if (!listBtn || !testBtn) return;
+
+  const applyMode = (mode) => {
+    CURRENT_MODE = mode === 'test' ? 'test' : 'list';
+
+    if (CURRENT_MODE === 'list') {
+      listBtn.classList.add('active');
+      listBtn.setAttribute('aria-selected', 'true');
+
+      testBtn.classList.remove('active');
+      testBtn.setAttribute('aria-selected', 'false');
+    } else {
+      testBtn.classList.add('active');
+      testBtn.setAttribute('aria-selected', 'true');
+
+      listBtn.classList.remove('active');
+      listBtn.setAttribute('aria-selected', 'false');
+    }
+  };
+
+  // пробуем восстановить режим из прошлой сессии
+  let initial = 'list';
+  try {
+    const raw = sessionStorage.getItem('tasks_selection_v1');
+    if (raw) {
+      const prev = JSON.parse(raw);
+      if (prev.mode === 'list' || prev.mode === 'test') {
+        initial = prev.mode;
+      }
+    }
+  } catch (e) {
+    console.warn('Не удалось прочитать режим из sessionStorage', e);
+  }
+
+  applyMode(initial);
+
+  listBtn.addEventListener('click', () => applyMode('list'));
+  testBtn.addEventListener('click', () => applyMode('test'));
+}
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
@@ -209,9 +257,12 @@ function refreshTotalSum() {
 
 // ---------- передача выбора в тренажёр ----------
 function saveSelectionAndGo() {
+  const mode = CURRENT_MODE || 'list';
+
   const selection = {
     topics: CHOICE_TOPICS,
     sections: CHOICE_SECTIONS,
+    mode,
   };
 
   try {
@@ -220,7 +271,10 @@ function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  location.href = './trainer.html';
+  // передаём режим также через query-параметр
+  const url = new URL('./trainer.html', location.href);
+  url.searchParams.set('mode', mode);
+  location.href = url.toString();
 }
 
 // ---------- утилиты ----------
