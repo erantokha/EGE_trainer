@@ -189,6 +189,21 @@ function renderSectionNode(sec) {
   });
 
   const num = $('.count', node);
+
+  // автовыделение количества при клике/фокусе
+  if (num) {
+    num.addEventListener('focus', (e) => {
+      e.target.select();
+      e.target.dataset.selectAll = 'true';
+    });
+    num.addEventListener('mouseup', (e) => {
+      if (e.target.dataset.selectAll === 'true') {
+        e.preventDefault();           // не даём браузеру сбросить выделение
+        e.target.dataset.selectAll = '';
+      }
+    });
+  }
+
   $('.minus', node).onclick = () => {
     num.value = Math.max(0, Number(num.value || 0) - 1);
     setSectionCount(sec.id, Number(num.value));
@@ -225,6 +240,21 @@ function renderTopicRow(topic) {
   `;
 
   const num = $('.count', row);
+
+  // автовыделение количества при клике/фокусе
+  if (num) {
+    num.addEventListener('focus', (e) => {
+      e.target.select();
+      e.target.dataset.selectAll = 'true';
+    });
+    num.addEventListener('mouseup', (e) => {
+      if (e.target.dataset.selectAll === 'true') {
+        e.preventDefault();
+        e.target.dataset.selectAll = '';
+      }
+    });
+  }
+
   $('.minus', row).onclick = () => {
     num.value = Math.max(0, Number(num.value || 0) - 1);
     setTopicCount(topic.id, Number(num.value));
