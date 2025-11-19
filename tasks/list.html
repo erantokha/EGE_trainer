@@ -6,6 +6,7 @@
     <title>Тренажер ЕГЭ — список задач</title>
 
     <link rel="stylesheet" href="./trainer.css" />
+    <script src="./theme.js" defer></script>
 
     <script>
       window.MathJax = {
@@ -30,21 +31,21 @@
               Список задач
             </div>
             <div class="actions">
-              <div class="theme-toggle">
-                <input
-                  type="checkbox"
-                  id="themeToggle"
-                  class="theme-toggle-input"
-                  aria-label="Переключить тему"
-                >
-                <label for="themeToggle" class="theme-toggle-label">
-                  <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-                  <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-                </label>
-              </div>
               <button id="restart" type="button">
                 Вернуться к выбору задач
               </button>
+            </div>
+            <div class="theme-toggle">
+              <input
+                type="checkbox"
+                id="themeToggle"
+                class="theme-toggle-input"
+                aria-label="Переключить тему"
+              >
+              <label for="themeToggle" class="theme-toggle-label">
+                <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+                <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+              </label>
             </div>
           </header>
 
@@ -78,7 +79,6 @@
       </section>
     </main>
 
-    <script src="./theme.js" defer></script>
     <script type="module" src="./list.js"></script>
   </body>
 </html>
