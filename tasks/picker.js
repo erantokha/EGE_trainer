@@ -117,7 +117,11 @@ async function loadCatalog() {
   CATALOG = await resp.json();
 
   const sections = CATALOG.filter(x => x.type === 'group');
-  const topics   = CATALOG.filter(x => !!x.parent && x.enabled !== false);
+
+  // скрытые темы (hidden: true) не попадают в аккордеон
+  const topics = CATALOG.filter(
+    x => !!x.parent && x.enabled !== false && x.hidden !== true,
+  );
 
   const byId = (a, b) => compareId(a.id, b.id);
 
@@ -302,7 +306,6 @@ function saveSelectionAndGo() {
   location.href = targetPage;
 }
 
-
 // ---------- утилиты ----------
 function esc(s) {
   return String(s).replace(/[&<>"]/g, m => ({
@@ -320,7 +323,7 @@ function compareId(a, b) {
   for (let i = 0; i < L; i++) {
     const ai = as[i] ?? 0;
     const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
+    if (ai !== би) return ai - bi;
   }
   return 0;
 }
