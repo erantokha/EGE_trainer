@@ -1,4 +1,5 @@
 :root{
+  /* базовые значения (по умолчанию тёмная тема) */
   --bg:#0e1117;
   --panel:#111827;
   --panel-2:#0f1623;
@@ -13,6 +14,40 @@
   --shadow:0 8px 24px rgba(0,0,0,.25);
   --radius:12px;
   --figure-h:300px;
+}
+
+/* тёмная тема (явно) */
+html[data-theme="dark"],
+body[data-theme="dark"]{
+  --bg:#0e1117;
+  --panel:#111827;
+  --panel-2:#0f1623;
+  --border:#232635;
+  --text:#e6e6e6;
+  --text-dim:#aeb3c2;
+  --accent:#3b82f6;
+  --accent-2:#2563eb;
+  --success:#10b981;
+  --danger:#ef4444;
+  --muted:#1b1d24;
+  --shadow:0 8px 24px rgba(0,0,0,.25);
+}
+
+/* светлая тема */
+html[data-theme="light"],
+body[data-theme="light"]{
+  --bg:#f3f4f6;
+  --panel:#ffffff;
+  --panel-2:#e5e7eb;
+  --border:#d1d5db;
+  --text:#111827;
+  --text-dim:#6b7280;
+  --accent:#2563eb;
+  --accent-2:#1d4ed8;
+  --success:#059669;
+  --danger:#dc2626;
+  --muted:#e5e7eb;
+  --shadow:0 8px 20px rgba(15,23,42,.12);
 }
 
 *{box-sizing:border-box}
@@ -154,6 +189,60 @@ a:hover{text-decoration:underline}
   box-shadow:0 0 0 1px rgba(59,130,246,.6);
 }
 
+/* тумблер темы */
+.theme-toggle{
+  display:inline-flex;
+  align-items:center;
+  margin-left:8px;
+}
+
+.theme-toggle-input{
+  position:absolute;
+  opacity:0;
+  pointer-events:none;
+}
+
+.theme-toggle-label{
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:space-between;
+  width:48px;
+  height:24px;
+  padding:2px 4px;
+  border-radius:999px;
+  background:var(--panel-2);
+  border:1px solid var(--border);
+  box-sizing:border-box;
+  transition:background-color .2s ease,border-color .2s ease;
+  font-size:14px;
+}
+
+.theme-toggle-icon{
+  line-height:1;
+  transition:opacity .2s ease,transform .2s ease;
+}
+
+/* светлая тема – акцент на солнце */
+html[data-theme="light"] .theme-toggle-icon-light,
+body[data-theme="light"] .theme-toggle-icon-light{
+  opacity:1;
+}
+html[data-theme="light"] .theme-toggle-icon-dark,
+body[data-theme="light"] .theme-toggle-icon-dark{
+  opacity:.4;
+}
+
+/* тёмная тема – акцент на луне */
+html[data-theme="dark"] .theme-toggle-icon-light,
+body[data-theme="dark"] .theme-toggle-icon-light{
+  opacity:.4;
+}
+html[data-theme="dark"] .theme-toggle-icon-dark,
+body[data-theme="dark"] .theme-toggle-icon-dark{
+  opacity:1;
+}
+
 /* аккордеон */
 .accordion{margin-top:12px}
 .node{
@@ -177,7 +266,6 @@ a:hover{text-decoration:underline}
   border:none;
   padding:0;
   color:var(--text);
-  font-weight:600;
   cursor:pointer;
 }
 
