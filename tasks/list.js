@@ -190,7 +190,6 @@ async function loadTopicPool(topic) {
   return topic._pool;
 }
 
-
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -363,7 +362,9 @@ async function renderTaskList(questions) {
   runner.appendChild(meta);
 
   const list = document.createElement('ol');
-  list.style.margin = '12px 0 0';
+  // верхний отступ как раньше, плюс явный нижний отступ 30px
+  list.style.marginTop = '12px';
+  list.style.marginBottom = '30px';
   list.style.paddingLeft = '20px';
 
   arr.forEach((q) => {
