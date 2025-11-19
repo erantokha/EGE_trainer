@@ -36,7 +36,7 @@ body[data-theme="dark"]{
 /* светлая тема */
 html[data-theme="light"],
 body[data-theme="light"]{
-  --bg:#f3f4f6;
+  --bg:#ffffff;
   --panel:#ffffff;
   --panel-2:#e5e7eb;
   --border:#d1d5db;
