@@ -134,7 +134,7 @@ input[type="number"]{-moz-appearance:textfield}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
-/* верхний блок выбора */
+/* верхний блок выбора (index.html) */
 #picker .controls{
   display:flex;
   align-items:center;
@@ -243,7 +243,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   opacity:1;
 }
 
-/* аккордеон */
+/* аккордеон (страница выбора задач и уникальные прототипы) */
 .accordion{margin-top:12px}
 .node{
   border-bottom:1px solid var(--border);
@@ -316,13 +316,14 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 }
 .countbox .btn:active{transform:translateY(1px)}
 
-/* раннер */
+/* шапка раннера */
 .run-head{
   display:flex;
   align-items:center;
   gap:12px;
   margin-bottom:10px;
 }
+
 .run-head .timer{
   margin-left:auto;
   background:var(--panel-2);
@@ -331,6 +332,14 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   border-radius:10px;
 }
 
+/* блок действий в шапке (лист задач) */
+.run-head .actions{
+  margin-left:auto;
+  display:flex;
+  gap:8px;
+}
+
+/* обёртка вопроса в режиме тестирования */
 .qwrap{
   display:flex;
   gap:16px;
@@ -410,15 +419,11 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   gap:8px;
 }
 
-@media (max-width:640px){
-  .qwrap{flex-direction:column}
-  .qfig{min-height:auto}
-  input[type="number"]{width:56px}
-}
-
-/* отступ в режиме списка задач */
-#runner ol{
-  margin-bottom:100px !important;
+/* небольшая подпись "Всего задач" в режиме списка */
+.list-meta{
+  margin:4px 0 8px;
+  font-size:13px;
+  color:var(--text-dim);
 }
 
 /* общий вариант — на всех страницах с раннером */
@@ -426,16 +431,25 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   padding-bottom:40px;
 }
 
-/* ------- страница уникальных прототипов ------- */
+@media (max-width:640px){
+  .qwrap{flex-direction:column}
+  .qfig{min-height:auto}
+  input[type="number"]{width:56px}
+}
 
-.uniq-list{
+/* ------- общие карточки задач (лист + уникальные + тест) ------- */
+
+.uniq-list,
+.task-list{
   display:flex;
   flex-direction:column;
   gap:10px;
   margin-top:8px;
 }
 
-.ws-item{
+/* сама карточка */
+.ws-item,
+.task-card{
   background:var(--panel-2);
   border:1px solid var(--border);
   border-radius:10px;
@@ -444,11 +458,15 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 
 /* в светлой теме фон карточки делаем белым */
 html[data-theme="light"] .ws-item,
-body[data-theme="light"] .ws-item{
+body[data-theme="light"] .ws-item,
+html[data-theme="light"] .task-card,
+body[data-theme="light"] .task-card{
   background:#ffffff;
 }
 
-.ws-num{
+/* "номер" задачи / прототипа */
+.ws-num,
+.task-num{
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -461,23 +479,31 @@ body[data-theme="light"] .ws-item{
   margin-bottom:4px;
 }
 
-.ws-stem{
+/* текст условия */
+.ws-stem,
+.task-stem{
   margin-top:2px;
 }
 
-.ws-ans{
+/* ответ */
+.ws-ans,
+.task-ans{
   margin-top:6px;
 }
 
-.ws-ans summary{
+.ws-ans summary,
+.task-ans summary{
   cursor:pointer;
 }
 
-.ws-fig{
+/* картинка */
+.ws-fig,
+.task-fig{
   margin:6px 0;
 }
 
-.ws-fig img{
+.ws-fig img,
+.task-fig img{
   max-width:100%;
   max-height:260px;
   object-fit:contain;
@@ -486,11 +512,18 @@ body[data-theme="light"] .ws-item{
   background:#000;
 }
 
-/* в светлой теме убираем рамку и чёрный фон у картинок в уникальных задачах */
+/* в светлой теме убираем рамку и чёрный фон у картинок в карточках */
 html[data-theme="light"] .ws-fig img,
-body[data-theme="light"] .ws-fig img{
+body[data-theme="light"] .ws-fig img,
+html[data-theme="light"] .task-fig img,
+body[data-theme="light"] .task-fig img{
   border:none;
   background:transparent;
+}
+
+/* одиночная карточка вопроса в режиме тестирования */
+.q-card{
+  margin-top:8px;
 }
 
 /* фикc для SVG-рендера MathJax, чтобы корень не обрезался */
