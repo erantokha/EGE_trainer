@@ -22,7 +22,8 @@
       "content/tasks/1/1.14.json",
       "content/tasks/1/1.15.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "1.1", "title": "Площадь через высоты", "parent": "1", "path": "content/tasks/1/1.1.json", "enabled": true },
@@ -51,7 +52,8 @@
       "content/tasks/vectors/2.1/manifest.json",
       "content/tasks/vectors/2.2/manifest.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "2.1", "title": "Скалярное произведение", "parent": "2", "path": "content/tasks/vectors/2.1/manifest.json", "enabled": true },
@@ -74,7 +76,8 @@
       "content/tasks/3/3.2.4.json",
       "content/tasks/3/3.2.5.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "3.1.1", "title": "Треугольная призма", "parent": "3", "path": "content/tasks/3/3.1.1.json", "enabled": true },
@@ -100,7 +103,8 @@
       "content/tasks/probability/4.4.json",
       "content/tasks/probability/4.5.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "4.1", "title": "Классическая вероятность", "parent": "4", "path": "content/tasks/probability/4.1.json", "enabled": true },
@@ -123,7 +127,8 @@
       "content/tasks/probability5/5.5.json",
       "content/tasks/probability5/5.6.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "5.1", "title": "Три лампы", "parent": "5", "path": "content/tasks/probability5/5.1.json", "enabled": true },
@@ -146,7 +151,8 @@
       "content/tasks/equations/6.4.json",
       "content/tasks/equations/6.5.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "6.1", "title": "Показательные уравнения", "parent": "6", "path": "content/tasks/equations/6.1.json", "enabled": true },
@@ -168,7 +174,8 @@
       "content/tasks/expressions/7.4.json",
       "content/tasks/expressions/7.5.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "7.1", "title": "Тригонометрия", "parent": "7", "path": "content/tasks/expressions/7.1.json", "enabled": true },
@@ -188,7 +195,8 @@
       "content/tasks/derivatives/8.2/manifest.json",
       "content/tasks/derivatives/8.3/manifest.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "8.1", "title": "Значение производной в точке касания", "parent": "8", "path": "content/tasks/derivatives/8.1/manifest.json", "enabled": true },
@@ -217,7 +225,8 @@
       "content/tasks/models/9.13.json",
       "content/tasks/models/9.14.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "9.1", "title": "Логарифм", "parent": "9", "path": "content/tasks/models/9.1.json", "enabled": true },
@@ -250,7 +259,8 @@
       "content/tasks/text/10.6/manifest.json",
       "content/tasks/text/10.7/manifest.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "10.1", "title": "Движение по воде", "parent": "10", "path": "content/tasks/text/10.1/manifest.json", "enabled": true },
@@ -278,7 +288,8 @@
       "content/tasks/graphs/11.8/manifest.json",
       "content/tasks/graphs/11.9/manifest.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "11.1", "title": "Прямая (kx+b)", "parent": "11", "path": "content/tasks/graphs/11.1/manifest.json", "enabled": true },
@@ -303,7 +314,8 @@
       "content/tasks/extrema/12.3/manifest.json",
       "content/tasks/extrema/12.4/manifest.json"
     ],
-    "enabled": true
+    "enabled": true,
+    "hidden": true
   },
 
   { "id": "12.1", "title": "Степенные функции", "parent": "12", "path": "content/tasks/extrema/12.1/manifest.json", "enabled": true },
