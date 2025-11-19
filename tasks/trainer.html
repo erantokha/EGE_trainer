@@ -5,6 +5,7 @@
   <title>Тренажер по задачам из банка ФИПИ — сессия</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="./trainer.css">
+  <script src="./theme.js" defer></script>
 
   <script>
     window.MathJax = {
@@ -12,16 +13,22 @@
       svg: { fontCache: 'global' }
     };
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
   <main class="container">
     <section id="runner">
       <div class="panel">
-        <div class="run-head">
-          <div class="crumb"><span id="topicTitle"></span></div>
-          <div class="progress"><span id="idx">1</span>/<span id="total">1</span></div>
-          <div class="timer"><span id="tmin">00</span>:<span id="tsec">00</span></div>
+        <header class="run-head">
+          <div class="crumb">
+            <span id="topicTitle"></span>
+          </div>
+          <div class="progress">
+            <span id="idx">1</span>/<span id="total">1</span>
+          </div>
+          <div class="timer">
+            <span id="tmin">00</span>:<span id="tsec">00</span>
+          </div>
           <div class="theme-toggle">
             <input
               type="checkbox"
@@ -34,25 +41,33 @@
               <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
             </label>
           </div>
-        </div>
+        </header>
 
-        <div class="qwrap">
-          <div class="qtext" id="stem"></div>
-          <div class="qfig"><img id="figure" alt=""></div>
-        </div>
+        <div class="run-body">
+          <article class="task-card q-card">
+            <div class="task-stem">
+              <div class="qwrap">
+                <div class="qtext" id="stem"></div>
+                <div class="qfig task-fig">
+                  <img id="figure" alt="">
+                </div>
+              </div>
+            </div>
+          </article>
 
-        <div class="answer-row">
-          <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
-          <button id="check">Проверить</button>
-        </div>
+          <div class="answer-row">
+            <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
+            <button id="check">Проверить</button>
+          </div>
 
-        <div class="result" id="result"></div>
+          <div class="result" id="result"></div>
 
-        <div class="nav">
-          <button id="prev">Назад</button>
-          <button id="skip">Пропустить</button>
-          <button id="next">Далее</button>
-          <button id="finish">Завершить</button>
+          <div class="nav">
+            <button id="prev">Назад</button>
+            <button id="skip">Пропустить</button>
+            <button id="next">Далее</button>
+            <button id="finish">Завершить</button>
+          </div>
         </div>
       </div>
     </section>
@@ -69,7 +84,6 @@
     </section>
   </main>
 
-  <script src="./theme.js" defer></script>
   <script type="module" src="./trainer.js"></script>
 </body>
 </html>
