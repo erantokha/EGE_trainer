@@ -1,7 +1,7 @@
 // tasks/list.js
 // Страница "Список задач": вывод всех подобранных задач 1..N (как лист с прототипами).
 // Новая логика выбора: по каждой теме задачи берутся случайно из общего пула
-// всех прототипов темы (из всех типов), а не распределяются по типам.
+// всех прототипов темы (из всех типов и, при наличии, всех манифестов темы).
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -95,6 +95,7 @@ async function loadCatalog() {
 
 // ---------- выбор задач ----------
 
+// старый ensureManifest (может пригодиться, оставляем)
 async function ensureManifest(topic) {
   if (topic._manifest) return topic._manifest;
   if (!topic.path) return null;
@@ -105,7 +106,7 @@ async function ensureManifest(topic) {
   return topic._manifest;
 }
 
-// собрать общий пул прототипов темы: [{ type, proto }]
+// собрать общий пул прототипов из одного манифеста: [{ type, proto }]
 function collectAllPrototypes(manifest) {
   const pool = [];
   for (const typ of manifest.types || []) {
@@ -114,6 +115,78 @@ function collectAllPrototypes(manifest) {
     }
   }
   return pool;
+}
+
+// общий пул темы: все прототипы из всех её манифестов
+// поддерживает topic.path (один файл) и topic.paths (массив путей)
+async function loadTopicPool(topic) {
+  if (topic._pool) return topic._pool;
+
+  const paths = [];
+  if (Array.isArray(topic.paths)) {
+    for (const p of topic.paths) {
+      if (typeof p === 'string' && p) paths.push(p);
+    }
+  }
+  if (topic.path) {
+    paths.push(topic.path);
+  }
+
+  // если ни одного пути не задано – пробуем старый ensureManifest как fallback
+  if (!paths.length) {
+    const man = await ensureManifest(topic);
+    if (!man) {
+      topic._pool = [];
+      return topic._pool;
+    }
+    const pool = [];
+    const manifest = man;
+    manifest.topic = manifest.topic || topic.id;
+    manifest.title = manifest.title || topic.title;
+    for (const typ of manifest.types || []) {
+      for (const p of typ.prototypes || []) {
+        pool.push({ manifest, type: typ, proto: p });
+      }
+    }
+    topic._pool = pool;
+    return topic._pool;
+  }
+
+  const pool = [];
+
+  for (const relPath of paths) {
+    const fullPath = relPath.startsWith('../') ? relPath : '../' + relPath;
+    const url = new URL(fullPath, location.href);
+    let resp;
+    try {
+      resp = await fetch(url.href);
+    } catch (e) {
+      console.warn('Не удалось загрузить манифест темы', topic.id, relPath, e);
+      continue;
+    }
+    if (!resp.ok) {
+      console.warn('Манифест не найден для темы', topic.id, relPath, resp.status);
+      continue;
+    }
+    let manifest;
+    try {
+      manifest = await resp.json();
+    } catch (e) {
+      console.warn('Невалидный JSON манифеста для темы', topic.id, relPath, e);
+      continue;
+    }
+    manifest.topic = manifest.topic || topic.id;
+    manifest.title = manifest.title || topic.title;
+
+    for (const typ of manifest.types || []) {
+      for (const p of typ.prototypes || []) {
+        pool.push({ manifest, type: typ, proto: p });
+      }
+    }
+  }
+
+  topic._pool = pool;
+  return topic._pool;
 }
 
 function shuffle(a) {
@@ -156,16 +229,12 @@ async function pickPrototypes() {
         const want = CHOICE_TOPICS[t.id] || 0;
         if (!want) continue;
 
-        const man = await ensureManifest(t);
-        if (!man) continue;
-
-        // общий пул всех прототипов темы
-        const pool = collectAllPrototypes(man);
+        const pool = await loadTopicPool(t);
         if (!pool.length) continue;
 
         const picked = sample(pool, want);
         for (const item of picked) {
-          chosen.push(buildQuestion(man, item.type, item.proto));
+          chosen.push(buildQuestion(item.manifest, item.type, item.proto));
         }
       }
     }
@@ -181,37 +250,26 @@ async function pickPrototypes() {
     const wantSection = CHOICE_SECTIONS[sec.id] || 0;
     if (!wantSection) continue;
 
-    // считаем "вместимости" тем внутри раздела (общее число прототипов по теме)
-    const topicCaps = [];
+    // пул по темам внутри раздела
+    const topicPools = [];
     for (const t of sec.topics) {
-      const man = await ensureManifest(t);
-      if (!man) continue;
-      const cap = (man.types || []).reduce(
-        (s, x) => s + (x.prototypes || []).length,
-        0,
-      );
-      topicCaps.push({ id: t.id, cap, _topic: t });
+      const pool = await loadTopicPool(t);
+      if (!pool.length) continue;
+      topicPools.push({ topic: t, pool, cap: pool.length });
     }
 
-    if (!topicCaps.length) continue;
+    if (!topicPools.length) continue;
 
-    // распределяем общее количество задач wantSection по темам раздела
-    const planTopics = distributeNonNegative(topicCaps, wantSection);
+    const buckets = topicPools.map(tp => ({ id: tp.topic.id, cap: tp.cap }));
+    const planTopics = distributeNonNegative(buckets, wantSection);
 
-    for (const { id } of topicCaps) {
-      const wantT = planTopics.get(id) || 0;
+    for (const tp of topicPools) {
+      const wantT = planTopics.get(tp.topic.id) || 0;
       if (!wantT) continue;
 
-      const topic = sec.topics.find(x => x.id === id);
-      const man = await ensureManifest(topic);
-      if (!man) continue;
-
-      const pool = collectAllPrototypes(man);
-      if (!pool.length) continue;
-
-      const picked = sample(pool, wantT);
+      const picked = sample(tp.pool, wantT);
       for (const item of picked) {
-        chosen.push(buildQuestion(man, item.type, item.proto));
+        chosen.push(buildQuestion(item.manifest, item.type, item.proto));
       }
     }
   }
