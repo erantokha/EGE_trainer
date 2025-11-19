@@ -415,6 +415,12 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   margin-bottom:100px !important;
 }
 
+/* общий вариант — на всех страницах с раннером */
+#runner {
+  padding-bottom: 40px;
+}
+
+
 
 /* фокус */
 button:focus,input:focus{
