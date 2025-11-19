@@ -132,7 +132,7 @@ async function loadTopicPool(topic) {
     paths.push(topic.path);
   }
 
-  // если ни одного пути не задано – пробуем старый ensureManifest как fallback
+  // если путей нет – fallback на старый ensureManifest (как и раньше)
   if (!paths.length) {
     const man = await ensureManifest(topic);
     if (!man) {
@@ -152,32 +152,33 @@ async function loadTopicPool(topic) {
     return topic._pool;
   }
 
-  const pool = [];
-
-  for (const relPath of paths) {
+  // параллельная загрузка всех манифестов темы
+  const fetchPromises = paths.map(async (relPath) => {
     const fullPath = relPath.startsWith('../') ? relPath : '../' + relPath;
     const url = new URL(fullPath, location.href);
-    let resp;
+
     try {
-      resp = await fetch(url.href);
+      const resp = await fetch(url.href);
+      if (!resp.ok) {
+        console.warn('Манифест не найден для темы', topic.id, relPath, resp.status);
+        return null;
+      }
+      const manifest = await resp.json();
+      manifest.topic = manifest.topic || topic.id;
+      manifest.title = manifest.title || topic.title;
+      return manifest;
     } catch (e) {
       console.warn('Не удалось загрузить манифест темы', topic.id, relPath, e);
-      continue;
+      return null;
     }
-    if (!resp.ok) {
-      console.warn('Манифест не найден для темы', topic.id, relPath, resp.status);
-      continue;
-    }
-    let manifest;
-    try {
-      manifest = await resp.json();
-    } catch (e) {
-      console.warn('Невалидный JSON манифеста для темы', topic.id, relPath, e);
-      continue;
-    }
-    manifest.topic = manifest.topic || topic.id;
-    manifest.title = manifest.title || topic.title;
+  });
 
+  // ждём сразу все запросы
+  const manifests = await Promise.all(fetchPromises);
+
+  const pool = [];
+  for (const manifest of manifests) {
+    if (!manifest) continue;
     for (const typ of manifest.types || []) {
       for (const p of typ.prototypes || []) {
         pool.push({ manifest, type: typ, proto: p });
@@ -188,6 +189,7 @@ async function loadTopicPool(topic) {
   topic._pool = pool;
   return topic._pool;
 }
+
 
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
