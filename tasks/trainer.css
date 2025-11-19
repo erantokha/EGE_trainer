@@ -411,6 +411,11 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   input[type="number"]{width:56px}
 }
 
+#runner ol {
+  margin-bottom:40px !important;
+}
+
+
 /* фокус */
 button:focus,input:focus{
   outline:2px solid rgba(59,130,246,.35);
