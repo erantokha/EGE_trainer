@@ -64,12 +64,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await renderTaskList(questions);
   } catch (e) {
     console.error(e);
-    const host = $('#runner') || document.body;
-    if (host) {
-      host.classList.remove('hidden');
-      host.innerHTML =
-        '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
-    }
+    const runner = $('#runner') || document.body;
+    const panel = runner.querySelector('.panel') || runner;
+    const body = panel.querySelector('.run-body') || panel;
+    runner.classList.remove('hidden');
+    body.innerHTML =
+      '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
   } finally {
     $('#loadingOverlay')?.classList.add('hidden');
   }
@@ -338,9 +338,13 @@ async function renderTaskList(questions) {
   const runner = $('#runner') || $('#summary') || document.body;
   if (!runner) return;
 
+  const panel = runner.querySelector('.panel') || runner;
+  const body = panel.querySelector('.run-body') || panel;
+
   if (!arr.length) {
+    $('#summary')?.classList.add('hidden');
     runner.classList.remove('hidden');
-    runner.innerHTML =
+    body.innerHTML =
       '<div style="opacity:.8;padding:8px 0">Не удалось подобрать задачи. Вернитесь на страницу выбора и проверьте настройки.</div>';
     return;
   }
@@ -350,67 +354,67 @@ async function renderTaskList(questions) {
   runner.classList.remove('hidden');
 
   const total = arr.length;
-  runner.innerHTML = '';
-
-  const title = document.createElement('h2');
-  title.textContent = 'Список задач';
-  runner.appendChild(title);
+  body.innerHTML = '';
 
   const meta = document.createElement('div');
-  meta.className = 'run-head';
-  meta.innerHTML = `<div>Всего задач: ${total}</div>`;
-  runner.appendChild(meta);
+  meta.className = 'list-meta';
+  meta.textContent = `Всего задач: ${total}`;
+  body.appendChild(meta);
 
-  const list = document.createElement('ol');
-  // верхний отступ как раньше, плюс явный нижний отступ 30px
-  list.style.marginTop = '12px';
-  list.style.marginBottom = '30px';
-  list.style.paddingLeft = '20px';
+  const list = document.createElement('div');
+  list.className = 'task-list';
 
-  arr.forEach((q) => {
-    const li = document.createElement('li');
-    li.style.marginBottom = '12px';
+  arr.forEach((q, idx) => {
+    const card = document.createElement('article');
+    card.className = 'task-card';
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    card.appendChild(num);
 
     const stem = document.createElement('div');
+    stem.className = 'task-stem';
     stem.innerHTML = q.stem;
-    li.appendChild(stem);
+    card.appendChild(stem);
 
     if (q.figure?.img) {
-      const fig = document.createElement('div');
-      fig.style.marginTop = '6px';
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
-      img.style.maxWidth = '100%';
-      img.style.height = 'auto';
-      fig.appendChild(img);
-      li.appendChild(fig);
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
     }
 
-    const details = document.createElement('details');
-    details.style.marginTop = '6px';
-
-    const summary = document.createElement('summary');
-    summary.textContent = 'Ответ';
-    details.appendChild(summary);
-
-    const ans = document.createElement('div');
     const correctText =
       q.answer && q.answer.text != null
         ? String(q.answer.text)
         : q.answer && q.answer.value != null
           ? String(q.answer.value)
           : '';
-    ans.textContent = correctText;
-    ans.style.marginTop = '4px';
 
-    details.appendChild(ans);
-    li.appendChild(details);
+    if (correctText) {
+      const details = document.createElement('details');
+      details.className = 'task-ans';
 
-    list.appendChild(li);
+      const summary = document.createElement('summary');
+      summary.textContent = 'Ответ';
+      details.appendChild(summary);
+
+      const ans = document.createElement('div');
+      ans.textContent = correctText;
+      ans.style.marginTop = '4px';
+
+      details.appendChild(ans);
+      card.appendChild(details);
+    }
+
+    list.appendChild(card);
   });
 
-  runner.appendChild(list);
+  body.appendChild(list);
 
   if (window.MathJax) {
     try {
