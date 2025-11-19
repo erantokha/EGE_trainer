@@ -411,16 +411,74 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   input[type="number"]{width:56px}
 }
 
-#runner ol {
+/* отступ в режиме списка задач */
+#runner ol{
   margin-bottom:100px !important;
 }
 
 /* общий вариант — на всех страницах с раннером */
-#runner {
-  padding-bottom: 40px;
+#runner{
+  padding-bottom:40px;
 }
 
+/* ------- страница уникальных прототипов ------- */
 
+.uniq-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:8px;
+}
+
+.ws-item{
+  background:var(--panel-2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 12px;
+}
+
+/* в светлой теме фон карточки делаем белым */
+html[data-theme="light"] .ws-item,
+body[data-theme="light"] .ws-item{
+  background:#ffffff;
+}
+
+.ws-num{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 8px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  font-weight:600;
+  font-size:13px;
+  margin-bottom:4px;
+}
+
+.ws-stem{
+  margin-top:2px;
+}
+
+.ws-ans{
+  margin-top:6px;
+}
+
+.ws-ans summary{
+  cursor:pointer;
+}
+
+.ws-fig{
+  margin:6px 0;
+}
+
+.ws-fig img{
+  max-width:100%;
+  max-height:260px;
+  object-fit:contain;
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:#000;
+}
 
 /* фокус */
 button:focus,input:focus{
