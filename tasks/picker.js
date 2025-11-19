@@ -323,7 +323,7 @@ function compareId(a, b) {
   for (let i = 0; i < L; i++) {
     const ai = as[i] ?? 0;
     const bi = bs[i] ?? 0;
-    if (ai !== би) return ai - bi;
+    if (ai !== bi) return ai - bi;
   }
   return 0;
 }
