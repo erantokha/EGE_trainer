@@ -19,12 +19,25 @@
     <section>
       <div class="panel">
         <h1 id="uniqTitle">Уникальные прототипы</h1>
+        <div class="theme-toggle">
+          <input
+            type="checkbox"
+            id="themeToggle"
+            class="theme-toggle-input"
+            aria-label="Переключить тему"
+          >
+          <label for="themeToggle" class="theme-toggle-label">
+            <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+            <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+          </label>
+        </div>
         <p id="uniqSubtitle"></p>
         <div id="uniqAccordion" class="accordion"></div>
       </div>
     </section>
   </main>
 
+  <script src="./theme.js" defer></script>
   <script type="module" src="./unique.js"></script>
 </body>
 </html>
