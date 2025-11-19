@@ -41,7 +41,12 @@ async function init() {
     `Уникальные прототипы ФИПИ по номеру ${section.id}. ${section.title}`;
 
   const topics = catalog
-    .filter(x => x.parent === section.id && x.enabled !== false)
+    .filter(
+      x =>
+        x.parent === section.id &&
+        x.enabled !== false &&
+        x.hidden !== true,        // убираем X.0 и другие скрытые темы
+    )
     .sort(compareIdObj);
 
   // Подзаголовок убираем/оставляем пустым, чтобы не засорять страницу
@@ -158,35 +163,25 @@ function renderUnicTasks(container, tasks) {
   }
 
   const list = document.createElement('div');
-  list.style.display = 'flex';
-  list.style.flexDirection = 'column';
-  list.style.gap = '10px';
+  list.className = 'uniq-list';
 
   for (const t of tasks) {
     const item = document.createElement('div');
     item.className = 'ws-item';
-    item.style.background = 'var(--panel-2)';
-    item.style.border = '1px solid var(--border)';
-    item.style.borderRadius = '10px';
-    item.style.padding = '10px 12px';
 
     const num = document.createElement('div');
-    num.style.fontWeight = '600';
-    num.style.marginBottom = '4px';
+    num.className = 'ws-num';
     num.textContent = t.id;
 
     const stemEl = document.createElement('div');
     stemEl.className = 'ws-stem';
-    // вставляем TeX как HTML (как и раньше)
     stemEl.innerHTML = t.stem;
 
     const ans = document.createElement('details');
     ans.className = 'ws-ans';
-    ans.style.marginTop = '6px';
     const sum = document.createElement('summary');
     sum.textContent = 'Ответ';
     const ansText = document.createElement('div');
-    ansText.style.marginTop = '4px';
     ansText.textContent = t.answerText;
     ans.appendChild(sum);
     ans.appendChild(ansText);
@@ -196,16 +191,10 @@ function renderUnicTasks(container, tasks) {
 
     if (t.figure && t.figure.img) {
       const figWrap = document.createElement('div');
-      figWrap.style.margin = '6px 0';
+      figWrap.className = 'ws-fig';
       const img = document.createElement('img');
       img.src = asset(t.figure.img);
       img.alt = t.figure.alt || '';
-      img.style.maxWidth = '100%';
-      img.style.maxHeight = '260px';
-      img.style.objectFit = 'contain';
-      img.style.border = '1px solid var(--border)';
-      img.style.borderRadius = '8px';
-      img.style.background = '#000';
       figWrap.appendChild(img);
       item.appendChild(figWrap);
     }
@@ -217,12 +206,10 @@ function renderUnicTasks(container, tasks) {
     list.appendChild(item);
   }
 
-  // Вставляем весь список в DOM
   container.innerHTML = '';
   container.appendChild(list);
 
-  // Безопасный прогон через MathJax: если tex-svg порождает NaN-атрибуты,
-  // возвращаемся к исходному TeX-тексту (без рендеринга), чтобы не ломать верстку.
+  // безопасный прогон через MathJax
   typesetSafe(container);
 }
 
@@ -234,7 +221,6 @@ function typesetSafe(root) {
 
   window.MathJax.typesetPromise([root])
     .then(() => {
-      // ищем "битые" svg от tex-svg (width/height/viewBox содержат NaN)
       const badSvg = root.querySelector(
         'svg[width*="NaN"],svg[height*="NaN"],svg[viewBox*="NaN"]',
       );
