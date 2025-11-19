@@ -45,14 +45,15 @@ async function init() {
       x =>
         x.parent === section.id &&
         x.enabled !== false &&
-        x.hidden !== true,        // убираем X.0 и другие скрытые темы
+        x.hidden !== true, // убираем X.0 и другие скрытые темы
     )
     .sort(compareIdObj);
 
-  // Подзаголовок убираем/оставляем пустым, чтобы не засорять страницу
+  // Подзаголовок оставляем пустым, чтобы не засорять страницу
   $('#uniqSubtitle').textContent = '';
 
   const host = $('#uniqAccordion');
+  if (!host) return;
   host.innerHTML = '';
 
   for (const t of topics) {
@@ -75,9 +76,9 @@ function renderTopicNode(topic) {
 
   node.innerHTML = `
     <div class="row">
-      <button class="section-title" type="button">${esc(
-        `${topic.id}. ${topic.title}`,
-      )}</button>
+      <button class="section-title" type="button">
+        ${esc(`${topic.id}. ${topic.title}`)}
+      </button>
       <div class="spacer"></div>
     </div>
     <div class="children"></div>
@@ -250,6 +251,7 @@ function esc(s) {
 function compareIdObj(a, b) {
   return compareId(a.id, b.id);
 }
+
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
   const bs = String(b).split('.').map(Number);
