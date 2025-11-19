@@ -269,6 +269,11 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   cursor:pointer;
 }
 
+/* заголовки тем на странице уникальных прототипов делаем жирными */
+#uniqAccordion .section-title{
+  font-weight:600;
+}
+
 /* кнопка «Уникальные прототипы» — показываем только у раскрытой секции */
 .unique-btn{
   margin-left:12px;
@@ -449,7 +454,8 @@ body[data-theme="light"] .ws-item{
   justify-content:center;
   padding:3px 8px;
   border-radius:6px;
-  border:1px solid var(--border);
+  /* толщина рамки номера: здесь 2px, цвет берётся из переменной --border */
+  border:2px solid var(--border);
   font-weight:600;
   font-size:13px;
   margin-bottom:4px;
@@ -480,8 +486,21 @@ body[data-theme="light"] .ws-item{
   background:#000;
 }
 
+/* в светлой теме убираем рамку и чёрный фон у картинок в уникальных задачах */
+html[data-theme="light"] .ws-fig img,
+body[data-theme="light"] .ws-fig img{
+  border:none;
+  background:transparent;
+}
+
+/* фикc для SVG-рендера MathJax, чтобы корень не обрезался */
+mjx-container[jax="SVG"] > svg{
+  overflow:visible;
+}
+
 /* фокус */
-button:focus,input:focus{
+button:focus,
+input:focus{
   outline:2px solid rgba(59,130,246,.35);
   outline-offset:2px;
 }
