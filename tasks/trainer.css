@@ -362,7 +362,8 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   object-fit:contain;
   border:1px solid var(--border);
   border-radius:10px;
-  background:#000;
+  /* белый фон под картинкой, чтобы SVG не терялся в тёмной теме */
+  background:#ffffff;
 }
 
 /* ответ */
@@ -472,7 +473,7 @@ body[data-theme="light"] .task-card{
   justify-content:center;
   padding:3px 8px;
   border-radius:6px;
-  /* толщина рамки номера: здесь 2px, цвет берётся из переменной --border */
+  /* толщина рамки номера: 2px, цвет берётся из переменной --border */
   border:2px solid var(--border);
   font-weight:600;
   font-size:13px;
@@ -509,10 +510,11 @@ body[data-theme="light"] .task-card{
   object-fit:contain;
   border:1px solid var(--border);
   border-radius:8px;
-  background:#000;
+  /* белый фон под картинкой по умолчанию (в тёмной теме особенно важно) */
+  background:#ffffff;
 }
 
-/* в светлой теме убираем рамку и чёрный фон у картинок в карточках */
+/* в светлой теме убираем рамку и фон у картинок в карточках */
 html[data-theme="light"] .ws-fig img,
 body[data-theme="light"] .ws-fig img,
 html[data-theme="light"] .task-fig img,
@@ -526,7 +528,7 @@ body[data-theme="light"] .task-fig img{
   margin-top:8px;
 }
 
-/* фикc для SVG-рендера MathJax, чтобы корень не обрезался */
+/* фикс для SVG-рендера MathJax, чтобы корень не обрезался */
 mjx-container[jax="SVG"] > svg{
   overflow:visible;
 }
