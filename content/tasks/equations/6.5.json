@@ -13,7 +13,7 @@
       "prototypes": [
         {
           "id": "6.5.1.1",
-          "stem": "Найдите корень уравнения\n\n\\[ \\large \\dfrac{1}{3x - 4} = 5 \\]\n\n",
+          "stem": "Найдите корень уравнения\n\n\\[ \\Large \\dfrac{1}{3x - 4} = 5 \\]\n\n",
           "answer": { "text": "1,4" },
           "unic": true
         }
