@@ -28,14 +28,14 @@
 
   { "id": "1.1", "title": "Площадь через высоты", "parent": "1", "path": "content/tasks/1/1.1.json", "enabled": true },
   { "id": "1.2", "title": "Биссектриса треугольника", "parent": "1", "path": "content/tasks/1/1.2.json", "enabled": true },
-  { "id": "1.3", "title": "sin, cos", "parent": "1", "path": "content/tasks/1/1.3.json", "enabled": true },
-  { "id": "1.4", "title": "Центральный и вписанный", "parent": "1", "path": "content/tasks/1/1.4.json", "enabled": true },
+  { "id": "1.3", "title": "Прямоугольный треугольник (sin, cos)", "parent": "1", "path": "content/tasks/1/1.3.json", "enabled": true },
+  { "id": "1.4", "title": "Центральный и вписанный углы", "parent": "1", "path": "content/tasks/1/1.4.json", "enabled": true },
   { "id": "1.5", "title": "Биссектриса/медиана/высота из прямого угла", "parent": "1", "path": "content/tasks/1/1.5.json", "enabled": true },
-  { "id": "1.6", "title": "Диаметры", "parent": "1", "path": "content/tasks/1/1.6.json", "enabled": true },
+  { "id": "1.6", "title": "Диаметры в окружности", "parent": "1", "path": "content/tasks/1/1.6.json", "enabled": true },
   { "id": "1.7", "title": "Четырёхугольник (сумма, разность углов)", "parent": "1", "path": "content/tasks/1/1.7.json", "enabled": true },
   { "id": "1.8", "title": "Окружность в четырёхугольнике", "parent": "1", "path": "content/tasks/1/1.8.json", "enabled": true },
-  { "id": "1.9", "title": "Четырёхугольник в окружности, больший угол", "parent": "1", "path": "content/tasks/1/1.9.json", "enabled": true },
-  { "id": "1.10", "title": "Четырёхугольник в окружность: угол", "parent": "1", "path": "content/tasks/1/1.10.json", "enabled": true },
+  { "id": "1.9", "title": "Четырёхугольник в окружности (больший угол)", "parent": "1", "path": "content/tasks/1/1.9.json", "enabled": true },
+  { "id": "1.10", "title": "Четырёхугольник в окружность (угол напротив), "parent": "1", "path": "content/tasks/1/1.10.json", "enabled": true },
   { "id": "1.11", "title": "Подобные треугольники", "parent": "1", "path": "content/tasks/1/1.11.json", "enabled": true },
   { "id": "1.12", "title": "Разбиение параллелограмма", "parent": "1", "path": "content/tasks/1/1.12.json", "enabled": true },
   { "id": "1.13", "title": "Теорема синусов", "parent": "1", "path": "content/tasks/1/1.13.json", "enabled": true },
@@ -269,7 +269,7 @@
   { "id": "10.4", "title": "Совместная работа", "parent": "10", "path": "content/tasks/text/10.4/manifest.json", "enabled": true },
   { "id": "10.5", "title": "Сплавы и смеси", "parent": "10", "path": "content/tasks/text/10.5/manifest.json", "enabled": true },
   { "id": "10.6", "title": "Средняя скорость", "parent": "10", "path": "content/tasks/text/10.6/manifest.json", "enabled": true },
-  { "id": "10.7", "title": "Поезда навстречу", "parent": "10", "path": "content/tasks/text/10.7/manifest.json", "enabled": true },
+  { "id": "10.7", "title": "Скорость сближения", "parent": "10", "path": "content/tasks/text/10.7/manifest.json", "enabled": true },
 
   { "id": "11", "title": "Графики функций", "type": "group" },
 
@@ -292,12 +292,12 @@
     "hidden": true
   },
 
-  { "id": "11.1", "title": "Прямая (kx+b)", "parent": "11", "path": "content/tasks/graphs/11.1/manifest.json", "enabled": true },
-  { "id": "11.2", "title": "Парабола (ax^2+bx+c)", "parent": "11", "path": "content/tasks/graphs/11.2/manifest.json", "enabled": true },
-  { "id": "11.3", "title": "Гипербола (k/x)", "parent": "11", "path": "content/tasks/graphs/11.3/manifest.json", "enabled": true },
-  { "id": "11.4", "title": "Показательная (a^x)", "parent": "11", "path": "content/tasks/graphs/11.4/manifest.json", "enabled": true },
-  { "id": "11.5", "title": "Логарифмическая (log_a x)", "parent": "11", "path": "content/tasks/graphs/11.5/manifest.json", "enabled": true },
-  { "id": "11.6", "title": "Две прямые: точка пересечения", "parent": "11", "path": "content/tasks/graphs/11.6/manifest.json", "enabled": true },
+  { "id": "11.1", "title": "Прямая", "parent": "11", "path": "content/tasks/graphs/11.1/manifest.json", "enabled": true },
+  { "id": "11.2", "title": "Парабола", "parent": "11", "path": "content/tasks/graphs/11.2/manifest.json", "enabled": true },
+  { "id": "11.3", "title": "Гипербола", "parent": "11", "path": "content/tasks/graphs/11.3/manifest.json", "enabled": true },
+  { "id": "11.4", "title": "Показательная", "parent": "11", "path": "content/tasks/graphs/11.4/manifest.json", "enabled": true },
+  { "id": "11.5", "title": "Логарифм", "parent": "11", "path": "content/tasks/graphs/11.5/manifest.json", "enabled": true },
+  { "id": "11.6", "title": "Две прямые", "parent": "11", "path": "content/tasks/graphs/11.6/manifest.json", "enabled": true },
   { "id": "11.7", "title": "Прямая и гипербола", "parent": "11", "path": "content/tasks/graphs/11.7/manifest.json", "enabled": true },
   { "id": "11.8", "title": "Прямая и парабола", "parent": "11", "path": "content/tasks/graphs/11.8/manifest.json", "enabled": true },
   { "id": "11.9", "title": "Прямая и корень", "parent": "11", "path": "content/tasks/graphs/11.9/manifest.json", "enabled": true },
@@ -318,8 +318,8 @@
     "hidden": true
   },
 
-  { "id": "12.1", "title": "Степенные функции", "parent": "12", "path": "content/tasks/extrema/12.1/manifest.json", "enabled": true },
-  { "id": "12.2", "title": "Логарифмические функции", "parent": "12", "path": "content/tasks/extrema/12.2/manifest.json", "enabled": true },
-  { "id": "12.3", "title": "Тригонометрические функции", "parent": "12", "path": "content/tasks/extrema/12.3/manifest.json", "enabled": true },
-  { "id": "12.4", "title": "Произведение и экспонента", "parent": "12", "path": "content/tasks/extrema/12.4/manifest.json", "enabled": true }
+  { "id": "12.1", "title": "Степенная", "parent": "12", "path": "content/tasks/extrema/12.1/manifest.json", "enabled": true },
+  { "id": "12.2", "title": "Логарифм", "parent": "12", "path": "content/tasks/extrema/12.2/manifest.json", "enabled": true },
+  { "id": "12.3", "title": "Тригонометрия", "parent": "12", "path": "content/tasks/extrema/12.3/manifest.json", "enabled": true },
+  { "id": "12.4", "title": "Произведение", "parent": "12", "path": "content/tasks/extrema/12.4/manifest.json", "enabled": true }
 ]
