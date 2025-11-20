@@ -5,7 +5,7 @@
     {
       "id": "1.8.1",
       "title": "Периметр",
-      "figure": { "img": "content/tasks/1/img/1_8.jfif", "alt": "Вписанная окружность в четырёхугольник" },
+      "figure": { "img": "content/tasks/1/img/1_8.svg", "alt": "Вписанная окружность в четырёхугольник" },
       "prototypes": [
         {
           "id": "1.8.1.1",
