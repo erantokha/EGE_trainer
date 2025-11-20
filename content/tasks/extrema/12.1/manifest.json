@@ -51,7 +51,7 @@
     {
       "id": "12.1.3",
       "title": "Степенная (степень 3/2)",
-      "stem_template": "Найдите точку минимума функции\n\n\\[ \\large y = x^{3/2} - 3x + 9 \\]\n\n",
+      "stem_template": "Найдите точку минимума функции\n\n\\[ \\large y = x^{\\frac{3}{2}} - 3x + 9 \\]\n\n",
       "defaults": {
         "difficulty": 1,
         "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
