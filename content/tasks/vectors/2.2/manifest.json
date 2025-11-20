@@ -22,7 +22,7 @@
             "ay": 0,
             "bx": 1,
             "by": -5,
-            "expr": "\\\\vec{a} - 4\\\\vec{b}"
+            "expr": "\\vec{a} - 4\\vec{b}"
           },
           "answer": {
             "text": "29",
@@ -37,7 +37,7 @@
             "ay": 1,
             "bx": 0,
             "by": 7,
-            "expr": "8\\\\vec{a} + \\\\vec{b}"
+            "expr": "8\\vec{a} + \\vec{b}"
           },
           "answer": {
             "text": "17",
@@ -51,7 +51,7 @@
             "ay": 0,
             "bx": 1,
             "by": 4,
-            "expr": "\\\\vec{a} + 3\\\\vec{b}"
+            "expr": "\\vec{a} + 3\\vec{b}"
           },
           "answer": {
             "text": "13",
@@ -65,7 +65,7 @@
             "ay": 0,
             "bx": 1,
             "by": -1,
-            "expr": "\\\\vec{a} - 24\\\\vec{b}"
+            "expr": "\\vec{a} - 24\\vec{b}"
           },
           "answer": {
             "text": "25",
