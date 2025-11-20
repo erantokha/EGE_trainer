@@ -7,14 +7,23 @@
       "title": "Разность логарифмов",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.1.1.1",
           "stem": "Найдите значение выражения \\(\\log_3 162 - \\log_3 2\\).",
-          "answer": { "text": "4", "value": 4 },
+          "answer": {
+            "text": "4",
+            "value": 4
+          },
           "unic": true
         }
       ]
@@ -24,14 +33,23 @@
       "title": "Сумма логарифмов",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.2.1.1",
           "stem": "Найдите значение выражения \\(\\log_2 6{,}4 + \\log_2 10\\).",
-          "answer": { "text": "6", "value": 6 },
+          "answer": {
+            "text": "6",
+            "value": 6
+          },
           "unic": true
         }
       ]
@@ -41,15 +59,23 @@
       "title": "Корень в степени основания",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.3.1.1",
-          "stem": "Найдите значение выражения \\(6\\log_{\\sqrt{13}} 13\\)."
-
-          "answer": { "text": "12", "value": 12 },
+          "stem": "Найдите значение выражения \\(6\\log_{\\sqrt{13}} 13\\).",
+          "answer": {
+            "text": "12",
+            "value": 12
+          },
           "unic": true
         }
       ]
@@ -59,14 +85,23 @@
       "title": "Корень в степени аргумента",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.4.1.1",
-          "stem": "Найдите значение выражения \\(6\\log_7 \\sqrt[3]{7}\\)",
-          "answer": { "text": "2", "value": 2 },
+          "stem": "Найдите значение выражения \\(6\\log_7 \\sqrt[3]{7}\\).",
+          "answer": {
+            "text": "2",
+            "value": 2
+          },
           "unic": true
         }
       ]
@@ -76,14 +111,23 @@
       "title": "Дробь с логарифмами",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.5.1.1",
           "stem": "Найдите значение выражения \\(\\dfrac{\\log_6 17}{\\log_{36} 17}\\).",
-          "answer": { "text": "2", "value": 2 },
+          "answer": {
+            "text": "2",
+            "value": 2
+          },
           "unic": true
         }
       ]
@@ -93,14 +137,23 @@
       "title": "Дробь + логарифм",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.2.6.1.1",
           "stem": "Найдите значение выражения \\(\\dfrac{\\log_9 28}{\\log_9 7} + \\log_7 \\dfrac{7}{4}\\).",
-          "answer": { "text": "2", "value": 2 },
+          "answer": {
+            "text": "2",
+            "value": 2
+          },
           "unic": true
         }
       ]
