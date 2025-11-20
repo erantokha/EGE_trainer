@@ -35,7 +35,7 @@
   { "id": "1.7", "title": "Четырёхугольник (сумма, разность углов)", "parent": "1", "path": "content/tasks/1/1.7.json", "enabled": true },
   { "id": "1.8", "title": "Окружность в четырёхугольнике", "parent": "1", "path": "content/tasks/1/1.8.json", "enabled": true },
   { "id": "1.9", "title": "Четырёхугольник в окружности (больший угол)", "parent": "1", "path": "content/tasks/1/1.9.json", "enabled": true },
-  { "id": "1.10", "title": "Четырёхугольник в окружность (угол напротив), "parent": "1", "path": "content/tasks/1/1.10.json", "enabled": true },
+  { "id": "1.10", "title": "Четырёхугольник в окружность (угол напротив)", "parent": "1", "path": "content/tasks/1/1.10.json", "enabled": true },
   { "id": "1.11", "title": "Подобные треугольники", "parent": "1", "path": "content/tasks/1/1.11.json", "enabled": true },
   { "id": "1.12", "title": "Разбиение параллелограмма", "parent": "1", "path": "content/tasks/1/1.12.json", "enabled": true },
   { "id": "1.13", "title": "Теорема синусов", "parent": "1", "path": "content/tasks/1/1.13.json", "enabled": true },
