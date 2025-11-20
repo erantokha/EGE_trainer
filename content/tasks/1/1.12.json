@@ -5,7 +5,7 @@
     {
       "id": "1.12.1",
       "title": "Треугольник ABE",
-      "figure": { "img": "content/tasks/1/img/1_12.jfif", "alt": "Разбиение параллелограмма" },
+      "figure": { "img": "content/tasks/1/img/1_12.svg", "alt": "Разбиение параллелограмма" },
       "prototypes": [
         {
           "id": "1.12.1.1",
@@ -18,7 +18,7 @@
     {
       "id": "1.12.2",
       "title": "Трапеция BCDE",
-      "figure": { "img": "content/tasks/1/img/1_12.jfif", "alt": "Разбиение параллелограмма" },
+      "figure": { "img": "content/tasks/1/img/1_12.svg", "alt": "Разбиение параллелограмма" },
       "prototypes": [
         {
           "id": "1.12.2.1",
