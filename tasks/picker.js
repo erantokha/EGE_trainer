@@ -185,6 +185,7 @@ function renderSectionNode(sec) {
   uniqBtn.addEventListener('click', () => {
     const url = new URL('./unique.html', location.href);
     url.searchParams.set('section', sec.id);
+    // для unique.html можно использовать noopener, там sessionStorage не нужен
     window.open(url.toString(), '_blank', 'noopener');
   });
 
@@ -332,8 +333,16 @@ function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  const targetPage = mode === 'test' ? './trainer.html' : './list.html';
-  location.href = targetPage;
+  if (mode === 'test') {
+    // режим "Тестирование" открываем в этой же вкладке
+    const targetPage = './trainer.html';
+    location.href = targetPage;
+  } else {
+    // режим "Список задач" открываем в новой вкладке
+    // важно не указывать "noopener", чтобы новая вкладка получила копию sessionStorage
+    const url = new URL('./list.html', location.href);
+    window.open(url.toString(), '_blank');
+  }
 }
 
 // ---------- утилиты ----------
