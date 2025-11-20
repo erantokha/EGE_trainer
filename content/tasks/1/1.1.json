@@ -5,7 +5,7 @@
     {
       "id": "1.1.1",
       "title": "Высоты параллелограмма",
-      "figure": { "img": "content/tasks/1/img/1.1_1.jpg", "alt": "Высоты параллелограмма" },
+      "figure": { "img": "content/tasks/img/1.1_1.svg", "alt": "Высоты параллелограмма" },
       "prototypes": [
         {
           "id": "1.1.1.1",
@@ -18,7 +18,7 @@
     {
       "id": "1.1.2",
       "title": "Высоты треугольника",
-      "figure": { "img": "content/tasks/1/img/1.1_2.jpg", "alt": "Высоты треугольника" },
+      "figure": { "img": "content/tasks/img/1.1_2.svg", "alt": "Высоты треугольника" },
       "prototypes": [
         {
           "id": "1.1.2.1",
