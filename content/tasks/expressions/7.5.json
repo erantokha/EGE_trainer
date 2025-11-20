@@ -7,14 +7,23 @@
       "title": "Произведение разности корней и корня",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
-      "answer_spec": { "type": "string", "format": "ege_decimal" },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
       "prototypes": [
         {
           "id": "7.5.1.1.1",
-          "stem": "Найдите значение выражения (√96 − √24)·√6.",
-          "answer": { "text": "12", "value": 12 },
+          "stem": "Найдите значение выражения \\( (\\sqrt{96} - \\sqrt{24})\\cdot\\sqrt{6} \\).",
+          "answer": {
+            "text": "12",
+            "value": 12
+          },
           "unic": true
         }
       ]
