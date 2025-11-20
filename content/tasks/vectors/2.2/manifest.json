@@ -90,7 +90,7 @@
         {
           "id": "2.2.2.1",
           "figure": {
-            "img": "content/tasks/vectors/2.2/2.2.2_1.png",
+            "img": "content/tasks/vectors/2.2/2.2.2_1.svg",
             "alt": "Длина вектора a + 4b (вариант 1)"
           },
           "answer": {
