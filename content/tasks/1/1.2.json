@@ -5,7 +5,7 @@
     {
       "id": "1.2.1",
       "title": "ADB",
-      "figure": { "img": "content/tasks/1/img/1_2.jpg", "alt": "Биссектриса в треугольнике" },
+      "figure": { "img": "content/tasks/1/img/1_2.svg", "alt": "Биссектриса в треугольнике" },
       "prototypes": [
         {
           "id": "1.2.1.1",
