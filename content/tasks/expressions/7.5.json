@@ -19,7 +19,7 @@
       "prototypes": [
         {
           "id": "7.5.1.1.1",
-          "stem": "Найдите значение выражения \\( (\\sqrt{96} - \\sqrt{24})\\cdot\\sqrt{6} \\).",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large (\\sqrt{96} - \\sqrt{24})\\cdot\\sqrt{6} \\]\n\n",
           "answer": {
             "text": "12",
             "value": 12
