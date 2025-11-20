@@ -66,7 +66,7 @@
         {
           "id": "2.1.3.1",
           "figure": {
-            "img": "content/tasks/vectors/2.1/2.1.3_1.png",
+            "img": "content/tasks/vectors/2.1/2.1.3_1.svg",
             "alt": "Скалярное произведение векторов a и b (вариант 1)"
           },
           "answer": {
@@ -78,7 +78,7 @@
         {
           "id": "2.1.3.2",
           "figure": {
-            "img": "content/tasks/vectors/2.1/2.1.3_2.png",
+            "img": "content/tasks/vectors/2.1/2.1.3_2.svg",
             "alt": "Скалярное произведение векторов a и b (вариант 2)"
           },
           "answer": {
@@ -90,7 +90,7 @@
         {
           "id": "2.1.3.3",
           "figure": {
-            "img": "content/tasks/vectors/2.1/2.1.3_3.png",
+            "img": "content/tasks/vectors/2.1/2.1.3_3.svg",
             "alt": "Скалярное произведение векторов a и b (вариант 3)"
           },
           "answer": {
@@ -101,7 +101,7 @@
         {
           "id": "2.1.3.4",
           "figure": {
-            "img": "content/tasks/vectors/2.1/2.1.3_4.png",
+            "img": "content/tasks/vectors/2.1/2.1.3_4.svg",
             "alt": "Скалярное произведение векторов a и b (вариант 4)"
           },
           "answer": {
