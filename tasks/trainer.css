@@ -189,7 +189,7 @@ a:hover{text-decoration:underline}
   box-shadow:0 0 0 1px rgba(59,130,246,.6);
 }
 
-/* тумблер темы */
+/* тумблер темы (стили оставляем, но сам переключатель скроем ниже) */
 .theme-toggle{
   display:inline-flex;
   align-items:center;
@@ -241,6 +241,11 @@ body[data-theme="dark"] .theme-toggle-icon-light{
 html[data-theme="dark"] .theme-toggle-icon-dark,
 body[data-theme="dark"] .theme-toggle-icon-dark{
   opacity:1;
+}
+
+/* временно скрываем тумблер темы на всех страницах */
+.theme-toggle{
+  display:none !important;
 }
 
 /* аккордеон (страница выбора задач и уникальные прототипы) */
@@ -361,7 +366,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   height:auto;
   object-fit:contain;
   border:1px solid var(--border);
-  border-radius:10px;
+  border-radius:0;              /* убрали скругления: чистый прямоугольник */
   /* белый фон под картинкой, чтобы SVG не терялся в тёмной теме */
   background:#ffffff;
 }
@@ -509,7 +514,7 @@ body[data-theme="light"] .task-card{
   max-height:260px;
   object-fit:contain;
   border:1px solid var(--border);
-  border-radius:8px;
+  border-radius:0;              /* убрали скругления: чистый прямоугольник */
   /* белый фон под картинкой по умолчанию (в тёмной теме особенно важно) */
   background:#ffffff;
 }
