@@ -180,7 +180,7 @@ a:hover{text-decoration:underline}
   font-weight:500;
   box-shadow:none;
 }
-.mode-toggle .mode-btn:hover:not(.active){
+.mode-toggle .mode-btn:hover:not(.active)){
   background:rgba(148,163,184,.12);
 }
 .mode-toggle .mode-btn.active{
@@ -274,6 +274,12 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   cursor:pointer;
 }
 
+/* заголовки разделов на главной странице — чуть крупнее и полужирные */
+#accordion .section-title{
+  font-size:15px;
+  font-weight:600;
+}
+
 /* заголовки тем на странице уникальных прототипов делаем жирными */
 #uniqAccordion .section-title{
   font-weight:600;
@@ -290,9 +296,9 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 
 .node .spacer{flex:1}
 
-/* темы */
+/* темы (подразделы) — убираем жирный шрифт */
 .node.topic .title{
-  font-weight:500;
+  font-weight:400;
 }
 
 /* дети */
@@ -347,7 +353,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 /* обёртка вопроса в режиме тестирования */
 .qwrap{
   display:flex;
-  gap:16px;
+  gap:15px; /* отступ между текстом условия и картинкой */
 }
 .qtext{
   flex:2;
@@ -502,10 +508,10 @@ body[data-theme="light"] .task-card{
   cursor:pointer;
 }
 
-/* картинка */
+/* картинка в карточке (лист задач, уникальные, тест) */
 .ws-fig,
 .task-fig{
-  margin:6px 0;
+  margin:15px 0 6px; /* 15px сверху между условием и картинкой */
 }
 
 .ws-fig img,
