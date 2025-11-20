@@ -1,17 +1,17 @@
 :root{
-  /* базовые значения (по умолчанию тёмная тема) */
-  --bg:#0e1117;
-  --panel:#111827;
-  --panel-2:#0f1623;
-  --border:#232635;
-  --text:#e6e6e6;
-  --text-dim:#aeb3c2;
-  --accent:#3b82f6;
-  --accent-2:#2563eb;
-  --success:#10b981;
-  --danger:#ef4444;
-  --muted:#1b1d24;
-  --shadow:0 8px 24px rgba(0,0,0,.25);
+  /* базовые значения (по умолчанию теперь СВЕТЛАЯ тема) */
+  --bg:#ffffff;
+  --panel:#ffffff;
+  --panel-2:#e5e7eb;
+  --border:#d1d5db;
+  --text:#111827;
+  --text-dim:#6b7280;
+  --accent:#2563eb;
+  --accent-2:#1d4ed8;
+  --success:#059669;
+  --danger:#dc2626;
+  --muted:#ffffff;
+  --shadow:0 8px 20px rgba(15,23,42,.12);
   --radius:12px;
   --figure-h:300px;
 }
@@ -33,7 +33,7 @@ body[data-theme="dark"]{
   --shadow:0 8px 24px rgba(0,0,0,.25);
 }
 
-/* светлая тема */
+/* светлая тема (если атрибут всё же выставлен явно) */
 html[data-theme="light"],
 body[data-theme="light"]{
   --bg:#ffffff;
