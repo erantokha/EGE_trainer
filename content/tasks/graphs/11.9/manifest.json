@@ -11,7 +11,7 @@
       "prototypes": [
         {
           "id": "11.9.1.1",
-          "figure": { "img": "content/tasks/graphs/11.9/11.9_1.jfif", "alt": "11.9_1" },
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_1.svg", "alt": "11.9_1" },
           "answer": { "value": 100 },
           "unic": true
         }
