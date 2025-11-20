@@ -12,7 +12,7 @@
       "prototypes": [
         {
           "id": "11.1.1.1",
-          "figure": { "img": "content/tasks/graphs/11.1/11.1_1.jfif", "alt": "11.1_1" },
+          "figure": { "img": "content/tasks/graphs/11.1/11.1_1.svg", "alt": "11.1_1" },
           "answer": { "value": 13 },
           "unic": true
         }
