@@ -5,7 +5,7 @@
     {
       "id": "1.3.1",
       "title": "Cos",
-      "figure": { "img": "content/tasks/1/img/1_3.jfif", "alt": "Прямоугольный треугольник (общая картинка)" },
+      "figure": { "img": "content/tasks/1/img/1_3.svg", "alt": "Прямоугольный треугольник (общая картинка)" },
       "answer_spec": { "type": "string", "format": "ege_decimal" },
       "prototypes": [
         {
@@ -19,7 +19,7 @@
     {
       "id": "1.3.2",
       "title": "Sin",
-      "figure": { "img": "content/tasks/1/img/1_3.jfif", "alt": "Прямоугольный треугольник (общая картинка)" },
+      "figure": { "img": "content/tasks/1/img/1_3.svg", "alt": "Прямоугольный треугольник (общая картинка)" },
       "answer_spec": { "type": "string", "format": "ege_decimal" },
       "prototypes": [
         {
