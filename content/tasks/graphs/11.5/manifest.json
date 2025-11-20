@@ -1,6 +1,6 @@
 {
   "topic": "11.5",
-  "title": "Логарифм (log_a x)",
+  "title": "Логарифм",
   "types": [
     {
       "id": "11.5.1",
@@ -11,7 +11,7 @@
       "prototypes": [
         {
           "id": "11.5.1.1",
-          "figure": { "img": "content/tasks/graphs/11.5/11.5_1.jfif", "alt": "11.5_1" },
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_1.svg", "alt": "11.5_1" },
           "answer": { "value": -3 },
           "unic": true
         }
