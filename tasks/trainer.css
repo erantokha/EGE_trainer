@@ -272,6 +272,10 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   padding:0;
   color:var(--text);
   cursor:pointer;
+  text-align:left;
+  flex:1 1 auto;       /* текст занимает всё доступное место и переносится */
+  min-width:0;         /* даёт браузеру ужать элемент и переносить строки */
+  white-space:normal;
 }
 
 /* заголовки разделов на главной странице — чуть крупнее и полужирные */
@@ -358,6 +362,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 .qtext{
   flex:2;
   white-space:pre-wrap;
+  overflow-wrap:anywhere; /* чтобы длинные куски не вылезали за панель */
 }
 .qfig{
   flex:1;
@@ -452,6 +457,22 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   .qwrap{flex-direction:column}
   .qfig{min-height:auto}
   input[type="number"]{width:56px}
+
+  /* аккордеон на узких экранах:
+     переносим элементы, не даём тексту вылезать за край */
+  .node .row{
+    flex-wrap:wrap;
+  }
+  .node.section .section-title{
+    margin-left:0;
+  }
+  .node .row .countbox{
+    margin-right:12px;
+  }
+  .unique-btn{
+    margin-left:0;
+    margin-top:6px;
+  }
 }
 
 /* ------- общие карточки задач (лист + уникальные + тест) ------- */
@@ -500,6 +521,7 @@ body[data-theme="light"] .task-card{
 .ws-stem,
 .task-stem{
   margin-top:2px;
+  overflow-wrap:anywhere; /* защита от «выстреливающих» формул и длинных слов */
 }
 
 /* ответ */
@@ -554,6 +576,12 @@ body[data-theme="light"] .task-fig{
 /* фикс для SVG-рендера MathJax, чтобы корень не обрезался */
 mjx-container[jax="SVG"] > svg{
   overflow:visible;
+}
+
+/* общие ограничения для формул, чтобы не вылезали за панель */
+mjx-container{
+  max-width:100%;
+  overflow-x:auto;
 }
 
 /* фокус */
