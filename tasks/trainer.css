@@ -180,7 +180,7 @@ a:hover{text-decoration:underline}
   font-weight:500;
   box-shadow:none;
 }
-.mode-toggle .mode-btn:hover:not(.active)){
+.mode-toggle .mode-btn:hover:not(.active){
   background:rgba(148,163,184,.12);
 }
 .mode-toggle .mode-btn.active{
@@ -364,17 +364,22 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   display:flex;
   justify-content:flex-start;
   min-height:var(--figure-h);
+  /* белый фон чуть больше картинки за счёт паддинга */
+  padding:4px;
+  background:#ffffff;
+  border:1px solid var(--border);
+  border-radius:0;
 }
 .qfig img{
-  max-height:var(--figure-h);
+  max-height:calc(var(--figure-h) - 8px); /* учитываем суммарный вертикальный padding 4+4 */
   max-width:100%;
   width:auto;
   height:auto;
   object-fit:contain;
-  border:1px solid var(--border);
-  border-radius:0;              /* убрали скругления: чистый прямоугольник */
-  /* белый фон под картинкой, чтобы SVG не терялся в тёмной теме */
-  background:#ffffff;
+  /* фон и рамка теперь у контейнера, а не у самой картинки */
+  border:none;
+  border-radius:0;
+  background:transparent;
 }
 
 /* ответ */
@@ -512,6 +517,11 @@ body[data-theme="light"] .task-card{
 .ws-fig,
 .task-fig{
   margin:15px 0 6px; /* 15px сверху между условием и картинкой */
+  /* белый фон-чуть больше картинки за счёт паддинга */
+  padding:4px;
+  background:#ffffff;
+  border:1px solid var(--border);
+  border-radius:0;
 }
 
 .ws-fig img,
@@ -519,19 +529,21 @@ body[data-theme="light"] .task-card{
   max-width:100%;
   max-height:260px;
   object-fit:contain;
-  border:1px solid var(--border);
-  border-radius:0;              /* убрали скругления: чистый прямоугольник */
-  /* белый фон под картинкой по умолчанию (в тёмной теме особенно важно) */
-  background:#ffffff;
+  display:block;
+  border:none;
+  border-radius:0;
+  background:transparent;
 }
 
-/* в светлой теме убираем рамку и фон у картинок в карточках */
-html[data-theme="light"] .ws-fig img,
-body[data-theme="light"] .ws-fig img,
-html[data-theme="light"] .task-fig img,
-body[data-theme="light"] .task-fig img{
+/* в светлой теме делаем фон/рамку вокруг картинок более лёгкими:
+   убираем подложку, чтобы не перегружать карточку */
+html[data-theme="light"] .ws-fig,
+body[data-theme="light"] .ws-fig,
+html[data-theme="light"] .task-fig,
+body[data-theme="light"] .task-fig{
   border:none;
   background:transparent;
+  padding:0;
 }
 
 /* одиночная карточка вопроса в режиме тестирования */
