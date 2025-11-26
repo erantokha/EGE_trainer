@@ -252,7 +252,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 .accordion{margin-top:12px}
 .node{
   border-bottom:1px solid var(--border);
-  padding:10px 0;
+  padding:13px 0;
 }
 .node:last-child{border-bottom:none}
 
