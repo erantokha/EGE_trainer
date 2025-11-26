@@ -251,8 +251,9 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 /* аккордеон (страница выбора задач и уникальные прототипы) */
 .accordion{margin-top:12px}
 .node{
-  border-bottom:1px solid var(--border);
-  padding:13px 0;
+  /* убрали разделительные линии и слегка увеличили вертикальный отступ */
+  border-bottom:none;
+  padding:16px 0;
 }
 .node:last-child{border-bottom:none}
 
@@ -476,11 +477,12 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   }
 }
 
-/* компактный режим строк аккордеона на десктопе */
+/* компактный режим строк аккордеона на десктопе (но без линий) */
 @media (min-width:900px){
-  /* меньше вертикальных отступов между строками */
+  /* немного меньше вертикальных отступов, чем на мобиле,
+     но всё ещё комфортно кликается */
   .accordion .node{
-    padding:4px 0;
+    padding:12px 0;
   }
 
   /* компактнее кнопки - и + */
