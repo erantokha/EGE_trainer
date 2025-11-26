@@ -431,7 +431,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 }
 #summary .stats>div{
   background:var(--panel-2);
-  border:1px солид var(--border);
+  border:1px solid var(--border);
   padding:10px;
   border-radius:10px;
 }
@@ -453,13 +453,14 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   padding-bottom:40px;
 }
 
+/* мобильная версия */
 @media (max-width:640px){
   .qwrap{flex-direction:column}
   .qfig{min-height:auto}
   input[type="number"]{width:56px}
 
   /* аккордеон на узких экранах:
-     текст раздела остаётся в одной строке с счётчиком,
+     текст раздела остаётся в одной строке со счётчиком,
      но может переноситься внутри себя на 2+ строки */
   .node .row{
     align-items:flex-start;   /* верхняя граница текста и счётчика на одном уровне */
@@ -472,6 +473,41 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   }
   .unique-btn{
     margin-left:8px;
+  }
+}
+
+/* компактный режим строк аккордеона на десктопе */
+@media (min-width:900px){
+  /* меньше вертикальных отступов между строками */
+  .accordion .node{
+    padding:4px 0;
+  }
+
+  /* компактнее кнопки - и + */
+  .accordion .countbox .btn{
+    width:24px;
+    height:24px;
+    padding:0;
+    border-radius:6px;
+  }
+
+  /* компактнее поле количества */
+  .accordion .countbox input[type="number"],
+  .accordion .countbox .count{
+    padding:4px 6px;
+    height:24px;
+    font-size:13px;
+  }
+
+  /* заголовок раздела чуть мельче и плотнее по строке */
+  #accordion .section-title{
+    font-size:14px;
+    line-height:1.2;
+  }
+
+  /* меньше зазор между счётчиком и заголовком */
+  .accordion .node .row .countbox{
+    margin-right:12px;
   }
 }
 
