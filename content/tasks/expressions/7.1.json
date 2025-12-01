@@ -261,6 +261,106 @@
           "unic": true
         },
         {
+          "id": "7.1.2.1.2",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 2\\sqrt{3}\\cos^{2}\\left(\\frac{11\\pi}{12}\\right) - \\sqrt{3} \\]\n\n",
+          "answer": { "text": "1,5", "value": 1.5 }
+        },
+        {
+          "id": "7.1.2.1.3",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\sqrt{3}\\cos^{2}\\left(\\frac{\\pi}{12}\\right) - 2\\sqrt{3} \\]\n\n",
+          "answer": { "text": "3", "value": 3 }
+        },
+        {
+          "id": "7.1.2.1.4",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\sqrt{3}\\cos^{2}\\left(\\frac{13\\pi}{12}\\right) - 3\\sqrt{3} \\]\n\n",
+          "answer": { "text": "4,5", "value": 4.5 }
+        },
+        {
+          "id": "7.1.2.1.5",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\sqrt{3}\\cos^{2}\\left(\\frac{23\\pi}{12}\\right) - 4\\sqrt{3} \\]\n\n",
+          "answer": { "text": "6", "value": 6 }
+        },
+        {
+          "id": "7.1.2.1.6",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\sqrt{3}\\cos^{2}\\left(\\frac{11\\pi}{12}\\right) - 5\\sqrt{3} \\]\n\n",
+          "answer": { "text": "7,5", "value": 7.5 }
+        },
+        {
+          "id": "7.1.2.1.7",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 12\\sqrt{3}\\cos^{2}\\left(\\frac{\\pi}{12}\\right) - 6\\sqrt{3} \\]\n\n",
+          "answer": { "text": "9", "value": 9 }
+        },
+        {
+          "id": "7.1.2.1.8",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 14\\sqrt{3}\\cos^{2}\\left(\\frac{13\\pi}{12}\\right) - 7\\sqrt{3} \\]\n\n",
+          "answer": { "text": "10,5", "value": 10.5 }
+        },
+        {
+          "id": "7.1.2.1.9",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 16\\sqrt{3}\\cos^{2}\\left(\\frac{23\\pi}{12}\\right) - 8\\sqrt{3} \\]\n\n",
+          "answer": { "text": "12", "value": 12 }
+        },
+        {
+          "id": "7.1.2.1.10",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 18\\sqrt{3}\\cos^{2}\\left(\\frac{11\\pi}{12}\\right) - 9\\sqrt{3} \\]\n\n",
+          "answer": { "text": "13,5", "value": 13.5 }
+        },
+        {
+          "id": "7.1.2.1.11",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 20\\sqrt{3}\\cos^{2}\\left(\\frac{\\pi}{12}\\right) - 10\\sqrt{3} \\]\n\n",
+          "answer": { "text": "15", "value": 15 }
+        },
+        {
+          "id": "7.1.2.1.12",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 2\\sqrt{3}\\cos^{2}\\left(\\frac{5\\pi}{12}\\right) - \\sqrt{3} \\]\n\n",
+          "answer": { "text": "-1,5", "value": -1.5 }
+        },
+        {
+          "id": "7.1.2.1.13",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\sqrt{3}\\cos^{2}\\left(\\frac{7\\pi}{12}\\right) - 2\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-3", "value": -3 }
+        },
+        {
+          "id": "7.1.2.1.14",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\sqrt{3}\\cos^{2}\\left(\\frac{17\\pi}{12}\\right) - 3\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-4,5", "value": -4.5 }
+        },
+        {
+          "id": "7.1.2.1.15",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\sqrt{3}\\cos^{2}\\left(\\frac{19\\pi}{12}\\right) - 4\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-6", "value": -6 }
+        },
+        {
+          "id": "7.1.2.1.16",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\sqrt{3}\\cos^{2}\\left(\\frac{5\\pi}{12}\\right) - 5\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-7,5", "value": -7.5 }
+        },
+        {
+          "id": "7.1.2.1.17",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 12\\sqrt{3}\\cos^{2}\\left(\\frac{7\\pi}{12}\\right) - 6\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-9", "value": -9 }
+        },
+        {
+          "id": "7.1.2.1.18",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 14\\sqrt{3}\\cos^{2}\\left(\\frac{17\\pi}{12}\\right) - 7\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-10,5", "value": -10.5 }
+        },
+        {
+          "id": "7.1.2.1.19",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 16\\sqrt{3}\\cos^{2}\\left(\\frac{19\\pi}{12}\\right) - 8\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-12", "value": -12 }
+        },
+        {
+          "id": "7.1.2.1.20",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 18\\sqrt{3}\\cos^{2}\\left(\\frac{5\\pi}{12}\\right) - 9\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-13,5", "value": -13.5 }
+        },
+        {
+          "id": "7.1.2.1.21",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 20\\sqrt{3}\\cos^{2}\\left(\\frac{7\\pi}{12}\\right) - 10\\sqrt{3} \\]\n\n",
+          "answer": { "text": "-15", "value": -15 }
+        },
+        {
           "id": "7.1.2.2.1",
           "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\sqrt{2} - 8\\sqrt{2}\\sin^{2}\\left(\\frac{7\\pi}{8}\\right) \\]\n\n",
           "answer": { "text": "4", "value": 4 },
