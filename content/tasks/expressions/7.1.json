@@ -577,6 +577,106 @@
           "stem": "Найдите значение выражения\n\n\\[ \\Large 5\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
           "answer": { "text": "2,5", "value": 2.5 },
           "unic": true
+        },
+        {
+          "id": "7.1.2.4.2",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "0,5", "value": 0.5 }
+        },
+        {
+          "id": "7.1.2.4.3",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 2\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "1", "value": 1 }
+        },
+        {
+          "id": "7.1.2.4.4",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 3\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "1,5", "value": 1.5 }
+        },
+        {
+          "id": "7.1.2.4.5",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "2", "value": 2 }
+        },
+        {
+          "id": "7.1.2.4.6",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "3", "value": 3 }
+        },
+        {
+          "id": "7.1.2.4.7",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 7\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "3,5", "value": 3.5 }
+        },
+        {
+          "id": "7.1.2.4.8",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "4", "value": 4 }
+        },
+        {
+          "id": "7.1.2.4.9",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 9\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "4,5", "value": 4.5 }
+        },
+        {
+          "id": "7.1.2.4.10",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "5", "value": 5 }
+        },
+        {
+          "id": "7.1.2.4.11",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 11\\sqrt{2}\\sin\\left(\\frac{3\\pi}{8}\\right)\\cos\\left(\\frac{3\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "5,5", "value": 5.5 }
+        },
+        {
+          "id": "7.1.2.4.12",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-0,5", "value": -0.5 }
+        },
+        {
+          "id": "7.1.2.4.13",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 2\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-1", "value": -1 }
+        },
+        {
+          "id": "7.1.2.4.14",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 3\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-1,5", "value": -1.5 }
+        },
+        {
+          "id": "7.1.2.4.15",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-2", "value": -2 }
+        },
+        {
+          "id": "7.1.2.4.16",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 5\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-2,5", "value": -2.5 }
+        },
+        {
+          "id": "7.1.2.4.17",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-3", "value": -3 }
+        },
+        {
+          "id": "7.1.2.4.18",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 7\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-3,5", "value": -3.5 }
+        },
+        {
+          "id": "7.1.2.4.19",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-4", "value": -4 }
+        },
+        {
+          "id": "7.1.2.4.20",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 9\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-4,5", "value": -4.5 }
+        },
+        {
+          "id": "7.1.2.4.21",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\sqrt{2}\\sin\\left(\\frac{5\\pi}{8}\\right)\\cos\\left(\\frac{5\\pi}{8}\\right) \\]\n\n",
+          "answer": { "text": "-5", "value": -5 }
         }
       ]
     },
