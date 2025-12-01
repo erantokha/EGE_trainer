@@ -142,6 +142,106 @@
           "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{8\\sin 64^{\\circ}\\cos 64^{\\circ}}{\\sin 128^{\\circ}} \\]\n\n",
           "answer": { "text": "4", "value": 4 },
           "unic": true
+        },
+        {
+          "id": "7.1.1.2.2",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 16^{\\circ}\\cos 16^{\\circ}}{\\sin 32^{\\circ}} \\]\n\n",
+          "answer": { "text": "1", "value": 1 }
+        },
+        {
+          "id": "7.1.1.2.3",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{4\\sin 18^{\\circ}\\cos 18^{\\circ}}{\\sin 36^{\\circ}} \\]\n\n",
+          "answer": { "text": "2", "value": 2 }
+        },
+        {
+          "id": "7.1.1.2.4",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{6\\sin 22^{\\circ}\\cos 22^{\\circ}}{\\sin 44^{\\circ}} \\]\n\n",
+          "answer": { "text": "3", "value": 3 }
+        },
+        {
+          "id": "7.1.1.2.5",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{8\\sin 24^{\\circ}\\cos 24^{\\circ}}{\\sin 48^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 }
+        },
+        {
+          "id": "7.1.1.2.6",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{10\\sin 26^{\\circ}\\cos 26^{\\circ}}{\\sin 52^{\\circ}} \\]\n\n",
+          "answer": { "text": "5", "value": 5 }
+        },
+        {
+          "id": "7.1.1.2.7",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{12\\sin 28^{\\circ}\\cos 28^{\\circ}}{\\sin 56^{\\circ}} \\]\n\n",
+          "answer": { "text": "6", "value": 6 }
+        },
+        {
+          "id": "7.1.1.2.8",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{14\\sin 32^{\\circ}\\cos 32^{\\circ}}{\\sin 64^{\\circ}} \\]\n\n",
+          "answer": { "text": "7", "value": 7 }
+        },
+        {
+          "id": "7.1.1.2.9",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{16\\sin 34^{\\circ}\\cos 34^{\\circ}}{\\sin 68^{\\circ}} \\]\n\n",
+          "answer": { "text": "8", "value": 8 }
+        },
+        {
+          "id": "7.1.1.2.10",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{18\\sin 36^{\\circ}\\cos 36^{\\circ}}{\\sin 72^{\\circ}} \\]\n\n",
+          "answer": { "text": "9", "value": 9 }
+        },
+        {
+          "id": "7.1.1.2.11",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{20\\sin 38^{\\circ}\\cos 38^{\\circ}}{\\sin 76^{\\circ}} \\]\n\n",
+          "answer": { "text": "10", "value": 10 }
+        },
+        {
+          "id": "7.1.1.2.12",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{22\\sin 42^{\\circ}\\cos 42^{\\circ}}{\\sin 84^{\\circ}} \\]\n\n",
+          "answer": { "text": "11", "value": 11 }
+        },
+        {
+          "id": "7.1.1.2.13",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{24\\sin 44^{\\circ}\\cos 44^{\\circ}}{\\sin 88^{\\circ}} \\]\n\n",
+          "answer": { "text": "12", "value": 12 }
+        },
+        {
+          "id": "7.1.1.2.14",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{26\\sin 46^{\\circ}\\cos 46^{\\circ}}{\\sin 92^{\\circ}} \\]\n\n",
+          "answer": { "text": "13", "value": 13 }
+        },
+        {
+          "id": "7.1.1.2.15",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{28\\sin 48^{\\circ}\\cos 48^{\\circ}}{\\sin 96^{\\circ}} \\]\n\n",
+          "answer": { "text": "14", "value": 14 }
+        },
+        {
+          "id": "7.1.1.2.16",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{30\\sin 52^{\\circ}\\cos 52^{\\circ}}{\\sin 104^{\\circ}} \\]\n\n",
+          "answer": { "text": "15", "value": 15 }
+        },
+        {
+          "id": "7.1.1.2.17",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{32\\sin 54^{\\circ}\\cos 54^{\\circ}}{\\sin 108^{\\circ}} \\]\n\n",
+          "answer": { "text": "16", "value": 16 }
+        },
+        {
+          "id": "7.1.1.2.18",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{34\\sin 56^{\\circ}\\cos 56^{\\circ}}{\\sin 112^{\\circ}} \\]\n\n",
+          "answer": { "text": "17", "value": 17 }
+        },
+        {
+          "id": "7.1.1.2.19",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{36\\sin 62^{\\circ}\\cos 62^{\\circ}}{\\sin 124^{\\circ}} \\]\n\n",
+          "answer": { "text": "18", "value": 18 }
+        },
+        {
+          "id": "7.1.1.2.20",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{38\\sin 64^{\\circ}\\cos 64^{\\circ}}{\\sin 128^{\\circ}} \\]\n\n",
+          "answer": { "text": "19", "value": 19 }
+        },
+        {
+          "id": "7.1.1.2.21",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{40\\sin 68^{\\circ}\\cos 68^{\\circ}}{\\sin 136^{\\circ}} \\]\n\n",
+          "answer": { "text": "20", "value": 20 }
         }
       ]
     },
