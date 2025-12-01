@@ -1050,189 +1050,106 @@
         }
       ]
     },
-    {
-      "id": "7.1.3",
-      "title": "ОТТ (основные тригонометрические тождества)",
-      "defaults": {
-        "difficulty": 1,
-        "normalize": [
-          "strip_spaces",
-          "unicode_minus_to_ascii"
-        ]
-      },
-      "answer_spec": {
-        "type": "string",
-        "format": "ege_decimal"
-      },
-      "prototypes": [
-        {
-          "id": "7.1.3.1.1",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}8 \\).",
-          "answer": {
-            "text": "-1,68",
-            "value": -1.68
-          },
-          "unic": true
-        },
         {
           "id": "7.1.3.1.2",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0 \\).",
-          "answer": {
-            "text": "6",
-            "value": 6
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 5\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}1 \\).",
+          "answer": { "text": "4,9", "value": 4.9 }
         },
         {
           "id": "7.1.3.1.3",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}05 \\).",
-          "answer": {
-            "text": "5,97",
-            "value": 5.97
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}2 \\).",
+          "answer": { "text": "3,68", "value": 3.68 }
         },
         {
           "id": "7.1.3.1.4",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}1 \\).",
-          "answer": {
-            "text": "5,88",
-            "value": 5.88
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 7\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}3 \\).",
+          "answer": { "text": "5,74", "value": 5.74 }
         },
         {
           "id": "7.1.3.1.5",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}15 \\).",
-          "answer": {
-            "text": "5,73",
-            "value": 5.73
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}4 \\).",
+          "answer": { "text": "5,44", "value": 5.44 }
         },
         {
           "id": "7.1.3.1.6",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}2 \\).",
-          "answer": {
-            "text": "5,52",
-            "value": 5.52
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 9\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}5 \\).",
+          "answer": { "text": "4,5", "value": 4.5 }
         },
         {
           "id": "7.1.3.1.7",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}25 \\).",
-          "answer": {
-            "text": "5,25",
-            "value": 5.25
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}6 \\).",
+          "answer": { "text": "2,8", "value": 2.8 }
         },
         {
           "id": "7.1.3.1.8",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}3 \\).",
-          "answer": {
-            "text": "4,92",
-            "value": 4.92
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}7 \\).",
+          "answer": { "text": "0,12", "value": 0.12 }
         },
         {
           "id": "7.1.3.1.9",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}35 \\).",
-          "answer": {
-            "text": "4,53",
-            "value": 4.53
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 12\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}9 \\).",
+          "answer": { "text": "-7,44", "value": -7.44 }
         },
         {
           "id": "7.1.3.1.10",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}4 \\).",
-          "answer": {
-            "text": "4,08",
-            "value": 4.08
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}25 \\).",
+          "answer": { "text": "7", "value": 7 }
         },
         {
           "id": "7.1.3.1.11",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}45 \\).",
-          "answer": {
-            "text": "3,57",
-            "value": 3.57
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 18\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}75 \\).",
+          "answer": { "text": "-2,25", "value": -2.25 }
         },
         {
           "id": "7.1.3.1.12",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}5 \\).",
-          "answer": {
-            "text": "3",
-            "value": 3
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 5\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}2 \\).",
+          "answer": { "text": "4,6", "value": 4.6 }
         },
         {
           "id": "7.1.3.1.13",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}55 \\).",
-          "answer": {
-            "text": "2,37",
-            "value": 2.37
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 4\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}3 \\).",
+          "answer": { "text": "3,28", "value": 3.28 }
         },
         {
           "id": "7.1.3.1.14",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}6 \\).",
-          "answer": {
-            "text": "1,68",
-            "value": 1.68
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 7\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}4 \\).",
+          "answer": { "text": "4,76", "value": 4.76 }
         },
         {
           "id": "7.1.3.1.15",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}65 \\).",
-          "answer": {
-            "text": "0,93",
-            "value": 0.93
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 8\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}5 \\).",
+          "answer": { "text": "4", "value": 4 }
         },
         {
           "id": "7.1.3.1.16",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}7 \\).",
-          "answer": {
-            "text": "0,12",
-            "value": 0.12
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 9\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}6 \\).",
+          "answer": { "text": "2,52", "value": 2.52 }
         },
         {
           "id": "7.1.3.1.17",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}75 \\).",
-          "answer": {
-            "text": "-0,75",
-            "value": -0.75
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 10\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}7 \\).",
+          "answer": { "text": "0,2", "value": 0.2 }
         },
         {
           "id": "7.1.3.1.18",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}85 \\).",
-          "answer": {
-            "text": "-2,67",
-            "value": -2.67
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}9 \\).",
+          "answer": { "text": "-3,72", "value": -3.72 }
         },
         {
           "id": "7.1.3.1.19",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}9 \\).",
-          "answer": {
-            "text": "-3,72",
-            "value": -3.72
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 12\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}25 \\).",
+          "answer": { "text": "10,5", "value": 10.5 }
         },
         {
           "id": "7.1.3.1.20",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}95 \\).",
-          "answer": {
-            "text": "-4,83",
-            "value": -4.83
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 16\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 0{,}75 \\).",
+          "answer": { "text": "-2", "value": -2 }
         },
         {
           "id": "7.1.3.1.21",
-          "stem": "Найдите значение выражения\n\n\\[ \\Large 6\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = 1 \\).",
-          "answer": {
-            "text": "-6",
-            "value": -6
-          }
+          "stem": "Найдите значение выражения\n\n\\[ \\Large 18\\cos 2\\alpha \\]\n\nесли \\( \\sin \\alpha = -0{,}1 \\).",
+          "answer": { "text": "17,64", "value": 17.64 }
+        }
         },
         {
           "id": "7.1.3.2.1",
