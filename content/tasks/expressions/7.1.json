@@ -18,6 +18,126 @@
           "unic": true
         },
         {
+          "id": "7.1.1.1.2",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 164^{\\circ}}{\\sin 82^{\\circ}\\cdot\\sin 8^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.3",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 160^{\\circ}}{\\sin 80^{\\circ}\\cdot\\sin 10^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.4",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 156^{\\circ}}{\\sin 78^{\\circ}\\cdot\\sin 12^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.5",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 152^{\\circ}}{\\sin 76^{\\circ}\\cdot\\sin 14^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.6",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 148^{\\circ}}{\\sin 74^{\\circ}\\cdot\\sin 16^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.7",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 144^{\\circ}}{\\sin 72^{\\circ}\\cdot\\sin 18^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.8",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 140^{\\circ}}{\\sin 70^{\\circ}\\cdot\\sin 20^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.9",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 132^{\\circ}}{\\sin 66^{\\circ}\\cdot\\sin 24^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.10",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 128^{\\circ}}{\\sin 64^{\\circ}\\cdot\\sin 26^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.11",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 124^{\\circ}}{\\sin 62^{\\circ}\\cdot\\sin 28^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.12",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 120^{\\circ}}{\\sin 60^{\\circ}\\cdot\\sin 30^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.13",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 116^{\\circ}}{\\sin 58^{\\circ}\\cdot\\sin 32^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.14",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 112^{\\circ}}{\\sin 56^{\\circ}\\cdot\\sin 34^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.15",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 108^{\\circ}}{\\sin 54^{\\circ}\\cdot\\sin 36^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.16",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 104^{\\circ}}{\\sin 52^{\\circ}\\cdot\\sin 38^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.17",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 100^{\\circ}}{\\sin 50^{\\circ}\\cdot\\sin 40^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.18",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 96^{\\circ}}{\\sin 48^{\\circ}\\cdot\\sin 42^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.19",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 92^{\\circ}}{\\sin 46^{\\circ}\\cdot\\sin 44^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.20",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 88^{\\circ}}{\\sin 44^{\\circ}\\cdot\\sin 46^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
+          "id": "7.1.1.1.21",
+          "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{2\\sin 84^{\\circ}}{\\sin 42^{\\circ}\\cdot\\sin 48^{\\circ}} \\]\n\n",
+          "answer": { "text": "4", "value": 4 },
+          "unic": true
+        },
+        {
           "id": "7.1.1.2.1",
           "stem": "Найдите значение выражения\n\n\\[ \\Large \\dfrac{8\\sin 64^{\\circ}\\cos 64^{\\circ}}{\\sin 128^{\\circ}} \\]\n\n",
           "answer": { "text": "4", "value": 4 },
