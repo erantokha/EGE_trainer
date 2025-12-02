@@ -232,15 +232,20 @@ function renderTopicRow(topic) {
       <div class="countbox">
         <button class="btn minus" type="button">−</button>
         <input class="count" type="number" min="0" step="1"
-          value="${CHOICE_TOPICS[topic.id] || 0}">
+          value="\${CHOICE_TOPICS['${topic.id}'] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      <button class="all-btn" type="button">Все</button>
       <div class="spacer"></div>
     </div>
   `;
 
+  // поправка значения count (чтобы не было issues с шаблонной строкой внутри)
   const num = $('.count', row);
+  if (num) {
+    num.value = CHOICE_TOPICS[topic.id] || 0;
+  }
 
   // автовыделение количества при клике/фокусе
   if (num) {
@@ -269,6 +274,18 @@ function renderTopicRow(topic) {
     num.value = v;
     setTopicCount(topic.id, v);
   };
+
+  // кнопка "Все" — открыть list.html с полной выборкой по этому topic
+  const allBtn = $('.all-btn', row);
+  if (allBtn) {
+    allBtn.addEventListener('click', () => {
+      const url = new URL('./list.html', location.href);
+      url.searchParams.set('topic', topic.id);
+      url.searchParams.set('view', 'all');
+      // оставляем без noopener, чтобы при желании можно было использовать sessionStorage
+      window.open(url.toString(), '_blank');
+    });
+  }
 
   return row;
 }
