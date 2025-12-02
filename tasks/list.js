@@ -2,6 +2,8 @@
 // Страница "Список задач": вывод всех подобранных задач 1..N (как лист с прототипами).
 // Новая логика выбора: по каждой теме задачи берутся случайно из общего пула
 // всех прототипов темы (из всех типов и, при наличии, всех манифестов темы).
+// Дополнительно: режим просмотра всех задач одной темы по ссылке
+// list.html?topic=<topicId>&view=all
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -39,37 +41,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     overlay.classList.remove('hidden');
   }
 
-  const rawSel = sessionStorage.getItem('tasks_selection_v1');
-  if (!rawSel) {
-    location.href = './index.html';
-    return;
-  }
+  // разбор query-параметров: режим "Все задачи темы"
+  const params = new URLSearchParams(location.search);
+  const topicParam = params.get('topic');
+  const viewParam = params.get('view');
+  const IS_ALL_TOPIC_MODE = !!topicParam && viewParam === 'all';
 
-  let sel;
-  try {
-    sel = JSON.parse(rawSel);
-  } catch (e) {
-    console.error('Некорректный формат selection в sessionStorage', e);
-    location.href = './index.html';
-    return;
-  }
+  // обычный режим (через выбор в picker): читаем selection из sessionStorage
+  if (!IS_ALL_TOPIC_MODE) {
+    const rawSel = sessionStorage.getItem('tasks_selection_v1');
+    if (!rawSel) {
+      location.href = './index.html';
+      return;
+    }
 
-  CHOICE_TOPICS = sel.topics || {};
-  CHOICE_SECTIONS = sel.sections || {};
-  SHUFFLE_TASKS = !!sel.shuffle;
+    let sel;
+    try {
+      sel = JSON.parse(rawSel);
+    } catch (e) {
+      console.error('Некорректный формат selection в sessionStorage', e);
+      location.href = './index.html';
+      return;
+    }
+
+    CHOICE_TOPICS = sel.topics || {};
+    CHOICE_SECTIONS = sel.sections || {};
+    SHUFFLE_TASKS = !!sel.shuffle;
+  }
 
   try {
     await loadCatalog();
-    const questions = await pickPrototypes();
-    await renderTaskList(questions);
+
+    if (IS_ALL_TOPIC_MODE) {
+      // режим "Все задачи одной темы"
+      const topic = findTopicById(topicParam);
+      if (!topic) {
+        showListError(`Не найдена тема с id "${topicParam}". Проверьте index.json.`);
+        return;
+      }
+
+      const pool = await loadTopicPool(topic);
+      if (!pool.length) {
+        showListError(
+          `Для темы ${topic.id}. ${topic.title} не найдено ни одной задачи. Проверьте манифесты.`,
+        );
+        return;
+      }
+
+      const questions = pool.map(item =>
+        buildQuestion(item.manifest, item.type, item.proto),
+      );
+
+      await renderTaskList(questions, { topic, mode: 'all' });
+    } else {
+      // стандартный режим: выбор по разделам/темам из picker
+      const questions = await pickPrototypes();
+      await renderTaskList(questions);
+    }
   } catch (e) {
     console.error(e);
-    const runner = $('#runner') || document.body;
-    const panel = runner.querySelector('.panel') || runner;
-    const body = panel.querySelector('.run-body') || panel;
-    runner.classList.remove('hidden');
-    body.innerHTML =
-      '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
+    showListError(
+      'Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.',
+    );
   } finally {
     $('#loadingOverlay')?.classList.add('hidden');
   }
@@ -82,7 +115,9 @@ async function loadCatalog() {
   CATALOG = await resp.json();
 
   const sections = CATALOG.filter(x => x.type === 'group');
-  const topics   = CATALOG.filter(x => !!x.parent && x.enabled !== false);
+  const topics   = CATALOG.filter(
+    x => !!x.parent && x.enabled !== false && x.hidden !== true,
+  );
 
   const byId = (a, b) => compareId(a.id, b.id);
 
@@ -91,6 +126,12 @@ async function loadCatalog() {
   }
   sections.sort(byId);
   SECTIONS = sections;
+}
+
+// поиск темы по id в общем каталоге
+function findTopicById(topicId) {
+  if (!CATALOG) return null;
+  return CATALOG.find(x => x.id === topicId && !!x.parent) || null;
 }
 
 // ---------- выбор задач ----------
@@ -333,7 +374,7 @@ function evalExpr(expr, params) {
 }
 
 // ---------- Режим СПИСКА ЗАДАЧ ----------
-async function renderTaskList(questions) {
+async function renderTaskList(questions, options = {}) {
   const arr = questions || [];
   const runner = $('#runner') || $('#summary') || document.body;
   if (!runner) return;
@@ -358,7 +399,14 @@ async function renderTaskList(questions) {
 
   const meta = document.createElement('div');
   meta.className = 'list-meta';
-  meta.textContent = `Всего задач: ${total}`;
+
+  if (options.topic) {
+    const t = options.topic;
+    meta.textContent = `Подраздел ${t.id}. ${t.title}. Всего задач: ${total}`;
+  } else {
+    meta.textContent = `Всего задач: ${total}`;
+  }
+
   body.appendChild(meta);
 
   const list = document.createElement('div');
@@ -427,6 +475,16 @@ async function renderTaskList(questions) {
       console.error('MathJax error in list mode', e);
     }
   }
+}
+
+// ---------- вспомогательный вывод ошибок ----------
+function showListError(msg) {
+  const runner = $('#runner') || $('#summary') || document.body;
+  const panel = runner.querySelector('.panel') || runner;
+  const body = panel.querySelector('.run-body') || panel;
+  $('#summary')?.classList.add('hidden');
+  runner.classList.remove('hidden');
+  body.innerHTML = `<div style="opacity:.8;padding:8px 0">${msg}</div>`;
 }
 
 // ---------- утилиты ----------
