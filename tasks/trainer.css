@@ -180,7 +180,7 @@ a:hover{text-decoration:underline}
   font-weight:500;
   box-shadow:none;
 }
-.mode-toggle .mode-btn:hover:not(.active){
+.mode-toggle .mode-btn:hover:not(.active)){
   background:rgba(148,163,184,.12);
 }
 .mode-toggle .mode-btn.active{
@@ -274,8 +274,8 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   color:var(--text);
   cursor:pointer;
   text-align:left;
-  flex:1 1 auto;       /* текст занимает всё доступное место и переносится */
-  min-width:0;         /* даёт браузеру ужать элемент и переносить строки */
+  flex:1 1 auto;
+  min-width:0;
   white-space:normal;
 }
 
@@ -297,6 +297,14 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 }
 .node.section.show-uniq .unique-btn{
   display:inline-flex;
+}
+
+/* кнопка «Все» для темы (подраздела) */
+.topic-all-btn{
+  margin-left:12px;
+  font-size:12px;
+  padding:4px 10px;
+  border-radius:999px;
 }
 
 .node .spacer{flex:1}
@@ -358,31 +366,29 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 /* обёртка вопроса в режиме тестирования */
 .qwrap{
   display:flex;
-  gap:15px; /* отступ между текстом условия и картинкой */
+  gap:15px;
 }
 .qtext{
   flex:2;
   white-space:pre-wrap;
-  overflow-wrap:anywhere; /* чтобы длинные куски не вылезали за панель */
+  overflow-wrap:anywhere;
 }
 .qfig{
   flex:1;
   display:flex;
   justify-content:flex-start;
   min-height:var(--figure-h);
-  /* белый фон чуть больше картинки за счёт паддинга */
   padding:4px;
   background:#ffffff;
   border:1px solid var(--border);
   border-radius:0;
 }
 .qfig img{
-  max-height:calc(var(--figure-h) - 8px); /* учитываем суммарный вертикальный padding 4+4 */
+  max-height:calc(var(--figure-h) - 8px);
   max-width:100%;
   width:auto;
   height:auto;
   object-fit:contain;
-  /* фон и рамка теперь у контейнера, а не у самой картинки */
   border:none;
   border-radius:0;
   background:transparent;
@@ -464,16 +470,20 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
      текст раздела остаётся в одной строке со счётчиком,
      но может переноситься внутри себя на 2+ строки */
   .node .row{
-    align-items:flex-start;   /* верхняя граница текста и счётчика на одном уровне */
+    align-items:flex-start;
   }
   .node.section .section-title{
-    margin-left:12px;         /* небольшой отступ от счётчика */
+    margin-left:12px;
   }
   .node .row .countbox{
     margin-right:12px;
   }
   .unique-btn{
     margin-left:8px;
+  }
+  .topic-all-btn{
+    margin-left:8px;
+    margin-top:4px; /* чуть оторвать кнопку, если текст на две строки */
   }
 }
 
@@ -547,7 +557,6 @@ body[data-theme="light"] .task-card{
   justify-content:center;
   padding:3px 8px;
   border-radius:6px;
-  /* толщина рамки номера: 2px, цвет берётся из переменной --border */
   border:2px solid var(--border);
   font-weight:600;
   font-size:13px;
@@ -558,7 +567,7 @@ body[data-theme="light"] .task-card{
 .ws-stem,
 .task-stem{
   margin-top:2px;
-  overflow-wrap:anywhere; /* защита от «выстреливающих» формул и длинных слов */
+  overflow-wrap:anywhere;
 }
 
 /* ответ */
@@ -575,8 +584,7 @@ body[data-theme="light"] .task-card{
 /* картинка в карточке (лист задач, уникальные, тест) */
 .ws-fig,
 .task-fig{
-  margin:15px 0 6px; /* 15px сверху между условием и картинкой */
-  /* белый фон-чуть больше картинки за счёт паддинга */
+  margin:15px 0 6px;
   padding:4px;
   background:#ffffff;
   border:1px solid var(--border);
@@ -594,8 +602,7 @@ body[data-theme="light"] .task-card{
   background:transparent;
 }
 
-/* в светлой теме делаем фон/рамку вокруг картинок более лёгкими:
-   убираем подложку, чтобы не перегружать карточку */
+/* в светлой теме делаем фон/рамку вокруг картинок более лёгкими */
 html[data-theme="light"] .ws-fig,
 body[data-theme="light"] .ws-fig,
 html[data-theme="light"] .task-fig,
