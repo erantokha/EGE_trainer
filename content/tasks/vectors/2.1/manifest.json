@@ -8,7 +8,10 @@
       "stem_template": "Даны векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\). Найдите скалярное произведение \\(\\vec{a} \\cdot \\vec{b}\\).",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
       "answer_spec": {
         "type": "string",
@@ -17,7 +20,12 @@
       "prototypes": [
         {
           "id": "2.1.1.1",
-          "params": { "ax": -13, "ay": 4, "bx": -6, "by": 1 },
+          "params": {
+            "ax": -13,
+            "ay": 4,
+            "bx": -6,
+            "by": 1
+          },
           "answer": {
             "text": "82",
             "value": 82
@@ -26,7 +34,12 @@
         },
         {
           "id": "2.1.1.2",
-          "params": { "ax": 10, "ay": -7, "bx": -6, "by": -4 },
+          "params": {
+            "ax": 10,
+            "ay": -7,
+            "bx": -6,
+            "by": -4
+          },
           "answer": {
             "text": "-32",
             "value": -32
@@ -34,7 +47,12 @@
         },
         {
           "id": "2.1.1.3",
-          "params": { "ax": -9, "ay": 10, "bx": 9, "by": 1 },
+          "params": {
+            "ax": -9,
+            "ay": 10,
+            "bx": 9,
+            "by": 1
+          },
           "answer": {
             "text": "-71",
             "value": -71
@@ -42,7 +60,12 @@
         },
         {
           "id": "2.1.1.4",
-          "params": { "ax": -6, "ay": -5, "bx": 5, "by": -3 },
+          "params": {
+            "ax": -6,
+            "ay": -5,
+            "bx": 5,
+            "by": -3
+          },
           "answer": {
             "text": "-15",
             "value": -15
@@ -50,7 +73,12 @@
         },
         {
           "id": "2.1.1.5",
-          "params": { "ax": 4, "ay": -2, "bx": 1, "by": 6 },
+          "params": {
+            "ax": 4,
+            "ay": -2,
+            "bx": 1,
+            "by": 6
+          },
           "answer": {
             "text": "-8",
             "value": -8
@@ -58,7 +86,12 @@
         },
         {
           "id": "2.1.1.6",
-          "params": { "ax": -3, "ay": -9, "bx": -8, "by": -7 },
+          "params": {
+            "ax": -3,
+            "ay": -9,
+            "bx": -8,
+            "by": -7
+          },
           "answer": {
             "text": "87",
             "value": 87
@@ -66,7 +99,12 @@
         },
         {
           "id": "2.1.1.7",
-          "params": { "ax": 5, "ay": 4, "bx": -9, "by": 8 },
+          "params": {
+            "ax": 5,
+            "ay": 4,
+            "bx": -9,
+            "by": 8
+          },
           "answer": {
             "text": "-13",
             "value": -13
@@ -74,7 +112,12 @@
         },
         {
           "id": "2.1.1.8",
-          "params": { "ax": -1, "ay": -7, "bx": -1, "by": -9 },
+          "params": {
+            "ax": -1,
+            "ay": -7,
+            "bx": -1,
+            "by": -9
+          },
           "answer": {
             "text": "64",
             "value": 64
@@ -82,7 +125,12 @@
         },
         {
           "id": "2.1.1.9",
-          "params": { "ax": -3, "ay": 7, "bx": 5, "by": -10 },
+          "params": {
+            "ax": -3,
+            "ay": 7,
+            "bx": 5,
+            "by": -10
+          },
           "answer": {
             "text": "-85",
             "value": -85
@@ -90,7 +138,12 @@
         },
         {
           "id": "2.1.1.10",
-          "params": { "ax": 4, "ay": -8, "bx": 6, "by": 1 },
+          "params": {
+            "ax": 4,
+            "ay": -8,
+            "bx": 6,
+            "by": 1
+          },
           "answer": {
             "text": "16",
             "value": 16
@@ -98,7 +151,12 @@
         },
         {
           "id": "2.1.1.11",
-          "params": { "ax": 8, "ay": -4, "bx": -5, "by": 1 },
+          "params": {
+            "ax": 8,
+            "ay": -4,
+            "bx": -5,
+            "by": 1
+          },
           "answer": {
             "text": "-44",
             "value": -44
@@ -106,7 +164,12 @@
         },
         {
           "id": "2.1.1.12",
-          "params": { "ax": 10, "ay": 8, "bx": 3, "by": 5 },
+          "params": {
+            "ax": 10,
+            "ay": 8,
+            "bx": 3,
+            "by": 5
+          },
           "answer": {
             "text": "70",
             "value": 70
@@ -114,7 +177,12 @@
         },
         {
           "id": "2.1.1.13",
-          "params": { "ax": -8, "ay": 10, "bx": 0, "by": -10 },
+          "params": {
+            "ax": -8,
+            "ay": 10,
+            "bx": 0,
+            "by": -10
+          },
           "answer": {
             "text": "-100",
             "value": -100
@@ -122,7 +190,12 @@
         },
         {
           "id": "2.1.1.14",
-          "params": { "ax": 5, "ay": 3, "bx": -7, "by": 3 },
+          "params": {
+            "ax": 5,
+            "ay": 3,
+            "bx": -7,
+            "by": 3
+          },
           "answer": {
             "text": "-26",
             "value": -26
@@ -130,7 +203,12 @@
         },
         {
           "id": "2.1.1.15",
-          "params": { "ax": 1, "ay": 9, "bx": -2, "by": -6 },
+          "params": {
+            "ax": 1,
+            "ay": 9,
+            "bx": -2,
+            "by": -6
+          },
           "answer": {
             "text": "-56",
             "value": -56
@@ -138,7 +216,12 @@
         },
         {
           "id": "2.1.1.16",
-          "params": { "ax": 3, "ay": 6, "bx": 4, "by": -4 },
+          "params": {
+            "ax": 3,
+            "ay": 6,
+            "bx": 4,
+            "by": -4
+          },
           "answer": {
             "text": "-12",
             "value": -12
@@ -146,7 +229,12 @@
         },
         {
           "id": "2.1.1.17",
-          "params": { "ax": 0, "ay": 8, "bx": 5, "by": 0 },
+          "params": {
+            "ax": 0,
+            "ay": 8,
+            "bx": 5,
+            "by": 0
+          },
           "answer": {
             "text": "0",
             "value": 0
@@ -154,7 +242,12 @@
         },
         {
           "id": "2.1.1.18",
-          "params": { "ax": 10, "ay": -8, "bx": 7, "by": 10 },
+          "params": {
+            "ax": 10,
+            "ay": -8,
+            "bx": 7,
+            "by": 10
+          },
           "answer": {
             "text": "-10",
             "value": -10
@@ -162,7 +255,12 @@
         },
         {
           "id": "2.1.1.19",
-          "params": { "ax": -2, "ay": 6, "bx": 2, "by": 4 },
+          "params": {
+            "ax": -2,
+            "ay": 6,
+            "bx": 2,
+            "by": 4
+          },
           "answer": {
             "text": "20",
             "value": 20
@@ -170,202 +268,328 @@
         },
         {
           "id": "2.1.1.20",
-          "params": { "ax": 9, "ay": 9, "bx": 2, "by": -2 },
+          "params": {
+            "ax": 9,
+            "ay": 9,
+            "bx": 2,
+            "by": -2
+          },
           "answer": {
             "text": "0",
             "value": 0
           }
         }
       ]
-    }
-  ]
-}
-
+    },
+    {
+      "id": "2.1.2",
+      "title": "Скалярное произведение (a + b) и (k·a − b)",
+      "stem_template": "Даны векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\). Найдите скалярное произведение векторов \\(\\vec{a} + \\vec{b}\\) и \\(${k}\\vec{a} - \\vec{b}\\).",
+      "defaults": {
+        "difficulty": 1,
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
+      },
+      "answer_spec": {
+        "type": "string",
+        "format": "ege_decimal"
+      },
+      "prototypes": [
+        {
+          "id": "2.1.2.1",
+          "params": {
+            "ax": 2,
+            "ay": 1,
+            "bx": 2,
+            "by": -4,
+            "k": 7
+          },
+          "answer": {
+            "text": "15",
+            "value": 15
+          },
+          "unic": true
+        },
+        {
+          "id": "2.1.2.2",
+          "params": {
+            "ax": -3,
+            "ay": -2,
+            "bx": 3,
+            "by": 3,
+            "k": 2
+          },
+          "answer": {
+            "text": "-7",
+            "value": -7
+          }
+        },
+        {
+          "id": "2.1.2.3",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": 2,
+            "by": 3,
+            "k": 3
+          },
+          "answer": {
+            "text": "-1",
+            "value": -1
+          }
+        },
+        {
+          "id": "2.1.2.4",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": 3,
+            "by": 2,
+            "k": 4
+          },
+          "answer": {
+            "text": "-6",
+            "value": -6
+          }
+        },
+        {
+          "id": "2.1.2.5",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": 3,
+            "by": 3,
+            "k": 5
+          },
+          "answer": {
+            "text": "-16",
+            "value": -16
+          }
+        },
+        {
+          "id": "2.1.2.6",
+          "params": {
+            "ax": -3,
+            "ay": 0,
+            "bx": 3,
+            "by": -3,
+            "k": 6
+          },
+          "answer": {
+            "text": "-9",
+            "value": -9
+          }
+        },
+        {
+          "id": "2.1.2.7",
+          "params": {
+            "ax": -3,
+            "ay": 0,
+            "bx": 3,
+            "by": -2,
+            "k": 7
+          },
+          "answer": {
+            "text": "-4",
+            "value": -4
+          }
+        },
+        {
+          "id": "2.1.2.8",
+          "params": {
+            "ax": -3,
+            "ay": 0,
+            "bx": 3,
+            "by": -1,
+            "k": 8
+          },
+          "answer": {
+            "text": "-1",
+            "value": -1
+          }
+        },
+        {
+          "id": "2.1.2.9",
+          "params": {
+            "ax": 0,
+            "ay": 1,
+            "bx": 0,
+            "by": 1,
+            "k": 2
+          },
+          "answer": {
+            "text": "2",
+            "value": 2
+          }
+        },
+        {
+          "id": "2.1.2.10",
+          "params": {
+            "ax": 0,
+            "ay": 1,
+            "bx": 0,
+            "by": 2,
+            "k": 3
+          },
+          "answer": {
+            "text": "3",
+            "value": 3
+          }
+        },
+        {
+          "id": "2.1.2.11",
+          "params": {
+            "ax": 0,
+            "ay": 1,
+            "bx": 0,
+            "by": 3,
+            "k": 4
+          },
+          "answer": {
+            "text": "4",
+            "value": 4
+          }
+        },
+        {
+          "id": "2.1.2.12",
+          "params": {
+            "ax": 0,
+            "ay": 1,
+            "bx": 1,
+            "by": 0,
+            "k": 2
+          },
+          "answer": {
+            "text": "1",
+            "value": 1
+          }
+        },
+        {
+          "id": "2.1.2.13",
+          "params": {
+            "ax": -3,
+            "ay": -3,
+            "bx": -3,
+            "by": 2,
+            "k": 2
+          },
+          "answer": {
+            "text": "26",
+            "value": 26
+          }
+        },
+        {
+          "id": "2.1.2.14",
+          "params": {
+            "ax": -3,
+            "ay": -2,
+            "bx": -3,
+            "by": -3,
+            "k": 2
+          },
+          "answer": {
+            "text": "23",
+            "value": 23
+          }
+        },
+        {
+          "id": "2.1.2.15",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": -3,
+            "by": -3,
+            "k": 2
+          },
+          "answer": {
+            "text": "14",
+            "value": 14
+          }
+        },
+        {
+          "id": "2.1.2.16",
+          "params": {
+            "ax": -3,
+            "ay": 0,
+            "bx": -3,
+            "by": -3,
+            "k": 2
+          },
+          "answer": {
+            "text": "9",
+            "value": 9
+          }
+        },
+        {
+          "id": "2.1.2.17",
+          "params": {
+            "ax": -3,
+            "ay": -3,
+            "bx": 3,
+            "by": 3,
+            "k": 2
+          },
+          "answer": {
+            "text": "0",
+            "value": 0
+          }
+        },
+        {
+          "id": "2.1.2.18",
+          "params": {
+            "ax": -3,
+            "ay": -2,
+            "bx": 3,
+            "by": 2,
+            "k": 2
+          },
+          "answer": {
+            "text": "0",
+            "value": 0
+          }
+        },
+        {
+          "id": "2.1.2.19",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": 2,
+            "by": 3,
+            "k": 4
+          },
+          "answer": {
+            "text": "0",
+            "value": 0
+          }
+        },
+        {
+          "id": "2.1.2.20",
+          "params": {
+            "ax": -3,
+            "ay": -1,
+            "bx": 3,
+            "by": -3,
+            "k": 3
+          },
+          "answer": {
+            "text": "0",
+            "value": 0
+          }
+        }
       ]
     },
-    {
-  "id": "2.1.2",
-  "title": "Скалярное произведение (a + b) и (k·a − b)",
-  "stem_template": "Даны векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\). Найдите скалярное произведение векторов \\(\\vec{a} + \\vec{b}\\) и \\(${k}\\vec{a} - \\vec{b}\\).",
-  "defaults": {
-    "difficulty": 1,
-    "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
-  },
-  "answer_spec": {
-    "type": "string",
-    "format": "ege_decimal"
-  },
-  "prototypes": [
-    {
-      "id": "2.1.2.1",
-      "params": { "ax": 2, "ay": 1, "bx": 2, "by": -4, "k": 7 },
-      "answer": {
-        "text": "15",
-        "value": 15
-      },
-      "unic": true
-    },
-    {
-      "id": "2.1.2.2",
-      "params": { "ax": -3, "ay": -2, "bx": 3, "by": 3, "k": 2 },
-      "answer": {
-        "text": "-7",
-        "value": -7
-      }
-    },
-    {
-      "id": "2.1.2.3",
-      "params": { "ax": -3, "ay": -1, "bx": 2, "by": 3, "k": 3 },
-      "answer": {
-        "text": "-1",
-        "value": -1
-      }
-    },
-    {
-      "id": "2.1.2.4",
-      "params": { "ax": -3, "ay": -1, "bx": 3, "by": 2, "k": 4 },
-      "answer": {
-        "text": "-6",
-        "value": -6
-      }
-    },
-    {
-      "id": "2.1.2.5",
-      "params": { "ax": -3, "ay": -1, "bx": 3, "by": 3, "k": 5 },
-      "answer": {
-        "text": "-16",
-        "value": -16
-      }
-    },
-    {
-      "id": "2.1.2.6",
-      "params": { "ax": -3, "ay": 0, "bx": 3, "by": -3, "k": 6 },
-      "answer": {
-        "text": "-9",
-        "value": -9
-      }
-    },
-    {
-      "id": "2.1.2.7",
-      "params": { "ax": -3, "ay": 0, "bx": 3, "by": -2, "k": 7 },
-      "answer": {
-        "text": "-4",
-        "value": -4
-      }
-    },
-    {
-      "id": "2.1.2.8",
-      "params": { "ax": -3, "ay": 0, "bx": 3, "by": -1, "k": 8 },
-      "answer": {
-        "text": "-1",
-        "value": -1
-      }
-    },
-    {
-      "id": "2.1.2.9",
-      "params": { "ax": 0, "ay": 1, "bx": 0, "by": 1, "k": 2 },
-      "answer": {
-        "text": "2",
-        "value": 2
-      }
-    },
-    {
-      "id": "2.1.2.10",
-      "params": { "ax": 0, "ay": 1, "bx": 0, "by": 2, "k": 3 },
-      "answer": {
-        "text": "3",
-        "value": 3
-      }
-    },
-    {
-      "id": "2.1.2.11",
-      "params": { "ax": 0, "ay": 1, "bx": 0, "by": 3, "k": 4 },
-      "answer": {
-        "text": "4",
-        "value": 4
-      }
-    },
-    {
-      "id": "2.1.2.12",
-      "params": { "ax": 0, "ay": 1, "bx": 1, "by": 0, "k": 2 },
-      "answer": {
-        "text": "1",
-        "value": 1
-      }
-    },
-    {
-      "id": "2.1.2.13",
-      "params": { "ax": -3, "ay": -3, "bx": -3, "by": 2, "k": 2 },
-      "answer": {
-        "text": "26",
-        "value": 26
-      }
-    },
-    {
-      "id": "2.1.2.14",
-      "params": { "ax": -3, "ay": -2, "bx": -3, "by": -3, "k": 2 },
-      "answer": {
-        "text": "23",
-        "value": 23
-      }
-    },
-    {
-      "id": "2.1.2.15",
-      "params": { "ax": -3, "ay": -1, "bx": -3, "by": -3, "k": 2 },
-      "answer": {
-        "text": "14",
-        "value": 14
-      }
-    },
-    {
-      "id": "2.1.2.16",
-      "params": { "ax": -3, "ay": 0, "bx": -3, "by": -3, "k": 2 },
-      "answer": {
-        "text": "9",
-        "value": 9
-      }
-    },
-    {
-      "id": "2.1.2.17",
-      "params": { "ax": -3, "ay": -3, "bx": 3, "by": 3, "k": 2 },
-      "answer": {
-        "text": "0",
-        "value": 0
-      }
-    },
-    {
-      "id": "2.1.2.18",
-      "params": { "ax": -3, "ay": -2, "bx": 3, "by": 2, "k": 2 },
-      "answer": {
-        "text": "0",
-        "value": 0
-      }
-    },
-    {
-      "id": "2.1.2.19",
-      "params": { "ax": -3, "ay": -1, "bx": 2, "by": 3, "k": 4 },
-      "answer": {
-        "text": "0",
-        "value": 0
-      }
-    },
-    {
-      "id": "2.1.2.20",
-      "params": { "ax": -3, "ay": -1, "bx": 3, "by": -3, "k": 3 },
-      "answer": {
-        "text": "0",
-        "value": 0
-      }
-    }
-  ]
-}
     {
       "id": "2.1.3",
       "title": "По чертежу (координатная плоскость)",
       "stem_template": "На координатной плоскости изображены векторы \\(\\vec{a}\\) и \\(\\vec{b}\\), координатами которых являются целые числа. Найдите скалярное произведение \\(\\vec{a} \\cdot \\vec{b}\\).",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
       "answer_spec": {
         "type": "string",
@@ -426,7 +650,10 @@
       "stem_template": "Длины векторов \\(\\vec{a}\\) и \\(\\vec{b}\\) равны ${A} и ${B}, а угол между ними равен ${phi}°. Найдите скалярное произведение \\(\\vec{a} \\cdot \\vec{b}\\).",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
       "answer_spec": {
         "type": "string",
@@ -435,7 +662,11 @@
       "prototypes": [
         {
           "id": "2.1.4.1",
-          "params": { "A": 3, "B": 5, "phi": 60 },
+          "params": {
+            "A": 3,
+            "B": 5,
+            "phi": 60
+          },
           "answer": {
             "text": "7,5",
             "value": 7.5
@@ -444,7 +675,11 @@
         },
         {
           "id": "2.1.4.2",
-          "params": { "A": 4, "B": 7, "phi": 60 },
+          "params": {
+            "A": 4,
+            "B": 7,
+            "phi": 60
+          },
           "answer": {
             "text": "14",
             "value": 14
@@ -452,7 +687,11 @@
         },
         {
           "id": "2.1.4.3",
-          "params": { "A": 5, "B": 5, "phi": 60 },
+          "params": {
+            "A": 5,
+            "B": 5,
+            "phi": 60
+          },
           "answer": {
             "text": "12,5",
             "value": 12.5
@@ -460,7 +699,11 @@
         },
         {
           "id": "2.1.4.4",
-          "params": { "A": 2, "B": 9, "phi": 120 },
+          "params": {
+            "A": 2,
+            "B": 9,
+            "phi": 120
+          },
           "answer": {
             "text": "-9",
             "value": -9
@@ -468,7 +711,11 @@
         },
         {
           "id": "2.1.4.5",
-          "params": { "A": 6, "B": 5, "phi": 120 },
+          "params": {
+            "A": 6,
+            "B": 5,
+            "phi": 120
+          },
           "answer": {
             "text": "-15",
             "value": -15
@@ -476,7 +723,11 @@
         },
         {
           "id": "2.1.4.6",
-          "params": { "A": 3, "B": 8, "phi": 0 },
+          "params": {
+            "A": 3,
+            "B": 8,
+            "phi": 0
+          },
           "answer": {
             "text": "24",
             "value": 24
@@ -484,7 +735,11 @@
         },
         {
           "id": "2.1.4.7",
-          "params": { "A": 4, "B": 6, "phi": 180 },
+          "params": {
+            "A": 4,
+            "B": 6,
+            "phi": 180
+          },
           "answer": {
             "text": "-24",
             "value": -24
@@ -492,7 +747,11 @@
         },
         {
           "id": "2.1.4.8",
-          "params": { "A": 7, "B": 3, "phi": 120 },
+          "params": {
+            "A": 7,
+            "B": 3,
+            "phi": 120
+          },
           "answer": {
             "text": "-10,5",
             "value": -10.5
@@ -500,7 +759,11 @@
         },
         {
           "id": "2.1.4.9",
-          "params": { "A": 10, "B": 2, "phi": 60 },
+          "params": {
+            "A": 10,
+            "B": 2,
+            "phi": 60
+          },
           "answer": {
             "text": "10",
             "value": 10
@@ -508,7 +771,11 @@
         },
         {
           "id": "2.1.4.10",
-          "params": { "A": 9, "B": 9, "phi": 120 },
+          "params": {
+            "A": 9,
+            "B": 9,
+            "phi": 120
+          },
           "answer": {
             "text": "-40,5",
             "value": -40.5
@@ -516,7 +783,11 @@
         },
         {
           "id": "2.1.4.11",
-          "params": { "A": 5, "B": 8, "phi": 0 },
+          "params": {
+            "A": 5,
+            "B": 8,
+            "phi": 0
+          },
           "answer": {
             "text": "40",
             "value": 40
@@ -524,7 +795,11 @@
         },
         {
           "id": "2.1.4.12",
-          "params": { "A": 6, "B": 7, "phi": 60 },
+          "params": {
+            "A": 6,
+            "B": 7,
+            "phi": 60
+          },
           "answer": {
             "text": "21",
             "value": 21
@@ -532,7 +807,11 @@
         },
         {
           "id": "2.1.4.13",
-          "params": { "A": 3, "B": 10, "phi": 180 },
+          "params": {
+            "A": 3,
+            "B": 10,
+            "phi": 180
+          },
           "answer": {
             "text": "-30",
             "value": -30
@@ -540,7 +819,11 @@
         },
         {
           "id": "2.1.4.14",
-          "params": { "A": 8, "B": 8, "phi": 0 },
+          "params": {
+            "A": 8,
+            "B": 8,
+            "phi": 0
+          },
           "answer": {
             "text": "64",
             "value": 64
@@ -548,7 +831,11 @@
         },
         {
           "id": "2.1.4.15",
-          "params": { "A": 4, "B": 9, "phi": 120 },
+          "params": {
+            "A": 4,
+            "B": 9,
+            "phi": 120
+          },
           "answer": {
             "text": "-18",
             "value": -18
@@ -556,7 +843,11 @@
         },
         {
           "id": "2.1.4.16",
-          "params": { "A": 6, "B": 3, "phi": 90 },
+          "params": {
+            "A": 6,
+            "B": 3,
+            "phi": 90
+          },
           "answer": {
             "text": "0",
             "value": 0
@@ -564,7 +855,11 @@
         },
         {
           "id": "2.1.4.17",
-          "params": { "A": 7, "B": 5, "phi": 60 },
+          "params": {
+            "A": 7,
+            "B": 5,
+            "phi": 60
+          },
           "answer": {
             "text": "17,5",
             "value": 17.5
@@ -572,7 +867,11 @@
         },
         {
           "id": "2.1.4.18",
-          "params": { "A": 2, "B": 5, "phi": 180 },
+          "params": {
+            "A": 2,
+            "B": 5,
+            "phi": 180
+          },
           "answer": {
             "text": "-10",
             "value": -10
@@ -580,7 +879,11 @@
         },
         {
           "id": "2.1.4.19",
-          "params": { "A": 9, "B": 4, "phi": 60 },
+          "params": {
+            "A": 9,
+            "B": 4,
+            "phi": 60
+          },
           "answer": {
             "text": "18",
             "value": 18
@@ -588,11 +891,16 @@
         },
         {
           "id": "2.1.4.20",
-          "params": { "A": 8, "B": 3, "phi": 120 },
+          "params": {
+            "A": 8,
+            "B": 3,
+            "phi": 120
+          },
           "answer": {
             "text": "-12",
             "value": -12
           }
+        }
       ]
     },
     {
@@ -601,7 +909,10 @@
       "stem_template": "На координатной плоскости изображены векторы \\(\\vec{a} = (${ax}; ${ay})\\) и \\(\\vec{b} = (${bx}; ${by})\\), координатами которых являются целые числа. Найдите скалярное произведение \\(\\vec{a} \\cdot \\vec{b}\\).",
       "defaults": {
         "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
       "answer_spec": {
         "type": "string",
@@ -610,7 +921,12 @@
       "prototypes": [
         {
           "id": "2.3.1.1",
-          "params": { "ax": 8, "ay": 5, "bx": 7, "by": 3 },
+          "params": {
+            "ax": 8,
+            "ay": 5,
+            "bx": 7,
+            "by": 3
+          },
           "answer": {
             "text": "71",
             "value": 71
@@ -619,7 +935,12 @@
         },
         {
           "id": "2.3.1.2",
-          "params": { "ax": 3, "ay": 4, "bx": 2, "by": -1 },
+          "params": {
+            "ax": 3,
+            "ay": 4,
+            "bx": 2,
+            "by": -1
+          },
           "answer": {
             "text": "2",
             "value": 2
@@ -627,7 +948,12 @@
         },
         {
           "id": "2.3.1.3",
-          "params": { "ax": 7, "ay": 3, "bx": 5, "by": 2 },
+          "params": {
+            "ax": 7,
+            "ay": 3,
+            "bx": 5,
+            "by": 2
+          },
           "answer": {
             "text": "41",
             "value": 41
@@ -635,7 +961,12 @@
         },
         {
           "id": "2.3.1.4",
-          "params": { "ax": 2, "ay": 3, "bx": 2, "by": -1 },
+          "params": {
+            "ax": 2,
+            "ay": 3,
+            "bx": 2,
+            "by": -1
+          },
           "answer": {
             "text": "1",
             "value": 1
@@ -643,7 +974,12 @@
         },
         {
           "id": "2.3.1.5",
-          "params": { "ax": 4, "ay": -2, "bx": -3, "by": 5 },
+          "params": {
+            "ax": 4,
+            "ay": -2,
+            "bx": -3,
+            "by": 5
+          },
           "answer": {
             "text": "-22",
             "value": -22
@@ -651,7 +987,12 @@
         },
         {
           "id": "2.3.1.6",
-          "params": { "ax": -6, "ay": 1, "bx": 2, "by": 7 },
+          "params": {
+            "ax": -6,
+            "ay": 1,
+            "bx": 2,
+            "by": 7
+          },
           "answer": {
             "text": "-5",
             "value": -5
@@ -659,7 +1000,12 @@
         },
         {
           "id": "2.3.1.7",
-          "params": { "ax": 5, "ay": -4, "bx": -1, "by": -6 },
+          "params": {
+            "ax": 5,
+            "ay": -4,
+            "bx": -1,
+            "by": -6
+          },
           "answer": {
             "text": "19",
             "value": 19
@@ -667,7 +1013,12 @@
         },
         {
           "id": "2.3.1.8",
-          "params": { "ax": -3, "ay": -5, "bx": 4, "by": -2 },
+          "params": {
+            "ax": -3,
+            "ay": -5,
+            "bx": 4,
+            "by": -2
+          },
           "answer": {
             "text": "-2",
             "value": -2
@@ -675,7 +1026,12 @@
         },
         {
           "id": "2.3.1.9",
-          "params": { "ax": 6, "ay": 2, "bx": -4, "by": 3 },
+          "params": {
+            "ax": 6,
+            "ay": 2,
+            "bx": -4,
+            "by": 3
+          },
           "answer": {
             "text": "-18",
             "value": -18
@@ -683,7 +1039,12 @@
         },
         {
           "id": "2.3.1.10",
-          "params": { "ax": 1, "ay": 7, "bx": 3, "by": -2 },
+          "params": {
+            "ax": 1,
+            "ay": 7,
+            "bx": 3,
+            "by": -2
+          },
           "answer": {
             "text": "-11",
             "value": -11
@@ -691,7 +1052,12 @@
         },
         {
           "id": "2.3.1.11",
-          "params": { "ax": -4, "ay": 6, "bx": 3, "by": 2 },
+          "params": {
+            "ax": -4,
+            "ay": 6,
+            "bx": 3,
+            "by": 2
+          },
           "answer": {
             "text": "0",
             "value": 0
@@ -699,7 +1065,12 @@
         },
         {
           "id": "2.3.1.12",
-          "params": { "ax": 7, "ay": -1, "bx": -4, "by": -4 },
+          "params": {
+            "ax": 7,
+            "ay": -1,
+            "bx": -4,
+            "by": -4
+          },
           "answer": {
             "text": "-24",
             "value": -24
@@ -707,7 +1078,12 @@
         },
         {
           "id": "2.3.1.13",
-          "params": { "ax": -5, "ay": -2, "bx": -4, "by": 3 },
+          "params": {
+            "ax": -5,
+            "ay": -2,
+            "bx": -4,
+            "by": 3
+          },
           "answer": {
             "text": "14",
             "value": 14
@@ -715,7 +1091,12 @@
         },
         {
           "id": "2.3.1.14",
-          "params": { "ax": 2, "ay": 5, "bx": -3, "by": -4 },
+          "params": {
+            "ax": 2,
+            "ay": 5,
+            "bx": -3,
+            "by": -4
+          },
           "answer": {
             "text": "-26",
             "value": -26
@@ -723,7 +1104,12 @@
         },
         {
           "id": "2.3.1.15",
-          "params": { "ax": 6, "ay": -3, "bx": 2, "by": 5 },
+          "params": {
+            "ax": 6,
+            "ay": -3,
+            "bx": 2,
+            "by": 5
+          },
           "answer": {
             "text": "-3",
             "value": -3
@@ -731,7 +1117,12 @@
         },
         {
           "id": "2.3.1.16",
-          "params": { "ax": -7, "ay": 4, "bx": 5, "by": -1 },
+          "params": {
+            "ax": -7,
+            "ay": 4,
+            "bx": 5,
+            "by": -1
+          },
           "answer": {
             "text": "-39",
             "value": -39
@@ -739,7 +1130,12 @@
         },
         {
           "id": "2.3.1.17",
-          "params": { "ax": 3, "ay": -6, "bx": -2, "by": -7 },
+          "params": {
+            "ax": 3,
+            "ay": -6,
+            "bx": -2,
+            "by": -7
+          },
           "answer": {
             "text": "36",
             "value": 36
@@ -747,7 +1143,12 @@
         },
         {
           "id": "2.3.1.18",
-          "params": { "ax": -1, "ay": 8, "bx": 4, "by": 1 },
+          "params": {
+            "ax": -1,
+            "ay": 8,
+            "bx": 4,
+            "by": 1
+          },
           "answer": {
             "text": "4",
             "value": 4
@@ -755,7 +1156,12 @@
         },
         {
           "id": "2.3.1.19",
-          "params": { "ax": 5, "ay": 5, "bx": -3, "by": 1 },
+          "params": {
+            "ax": 5,
+            "ay": 5,
+            "bx": -3,
+            "by": 1
+          },
           "answer": {
             "text": "-10",
             "value": -10
@@ -763,7 +1169,12 @@
         },
         {
           "id": "2.3.1.20",
-          "params": { "ax": -6, "ay": -3, "bx": 1, "by": -5 },
+          "params": {
+            "ax": -6,
+            "ay": -3,
+            "bx": 1,
+            "by": -5
+          },
           "answer": {
             "text": "9",
             "value": 9
