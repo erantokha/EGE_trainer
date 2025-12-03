@@ -315,7 +315,7 @@
     {
       "id": "2.2.2",
       "title": "Длина вектора по чертежу",
-      "stem_template": "На координатной плоскости изображены векторы \\(\\vec{a}\\) и \\(\\vec{b}\\), координатами которых являются целые числа. Найдите длину вектора \\(\\vec{a} + 4\\vec{b}\\).",
+      "stem_template": "На координатной плоскости изображены векторы \\(\\vec{a}\\) и \\(\\vec{b}\\), координатами которых являются целые числа. Найдите длину вектора \\(\\vec{a} + ${k}\\vec{b}\\).",
       "defaults": {
         "difficulty": 1,
         "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
@@ -329,13 +329,420 @@
           "id": "2.2.2.1",
           "figure": {
             "img": "content/tasks/vectors/2.2/2.2.2_1.svg",
-            "alt": "Длина вектора a + 4b (вариант 1)"
+            "alt": "Длина вектора a + k b (вариант 1)"
+          },
+          "params": {
+            "k": 4,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 4,
+            "ay2": 5,
+            "bx1": 3,
+            "by1": 3,
+            "bx2": 5,
+            "by2": 2
           },
           "answer": {
             "text": "11",
             "value": 11
           },
           "unic": true
+        },
+        {
+          "id": "2.2.2.2",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_2.svg",
+            "alt": "Длина вектора a + k b (вариант 2)"
+          },
+          "params": {
+            "k": 1,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 2,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 4
+          },
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.2.3",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_3.svg",
+            "alt": "Длина вектора a + k b (вариант 3)"
+          },
+          "params": {
+            "k": 1,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 2,
+            "bx1": 3,
+            "by1": 2,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.2.4",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_4.svg",
+            "alt": "Длина вектора a + k b (вариант 4)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 3,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 4,
+            "by2": 2
+          },
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.2.5",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_5.svg",
+            "alt": "Длина вектора a + k b (вариант 5)"
+          },
+          "params": {
+            "k": 1,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 4,
+            "bx1": 3,
+            "by1": 3,
+            "bx2": 5,
+            "by2": 4
+          },
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.2.6",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_6.svg",
+            "alt": "Длина вектора a + k b (вариант 6)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 5,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.7",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_7.svg",
+            "alt": "Длина вектора a + k b (вариант 7)"
+          },
+          "params": {
+            "k": 1,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 5,
+            "ay2": 4,
+            "bx1": 1,
+            "by1": 2,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "10",
+            "value": 10
+          }
+        },
+        {
+          "id": "2.2.2.8",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_8.svg",
+            "alt": "Длина вектора a + k b (вариант 8)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 2,
+            "ay2": 5,
+            "bx1": 2,
+            "by1": 1,
+            "bx2": 4,
+            "by2": 5
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.9",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_9.svg",
+            "alt": "Длина вектора a + k b (вариант 9)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 1,
+            "ax2": 4,
+            "ay2": 5,
+            "bx1": 2,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "15",
+            "value": 15
+          }
+        },
+        {
+          "id": "2.2.2.10",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_10.svg",
+            "alt": "Длина вектора a + k b (вариант 10)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 2,
+            "ax2": 3,
+            "ay2": 4,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 4
+          },
+          "answer": {
+            "text": "10",
+            "value": 10
+          }
+        },
+        {
+          "id": "2.2.2.11",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_11.svg",
+            "alt": "Длина вектора a + k b (вариант 11)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 3,
+            "ax2": 3,
+            "ay2": 5,
+            "bx1": 1,
+            "by1": 1,
+            "bx2": 4,
+            "by2": 3
+          },
+          "answer": {
+            "text": "10",
+            "value": 10
+          }
+        },
+        {
+          "id": "2.2.2.12",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_12.svg",
+            "alt": "Длина вектора a + k b (вариант 12)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 1,
+            "ay1": 2,
+            "ax2": 3,
+            "ay2": 5,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 4,
+            "by2": 4
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.13",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_13.svg",
+            "alt": "Длина вектора a + k b (вариант 13)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 1,
+            "ay1": 2,
+            "ax2": 5,
+            "ay2": 3,
+            "bx1": 1,
+            "by1": 3,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.14",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_14.svg",
+            "alt": "Длина вектора a + k b (вариант 14)"
+          },
+          "params": {
+            "k": 2,
+            "ax1": 2,
+            "ay1": 1,
+            "ax2": 5,
+            "ay2": 5,
+            "bx1": 1,
+            "by1": 1,
+            "bx2": 2,
+            "by2": 5
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.15",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_15.svg",
+            "alt": "Длина вектора a + k b (вариант 15)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 1,
+            "ay1": 2,
+            "ax2": 3,
+            "ay2": 5,
+            "bx1": 3,
+            "by1": 2,
+            "bx2": 4,
+            "by2": 5
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.2.16",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_16.svg",
+            "alt": "Длина вектора a + k b (вариант 16)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 1,
+            "ay1": 2,
+            "ax2": 3,
+            "ay2": 5,
+            "bx1": 3,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
+        },
+        {
+          "id": "2.2.2.17",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_17.svg",
+            "alt": "Длина вектора a + k b (вариант 17)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 1,
+            "ay1": 3,
+            "ax2": 4,
+            "ay2": 5,
+            "bx1": 1,
+            "by1": 1,
+            "bx2": 5,
+            "by2": 3
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
+        },
+        {
+          "id": "2.2.2.18",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_18.svg",
+            "alt": "Длина вектора a + k b (вариант 18)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 2,
+            "ay1": 1,
+            "ax2": 5,
+            "ay2": 3,
+            "bx1": 1,
+            "by1": 3,
+            "bx2": 5,
+            "by2": 5
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
+        },
+        {
+          "id": "2.2.2.19",
+          "figure": {
+            "img": "content/tasks/vectors/2.2/2.2.2_19.svg",
+            "alt": "Длина вектора a + k b (вариант 19)"
+          },
+          "params": {
+            "k": 3,
+            "ax1": 3,
+            "ay1": 1,
+            "ax2": 5,
+            "ay2": 4,
+            "bx1": 1,
+            "by1": 1,
+            "bx2": 3,
+            "by2": 5
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
         }
       ]
     }
