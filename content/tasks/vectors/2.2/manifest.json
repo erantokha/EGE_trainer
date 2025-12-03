@@ -71,35 +71,232 @@
             "text": "25",
             "value": 25
           }
-        }
-      ]
-    },
-    {
-      "id": "2.2.2",
-      "title": "Длина вектора по чертежу",
-      "stem_template": "На координатной плоскости изображены векторы \\(\\vec{a}\\) и \\(\\vec{b}\\), координатами которых являются целые числа. Найдите длину вектора \\(\\vec{a} + 4\\vec{b}\\).",
-      "defaults": {
-        "difficulty": 1,
-        "normalize": ["strip_spaces", "unicode_minus_to_ascii"]
-      },
-      "answer_spec": {
-        "type": "string",
-        "format": "ege_decimal"
-      },
-      "prototypes": [
+        },
         {
-          "id": "2.2.2.1",
-          "figure": {
-            "img": "content/tasks/vectors/2.2/2.2.2_1.svg",
-            "alt": "Длина вектора a + 4b (вариант 1)"
+          "id": "2.2.1.5",
+          "params": {
+            "ax": 9,
+            "ay": 10,
+            "bx": -3,
+            "by": -3,
+            "expr": "\\vec{a} + 2\\vec{b}"
           },
           "answer": {
-            "text": "11",
-            "value": 11
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.1.6",
+          "params": {
+            "ax": 7,
+            "ay": 10,
+            "bx": -9,
+            "by": -8,
+            "expr": "2\\vec{a} + \\vec{b}"
           },
-          "unic": true
-        }
-      ]
-    }
-  ]
-}
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.1.7",
+          "params": {
+            "ax": -4,
+            "ay": -1,
+            "bx": -10,
+            "by": -9,
+            "expr": "3\\vec{a} - 2\\vec{b}"
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
+        },
+        {
+          "id": "2.2.1.8",
+          "params": {
+            "ax": -8,
+            "ay": -6,
+            "bx": -5,
+            "by": -10,
+            "expr": "\\vec{a} - 3\\vec{b}"
+          },
+          "answer": {
+            "text": "25",
+            "value": 25
+          }
+        },
+        {
+          "id": "2.2.1.9",
+          "params": {
+            "ax": 7,
+            "ay": 7,
+            "bx": -8,
+            "by": -7,
+            "expr": "4\\vec{a} + \\vec{b}"
+          },
+          "answer": {
+            "text": "29",
+            "value": 29
+          }
+        },
+        {
+          "id": "2.2.1.10",
+          "params": {
+            "ax": 9,
+            "ay": 8,
+            "bx": 0,
+            "by": 8,
+            "expr": "\\vec{a} + 4\\vec{b}"
+          },
+          "answer": {
+            "text": "41",
+            "value": 41
+          }
+        },
+        {
+          "id": "2.2.1.11",
+          "params": {
+            "ax": -9,
+            "ay": -7,
+            "bx": -10,
+            "by": -10,
+            "expr": "2\\vec{a} - 3\\vec{b}"
+          },
+          "answer": {
+            "text": "20",
+            "value": 20
+          }
+        },
+        {
+          "id": "2.2.1.12",
+          "params": {
+            "ax": 9,
+            "ay": 10,
+            "bx": -6,
+            "by": 3,
+            "expr": "3\\vec{a} + 2\\vec{b}"
+          },
+          "answer": {
+            "text": "39",
+            "value": 39
+          }
+        },
+        {
+          "id": "2.2.1.13",
+          "params": {
+            "ax": -9,
+            "ay": 10,
+            "bx": -4,
+            "by": -10,
+            "expr": "\\vec{a} - 5\\vec{b}"
+          },
+          "answer": {
+            "text": "61",
+            "value": 61
+          }
+        },
+        {
+          "id": "2.2.1.14",
+          "params": {
+            "ax": 2,
+            "ay": 2,
+            "bx": -7,
+            "by": -6,
+            "expr": "5\\vec{a} + \\vec{b}"
+          },
+          "answer": {
+            "text": "5",
+            "value": 5
+          }
+        },
+        {
+          "id": "2.2.1.15",
+          "params": {
+            "ax": 7,
+            "ay": 8,
+            "bx": -4,
+            "by": -3,
+            "expr": "3\\vec{a} + 4\\vec{b}"
+          },
+          "answer": {
+            "text": "13",
+            "value": 13
+          }
+        },
+        {
+          "id": "2.2.1.16",
+          "params": {
+            "ax": -4,
+            "ay": -3,
+            "bx": -8,
+            "by": -9,
+            "expr": "4\\vec{a} - 3\\vec{b}"
+          },
+          "answer": {
+            "text": "17",
+            "value": 17
+          }
+        },
+        {
+          "id": "2.2.1.17",
+          "params": {
+            "ax": 6,
+            "ay": 7,
+            "bx": -1,
+            "by": 2,
+            "expr": "2\\vec{a} + 5\\vec{b}"
+          },
+          "answer": {
+            "text": "25",
+            "value": 25
+          }
+        },
+        {
+          "id": "2.2.1.18",
+          "params": {
+            "ax": 0,
+            "ay": 1,
+            "bx": -10,
+            "by": -8,
+            "expr": "5\\vec{a} - 2\\vec{b}"
+          },
+          "answer": {
+            "text": "29",
+            "value": 29
+          }
+        },
+        {
+          "id": "2.2.1.19",
+          "params": {
+            "ax": 0,
+            "ay": 10,
+            "bx": -9,
+            "by": -10,
+            "expr": "3\\vec{a} - \\vec{b}"
+          },
+          "answer": {
+            "text": "41",
+            "value": 41
+          }
+        },
+        {
+          "id": "2.2.1.20",
+          "params": {
+            "ax": 7,
+            "ay": 6,
+            "bx": 1,
+            "by": 2,
+            "expr": "\\vec{a} + 5\\vec{b}"
+          },
+          "answer": {
+            "text": "20",
+            "value": 20
+          }
+        },
+        {
+          "id": "2.2.1.21",
+          "params": {
+            "ax": 9,
