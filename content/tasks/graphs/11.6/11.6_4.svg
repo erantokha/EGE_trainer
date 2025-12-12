@@ -45,17 +45,19 @@
     <line x1="70" y1="290" x2="70" y2="10" marker-end="url(#axis-arrow)"></line>
   </g>
 
-  <!-- синяя прямая через a(0;4) и b(-3;1): y = x + 4 -->
+  <!-- синяя прямая через a(-4;1) и b(0;5): y = x + 5 -->
   <g stroke="#2d70b3" stroke-width="1.25" fill="none">
-    <line x1="-70" y1="210" x2="130" y2="10"></line>
+    <!-- видимая часть: (-7;-2) -> (2;7) => (-70;190) -> (110;10) -->
+    <line x1="-70" y1="190" x2="110" y2="10"></line>
   </g>
 
   <!-- точки a и b -->
-  <circle cx="70" cy="70" r="2.2" fill="#2d70b3"></circle>
-  <circle cx="10" cy="130" r="2.2" fill="#2d70b3"></circle>
+  <!-- a(-4;1)->(-10;130), b(0;5)->(70;50) -->
+  <circle cx="-10" cy="130" r="2.2" fill="#2d70b3"></circle>
+  <circle cx="70" cy="50" r="2.2" fill="#2d70b3"></circle>
 
-  <!-- подпись f(x): на 7 px левее -->
-  <text x="-12" y="126" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">f(x)</text>
+  <!-- подпись f(x): как раньше -->
+  <text x="0" y="90" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">f(x)</text>
 
   <!-- подписи осей -->
   <g font-family="sans-serif" font-size="11" fill="#111827">
@@ -71,16 +73,18 @@
     <text x="64" y="13" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">y</text>
   </g>
 
-  <!-- зелёная прямая через c(0;-1) и d(1;1): y = 2x - 1 (поверх всех элементов) -->
+  <!-- зелёная прямая через c(0;-6) и d(4;2): y = 2x - 6 (поверх всех остальных элементов) -->
   <g stroke="#166534" stroke-width="1.25" fill="none">
-    <line x1="10" y1="290" x2="150" y2="10"></line>
+    <!-- видимая часть: (-0.5;-7) -> (6.5;7) => (60;290) -> (200;10) -->
+    <line x1="60" y1="290" x2="200" y2="10"></line>
   </g>
 
   <!-- точки c и d (поверх) -->
-  <circle cx="70" cy="170" r="2.2" fill="#166534"></circle>
-  <circle cx="90" cy="130" r="2.2" fill="#166534"></circle>
+  <!-- c(0;-6)->(70;270), d(4;2)->(150;110) -->
+  <circle cx="70" cy="270" r="2.2" fill="#166534"></circle>
+  <circle cx="150" cy="110" r="2.2" fill="#166534"></circle>
 
-  <!-- подпись g(x): на 90 px выше -->
-  <text x="123" y="91" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#166534">g(x)</text>
+  <!-- подпись g(x): как раньше (по x = центр, по y = центр+33) -->
+  <text x="130" y="183" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#166534">g(x)</text>
 
 </svg>
