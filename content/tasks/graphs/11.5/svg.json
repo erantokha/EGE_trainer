@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+
+  <rect x="0" y="0" width="220" height="220" fill="white" />
+
+  <defs>
+    <marker id="axis-arrow"
+            viewBox="0 0 15 8"
+            refX="13" refY="4"
+            markerWidth="12" markerHeight="6.4"
+            orient="auto"
+            markerUnits="userSpaceOnUse">
+      <path d="M 3 0 L 15 4 L 3 8 L 7 4 Z" fill="black" />
+    </marker>
+  </defs>
+
+  <!-- сетка: x от -2 до 7, y от -5 до 5 -->
+  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+    <line x1="30"  y1="10" x2="30"  y2="210" />
+    <line x1="50"  y1="10" x2="50"  y2="210" />
+    <line x1="70"  y1="10" x2="70"  y2="210" />
+    <line x1="90"  y1="10" x2="90"  y2="210" />
+    <line x1="110" y1="10" x2="110" y2="210" />
+    <line x1="130" y1="10" x2="130" y2="210" />
+    <line x1="150" y1="10" x2="150" y2="210" />
+    <line x1="170" y1="10" x2="170" y2="210" />
+
+    <line x1="10" y1="30"  x2="190" y2="30"  />
+    <line x1="10" y1="50"  x2="190" y2="50"  />
+    <line x1="10" y1="70"  x2="190" y2="70"  />
+    <line x1="10" y1="90"  x2="190" y2="90"  />
+    <line x1="10" y1="110" x2="190" y2="110" />
+    <line x1="10" y1="130" x2="190" y2="130" />
+    <line x1="10" y1="150" x2="190" y2="150" />
+    <line x1="10" y1="170" x2="190" y2="170" />
+    <line x1="10" y1="190" x2="190" y2="190" />
+  </g>
+
+  <!-- оси (0,0) -> (50,110), ось x как сейчас: до 7 (до 190px) -->
+  <g stroke="#111827" stroke-width="1.25">
+    <line x1="10" y1="110" x2="190" y2="110" />
+    <line x1="50" y1="210" x2="50" y2="10" marker-end="url(#axis-arrow)" />
+  </g>
+
+  <!-- подписи осей и делений -->
+  <g font-family="sans-serif" font-size="11" fill="#111827">
+    <text x="46" y="123" text-anchor="end"
+          font-size="13" font-style="italic"
+          font-family="Georgia, 'Times New Roman', serif">O</text>
+
+    <rect x="67" y="113" width="7" height="12" fill="white" />
+    <text x="70" y="124" text-anchor="middle" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="43" y="94" text-anchor="end" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="186" y="123" text-anchor="start"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">x</text>
+
+    <text x="47" y="13" text-anchor="end"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">y</text>
+  </g>
+
+  <!-- y = log_a(x), через (2; -1) => a = 1/2
+       функция не рисуется правее x=6.5 (то есть правее x_svg=180)
+       выше y=4.5 не рисуем -->
+  <g stroke="#2d70b3" stroke-width="1.25" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 50.884 20 C 50.93 21.31 51.054 25.238 51.161 27.857 C 51.267 30.476 51.417 34.06 51.524 35.714 C 51.631 37.369 51.834 41.916 52.001 43.571 C 52.168 45.226 52.46 49.774 52.627 51.429 C 52.794 53.083 53.203 57.631 53.449 59.286 C 53.695 60.94 54.22 65.488 54.529 67.143 C 54.838 68.798 55.535 73.345 55.946 75 C 56.356 76.655 57.28 81.203 57.807 82.857 C 58.334 84.512 59.562 89.06 60.251 90.714 C 60.94 92.369 62.572 96.917 63.46 98.571 C 64.349 100.226 66.62 104.774 67.673 106.429 C 68.727 108.083 71.8 112.631 73.203 114.286 C 74.606 115.94 78.395 120.488 80.464 122.143 C 82.533 123.798 87.096 128.345 90 130 C 92.904 131.655 97.291 134.289 100.632 136.224 C 103.973 138.159 107.721 140.224 110.527 141.629 C 113.333 143.033 116.671 144.639 120.03 146.149 C 123.388 147.659 127.898 149.575 131.101 150.827 C 134.304 152.078 137.812 153.34 140.794 154.369 C 143.775 155.397 147.73 156.682 150.856 157.639 C 153.982 158.595 157.739 159.684 160.939 160.531 C 164.138 161.378 168.498 162.474 171.694 163.215 C 174.889 163.956 178.845 164.815 180 165.06" />
+  </g>
+
+  <!-- точка (2; -1) -->
+  <circle cx="90" cy="130" r="2.2" fill="#2d70b3" />
+
+  <!-- стрелка оси x поверх функции -->
+  <g stroke="#111827" stroke-width="1.25">
+    <line x1="175" y1="110" x2="190" y2="110" marker-end="url(#axis-arrow)" />
+  </g>
+
+  <!-- подпись f(x) -->
+  <text x="67" y="83"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-size="13"
+        fill="#2d70b3">
+    f(x)
+  </text>
+
+</svg>
