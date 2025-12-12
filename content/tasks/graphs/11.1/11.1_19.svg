@@ -3,15 +3,13 @@
   <rect x="0" y="0" width="220" height="220" fill="white"></rect>
 
   <defs>
-    <!-- стрелка для осей -->
     <marker id="axis-arrow" viewBox="0 0 15 8" refX="13" refY="4" markerWidth="12" markerHeight="6.4" orient="auto" markerUnits="userSpaceOnUse">
       <path d="M 3 0 L 15 4 L 3 8 L 7 4 Z" fill="black"></path>
     </marker>
   </defs>
 
-  <!-- тонкая клетчатая сетка 10×10, без окаймления по периметру -->
+  <!-- сетка -->
   <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
-    <!-- вертикальные линии: только внутренние -->
     <line x1="30" y1="10" x2="30" y2="210"></line>
     <line x1="50" y1="10" x2="50" y2="210"></line>
     <line x1="70" y1="10" x2="70" y2="210"></line>
@@ -22,7 +20,6 @@
     <line x1="170" y1="10" x2="170" y2="210"></line>
     <line x1="190" y1="10" x2="190" y2="210"></line>
 
-    <!-- горизонтальные линии: только внутренние -->
     <line x1="10" y1="30" x2="210" y2="30"></line>
     <line x1="10" y1="50" x2="210" y2="50"></line>
     <line x1="10" y1="70" x2="210" y2="70"></line>
@@ -34,15 +31,14 @@
     <line x1="10" y1="190" x2="210" y2="190"></line>
   </g>
 
-  <!-- оси x и y -->
+  <!-- оси -->
   <g stroke="#111827" stroke-width="1.25">
     <line x1="10" y1="150" x2="210" y2="150" marker-end="url(#axis-arrow)"></line>
     <line x1="70" y1="210" x2="70" y2="10" marker-end="url(#axis-arrow)"></line>
   </g>
 
-  <!-- подписи осей и делений -->
+  <!-- подписи осей -->
   <g font-family="sans-serif" font-size="11" fill="#111827">
-    <!-- O возвращена как в исходной картинке -->
     <text x="66" y="163" text-anchor="end" font-size="13" font-style="italic" font-family="Georgia, 'Times New Roman', serif">O</text>
 
     <rect x="87" y="153" width="7" height="12" fill="white"></rect>
@@ -52,24 +48,24 @@
 
     <text x="206" y="163" text-anchor="start" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">x</text>
 
-    <!-- y оставлена поднятой на 7 px -->
     <text x="64" y="13" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">y</text>
   </g>
 
-  <!-- синяя прямая через (0; -1) и (1; 1): y = 2x - 1,
-       в пределах сетки от (-1; -3) до (4; 7) -->
+  <!-- прямая y = -1.5x + 3 через (0;3) и (2;0),
+       продолжена до границ квадрата: от (-8/3;7) до (4;-3) -->
   <g stroke="#2d70b3" stroke-width="1.25" fill="none">
-    <!-- (-1; -3) -> (50; 210), (4; 7) -> (150; 10) -->
-    <line x1="50" y1="210" x2="150" y2="10"></line>
+    <!-- (-8/3;7) -> (≈16.67;10), (4;-3) -> (150;210) -->
+    <line x1="16.67" y1="10" x2="150" y2="210"></line>
   </g>
 
-  <!-- синие точки: (0; -1) и (1; 1) -->
-  <!-- (0; -1) -> (70; 170), (1; 1) -> (90; 130) -->
-  <circle cx="70" cy="170" r="2.2" fill="#2d70b3"></circle>
-  <circle cx="90" cy="130" r="2.2" fill="#2d70b3"></circle>
+  <!-- точки (0;3) и (2;0) -->
+  <!-- (0;3) -> (70;90), (2;0) -> (110;150) -->
+  <circle cx="70" cy="90" r="2.2" fill="#2d70b3"></circle>
+  <circle cx="110" cy="150" r="2.2" fill="#2d70b3"></circle>
 
-  <!-- подпись f(x) от центра видимой прямой (100; 110) + (10; 10) -->
-  <text x="110" y="120" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">
+  <!-- центр видимой прямой ~ (83.33;110),
+       f(x) на 10 px вправо и 10 px вверх -> (93.33;100) -->
+  <text x="93.33" y="100" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">
     f(x)
   </text>
 

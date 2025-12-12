@@ -42,7 +42,7 @@
 
   <!-- подписи осей и делений -->
   <g font-family="sans-serif" font-size="11" fill="#111827">
-    <!-- O возвращена как в исходной картинке -->
+    <!-- O как в исходной картинке -->
     <text x="66" y="163" text-anchor="end" font-size="13" font-style="italic" font-family="Georgia, 'Times New Roman', serif">O</text>
 
     <rect x="87" y="153" width="7" height="12" fill="white"></rect>
@@ -52,24 +52,24 @@
 
     <text x="206" y="163" text-anchor="start" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">x</text>
 
-    <!-- y оставлена поднятой на 7 px -->
+    <!-- y поднята на 7 px -->
     <text x="64" y="13" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">y</text>
   </g>
 
-  <!-- синяя прямая через (0; -1) и (1; 1): y = 2x - 1,
-       в пределах сетки от (-1; -3) до (4; 7) -->
+  <!-- синяя прямая y = x + 2 через точки (-2;0) и (1;3),
+       продолженная до границ сетки: от (-3; -1) до (5; 7) -->
   <g stroke="#2d70b3" stroke-width="1.25" fill="none">
-    <!-- (-1; -3) -> (50; 210), (4; 7) -> (150; 10) -->
-    <line x1="50" y1="210" x2="150" y2="10"></line>
+    <!-- (-3; -1) -> (10; 170), (5; 7) -> (170; 10) -->
+    <line x1="10" y1="170" x2="170" y2="10"></line>
   </g>
 
-  <!-- синие точки: (0; -1) и (1; 1) -->
-  <!-- (0; -1) -> (70; 170), (1; 1) -> (90; 130) -->
-  <circle cx="70" cy="170" r="2.2" fill="#2d70b3"></circle>
-  <circle cx="90" cy="130" r="2.2" fill="#2d70b3"></circle>
+  <!-- синие точки: (-2; 0) и (1; 3) -->
+  <!-- (-2; 0) -> (30; 150), (1; 3) -> (90; 90) -->
+  <circle cx="30" cy="150" r="2.2" fill="#2d70b3"></circle>
+  <circle cx="90" cy="90" r="2.2" fill="#2d70b3"></circle>
 
-  <!-- подпись f(x) от центра видимой прямой (100; 110) + (10; 10) -->
-  <text x="110" y="120" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">
+  <!-- подпись f(x) от центра видимой прямой (90; 90) + (10; 10) -->
+  <text x="100" y="100" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13" fill="#2d70b3">
     f(x)
   </text>
 
