@@ -7,7 +7,8 @@
       "title": "Найдите f(n)",
       "stem_template": "На рисунке изображён график функции $f(x)=kx+b$. Найдите значение $f(${n})$.",
       "answer_spec": {
-        "type": "number"
+        "type": "string",
+        "format": "ege_decimal"
       },
       "defaults": {
         "difficulty": 1
@@ -20,6 +21,7 @@
             "alt": "11.1_1"
           },
           "answer": {
+            "text": "13",
             "value": 13
           },
           "unic": true,
@@ -38,6 +40,7 @@
             "alt": "11.1_2"
           },
           "answer": {
+            "text": "19",
             "value": 19
           },
           "params": {
@@ -55,6 +58,7 @@
             "alt": "11.1_3"
           },
           "answer": {
+            "text": "12",
             "value": 12
           },
           "params": {
@@ -72,6 +76,7 @@
             "alt": "11.1_5"
           },
           "answer": {
+            "text": "11",
             "value": 11
           },
           "params": {
@@ -89,6 +94,7 @@
             "alt": "11.1_6"
           },
           "answer": {
+            "text": "8,5",
             "value": 8.5
           },
           "params": {
@@ -106,6 +112,7 @@
             "alt": "11.1_7"
           },
           "answer": {
+            "text": "8",
             "value": 8
           },
           "params": {
@@ -123,6 +130,7 @@
             "alt": "11.1_8"
           },
           "answer": {
+            "text": "44",
             "value": 44
           },
           "params": {
@@ -140,6 +148,7 @@
             "alt": "11.1_9"
           },
           "answer": {
+            "text": "17,5",
             "value": 17.5
           },
           "params": {
@@ -157,6 +166,7 @@
             "alt": "11.1_10"
           },
           "answer": {
+            "text": "12",
             "value": 12
           },
           "params": {
@@ -174,6 +184,7 @@
             "alt": "11.1_11"
           },
           "answer": {
+            "text": "5",
             "value": 5
           },
           "params": {
@@ -191,6 +202,7 @@
             "alt": "11.1_12"
           },
           "answer": {
+            "text": "7",
             "value": 7
           },
           "params": {
@@ -208,6 +220,7 @@
             "alt": "11.1_13"
           },
           "answer": {
+            "text": "9",
             "value": 9
           },
           "params": {
@@ -225,6 +238,7 @@
             "alt": "11.1_14"
           },
           "answer": {
+            "text": "18",
             "value": 18
           },
           "params": {
@@ -242,6 +256,7 @@
             "alt": "11.1_15"
           },
           "answer": {
+            "text": "18",
             "value": 18
           },
           "params": {
@@ -259,6 +274,7 @@
             "alt": "11.1_16"
           },
           "answer": {
+            "text": "6,5",
             "value": 6.5
           },
           "params": {
@@ -276,6 +292,7 @@
             "alt": "11.1_17"
           },
           "answer": {
+            "text": "6,5",
             "value": 6.5
           },
           "params": {
@@ -293,6 +310,7 @@
             "alt": "11.1_18"
           },
           "answer": {
+            "text": "18,5",
             "value": 18.5
           },
           "params": {
@@ -310,6 +328,7 @@
             "alt": "11.1_19"
           },
           "answer": {
+            "text": "21",
             "value": 21
           },
           "params": {
