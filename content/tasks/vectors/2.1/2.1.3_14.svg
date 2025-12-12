@@ -60,34 +60,34 @@
     <!-- 1 по оси y -->
     <text x="63" y="134" text-anchor="end" font-size="13" font-family="'Times New Roman', serif" font-weight="300">1</text>
 
-    <!-- подписи осей: размер как у a,b -->
+    <!-- подписи осей -->
     <text x="186" y="163" text-anchor="start" font-family="Georgia, 'Times New Roman', serif" font-weight="normal" font-style="italic" font-size="13">x</text>
 
     <text x="64" y="33" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-weight="normal" font-style="italic" font-size="13">y</text>
   </g>
 
-  <!-- вектор a: (1,1) -> (2,2) -->
+  <!-- вектор a: (2,1) -> (5,5) -->
   <g stroke="#2d70b3" stroke-width="1.1" fill="none">
-    <line x1="90" y1="130" x2="110" y2="110" marker-end="url(#arrow-a)"></line>
+    <line x1="110" y1="130" x2="170" y2="50" marker-end="url(#arrow-a)"></line>
   </g>
 
-  <!-- подпись вектора a: середина (100,120) -> буква (90,110) -->
+  <!-- подпись вектора a: середина (140,90) → смещение +10,+10 → центр (150,100) -->
   <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2d70b3">
-    <rect x="89" y="98" width="10" height="12" fill="white" stroke="none"></rect>
-    <line x1="90" y1="100" x2="98" y2="100" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
-    <text x="90" y="110" font-style="italic" fill="#2d70b3">a</text>
+    <rect x="145" y="94" width="10" height="12" fill="white" stroke="none"></rect>
+    <line x1="146" y1="96" x2="154" y2="96" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
+    <text x="146" y="106" font-style="italic" fill="#2d70b3">a</text>
   </g>
 
-  <!-- вектор b: (3,2) -> (5,5) -->
+  <!-- вектор b: (1,1) -> (2,5) -->
   <g stroke="#2d70b3" stroke-width="1.1" fill="none">
-    <line x1="130" y1="110" x2="170" y2="50" marker-end="url(#arrow-b)"></line>
+    <line x1="90" y1="130" x2="110" y2="50" marker-end="url(#arrow-b)"></line>
   </g>
 
-  <!-- подпись вектора b: середина (150,80) -> буква (140,70) -->
+  <!-- подпись вектора b: середина (100,90) → смещение -10,-10 → центр (90,80) -->
   <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2d70b3">
-    <rect x="138.5" y="54" width="11" height="20" fill="white" stroke="none"></rect>
-    <line x1="140" y1="56" x2="148" y2="56" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
-    <text x="140" y="70" font-style="italic" fill="#2d70b3">b</text>
+    <rect x="84.5" y="70" width="11" height="20" fill="white" stroke="none"></rect>
+    <line x1="86" y1="72" x2="94" y2="72" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
+    <text x="86" y="86" font-style="italic" fill="#2d70b3">b</text>
   </g>
 
 </svg>

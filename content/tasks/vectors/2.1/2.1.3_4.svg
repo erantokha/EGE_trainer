@@ -23,33 +23,29 @@
     </marker>
   </defs>
 
-  <!-- тонкая клетчатая сетка, с линией слева и снизу, без рамки сверху и справа -->
+  <!-- тонкая клетчатая сетка (без рамки по периметру) -->
   <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
-    <!-- вертикальные линии: слева x=50, затем 70..190, без x=210 -->
-    <line x1="50" y1="10" x2="50" y2="190"></line>
-    <line x1="70" y1="10" x2="70" y2="190"></line>
-    <line x1="90" y1="10" x2="90" y2="190"></line>
-    <line x1="110" y1="10" x2="110" y2="190"></line>
-    <line x1="130" y1="10" x2="130" y2="190"></line>
-    <line x1="150" y1="10" x2="150" y2="190"></line>
-    <line x1="170" y1="10" x2="170" y2="190"></line>
-    <line x1="190" y1="10" x2="190" y2="190"></line>
+    <line x1="50" y1="30" x2="50" y2="190"></line>
+    <line x1="70" y1="30" x2="70" y2="190"></line>
+    <line x1="90" y1="30" x2="90" y2="190"></line>
+    <line x1="110" y1="30" x2="110" y2="190"></line>
+    <line x1="130" y1="30" x2="130" y2="190"></line>
+    <line x1="150" y1="30" x2="150" y2="190"></line>
+    <line x1="170" y1="30" x2="170" y2="190"></line>
 
-    <!-- горизонтальные линии: снизу y=170, затем 150..30, без y=10 -->
-    <line x1="30" y1="170" x2="210" y2="170"></line>
-    <line x1="30" y1="150" x2="210" y2="150"></line>
-    <line x1="30" y1="130" x2="210" y2="130"></line>
-    <line x1="30" y1="110" x2="210" y2="110"></line>
-    <line x1="30" y1="90" x2="210" y2="90"></line>
-    <line x1="30" y1="70" x2="210" y2="70"></line>
-    <line x1="30" y1="50" x2="210" y2="50"></line>
-    <line x1="30" y1="30" x2="210" y2="30"></line>
+    <line x1="30" y1="50" x2="190" y2="50"></line>
+    <line x1="30" y1="70" x2="190" y2="70"></line>
+    <line x1="30" y1="90" x2="190" y2="90"></line>
+    <line x1="30" y1="110" x2="190" y2="110"></line>
+    <line x1="30" y1="130" x2="190" y2="130"></line>
+    <line x1="30" y1="150" x2="190" y2="150"></line>
+    <line x1="30" y1="170" x2="190" y2="170"></line>
   </g>
 
   <!-- оси x и y -->
   <g stroke="#111827" stroke-width="1.25">
-    <line x1="30" y1="150" x2="210" y2="150" marker-end="url(#axis-arrow)"></line>
-    <line x1="70" y1="190" x2="70" y2="10" marker-end="url(#axis-arrow)"></line>
+    <line x1="30" y1="150" x2="190" y2="150" marker-end="url(#axis-arrow)"></line>
+    <line x1="70" y1="190" x2="70" y2="30" marker-end="url(#axis-arrow)"></line>
   </g>
 
   <!-- подписи осей и делений -->
@@ -64,37 +60,36 @@
     <!-- 1 по оси y -->
     <text x="63" y="134" text-anchor="end" font-size="13" font-family="'Times New Roman', serif" font-weight="300">1</text>
 
-    <!-- подписи осей -->
-    <text x="206" y="163" text-anchor="start" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">x</text>
+    <!-- подписи осей: размер как у a,b -->
+    <text x="186" y="163" text-anchor="start" font-family="Georgia, 'Times New Roman', serif" font-weight="normal" font-style="italic" font-size="13">x</text>
 
-    <text x="64" y="20" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="13">y</text>
+    <text x="64" y="33" text-anchor="end" font-family="Georgia, 'Times New Roman', serif" font-weight="normal" font-style="italic" font-size="13">y</text>
   </g>
 
-  <!-- вектор a: (1,1) -> (3,4): (90,130) -> (130,70) -->
+  <!-- вектор a: (1,1) -> (2,3) -->
   <g stroke="#2d70b3" stroke-width="1.1" fill="none">
-    <line x1="90" y1="130" x2="130" y2="70" marker-end="url(#arrow-a)"></line>
+    <line x1="90" y1="130" x2="110" y2="90" marker-end="url(#arrow-a)"></line>
   </g>
 
-  <!-- подпись вектора a: середина (110,100),
-       буква на 10px левее и 10px выше: (100,90) -->
+  <!-- подпись вектора a: середина (100,110) -> буква (90,100);
+       фон и стрелка относительно буквы как раньше -->
   <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2d70b3">
-    <rect x="99" y="78" width="10" height="12" fill="white" stroke="none"></rect>
-    <line x1="100" y1="80" x2="108" y2="80" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
-    <text x="100" y="90" font-style="italic" fill="#2d70b3">a</text>
+    <rect x="89" y="88" width="10" height="12" fill="white" stroke="none"></rect>
+    <line x1="90" y1="90" x2="98" y2="90" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
+    <text x="90" y="100" font-style="italic" fill="#2d70b3">a</text>
   </g>
 
-  <!-- вектор b: (3,3) -> (5,2): (130,90) -> (170,110) -->
+  <!-- вектор b: (3,1) -> (4,2) -->
   <g stroke="#2d70b3" stroke-width="1.1" fill="none">
-    <line x1="130" y1="90" x2="170" y2="110" marker-end="url(#arrow-b)"></line>
+    <line x1="130" y1="130" x2="150" y2="110" marker-end="url(#arrow-b)"></line>
   </g>
 
-  <!-- подпись вектора b:
-       буква сдвинута на 10px влево и 3px вниз от предыдущего положения (160,90) -> (150,93),
-       фон и стрелка как раньше относительно буквы -->
+  <!-- подпись вектора b: середина (140,120) -> буква (130,110);
+       фон и стрелка относительно буквы как в исходном варианте b -->
   <g font-family="Georgia, 'Times New Roman', serif" font-size="13" fill="#2d70b3">
-    <rect x="148.5" y="77" width="11" height="20" fill="white" stroke="none"></rect>
-    <line x1="150" y1="79" x2="158" y2="79" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
-    <text x="150" y="93" font-style="italic" fill="#2d70b3">b</text>
+    <rect x="128.5" y="94" width="11" height="20" fill="white" stroke="none"></rect>
+    <line x1="130" y1="96" x2="138" y2="96" stroke="#2d70b3" stroke-width="0.9" stroke-linecap="round" marker-end="url(#vec-label-arrow)"></line>
+    <text x="130" y="110" font-style="italic" fill="#2d70b3">b</text>
   </g>
 
 </svg>
