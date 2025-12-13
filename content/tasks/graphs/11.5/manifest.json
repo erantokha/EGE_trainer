@@ -4,16 +4,71 @@
   "types": [
     {
       "id": "11.5.1",
-      "title": "Найдите f(8)",
-      "stem_template": "На рисунке изображён график функции $f(x)=\\log_a x$. Найдите значение $f(8)$.",
+      "title": "Найдите f(n)",
+      "stem_template": "На рисунке изображён график функции $f(x)=\\log_a x$. Найдите значение $f(${n})$.",
       "answer_spec": { "type": "number" },
       "defaults": { "difficulty": 1 },
       "prototypes": [
         {
           "id": "11.5.1.1",
           "figure": { "img": "content/tasks/graphs/11.5/11.5_1.svg", "alt": "11.5_1" },
+          "answer": { "value": -8 },
+          "unic": true,
+          "params": { "px": 2, "py": -1, "a": 0.5, "n": 256 }
+        },
+        {
+          "id": "11.5.1.2",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_2.svg", "alt": "11.5_2" },
+          "answer": { "value": -5 },
+          "params": { "px": 3, "py": -1, "a": 0.3333333333, "n": 243 }
+        },
+        {
+          "id": "11.5.1.3",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_3.svg", "alt": "11.5_3" },
+          "answer": { "value": -4 },
+          "params": { "px": 4, "py": -1, "a": 0.25, "n": 256 }
+        },
+        {
+          "id": "11.5.1.4",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_4.svg", "alt": "11.5_4" },
           "answer": { "value": -3 },
-          "unic": true
+          "params": { "px": 5, "py": -1, "a": 0.2, "n": 125 }
+        },
+        {
+          "id": "11.5.1.5",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_5.svg", "alt": "11.5_5" },
+          "answer": { "value": -3 },
+          "params": { "px": 6, "py": -1, "a": 0.1666666667, "n": 216 }
+        },
+        {
+          "id": "11.5.1.6",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_6.svg", "alt": "11.5_6" },
+          "answer": { "value": 4 },
+          "params": { "px": 3, "py": 1, "a": 3, "n": 81 }
+        },
+        {
+          "id": "11.5.1.7",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_7.svg", "alt": "11.5_7" },
+          "answer": { "value": 7 },
+          "params": { "px": 2, "py": 1, "a": 2, "n": 128 }
+        },
+        {
+          "id": "11.5.1.8",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_8.svg", "alt": "11.5_8" },
+          "answer": { "value": 3 },
+          "params": { "px": 4, "py": 1, "a": 4, "n": 64 }
+        },
+        {
+          "id": "11.5.1.9",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_9.svg", "alt": "11.5_9" },
+          "answer": { "value": 2 },
+          "params": { "px": 5, "py": 1, "a": 5, "n": 25 }
+        },
+        {
+          "id": "11.5.1.10",
+          "figure": { "img": "content/tasks/graphs/11.5/11.5_10.svg", "alt": "11.5_10" },
+          "answer": { "value": 2 },
+          "params": { "px": 6, "py": 1, "a": 6, "n": 36 }
         }
       ]
     }
