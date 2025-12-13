@@ -4,8 +4,8 @@
   "types": [
     {
       "id": "11.4.1",
-      "title": "Найдите f(-3)",
-      "stem_template": "На рисунке изображён график функции $f(x)=a^x$. Найдите значение $f(-3)$.",
+      "title": "Найдите f(n)",
+      "stem_template": "На рисунке изображён график функции $f(x)=a^x$. Найдите значение $f(${n})$.",
       "answer_spec": { "type": "number" },
       "defaults": { "difficulty": 1 },
       "prototypes": [
@@ -13,7 +13,86 @@
           "id": "11.4.1.1",
           "figure": { "img": "content/tasks/graphs/11.4/11.4_1.svg", "alt": "11.4_1" },
           "answer": { "value": 64 },
-          "unic": true
+          "unic": true,
+          "params": { "px": -1, "py": 4, "a": 0.25, "n": -3 }
+        },
+        {
+          "id": "11.4.1.2",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_2.svg", "alt": "11.4_2" },
+          "answer": { "value": 27 },
+          "params": { "px": -1, "py": 3, "a": 0.3333333333, "n": -3 }
+        },
+        {
+          "id": "11.4.1.3",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_3.svg", "alt": "11.4_3" },
+          "answer": { "value": 32 },
+          "params": { "px": -1, "py": 2, "a": 0.5, "n": -5 }
+        },
+        {
+          "id": "11.4.1.4",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_4.svg", "alt": "11.4_4" },
+          "answer": { "value": 25 },
+          "params": { "px": -1, "py": 5, "a": 0.2, "n": -2 }
+        },
+        {
+          "id": "11.4.1.5",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_5.svg", "alt": "11.4_5" },
+          "answer": { "value": 36 },
+          "params": { "px": -1, "py": 6, "a": 0.1666666667, "n": -2 }
+        },
+        {
+          "id": "11.4.1.6",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_6.svg", "alt": "11.4_6" },
+          "answer": { "value": 49 },
+          "params": { "px": -1, "py": 7, "a": 0.1428571429, "n": -2 }
+        },
+        {
+          "id": "11.4.1.7",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_7.svg", "alt": "11.4_7" },
+          "answer": { "value": 64 },
+          "params": { "px": -1, "py": 8, "a": 0.125, "n": -2 }
+        },
+        {
+          "id": "11.4.1.8",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_8.svg", "alt": "11.4_8" },
+          "answer": { "value": 128 },
+          "params": { "px": 1, "py": 2, "a": 2, "n": 7 }
+        },
+        {
+          "id": "11.4.1.9",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_9.svg", "alt": "11.4_9" },
+          "answer": { "value": 243 },
+          "params": { "px": 1, "py": 3, "a": 3, "n": 5 }
+        },
+        {
+          "id": "11.4.1.10",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_10.svg", "alt": "11.4_10" },
+          "answer": { "value": 64 },
+          "params": { "px": 1, "py": 4, "a": 4, "n": 3 }
+        },
+        {
+          "id": "11.4.1.11",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_11.svg", "alt": "11.4_11" },
+          "answer": { "value": 125 },
+          "params": { "px": 1, "py": 5, "a": 5, "n": 3 }
+        },
+        {
+          "id": "11.4.1.12",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_12.svg", "alt": "11.4_12" },
+          "answer": { "value": 36 },
+          "params": { "px": 1, "py": 6, "a": 6, "n": 2 }
+        },
+        {
+          "id": "11.4.1.13",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_13.svg", "alt": "11.4_13" },
+          "answer": { "value": 49 },
+          "params": { "px": 1, "py": 7, "a": 7, "n": 2 }
+        },
+        {
+          "id": "11.4.1.14",
+          "figure": { "img": "content/tasks/graphs/11.4/11.4_14.svg", "alt": "11.4_14" },
+          "answer": { "value": 64 },
+          "params": { "px": 1, "py": 8, "a": 8, "n": 2 }
         }
       ]
     }
