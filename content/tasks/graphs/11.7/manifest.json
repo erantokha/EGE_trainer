@@ -14,6 +14,120 @@
           "figure": { "img": "content/tasks/graphs/11.7/11.7_1.svg", "alt": "11.7_1" },
           "answer": { "value": 8 },
           "unic": true
+        },
+        {
+          "id": "11.7.1.2",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_2.svg", "alt": "11.7_2" },
+          "answer": { "value": 8 },
+          "params": { "k": 8, "a_num": 1, "a_den": 2, "b": -3, "xa": -2 }
+        },
+        {
+          "id": "11.7.1.3",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_3.svg", "alt": "11.7_3" },
+          "answer": { "value": 12 },
+          "params": { "k": 12, "a_num": 1, "a_den": 3, "b": -3, "xa": -3 }
+        },
+        {
+          "id": "11.7.1.4",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_4.svg", "alt": "11.7_4" },
+          "answer": { "value": 12 },
+          "params": { "k": 12, "a_num": 1, "a_den": 4, "b": -2, "xa": -4 }
+        },
+        {
+          "id": "11.7.1.5",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_5.svg", "alt": "11.7_5" },
+          "answer": { "value": 6 },
+          "params": { "k": 6, "a_num": 1, "a_den": 2, "b": -2, "xa": -2 }
+        },
+        {
+          "id": "11.7.1.6",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_6.svg", "alt": "11.7_6" },
+          "answer": { "value": 6 },
+          "params": { "k": 6, "a_num": 1, "a_den": 3, "b": -1, "xa": -3 }
+        },
+        {
+          "id": "11.7.1.7",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_7.svg", "alt": "11.7_7" },
+          "answer": { "value": 8 },
+          "params": { "k": -8, "a_num": -1, "a_den": 2, "b": 3, "xa": -2 }
+        },
+        {
+          "id": "11.7.1.8",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_8.svg", "alt": "11.7_8" },
+          "answer": { "value": 8 },
+          "params": { "k": -8, "a_num": -1, "a_den": 4, "b": 1, "xa": -4 }
+        },
+        {
+          "id": "11.7.1.9",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_9.svg", "alt": "11.7_9" },
+          "answer": { "value": 6 },
+          "params": { "k": -6, "a_num": -1, "a_den": 3, "b": 1, "xa": -3 }
+        },
+        {
+          "id": "11.7.1.10",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_10.svg", "alt": "11.7_10" },
+          "answer": { "value": -6 },
+          "params": { "k": -6, "a_num": -1, "a_den": 3, "b": -1, "xa": 3 }
+        },
+        {
+          "id": "11.7.1.11",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_11.svg", "alt": "11.7_11" },
+          "answer": { "value": 6 },
+          "params": { "k": -6, "a_num": -1, "a_den": 2, "b": 2, "xa": -2 }
+        },
+        {
+          "id": "11.7.1.12",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_12.svg", "alt": "11.7_12" },
+          "answer": { "value": -6 },
+          "params": { "k": -6, "a_num": -1, "a_den": 2, "b": -2, "xa": 2 }
+        },
+        {
+          "id": "11.7.1.13",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_13.svg", "alt": "11.7_13" },
+          "answer": { "value": -8 },
+          "params": { "k": -8, "a_num": -1, "a_den": 2, "b": -3, "xa": 2 }
+        },
+        {
+          "id": "11.7.1.14",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_14.svg", "alt": "11.7_14" },
+          "answer": { "value": -8 },
+          "params": { "k": -8, "a_num": -1, "a_den": 4, "b": -1, "xa": 4 }
+        },
+        {
+          "id": "11.7.1.15",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_15.svg", "alt": "11.7_15" },
+          "answer": { "value": 12 },
+          "params": { "k": -12, "a_num": -1, "a_den": 4, "b": 2, "xa": -4 }
+        },
+        {
+          "id": "11.7.1.16",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_16.svg", "alt": "11.7_16" },
+          "answer": { "value": -12 },
+          "params": { "k": -12, "a_num": -1, "a_den": 4, "b": -2, "xa": 4 }
+        },
+        {
+          "id": "11.7.1.17",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_17.svg", "alt": "11.7_17" },
+          "answer": { "value": -12 },
+          "params": { "k": -12, "a_num": -1, "a_den": 3, "b": -3, "xa": 3 }
+        },
+        {
+          "id": "11.7.1.18",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_18.svg", "alt": "11.7_18" },
+          "answer": { "value": 12 },
+          "params": { "k": -12, "a_num": -1, "a_den": 3, "b": 3, "xa": -3 }
+        },
+        {
+          "id": "11.7.1.19",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_19.svg", "alt": "11.7_19" },
+          "answer": { "value": -12 },
+          "params": { "k": 12, "a_num": 1, "a_den": 3, "b": 3, "xa": 3 }
+        },
+        {
+          "id": "11.7.1.20",
+          "figure": { "img": "content/tasks/graphs/11.7/11.7_20.svg", "alt": "11.7_20" },
+          "answer": { "value": -12 },
+          "params": { "k": 12, "a_num": 1, "a_den": 4, "b": 2, "xa": 4 }
         }
       ]
     }
