@@ -14,6 +14,100 @@
           "figure": { "img": "content/tasks/graphs/11.9/11.9_1.svg", "alt": "11.9_1" },
           "answer": { "value": 100 },
           "unic": true
+        },
+
+        {
+          "id": "11.9.1.2",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_2.svg", "alt": "11.9_2" },
+          "answer": { "value": 64 },
+          "params": { "a": 2, "k_num": 1, "k_den": 4, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.3",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_3.svg", "alt": "11.9_3" },
+          "answer": { "value": 36 },
+          "params": { "a": 2, "k_num": 1, "k_den": 3, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.4",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_4.svg", "alt": "11.9_4" },
+          "answer": { "value": 16 },
+          "params": { "a": 2, "k_num": 1, "k_den": 2, "xa": 0 }
+        },
+
+        {
+          "id": "11.9.1.5",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_5.svg", "alt": "11.9_5" },
+          "answer": { "value": 324 },
+          "params": { "a": 3, "k_num": 1, "k_den": 6, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.6",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_6.svg", "alt": "11.9_6" },
+          "answer": { "value": 225 },
+          "params": { "a": 3, "k_num": 1, "k_den": 5, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.7",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_7.svg", "alt": "11.9_7" },
+          "answer": { "value": 144 },
+          "params": { "a": 3, "k_num": 1, "k_den": 4, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.8",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_8.svg", "alt": "11.9_8" },
+          "answer": { "value": 81 },
+          "params": { "a": 3, "k_num": 1, "k_den": 3, "xa": 0 }
+        },
+
+        {
+          "id": "11.9.1.9",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_9.svg", "alt": "11.9_9" },
+          "answer": { "value": 576 },
+          "params": { "a": 4, "k_num": 1, "k_den": 6, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.10",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_10.svg", "alt": "11.9_10" },
+          "answer": { "value": 400 },
+          "params": { "a": 4, "k_num": 1, "k_den": 5, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.11",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_11.svg", "alt": "11.9_11" },
+          "answer": { "value": 256 },
+          "params": { "a": 4, "k_num": 1, "k_den": 4, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.12",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_12.svg", "alt": "11.9_12" },
+          "answer": { "value": 144 },
+          "params": { "a": 4, "k_num": 1, "k_den": 3, "xa": 0 }
+        },
+
+        {
+          "id": "11.9.1.13",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_13.svg", "alt": "11.9_13" },
+          "answer": { "value": 900 },
+          "params": { "a": 5, "k_num": 1, "k_den": 6, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.14",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_14.svg", "alt": "11.9_14" },
+          "answer": { "value": 625 },
+          "params": { "a": 5, "k_num": 1, "k_den": 5, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.15",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_15.svg", "alt": "11.9_15" },
+          "answer": { "value": 400 },
+          "params": { "a": 5, "k_num": 1, "k_den": 4, "xa": 0 }
+        },
+        {
+          "id": "11.9.1.16",
+          "figure": { "img": "content/tasks/graphs/11.9/11.9_16.svg", "alt": "11.9_16" },
+          "answer": { "value": 225 },
+          "params": { "a": 5, "k_num": 1, "k_den": 3, "xa": 0 }
         }
       ]
     }
