@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+
+  <rect x="0" y="0" width="220" height="220" fill="white" />
+
+  <defs>
+    <!-- стрелка для осей -->
+    <marker id="axis-arrow"
+            viewBox="0 0 15 8"
+            refX="13" refY="4"
+            markerWidth="12" markerHeight="6.4"
+            orient="auto"
+            markerUnits="userSpaceOnUse">
+      <path d="M 3 0 L 15 4 L 3 8 L 7 4 Z"
+            fill="black" />
+    </marker>
+  </defs>
+
+  <!-- тонкая клетчатая сетка 10×10, без окаймления по периметру -->
+  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+    <!-- вертикальные линии: только внутренние -->
+    <line x1="30"  y1="10" x2="30"  y2="210" />
+    <line x1="50"  y1="10" x2="50"  y2="210" />
+    <line x1="70"  y1="10" x2="70"  y2="210" />
+    <line x1="90"  y1="10" x2="90"  y2="210" />
+    <line x1="110" y1="10" x2="110" y2="210" />
+    <line x1="130" y1="10" x2="130" y2="210" />
+    <line x1="150" y1="10" x2="150" y2="210" />
+    <line x1="170" y1="10" x2="170" y2="210" />
+    <line x1="190" y1="10" x2="190" y2="210" />
+
+    <!-- горизонтальные линии: только внутренние -->
+    <line x1="10" y1="30"  x2="210" y2="30"  />
+    <line x1="10" y1="50"  x2="210" y2="50"  />
+    <line x1="10" y1="70"  x2="210" y2="70"  />
+    <line x1="10" y1="90"  x2="210" y2="90"  />
+    <line x1="10" y1="110" x2="210" y2="110" />
+    <line x1="10" y1="130" x2="210" y2="130" />
+    <line x1="10" y1="150" x2="210" y2="150" />
+    <line x1="10" y1="170" x2="210" y2="170" />
+    <line x1="10" y1="190" x2="210" y2="190" />
+  </g>
+
+  <!-- оси x и y -->
+  <g stroke="#111827" stroke-width="1.25">
+    <line x1="10" y1="150" x2="210" y2="150"
+          marker-end="url(#axis-arrow)" />
+    <line x1="70" y1="210" x2="70" y2="10"
+          marker-end="url(#axis-arrow)" />
+  </g>
+
+  <!-- подписи осей и делений -->
+  <g font-family="sans-serif" font-size="11" fill="#111827">
+    <text x="66" y="163" text-anchor="end"
+          font-size="13" font-style="italic"
+          font-family="Georgia, 'Times New Roman', serif">O</text>
+
+    <rect x="87" y="153" width="7" height="12" fill="white" />
+    <text x="90" y="164" text-anchor="middle" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="63" y="134" text-anchor="end" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="206" y="163" text-anchor="start"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">x</text>
+
+    <text x="67" y="13" text-anchor="end"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">y</text>
+  </g>
+<!-- точки на параболе — тем же цветом, что и парабола -->
+  <!-- кривая как из трёх парабол (3 квадратичных сегмента), y(0) = -2 -->
+<g stroke="#2d70b3" stroke-width="1.25" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 10 170 Q 58 238 106 114 Q 131 49.417 156 138.913 Q 183 235.569 210 182" />
+  </g>
+<!-- точки на прямой -->
+<!-- подпись f(x) -->
+  <text x="166" y="136"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-size="13"
+        fill="#2d70b3">
+    f(x)
+  </text>
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+<!-- точки на прямой -->
+
+  <!-- прямая через (-2;5) и (6;2) -->
+  <g stroke="#166534" stroke-width="1.25" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <line x1="10" y1="42.5" x2="210" y2="117.5" />
+  </g>
+
+  <!-- точки на прямой -->
+  <circle cx="30" cy="50" r="2.2" fill="#166534" />
+  <circle cx="190" cy="110" r="2.2" fill="#166534" />
+
+
+  <!-- пунктир от точки касания до оси x и подпись x0 -->
+  <g stroke="#2d70b3" stroke-width="1.1" fill="none" stroke-linecap="round">
+    <line x1="130" y1="87.5" x2="130" y2="150"
+          stroke-dasharray="4 4" />
+  </g>
+
+  <text x="130" y="162" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-size="13"
+        fill="#2d70b3">
+    x<tspan baseline-shift="sub" font-size="10">0</tspan>
+  </text>
+
+  <!-- точка касания (поверх всех элементов) -->
+  <circle cx="130" cy="87.5" r="2.2" fill="#2d70b3" />
+
+</svg>
