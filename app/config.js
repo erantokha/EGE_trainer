@@ -11,6 +11,10 @@ export const CONFIG = {
     table: 'attempts',
     flatViewName: 'attempts_flat'
   },
+  content: {
+    version: '2025-12-20' // меняй при обновлении контента
+  },
+
   admin: {
     charts: true,           // показывать графики в админке
     defaultPageSize: 25,    // размер страницы по умолчанию
