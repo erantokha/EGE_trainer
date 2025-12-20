@@ -8,6 +8,40 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 const INDEX_URL = '../content/tasks/index.json';
 
+// Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
+// (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
+async function ensureManifest(topic) {
+  if (topic._manifest) return topic._manifest;
+  if (topic._manifestPromise) return topic._manifestPromise;
+  if (!topic.path) return null;
+
+  const url = new URL('../' + topic.path, location.href);
+  topic._manifestPromise = (async () => {
+    const resp = await fetch(url.href, { cache: 'force-cache' });
+    if (!resp.ok) return null;
+    const man = await resp.json();
+    topic._manifest = man;
+    return man;
+  })();
+
+  return topic._manifestPromise;
+}
+
+// элементы управления темами (для «Раскрыть все» и фоновой подгрузки счётчиков)
+let TOPIC_CONTROLLERS = [];
+
+function mapLimit(items, limit, fn) {
+  const list = Array.from(items || []);
+  let i = 0;
+  const workers = Array.from({ length: Math.max(1, limit) }, async () => {
+    while (i < list.length) {
+      const idx = i++;
+      await fn(list[idx], idx);
+    }
+  });
+  return Promise.all(workers);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -56,16 +90,75 @@ async function init() {
   if (!host) return;
   host.innerHTML = '';
 
+  TOPIC_CONTROLLERS = [];
   for (const t of topics) {
     host.appendChild(renderTopicNode(t));
   }
+
+  // Кнопка «Раскрыть все» / «Свернуть все»
+  const expandBtn = $('#expandAllBtn');
+  if (expandBtn) {
+    const updateBtn = () => {
+      const allExpanded = TOPIC_CONTROLLERS.length > 0 && TOPIC_CONTROLLERS.every(c => c.isExpanded());
+      expandBtn.textContent = allExpanded ? 'Свернуть все' : 'Раскрыть все';
+    };
+    updateBtn();
+
+    expandBtn.addEventListener('click', async () => {
+      const allExpanded = TOPIC_CONTROLLERS.length > 0 && TOPIC_CONTROLLERS.every(c => c.isExpanded());
+      if (allExpanded) {
+        for (const c of TOPIC_CONTROLLERS) c.collapse();
+        updateBtn();
+        return;
+      }
+
+      expandBtn.disabled = true;
+      const oldText = expandBtn.textContent;
+      expandBtn.textContent = 'Раскрываем...';
+
+      try {
+        // Сначала раскрываем (чисто UI), затем дозагружаем контент с лимитом,
+        // чтобы не отправлять десятки fetch одновременно.
+        for (const c of TOPIC_CONTROLLERS) c.expandUIOnly();
+        await mapLimit(TOPIC_CONTROLLERS, 3, (c) => c.ensureLoaded());
+      } finally {
+        expandBtn.disabled = false;
+        expandBtn.textContent = oldText;
+        updateBtn();
+      }
+    });
+
+    // даём контроллерам возможность обновлять подпись кнопки при ручном раскрытии
+    for (const c of TOPIC_CONTROLLERS) c._onToggle = updateBtn;
+  }
+
+  // Фоновая подгрузка счётчиков «всего задач по теме», чтобы они появились даже
+  // без ручного раскрытия каждой темы.
+  const schedule = (cb) => {
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(() => cb(), { timeout: 1500 });
+    } else {
+      setTimeout(() => cb(), 0);
+    }
+  };
+  schedule(() => mapLimit(TOPIC_CONTROLLERS, 3, (c) => c.ensureCounts()));
 }
 
 // ---------- загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(INDEX_URL, { cache: 'no-store' });
+  const resp = await fetch(INDEX_URL, { cache: 'force-cache' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
   return resp.json();
+}
+
+function totalCap(man) {
+  const types = Array.isArray(man?.types) ? man.types : [];
+  let s = 0;
+  for (const t of types) {
+    const protos = Array.isArray(t?.prototypes) ? t.prototypes : [];
+    s += protos.length;
+  }
+  return s;
 }
 
 // ---------- аккордеон тем ----------
@@ -77,7 +170,8 @@ function renderTopicNode(topic) {
   node.innerHTML = `
     <div class="row">
       <button class="section-title" type="button">
-        ${esc(`${topic.id}. ${topic.title}`)}
+        <span class="topic-title-text">${esc(`${topic.id}. ${topic.title}`)}</span>
+        <span class="topic-counts" aria-label="Количество задач"></span>
       </button>
       <div class="spacer"></div>
     </div>
@@ -86,45 +180,119 @@ function renderTopicNode(topic) {
 
   const titleBtn = $('.section-title', node);
   const children = $('.children', node);
+  const countsEl = $('.topic-counts', node);
 
   let loaded = false;
+  let loadingPromise = null;
+  let countsLoaded = false;
+
+  function setTotalCount(total) {
+    if (!countsEl) return;
+    if (typeof total === 'number') {
+      countsEl.textContent = ` (всего: ${total})`;
+      countsLoaded = true;
+    }
+  }
+
+  async function ensureCounts() {
+    if (countsLoaded) return;
+    try {
+      const man = await ensureManifest(topic);
+      if (!man) return;
+      const total = totalCap(man);
+      setTotalCount(total);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function ensureLoaded() {
+    if (loaded) return;
+    if (loadingPromise) return loadingPromise;
+    loaded = true;
+
+    children.innerHTML = '<div style="opacity:.75;margin:6px 0">Загрузка...</div>';
+    loadingPromise = (async () => {
+      const { tasks, totalCount } = await loadUnicTasksForTopic(topic);
+      setTotalCount(totalCount);
+      renderUnicTasks(children, tasks);
+      await ensureCounts();
+    })()
+      .catch((e) => {
+        console.error(e);
+        children.innerHTML = '<div style="opacity:.8">Ошибка загрузки манифеста.</div>';
+      })
+      .finally(() => {
+        loadingPromise = null;
+      });
+
+    return loadingPromise;
+  }
+
+  function expandUIOnly() {
+    node.classList.add('expanded');
+    children.style.display = 'block';
+  }
+
+  function collapse() {
+    node.classList.remove('expanded');
+    children.style.display = 'none';
+  }
+
+  function isExpanded() {
+    return node.classList.contains('expanded');
+  }
 
   titleBtn.addEventListener('click', async () => {
     const expanded = node.classList.toggle('expanded');
     if (!expanded) {
       children.style.display = 'none';
+      controller?._onToggle?.();
       return;
     }
     children.style.display = 'block';
 
-    if (!loaded) {
-      loaded = true;
-      try {
-        const tasks = await loadUnicTasksForTopic(topic);
-        renderUnicTasks(children, tasks);
-      } catch (e) {
-        console.error(e);
-        children.innerHTML =
-          '<div style="opacity:.8">Ошибка загрузки манифеста.</div>';
-      }
+    try {
+      await ensureLoaded();
+    } finally {
+      controller?._onToggle?.();
     }
   });
+
+  // контроллер темы (для expand all и фоновой подгрузки счётчиков)
+  const controller = {
+    node,
+    topic,
+    isExpanded,
+    collapse,
+    expandUIOnly,
+    ensureLoaded,
+    ensureCounts,
+    _onToggle: null,
+  };
+  TOPIC_CONTROLLERS.push(controller);
+
+  // если манифест уже закеширован (например, после возврата назад), проставим счётчик сразу
+  if (topic._manifest) {
+    try { setTotalCount(totalCap(topic._manifest)); } catch (e) {}
+  }
 
   return node;
 }
 
 // ---------- загрузка уникальных задач по теме ----------
 async function loadUnicTasksForTopic(topic) {
-  if (!topic.path) return [];
-  const url = new URL('../' + topic.path, location.href);
-  const resp = await fetch(url.href, { cache: 'no-store' });
-  if (!resp.ok) return [];
+  const man = await ensureManifest(topic);
+  if (!man) return { tasks: [], totalCount: 0 };
 
-  const man = await resp.json();
   const out = [];
+  let totalCount = 0;
 
   for (const typ of man.types || []) {
-    for (const p of typ.prototypes || []) {
+    const protos = Array.isArray(typ.prototypes) ? typ.prototypes : [];
+    totalCount += protos.length;
+
+    for (const p of protos) {
       const isUnic =
         p.unic === true ||
         (Array.isArray(p.tags) && p.tags.includes('unic')) ||
@@ -152,7 +320,7 @@ async function loadUnicTasksForTopic(topic) {
     }
   }
 
-  return out;
+  return { tasks: out, totalCount };
 }
 
 // ---------- рендер списка задач ----------

@@ -250,6 +250,14 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 
 /* аккордеон (страница выбора задач и уникальные прототипы) */
 .accordion{margin-top:12px}
+
+/* контролы на странице уникальных прототипов */
+.uniq-controls{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0 4px;
+}
 .node{
   /* без разделительных линий, отступы — середина между старым и текущим */
   border-bottom:none;
@@ -288,6 +296,17 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 /* заголовки тем на странице уникальных прототипов делаем жирными */
 #uniqAccordion .section-title{
   font-weight:600;
+}
+
+#uniqAccordion .topic-counts{
+  opacity:.7;
+  font-weight:400;
+}
+
+/* счётчик «всего: N» рядом с названием темы */
+#uniqAccordion .topic-counts{
+  opacity:.7;
+  font-weight:400;
 }
 
 /* кнопка «Уникальные прототипы» — показываем только у раскрытой секции */
