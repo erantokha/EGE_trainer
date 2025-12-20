@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(INDEX_URL, { cache: 'no-store' });
+  const resp = await fetch(INDEX_URL, { cache: 'force-cache' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
   CATALOG = await resp.json();
 
@@ -139,13 +139,22 @@ function findTopicById(topicId) {
 // старый ensureManifest (может пригодиться, оставляем)
 async function ensureManifest(topic) {
   if (topic._manifest) return topic._manifest;
+  if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
+
   const url = new URL('../' + topic.path, location.href);
-  const resp = await fetch(url.href);
-  if (!resp.ok) return null;
-  topic._manifest = await resp.json();
-  return topic._manifest;
+
+  topic._manifestPromise = (async () => {
+    const resp = await fetch(url.href, { cache: 'force-cache' });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    topic._manifest = j;
+    return j;
+  })();
+
+  return topic._manifestPromise;
 }
+
 
 // собрать общий пул прототипов из одного манифеста: [{ type, proto }]
 function collectAllPrototypes(manifest) {
@@ -199,7 +208,7 @@ async function loadTopicPool(topic) {
     const url = new URL(fullPath, location.href);
 
     try {
-      const resp = await fetch(url.href);
+      const resp = await fetch(url.href, { cache: 'force-cache' });
       if (!resp.ok) {
         console.warn('Манифест не найден для темы', topic.id, relPath, resp.status);
         return null;
@@ -260,6 +269,92 @@ function distributeNonNegative(buckets, total) {
   return out;
 }
 
+// ---------- выбор задач (быстрый режим) ----------
+function sampleK(arr, k) {
+  const n = arr.length;
+  if (k <= 0) return [];
+  if (k >= n) return [...arr];
+
+  // если берём мало элементов из большого массива — не копируем и не перемешиваем всё
+  if (k * 3 < n) {
+    const used = new Set();
+    const out = [];
+    while (out.length < k) {
+      const i = Math.floor(Math.random() * n);
+      if (!used.has(i)) {
+        used.add(i);
+        out.push(arr[i]);
+      }
+    }
+    return out;
+  }
+
+  const a = [...arr];
+  shuffle(a);
+  return a.slice(0, k);
+}
+
+function totalCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + ((t.prototypes || []).length),
+    0,
+  );
+}
+
+function pickFromManifest(man, want) {
+  const out = [];
+  const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
+  if (!types.length) return out;
+
+  const caps = types.map(t => ({ id: t.id, cap: (t.prototypes || []).length }));
+  // чтобы при малом want не было перекоса в первые type
+  shuffle(caps);
+  const plan = distributeNonNegative(caps, want);
+
+  for (const typ of types) {
+    const k = plan.get(typ.id) || 0;
+    if (!k) continue;
+    for (const p of sampleK(typ.prototypes || [], k)) {
+      out.push(buildQuestion(man, typ, p));
+    }
+  }
+  return out;
+}
+
+async function pickFromSection(sec, wantSection) {
+  const out = [];
+  const candidates = (sec.topics || []).filter(t => !!t.path);
+  shuffle(candidates);
+
+  // грузим только столько тем, сколько нужно, чтобы набрать wantSection по ёмкости
+  const loaded = [];
+  let capSum = 0;
+
+  for (const topic of candidates) {
+    if (capSum >= wantSection) break;
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+    const cap = totalCap(man);
+    if (cap <= 0) continue;
+    loaded.push({ id: topic.id, man, cap });
+    capSum += cap;
+  }
+
+  if (!loaded.length) return out;
+
+  const buckets = loaded.map(x => ({ id: x.id, cap: x.cap }));
+  shuffle(buckets);
+  const planTopics = distributeNonNegative(buckets, wantSection);
+
+  for (const x of loaded) {
+    const wantT = planTopics.get(x.id) || 0;
+    if (!wantT) continue;
+    out.push(...pickFromManifest(x.man, wantT));
+  }
+
+  return out;
+}
+
 async function pickPrototypes() {
   const chosen = [];
   const anyTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
@@ -271,54 +366,29 @@ async function pickPrototypes() {
         const want = CHOICE_TOPICS[t.id] || 0;
         if (!want) continue;
 
-        const pool = await loadTopicPool(t);
-        if (!pool.length) continue;
+        const man = await ensureManifest(t);
+        if (!man) continue;
 
-        const picked = sample(pool, want);
-        for (const item of picked) {
-          chosen.push(buildQuestion(item.manifest, item.type, item.proto));
-        }
+        chosen.push(...pickFromManifest(man, want));
       }
     }
 
-    if (SHUFFLE_TASKS) {
-      shuffle(chosen);
-    }
+    if (SHUFFLE_TASKS) shuffle(chosen);
     return chosen;
   }
 
   // B) задано по разделам
+  const jobs = [];
   for (const sec of SECTIONS) {
     const wantSection = CHOICE_SECTIONS[sec.id] || 0;
     if (!wantSection) continue;
-
-    // пул по темам внутри раздела
-    const topicPools = [];
-    for (const t of sec.topics) {
-      const pool = await loadTopicPool(t);
-      if (!pool.length) continue;
-      topicPools.push({ topic: t, pool, cap: pool.length });
-    }
-
-    if (!topicPools.length) continue;
-
-    const buckets = topicPools.map(tp => ({ id: tp.topic.id, cap: tp.cap }));
-    const planTopics = distributeNonNegative(buckets, wantSection);
-
-    for (const tp of topicPools) {
-      const wantT = planTopics.get(tp.topic.id) || 0;
-      if (!wantT) continue;
-
-      const picked = sample(tp.pool, wantT);
-      for (const item of picked) {
-        chosen.push(buildQuestion(item.manifest, item.type, item.proto));
-      }
-    }
+    jobs.push(pickFromSection(sec, wantSection));
   }
 
-  if (SHUFFLE_TASKS) {
-    shuffle(chosen);
-  }
+  const parts = await Promise.all(jobs);
+  for (const arr of parts) chosen.push(...arr);
+
+  if (SHUFFLE_TASKS) shuffle(chosen);
   return chosen;
 }
 
