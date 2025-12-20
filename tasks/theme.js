@@ -1,48 +1,40 @@
 // theme.js
-// Управление темой (тёмная/светлая) через data-theme и localStorage.
-// Работает на всех страницах с чекбоксом #themeToggle.
+// Всегда светлая тема: выставляем data-theme="light" и (при возможности) сохраняем в localStorage.
+// Тёмную тему игнорируем даже если она была сохранена раньше.
 
 (function () {
   const STORAGE_KEY = 'fipi_theme';
 
   function getInitialTheme() {
+    // Игнорируем сохранённый "dark". Поддерживаем только "light".
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'light' || saved === 'dark') {
-        return saved;
-      }
+      if (saved === 'light') return 'light';
     } catch (e) {
-      // если localStorage недоступен — просто игнорируем
+      // если localStorage недоступен — игнорируем
     }
-
-    // если в хранилище нет, пробуем системную тему
-    if (window.matchMedia) {
-      try {
-        if (window.matchMedia('(prefers-color-scheme: light)').matches) {
-          return 'light';
-        }
-      } catch (e) {
-        // ничего
-      }
-    }
-
-    // по умолчанию — тёмная тема
-    return 'dark';
+    return 'light';
   }
 
   function applyTheme(theme) {
-    const t = theme === 'light' ? 'light' : 'dark';
+    // Жёстко фиксируем светлую тему
+    const t = 'light';
     const root = document.documentElement;
 
     root.setAttribute('data-theme', t);
+    // полезно для встроенных элементов (формы/скроллбары) на части браузеров
+    try { root.style.colorScheme = 'light'; } catch (e) {}
+
     if (document.body) {
       document.body.setAttribute('data-theme', t);
+      try { document.body.style.colorScheme = 'light'; } catch (e) {}
     }
 
+    // Перезаписываем возможный старый "dark" на "light"
     try {
       localStorage.setItem(STORAGE_KEY, t);
     } catch (e) {
-      // если не получилось записать — не критично
+      // не критично
     }
 
     syncToggle(t);
@@ -52,8 +44,9 @@
     const toggle = document.getElementById('themeToggle');
     if (!toggle) return;
 
-    // считаем, что "включённый" чекбокс = тёмная тема
-    toggle.checked = theme === 'dark';
+    // если чекбокс существует, делаем его "выключенным" (т.к. dark запрещён)
+    toggle.checked = false;
+    toggle.disabled = true;
   }
 
   function init() {
@@ -63,9 +56,9 @@
     const toggle = document.getElementById('themeToggle');
     if (!toggle) return;
 
+    // На всякий случай: даже если кто-то включит, возвращаем светлую
     toggle.addEventListener('change', () => {
-      const next = toggle.checked ? 'dark' : 'light';
-      applyTheme(next);
+      applyTheme('light');
     });
   }
 
