@@ -27,7 +27,7 @@ async function ensureManifest(topic) {
   return topic._manifestPromise;
 }
 
-// элементы управления темами (для «Раскрыть все» и фоновой подгрузки счётчиков)
+// элементы управления темами (для «Раскрыть все»)
 let TOPIC_CONTROLLERS = [];
 
 function mapLimit(items, limit, fn) {
@@ -95,6 +95,11 @@ async function init() {
     host.appendChild(renderTopicNode(t));
   }
 
+  // Счётчик уникальных прототипов по текущему разделу (во всех темах раздела).
+  // Считаем в фоне, с ограничением параллелизма, чтобы не «убить» мобильные браузеры.
+  const sectionCountEl = $('#uniqSectionCount');
+  if (sectionCountEl) sectionCountEl.textContent = 'Уникальных прототипов: …';
+
   // Кнопка «Раскрыть все» / «Свернуть все»
   const expandBtn = $('#expandAllBtn');
   if (expandBtn) {
@@ -132,8 +137,7 @@ async function init() {
     for (const c of TOPIC_CONTROLLERS) c._onToggle = updateBtn;
   }
 
-  // Фоновая подгрузка счётчиков «всего задач по теме», чтобы они появились даже
-  // без ручного раскрытия каждой темы.
+  // Фоновый подсчёт количества уникальных прототипов по всему разделу.
   const schedule = (cb) => {
     if ('requestIdleCallback' in window) {
       window.requestIdleCallback(() => cb(), { timeout: 1500 });
@@ -141,7 +145,7 @@ async function init() {
       setTimeout(() => cb(), 0);
     }
   };
-  schedule(() => mapLimit(TOPIC_CONTROLLERS, 3, (c) => c.ensureCounts()));
+  schedule(() => computeSectionUnicCount(topics, sectionCountEl));
 }
 
 // ---------- загрузка каталога ----------
@@ -151,14 +155,53 @@ async function loadCatalog() {
   return resp.json();
 }
 
-function totalCap(man) {
+function countUnicInManifest(man) {
   const types = Array.isArray(man?.types) ? man.types : [];
-  let s = 0;
-  for (const t of types) {
-    const protos = Array.isArray(t?.prototypes) ? t.prototypes : [];
-    s += protos.length;
+  let n = 0;
+
+  for (const typ of types) {
+    const protos = Array.isArray(typ?.prototypes) ? typ.prototypes : [];
+    for (const p of protos) {
+      const isUnic =
+        p?.unic === true ||
+        (Array.isArray(p?.tags) && p.tags.includes('unic')) ||
+        p?.flag === 'unic';
+      if (isUnic) n++;
+    }
   }
-  return s;
+  return n;
+}
+
+async function computeSectionUnicCount(topics, el) {
+  if (!el) return;
+  const total = Array.isArray(topics) ? topics.length : 0;
+  if (!total) {
+    el.textContent = 'Уникальных прототипов: 0';
+    return;
+  }
+
+  let sum = 0;
+  let done = 0;
+  const update = () => {
+    const tail = done < total ? ` (обработано ${done}/${total})` : '';
+    el.textContent = `Уникальных прототипов: ${sum}${tail}`;
+  };
+  update();
+
+  await mapLimit(topics, 3, async (topic) => {
+    try {
+      const man = await ensureManifest(topic);
+      if (man) sum += countUnicInManifest(man);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      done++;
+      update();
+    }
+  });
+
+  // финальная подпись без прогресса
+  el.textContent = `Уникальных прототипов: ${sum}`;
 }
 
 // ---------- аккордеон тем ----------
@@ -170,8 +213,7 @@ function renderTopicNode(topic) {
   node.innerHTML = `
     <div class="row">
       <button class="section-title" type="button">
-        <span class="topic-title-text">${esc(`${topic.id}. ${topic.title}`)}</span>
-        <span class="topic-counts" aria-label="Количество задач"></span>
+        ${esc(`${topic.id}. ${topic.title}`)}
       </button>
       <div class="spacer"></div>
     </div>
@@ -180,31 +222,9 @@ function renderTopicNode(topic) {
 
   const titleBtn = $('.section-title', node);
   const children = $('.children', node);
-  const countsEl = $('.topic-counts', node);
 
   let loaded = false;
   let loadingPromise = null;
-  let countsLoaded = false;
-
-  function setTotalCount(total) {
-    if (!countsEl) return;
-    if (typeof total === 'number') {
-      countsEl.textContent = ` (всего: ${total})`;
-      countsLoaded = true;
-    }
-  }
-
-  async function ensureCounts() {
-    if (countsLoaded) return;
-    try {
-      const man = await ensureManifest(topic);
-      if (!man) return;
-      const total = totalCap(man);
-      setTotalCount(total);
-    } catch (e) {
-      console.error(e);
-    }
-  }
 
   async function ensureLoaded() {
     if (loaded) return;
@@ -213,10 +233,8 @@ function renderTopicNode(topic) {
 
     children.innerHTML = '<div style="opacity:.75;margin:6px 0">Загрузка...</div>';
     loadingPromise = (async () => {
-      const { tasks, totalCount } = await loadUnicTasksForTopic(topic);
-      setTotalCount(totalCount);
+      const tasks = await loadUnicTasksForTopic(topic);
       renderUnicTasks(children, tasks);
-      await ensureCounts();
     })()
       .catch((e) => {
         console.error(e);
@@ -259,7 +277,7 @@ function renderTopicNode(topic) {
     }
   });
 
-  // контроллер темы (для expand all и фоновой подгрузки счётчиков)
+  // контроллер темы (для expand all)
   const controller = {
     node,
     topic,
@@ -267,15 +285,9 @@ function renderTopicNode(topic) {
     collapse,
     expandUIOnly,
     ensureLoaded,
-    ensureCounts,
     _onToggle: null,
   };
   TOPIC_CONTROLLERS.push(controller);
-
-  // если манифест уже закеширован (например, после возврата назад), проставим счётчик сразу
-  if (topic._manifest) {
-    try { setTotalCount(totalCap(topic._manifest)); } catch (e) {}
-  }
 
   return node;
 }
@@ -283,15 +295,12 @@ function renderTopicNode(topic) {
 // ---------- загрузка уникальных задач по теме ----------
 async function loadUnicTasksForTopic(topic) {
   const man = await ensureManifest(topic);
-  if (!man) return { tasks: [], totalCount: 0 };
+  if (!man) return [];
 
   const out = [];
-  let totalCount = 0;
 
   for (const typ of man.types || []) {
     const protos = Array.isArray(typ.prototypes) ? typ.prototypes : [];
-    totalCount += protos.length;
-
     for (const p of protos) {
       const isUnic =
         p.unic === true ||
@@ -320,7 +329,7 @@ async function loadUnicTasksForTopic(topic) {
     }
   }
 
-  return { tasks: out, totalCount };
+  return out;
 }
 
 // ---------- рендер списка задач ----------

@@ -298,16 +298,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   font-weight:600;
 }
 
-#uniqAccordion .topic-counts{
-  opacity:.7;
-  font-weight:400;
-}
-
-/* счётчик «всего: N» рядом с названием темы */
-#uniqAccordion .topic-counts{
-  opacity:.7;
-  font-weight:400;
-}
+/* (раньше здесь был счётчик возле каждой темы на странице УП) */
 
 /* кнопка «Уникальные прототипы» — показываем только у раскрытой секции */
 .unique-btn{
