@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <title>Домашнее задание</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css">
+
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+</head>
+<body>
+  <main class="container">
+    <section id="hw">
+      <div class="panel">
+        <h1 id="hwTitle">Домашнее задание</h1>
+        <p id="hwSubtitle" style="opacity:.8;margin-top:6px">
+          Откройте ссылку, которую выдал преподаватель (обычно с параметром token).
+        </p>
+
+        <div id="hwGate" style="margin-top:12px">
+          <label style="display:block; margin:10px 0 8px">
+            <div style="opacity:.8; margin-bottom:6px">Ваше имя</div>
+            <input id="studentName" type="text" autocomplete="name" placeholder="Например: Антон"
+                   style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
+          </label>
+          <button id="startHomework" type="button">Начать</button>
+          <div id="hwGateMsg" style="opacity:.8;margin-top:10px"></div>
+        </div>
+
+        <div id="runner" class="hidden" style="margin-top:14px"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./theme.js" defer></script>
+  <script type="module" src="./hw.js"></script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Создать ДЗ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css">
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <h1>Создать ДЗ</h1>
+
+        <div class="controls" style="gap:10px;flex-wrap:wrap">
+          <a class="btn" href="./index.html">← Назад</a>
+          <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
+        </div>
+
+        <div id="status" style="margin-top:10px;opacity:.85"></div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+        <div class="grid2" style="display:grid;grid-template-columns:1fr;gap:10px">
+          <label>
+            Название
+            <input id="title" class="input" type="text" placeholder="например: ДЗ №5 (неделя 3)" style="width:100%;margin-top:6px">
+          </label>
+
+          <label>
+            Описание (необязательно)
+            <textarea id="description" class="input" rows="3" placeholder="краткие инструкции" style="width:100%;margin-top:6px"></textarea>
+          </label>
+
+          <label style="display:flex;gap:8px;align-items:center;user-select:none">
+            <input id="shuffle" type="checkbox">
+            Перемешать задачи
+          </label>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+        <h2 style="margin:0 0 8px">Задачи, выбранные вручную</h2>
+
+        <div style="opacity:.8;margin-bottom:8px">
+          Формат: question_id (например 8.1.1.17) или topic_id question_id (например 8.1 8.1.1.17). Topic_id будет выведен автоматически.
+        </div>
+
+        <div class="controls" style="gap:8px;flex-wrap:wrap">
+          <button id="addRowBtn" class="btn" type="button">Добавить задачу</button>
+          <button id="importBtn" class="btn" type="button">Импорт из списка</button>
+        </div>
+
+        <div id="importBox" class="panel" style="margin-top:10px;display:none;padding:10px;background:var(--panel-2)">
+          <div style="opacity:.85;margin-bottom:6px">Вставь список (по одной задаче в строке)</div>
+          <textarea id="importText" class="input" rows="6" style="width:100%" placeholder="8.1.1.17
+8.2 8.2.1.5"></textarea>
+          <div class="controls" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button id="applyImportBtn" class="btn primary" type="button">Добавить</button>
+            <button id="cancelImportBtn" class="btn" type="button">Отмена</button>
+          </div>
+        </div>
+
+        <div style="overflow:auto;margin-top:10px">
+          <table class="table" style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">question_id</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">topic_id</th>
+                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">удалить</th>
+              </tr>
+            </thead>
+            <tbody id="fixedTbody"></tbody>
+          </table>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+        <h2 style="margin:0 0 8px">Добивка генерацией (необязательно)</h2>
+
+        <label style="display:flex;gap:8px;align-items:center;user-select:none;margin-bottom:8px">
+          <input id="enableGenerated" type="checkbox">
+          Добавить задачи генерацией по разделам (как в аккордеоне)
+        </label>
+
+        <div id="generatedBox" style="display:none">
+          <div id="sectionsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px"></div>
+          <div style="opacity:.8;margin-top:8px">
+            Ненулевые значения будут добавлены в spec_json как sections.
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+        <h2 style="margin:0 0 8px">Ссылка для ученика</h2>
+        <div id="result" style="display:none">
+          <div style="margin-bottom:6px;opacity:.85">Готово. Ссылка:</div>
+          <input id="resultLink" class="input" type="text" readonly style="width:100%">
+          <div class="controls" style="gap:8px;margin-top:8px;flex-wrap:wrap">
+            <button id="copyBtn" class="btn" type="button">Скопировать ссылку</button>
+            <button id="openBtn" class="btn primary" type="button">Открыть</button>
+          </div>
+          <div id="resultMeta" style="margin-top:8px;opacity:.8"></div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script src="./theme.js" defer></script>
+  <script type="module" src="./hw_create.js"></script>
+</body>
+</html>
