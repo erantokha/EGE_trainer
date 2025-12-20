@@ -12,6 +12,7 @@
 
 import { CONFIG } from '../app/config.js';
 import { insertAttempt } from '../app/providers/supabase-write.js';
+import { getHomeworkByToken, hasAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     HOMEWORK = hwRes.homework;
-    LINK = hwRes.link || null;
+    LINK = hwRes.linkRow || null;
 
     // Заголовок
     const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
@@ -94,12 +95,15 @@ async function onStart() {
   if (msgEl) msgEl.textContent = 'Проверяем доступ...';
   if (startBtn) startBtn.disabled = true;
 
-  const canRes = await canStartHomework({ homeworkId: HOMEWORK.id, token, studentKey });
+    const canRes = await hasAttempt({ homework_id: HOMEWORK.id, token_used: token, student_key: studentKey });
   if (!canRes.ok) {
-    // Если не удалось проверить (например, из-за отсутствия колонок),
+    // Если не удалось проверить (например, из-за RLS или отсутствия колонок),
     // всё равно запускаем, но предупредим в консоли.
-    console.warn('Не удалось проверить ограничение по попыткам. Рекомендуется добавить колонки homework_id/token_used/student_key и уникальный индекс.', canRes.error);
-  } else if (!canRes.canStart) {
+    console.warn(
+      'Не удалось проверить ограничение по попыткам. Рекомендуется добавить колонки homework_id/token_used/student_key и уникальный индекс.',
+      canRes.error,
+    );
+  } else if (canRes.exists) {
     if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
     return;
   }
@@ -159,69 +163,8 @@ function getToken() {
   return p.get('token');
 }
 
-function normalizeStudentKey(name) {
-  return String(name || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
 
-// ---------- Supabase API (минимум) ----------
-function sbHeaders() {
-  return {
-    apikey: CONFIG.supabase.anonKey,
-    Authorization: `Bearer ${CONFIG.supabase.anonKey}`,
-    'Content-Type': 'application/json',
-  };
-}
-
-async function getHomeworkByToken(token) {
-  // Попытка "одним запросом" через embed
-  try {
-    const url = new URL(`${CONFIG.supabase.url}/rest/v1/homework_links`);
-    url.searchParams.set(
-      'select',
-      'homework_id,homeworks(id,title,description,spec_json,settings_json,created_at),is_active,expires_at,token'
-    );
-    url.searchParams.append('token', `eq.${token}`);
-    url.searchParams.append('is_active', 'is.true');
-    url.searchParams.set('limit', '1');
-
-    const res = await fetch(url, { headers: sbHeaders() });
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok) return { ok: false, error: data || (await res.text()) };
-
-    const row = Array.isArray(data) ? data[0] : null;
-    const hw = row && row.homeworks ? row.homeworks : null;
-    if (!hw) return { ok: false, error: 'homework not found' };
-
-    return { ok: true, homework: hw, link: row };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-}
-
-async function canStartHomework({ homeworkId, token, studentKey }) {
-  // Серверно-надёжно будет только с уникальным индексом и RLS/проверкой.
-  // Здесь — попытка прочитать attempts и проверить, есть ли уже запись.
-  try {
-    const url = new URL(`${CONFIG.supabase.url}/rest/v1/attempts`);
-    url.searchParams.set('select', 'id');
-    url.searchParams.append('homework_id', `eq.${homeworkId}`);
-    url.searchParams.append('token_used', `eq.${token}`);
-    url.searchParams.append('student_key', `eq.${studentKey}`);
-    url.searchParams.set('limit', '1');
-
-    const res = await fetch(url, { headers: sbHeaders() });
-    const data = await res.json().catch(() => null);
-
-    // если таблица/колонки не готовы, Supabase вернёт 400 — это "не можем проверить"
-    if (!res.ok) return { ok: false, error: data || (await res.text()) };
-
-    const rows = Array.isArray(data) ? data : [];
-    return { ok: true, canStart: rows.length === 0 };
-  } catch (e) {
-    return { ok: false, error: String(e) };
-  }
-}
+// ---------- Supabase API (через app/providers/homework.js) ----------
 
 // ---------- Каталог (index.json) ----------
 async function loadCatalog() {
