@@ -8,6 +8,105 @@ const $ = (sel, root = document) => root.querySelector(sel);
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
 const INDEX_URL = '../content/tasks/index.json';
 
+// ---------- PERF-диагностика (включается ?perf=1 или localStorage.tasks_perf=1) ----------
+const PERF =
+  new URLSearchParams(location.search).has('perf') ||
+  localStorage.getItem('tasks_perf') === '1';
+
+const PERF_DATA = (window.__tasksPerf = {
+  enabled: PERF,
+  start_ms: performance.now(),
+  marks: [],
+  fetch: { index: 0, manifest: 0, other: 0 },
+  manifests: [], // {id,path,bytes,fetch_ms,read_ms,parse_ms,total_ms}
+  index: null,   // {bytes,fetch_ms,read_ms,parse_ms,total_ms}
+  mode: null,
+  wants: { topics: null, sections: null },
+});
+
+function perfMark(name) {
+  if (!PERF) return;
+  PERF_DATA.marks.push({ name, t: performance.now() });
+}
+
+function classifyUrl(u) {
+  const s = String(u);
+  if (s.includes('content/tasks/index.json')) return 'index';
+  if (s.includes('manifest.json')) return 'manifest';
+  return 'other';
+}
+
+async function fetchTimed(url, init) {
+  const kind = classifyUrl(url);
+  PERF_DATA.fetch[kind] = (PERF_DATA.fetch[kind] || 0) + 1;
+
+  const t0 = performance.now();
+  const resp = await fetch(url, init);
+  const t1 = performance.now();
+
+  return { resp, kind, fetch_ms: t1 - t0 };
+}
+
+function tasksPerfReport() {
+  const d = window.__tasksPerf;
+  if (!d) return console.log('no __tasksPerf');
+
+  const now = performance.now();
+  const elapsed = (now - d.start_ms).toFixed(1);
+
+  const marks = d.marks.map((m, i) => {
+    const prev = i ? d.marks[i - 1].t : d.start_ms;
+    return {
+      step: m.name,
+      dt_ms: +(m.t - prev).toFixed(1),
+      t_ms: +(m.t - d.start_ms).toFixed(1),
+    };
+  });
+
+  const mans = d.manifests.slice().sort((a, b) => b.total_ms - a.total_ms);
+  const sum = (arr, k) => arr.reduce((s, x) => s + (x[k] || 0), 0);
+  const bytes = sum(mans, 'bytes');
+
+  console.log('tasks perf summary:', {
+    enabled: d.enabled,
+    total_elapsed_ms: +elapsed,
+    mode: d.mode,
+    wants: d.wants,
+    fetch_counts: d.fetch,
+    manifests_loaded: mans.length,
+    manifests_total_bytes: bytes,
+    index: d.index,
+  });
+
+  console.log('marks:', marks);
+
+  console.log(
+    'top manifests by total_ms:',
+    mans.slice(0, 10).map(x => ({
+      id: x.id,
+      bytes: x.bytes,
+      fetch_ms: +x.fetch_ms.toFixed(1),
+      read_ms: +x.read_ms.toFixed(1),
+      parse_ms: +x.parse_ms.toFixed(1),
+      total_ms: +x.total_ms.toFixed(1),
+      path: x.path,
+    })),
+  );
+
+  console.log(
+    'top manifests by parse_ms:',
+    d.manifests
+      .slice()
+      .sort((a, b) => b.parse_ms - a.parse_ms)
+      .slice(0, 10)
+      .map(x => ({ id: x.id, bytes: x.bytes, parse_ms: +x.parse_ms.toFixed(1), path: x.path })),
+  );
+}
+
+// чтобы было удобно вызывать из консоли
+window.tasksPerfReport = tasksPerfReport;
+// ---------- конец PERF-диагностики ----------
+
 let CATALOG = null;
 let SECTIONS = [];
 
@@ -65,9 +164,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   SHUFFLE_TASKS = !!sel.shuffle;
 
   try {
+    perfMark('loadCatalog:start');
     await loadCatalog();
+    perfMark('loadCatalog:done');
+
+    perfMark('pickPrototypes:start');
     const questions = await pickPrototypes();
+    perfMark('pickPrototypes:done');
+
+    perfMark('startTestSession:start');
     await startTestSession(questions);
+    perfMark('startTestSession:done');
   } catch (e) {
     console.error(e);
     const host = $('#runner') || document.body;
@@ -85,9 +192,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(INDEX_URL, { cache: 'force-cache' });
+  const { resp, fetch_ms } = await fetchTimed(INDEX_URL, { cache: 'force-cache' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-  CATALOG = await resp.json();
+
+  if (!PERF) {
+    CATALOG = await resp.json();
+  } else {
+    const t1 = performance.now();
+    const text = await resp.text();
+    const t2 = performance.now();
+    const j = JSON.parse(text);
+    const t3 = performance.now();
+    PERF_DATA.index = {
+      bytes: text.length,
+      fetch_ms,
+      read_ms: t2 - t1,
+      parse_ms: t3 - t2,
+      total_ms: fetch_ms + (t2 - t1) + (t3 - t2),
+    };
+    CATALOG = j;
+  }
 
   const sections = CATALOG.filter(x => x.type === 'group');
   const topics   = CATALOG.filter(x => !!x.parent && x.enabled !== false);
@@ -110,9 +234,31 @@ async function ensureManifest(topic) {
   const url = new URL('../' + topic.path, location.href);
 
   topic._manifestPromise = (async () => {
-    const resp = await fetch(url.href, { cache: 'force-cache' });
+    const { resp, fetch_ms } = await fetchTimed(url.href, { cache: 'force-cache' });
     if (!resp.ok) return null;
-    const j = await resp.json();
+
+    if (!PERF) {
+      const j = await resp.json();
+      topic._manifest = j;
+      return j;
+    }
+
+    const t1 = performance.now();
+    const text = await resp.text();
+    const t2 = performance.now();
+    const j = JSON.parse(text);
+    const t3 = performance.now();
+
+    PERF_DATA.manifests.push({
+      id: topic.id,
+      path: topic.path,
+      bytes: text.length,
+      fetch_ms,
+      read_ms: t2 - t1,
+      parse_ms: t3 - t2,
+      total_ms: fetch_ms + (t2 - t1) + (t3 - t2),
+    });
+
     topic._manifest = j;
     return j;
   })();
@@ -126,6 +272,7 @@ function shuffle(a) {
     [a[i], a[j]] = [a[j], a[i]];
   }
 }
+
 function sampleK(arr, k) {
   const n = arr.length;
   if (k <= 0) return [];
@@ -149,6 +296,7 @@ function sampleK(arr, k) {
   shuffle(a);
   return a.slice(0, k);
 }
+
 function distributeNonNegative(buckets, total) {
   // buckets: [{id,cap}]
   const out = new Map(buckets.map(b => [b.id, 0]));
@@ -230,8 +378,15 @@ async function pickPrototypes() {
   const chosen = [];
   const anyTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
 
+  if (PERF) {
+    PERF_DATA.wants.topics = CHOICE_TOPICS;
+    PERF_DATA.wants.sections = CHOICE_SECTIONS;
+  }
+
   // A) задано по темам
   if (anyTopics) {
+    if (PERF) PERF_DATA.mode = 'byTopics';
+
     for (const sec of SECTIONS) {
       for (const t of sec.topics) {
         const want = CHOICE_TOPICS[t.id] || 0;
@@ -261,7 +416,10 @@ async function pickPrototypes() {
     }
     return chosen;
   }
+
   // B) задано по разделам
+  if (PERF) PERF_DATA.mode = 'bySections';
+
   const jobs = [];
   for (const sec of SECTIONS) {
     const wantSection = CHOICE_SECTIONS[sec.id] || 0;
@@ -328,6 +486,7 @@ function interpolate(tpl, params) {
     (_, k) => (params[k] !== undefined ? String(params[k]) : ''),
   );
 }
+
 function evalExpr(expr, params) {
   const pnames = Object.keys(params || {});
   // eslint-disable-next-line no-new-func
@@ -525,6 +684,7 @@ function parseNumber(s) {
   }
   return Number(s);
 }
+
 function compareNumber(x, v, tol) {
   if (!Number.isFinite(x)) return false;
   const abs = tol && typeof tol.abs === 'number' ? tol.abs : null;
@@ -533,6 +693,7 @@ function compareNumber(x, v, tol) {
   if (rel != null && Math.abs(x - v) <= Math.abs(v) * rel) return true;
   return Math.abs(x - v) <= 1e-12;
 }
+
 function matchText(norm, spec) {
   const acc = spec.accept || [];
   for (const a of acc) {
@@ -550,16 +711,19 @@ function startTimer() {
   SESSION.t0 = Date.now();
   SESSION.timerId = setInterval(tick, 1000);
 }
+
 function stopTick() {
   if (SESSION?.timerId) {
     clearInterval(SESSION.timerId);
     SESSION.timerId = null;
   }
 }
+
 function startTick() {
   SESSION.t0 = Date.now();
   if (!SESSION.timerId) SESSION.timerId = setInterval(tick, 1000);
 }
+
 function tick() {
   const elapsed = Math.floor((Date.now() - SESSION.started_at) / 1000);
   const minEl = $('#tmin');
@@ -568,6 +732,7 @@ function tick() {
   minEl.textContent = String(Math.floor(elapsed / 60)).padStart(2, '0');
   secEl.textContent = String(elapsed % 60).padStart(2, '0');
 }
+
 function saveTimeForCurrent() {
   const q = SESSION.questions[SESSION.idx];
   if (!q) return;
@@ -669,6 +834,7 @@ function esc(s) {
     '"': '&quot;',
   })[m]);
 }
+
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
   const bs = String(b).split('.').map(Number);
@@ -705,6 +871,7 @@ function toCsv(questions) {
     ...rows.map(r => cols.map(c => escCell(r[c])).join(',')),
   ].join('\n');
 }
+
 function download(name, text) {
   const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
