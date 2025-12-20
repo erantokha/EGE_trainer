@@ -71,8 +71,7 @@ async function init() {
     return;
   }
 
-  $('#uniqTitle').textContent =
-    `Уникальные прототипы ФИПИ по номеру ${section.id}. ${section.title}`;
+  $('#uniqTitle').textContent = `${section.id}. ${section.title} (уникальные прототипы ФИПИ)`;
 
   const topics = catalog
     .filter(
