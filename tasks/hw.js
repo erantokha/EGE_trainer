@@ -13,16 +13,13 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 import { CONFIG } from '../app/config.js';
-import { getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
-import { insertAttempt } from '../app/providers/supabase-write.js';
-import { getHomeworkByToken, startHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
 
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
-let AUTH = null; // {session,user,uid,email,displayName,accountKey}
 let LINK = null;       // строка homework_links (если вернётся)
 let CATALOG = null;    // массив index.json
 let SECTIONS = [];
@@ -32,122 +29,49 @@ let SESSION = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   const token = getToken();
-
   const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
 
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
-  const authStatus = $('#authStatus');
-
-  const setStartEnabled = () => {
-    if (!startBtn) return;
-    startBtn.disabled = !(token && AUTH && HOMEWORK);
-  };
-
-  // Кнопки входа/выхода (обязательная авторизация)
-  if (loginBtn) {
-    loginBtn.onclick = async () => {
-      try {
-        // redirectTo оставляем текущий URL, чтобы token сохранился
-        await signInWithGoogle(location.href);
-      } catch (e) {
-        console.error(e);
-        if (msgEl) msgEl.textContent = 'Не удалось открыть вход Google. Проверьте настройки Auth в Supabase.';
-      }
-    };
-  }
-  if (logoutBtn) {
-    logoutBtn.onclick = async () => {
-      try {
-        await signOut();
-      } catch (e) {
-        console.error(e);
-      } finally {
-        location.reload();
-      }
-    };
-  }
-
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    if (authStatus) authStatus.textContent = '';
-    setStartEnabled();
+    if (startBtn) startBtn.disabled = true;
     return;
   }
 
   if (startBtn) startBtn.disabled = true;
-  if (msgEl) msgEl.textContent = 'Проверяем вход...';
+  if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
 
-  // Вход → загрузка ДЗ
+  // Загрузим описание ДЗ сразу, чтобы показать заголовок до ввода имени.
   (async () => {
-    try {
-      const session = await getSession();
-
-      if (!session) {
-        AUTH = null;
-        if (authStatus) authStatus.textContent = 'Нужен вход через Google';
-        loginBtn?.classList.remove('hidden');
-        logoutBtn?.classList.add('hidden');
-        if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы открыть ДЗ.';
-        return;
-      }
-
-      AUTH = {
-        session,
-        user: session.user || null,
-        uid: session.user?.id || null,
-        email: session.user?.email || null,
-        displayName:
-          session.user?.user_metadata?.full_name ||
-          session.user?.user_metadata?.name ||
-          session.user?.email ||
-          'Ученик',
-        accountKey: session.user?.email || session.user?.id || '',
-      };
-
-      if (authStatus) {
-        authStatus.textContent = AUTH.email ? `Вы вошли: ${AUTH.email}` : 'Вы вошли';
-      }
-      loginBtn?.classList.add('hidden');
-      logoutBtn?.classList.remove('hidden');
-
-      if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
-
-      const res = await getHomeworkByToken(token);
-      if (!res.ok) throw res.error || new Error('getHomeworkByToken failed');
-
-      HOMEWORK = res.homework ?? res.data ?? null;
-      if (!HOMEWORK) throw new Error('homework payload empty');
-
-      // Заголовок
-      const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
-      $('#hwTitle').textContent = t;
-      if ($('#hwSubtitle')) {
-        $('#hwSubtitle').textContent = HOMEWORK.description
-          ? String(HOMEWORK.description)
-          : 'Введите имя и нажмите «Начать».';
-      }
-
-      // Каталог нужен для сборки задач
-      await loadCatalog();
-
-      // Автозаполним имя (можно отредактировать)
-      const nameInput = $('#studentName');
-      if (nameInput && !String(nameInput.value || '').trim()) {
-        nameInput.value = AUTH.displayName || '';
-      }
-
-      if (msgEl) msgEl.textContent = 'Введите имя и нажмите «Начать».';
-    } catch (e) {
-      console.error(e);
+    const hwRes = await getHomeworkByToken(token);
+    if (!hwRes.ok) {
+      console.error(hwRes.error);
       if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
-    } finally {
-      setStartEnabled();
+      if (startBtn) startBtn.disabled = true;
+      return;
     }
-  })().catch(console.error);
+    HOMEWORK = hwRes.homework;
+    LINK = hwRes.linkRow || null;
 
-  if (startBtn) startBtn.onclick = onStart;
+    // Заголовок
+    const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
+    $('#hwTitle').textContent = t;
+    if ($('#hwSubtitle')) {
+      $('#hwSubtitle').textContent = HOMEWORK.description ? String(HOMEWORK.description) : 'Введите имя и нажмите «Начать».';
+    }
+
+    // Каталог нужен для сборки задач
+    await loadCatalog();
+
+    if (msgEl) msgEl.textContent = 'Введите имя и нажмите «Начать».';
+    if (startBtn) startBtn.disabled = false;
+  })().catch((e) => {
+    console.error(e);
+    if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
+    if (startBtn) startBtn.disabled = true;
+  });
+
+  startBtn?.addEventListener('click', onStart);
 });
 
 async function onStart() {
@@ -202,19 +126,28 @@ async function onStart() {
 
     const questions = [];
 
-    // A) фиксированные задачи (в порядке задания)
-    const fixedQs = await buildFixedQuestions(fixed);
-    questions.push(...fixedQs);
+    // Если на стороне преподавателя задания уже "заморожены",
+    // используем зафиксированный список и НЕ пересобираем генерацией.
+    const frozenRefs = parseFrozenQuestions(HOMEWORK.frozen_questions);
+    if (frozenRefs.length) {
+      const frozenQs = await buildFixedQuestions(frozenRefs);
+      questions.push(...frozenQs);
+    } else {
 
-    // B) добивка генерацией (если задано)
-    if (generated) {
-      const genQs = await buildGeneratedQuestions(generated);
-      questions.push(...genQs);
+      // A) фиксированные задачи (в порядке задания)
+      const fixedQs = await buildFixedQuestions(fixed);
+      questions.push(...fixedQs);
+
+      // B) добивка генерацией (если задано)
+      if (generated) {
+        const genQs = await buildGeneratedQuestions(generated);
+        questions.push(...genQs);
+      }
+
+      // перемешивание итогового списка
+      const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
+      if (shuffleFlag) shuffle(questions);
     }
-
-    // перемешивание итогового списка
-    const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
-    if (shuffleFlag) shuffle(questions);
 
     if (!questions.length) {
       if (msgEl) msgEl.textContent = 'Не удалось собрать задачи. Проверьте состав домашнего задания.';
@@ -245,6 +178,33 @@ async function onStart() {
 function getToken() {
   const p = new URLSearchParams(location.search);
   return p.get('token');
+}
+
+function inferTopicIdFromQuestionId(questionId) {
+  const id = String(questionId || '').trim();
+  if (!id) return '';
+  const parts = id.split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function parseFrozenQuestions(frozen) {
+  if (!frozen) return [];
+  let arr = frozen;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch { return []; }
+  }
+  if (!Array.isArray(arr)) return [];
+
+  const out = [];
+  for (const it of arr) {
+    if (!it) continue;
+    const qid = it.question_id || it.id;
+    const tid = it.topic_id || it.topic_id || it.topic || inferTopicIdFromQuestionId(qid);
+    if (!qid || !tid) continue;
+    out.push({ topic_id: String(tid), question_id: String(qid) });
+  }
+  return out;
 }
 
 
@@ -878,62 +838,56 @@ async function finishSession() {
     correct_text: q.correct_text,
   }));
 
-  const topic_ids = Array.from(new Set(SESSION.questions.map(q => q.topic_id)));
+  // 1) гарантируем наличие attempt_id (если старт попытки был пропущен/упал)
+  let attemptId = SESSION.meta?.homeworkAttemptId || null;
+  const token = getToken();
 
-  const attemptRowBase = {
-    student_id: null,
-    student_name: SESSION.meta.studentName,
-    student_email: null,
-    mode: 'homework',
-    seed: null,
-    topic_ids,
-    total,
-    correct,
-    avg_ms,
-    duration_ms: SESSION.total_ms,
-    started_at: new Date(SESSION.started_at).toISOString(),
-    finished_at: new Date().toISOString(),
-    payload: {
-      homework: {
-        id: SESSION.meta.homeworkId,
-        token: SESSION.meta.token,
-        student_key: SESSION.meta.studentKey,
-      },
-      questions: payloadQuestions,
-    },
-    created_at: new Date().toISOString(),
-  };
-
-  // Пытаемся записать с расширенными полями (если они есть в БД)
-  const attemptRowExtended = {
-    ...attemptRowBase,
-    homework_id: SESSION.meta.homeworkId,
-    token_used: SESSION.meta.token,
-    student_key: SESSION.meta.studentKey,
-  };
-
-  let ok = true;
-  let error = null;
-
-  // 1) пробуем расширенную запись
-  let res = await insertAttempt(attemptRowExtended);
-  if (!res.ok) {
-    // 2) если ошибка похожа на "нет колонки" — повторяем без полей
-    const errText = JSON.stringify(res.error || '');
-    const looksLikeUnknownColumn =
-      /column|unknown|schema|homework_id|token_used|student_key/i.test(errText);
-
-    if (looksLikeUnknownColumn) {
-      console.warn('Попытка записать расширенные поля не удалась. Записываем без них. Добавьте колонки homework_id/token_used/student_key в attempts.', res.error);
-      res = await insertAttempt(attemptRowBase);
+  if (!attemptId && token && SESSION.meta?.studentName) {
+    try {
+      const res = await startHomeworkAttempt({ token, student_name: SESSION.meta.studentName });
+      if (res?.ok && res?.attempt_id) {
+        attemptId = res.attempt_id;
+        SESSION.meta.homeworkAttemptId = attemptId;
+      }
+    } catch (e) {
+      console.warn('startHomeworkAttempt failed at finish', e);
     }
   }
 
-  ok = res.ok;
-  error = res.error;
+  // 2) пишем результат ДЗ в homework_attempts через RPC submit_homework_attempt
+  let savedOk = false;
+  let savedErr = null;
 
-  $('#runner')?.classList.add('hidden');
-  $('#summary')?.classList.remove('hidden');
+  if (attemptId) {
+    const payload = {
+      homework_id: SESSION.meta?.homeworkId || null,
+      title: SESSION.meta?.title || null,
+      student_name: SESSION.meta?.studentName || null,
+      questions: payloadQuestions,
+    };
+
+    try {
+      const res = await submitHomeworkAttempt({
+        attempt_id: attemptId,
+        payload,
+        total,
+        correct,
+        duration_ms: SESSION.total_ms,
+      });
+      savedOk = !!res?.ok;
+      savedErr = res?.error || null;
+    } catch (e) {
+      savedOk = false;
+      savedErr = e;
+    }
+  } else {
+    savedOk = false;
+    savedErr = new Error('NO_ATTEMPT_ID');
+  }
+
+  // UI
+  $('#runner').classList.add('hidden');
+  $('#summary').classList.remove('hidden');
 
   $('#stats').innerHTML =
     `<div>Всего: ${total}</div>` +
@@ -947,20 +901,17 @@ async function finishSession() {
     download('homework_session.csv', csv);
   };
 
-  if (!ok) {
-    console.warn('Supabase insert error', error);
-    const panel = $('#summary .panel') || $('#summary');
-    if (panel) {
+  if (!savedOk) {
+    console.warn('Homework submit error', savedErr);
+    const summaryPanel = $('#summary .panel') || $('#summary');
+    if (summaryPanel) {
       const warn = document.createElement('div');
       warn.style.color = '#ff6b6b';
       warn.style.marginTop = '8px';
       warn.textContent =
-        'Внимание: запись результата не выполнена. Проверьте RLS и структуру таблицы attempts.';
-      panel.appendChild(warn);
+        'Внимание: запись результата не выполнена. Проверьте RPC submit_homework_attempt и таблицу homework_attempts.';
+      summaryPanel.appendChild(warn);
     }
-  } else {
-    // После успешной записи блокируем повторный старт на этой странице (на всякий случай)
-    $('#hwGateMsg')?.remove();
   }
 }
 
