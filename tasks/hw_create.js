@@ -3,19 +3,12 @@
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
-
-function sbHeaders(extra = {}) {
-  return {
-    apikey: CONFIG.supabase.anonKey,
-    Authorization: `Bearer ${CONFIG.supabase.anonKey}`,
-    'Content-Type': 'application/json',
-    ...extra,
-  };
-}
 
 function normNameForKey(s) {
   return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -52,7 +45,6 @@ function parseImportLines(text) {
       const topic_id = inferTopicIdFromQuestionId(question_id);
       out.push({ topic_id, question_id });
     } else {
-      // берём первые 2 токена: topic_id question_id
       const topic_id = cols[0];
       const question_id = cols[1];
       out.push({ topic_id, question_id });
@@ -75,37 +67,89 @@ function todayISO() {
   return `${y}-${m}-${dd}`;
 }
 
-// ---------- Supabase REST ----------
-async function createHomeworkRow({ title, description, spec_json, settings_json }) {
-  const url = `${CONFIG.supabase.url}/rest/v1/homeworks`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: sbHeaders({ Prefer: 'return=representation' }),
-    body: JSON.stringify({ title, description, spec_json, settings_json }),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) return { ok: false, error: data || (await res.text()) };
-  const row = Array.isArray(data) ? data[0] : data;
-  return { ok: true, row };
-}
-
-async function createHomeworkLinkRow({ homework_id, token }) {
-  const url = `${CONFIG.supabase.url}/rest/v1/homework_links`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: sbHeaders({ Prefer: 'return=representation' }),
-    body: JSON.stringify({ homework_id, token, is_active: true }),
-  });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) return { ok: false, error: data || (await res.text()) };
-  const row = Array.isArray(data) ? data[0] : data;
-  return { ok: true, row };
-}
-
 // ---------- UI helpers ----------
 function setStatus(msg) {
   const el = $('#status');
   if (el) el.textContent = msg || '';
+}
+
+function ensureAuthBar() {
+  const controls = document.querySelector('.controls');
+  if (!controls) return;
+
+  if ($('#authBar')) return;
+
+  const wrap = document.createElement('span');
+  wrap.id = 'authBar';
+  wrap.style.display = 'inline-flex';
+  wrap.style.gap = '8px';
+  wrap.style.alignItems = 'center';
+  wrap.style.flexWrap = 'wrap';
+
+  const label = document.createElement('span');
+  label.id = 'authLabel';
+  label.style.opacity = '.85';
+  label.textContent = 'Проверяем вход...';
+
+  const loginBtn = document.createElement('button');
+  loginBtn.id = 'loginGoogleBtn';
+  loginBtn.className = 'btn';
+  loginBtn.type = 'button';
+  loginBtn.textContent = 'Войти через Google';
+  loginBtn.addEventListener('click', async () => {
+    try {
+      setStatus('Открываем вход через Google...');
+      await signInWithGoogle(location.href);
+    } catch (e) {
+      console.error(e);
+      setStatus('Не удалось начать вход через Google.');
+    }
+  });
+
+  const logoutBtn = document.createElement('button');
+  logoutBtn.id = 'logoutBtn';
+  logoutBtn.className = 'btn';
+  logoutBtn.type = 'button';
+  logoutBtn.textContent = 'Выйти';
+  logoutBtn.addEventListener('click', async () => {
+    try {
+      await signOut();
+      location.reload();
+    } catch (e) {
+      console.error(e);
+      setStatus('Не удалось выйти.');
+    }
+  });
+
+  wrap.appendChild(label);
+  wrap.appendChild(loginBtn);
+  wrap.appendChild(logoutBtn);
+  controls.appendChild(wrap);
+}
+
+async function refreshAuthUI() {
+  ensureAuthBar();
+
+  const session = await getSession().catch(() => null);
+  const label = $('#authLabel');
+  const loginBtn = $('#loginGoogleBtn');
+  const logoutBtn = $('#logoutBtn');
+  const createBtn = $('#createBtn');
+
+  if (!session) {
+    if (label) label.textContent = 'Вы не вошли. Нужен вход через Google (учитель).';
+    if (loginBtn) loginBtn.style.display = '';
+    if (logoutBtn) logoutBtn.style.display = 'none';
+    if (createBtn) createBtn.disabled = true;
+    return null;
+  }
+
+  const email = session.user?.email || '';
+  if (label) label.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
+  if (loginBtn) loginBtn.style.display = 'none';
+  if (logoutBtn) logoutBtn.style.display = '';
+  if (createBtn) createBtn.disabled = false;
+  return session;
 }
 
 function makeRow({ topic_id = '', question_id = '' } = {}) {
@@ -143,11 +187,9 @@ function makeRow({ topic_id = '', question_id = '' } = {}) {
   del.addEventListener('click', () => tr.remove());
   tdDel.appendChild(del);
 
-  // автозаполнение topic_id по question_id
   q.addEventListener('input', () => {
     const inferred = inferTopicIdFromQuestionId(q.value);
     if (inferred && (!t.value || t.value === inferTopicIdFromQuestionId(t.value))) {
-      // заполняем только если topic_id пустой или похож на автогенерируемый
       t.value = inferred;
     }
   });
@@ -176,7 +218,6 @@ function readFixedRows() {
       question_id,
     });
   }
-  // фильтр мусора
   return rows.filter(x => x.topic_id && x.question_id);
 }
 
@@ -202,7 +243,10 @@ async function loadSectionsUI() {
   if (!res.ok) throw new Error(`index.json not found: ${res.status}`);
   const catalog = await res.json();
 
-  const sections = (catalog || []).filter(x => x.type === 'group').sort((a, b) => compareId(a.id, b.id));
+  const sections = (catalog || [])
+    .filter(x => x.type === 'group')
+    .sort((a, b) => compareId(a.id, b.id));
+
   const host = $('#sectionsGrid');
   if (!host) return;
 
@@ -261,7 +305,12 @@ async function copyToClipboard(text) {
 
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  // стартовые строки (можно оставить одну пустую)
+  // auth
+  await refreshAuthUI();
+  // обновление статуса при входе/выходе в другой вкладке
+  supabase.auth.onAuthStateChange(() => { refreshAuthUI(); });
+
+  // стартовые строки
   const tbody = $('#fixedTbody');
   if (tbody) tbody.appendChild(makeRow());
 
@@ -305,6 +354,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // создание
   $('#createBtn')?.addEventListener('click', async () => {
     setStatus('');
+
+    // защита: без входа не даём создавать
+    const session = await refreshAuthUI();
+    if (!session) {
+      setStatus('Нужно войти через Google (учитель), чтобы создавать ДЗ.');
+      return;
+    }
+
     const title = String($('#title')?.value || '').trim();
     const description = String($('#description')?.value || '').trim() || null;
     const shuffle = !!$('#shuffle')?.checked;
@@ -340,10 +397,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#createBtn').disabled = true;
     try {
       setStatus('Создаём ДЗ...');
-      const hwRes = await createHomeworkRow({ title, description, spec_json, settings_json });
+
+      const hwRes = await createHomework({ title, description, spec_json, settings_json });
       if (!hwRes.ok) {
         console.error(hwRes.error);
-        setStatus('Ошибка создания ДЗ в Supabase. Проверь таблицу homeworks и RLS.');
+        setStatus('Ошибка создания ДЗ в Supabase. Проверь таблицу homeworks и RLS (teachers).');
         return;
       }
 
@@ -355,7 +413,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       setStatus('Создаём ссылку...');
       const token = makeToken();
-      const linkRes = await createHomeworkLinkRow({ homework_id, token });
+
+      const linkRes = await createHomeworkLink({ homework_id, token, is_active: true });
       if (!linkRes.ok) {
         console.error(linkRes.error);
         setStatus('ДЗ создано, но не удалось создать ссылку. Проверь таблицу homework_links и RLS.');
@@ -373,14 +432,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       const meta = $('#resultMeta');
       if (meta) meta.textContent = `homework_id: ${homework_id}, token: ${token}`;
 
-      $('#copyBtn')?.addEventListener('click', async () => {
-        const ok = await copyToClipboard(link);
-        setStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку. Скопируй вручную.');
-      }, { once: true });
+      $('#copyBtn')?.addEventListener(
+        'click',
+        async () => {
+          const ok = await copyToClipboard(link);
+          setStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку. Скопируй вручную.');
+        },
+        { once: true },
+      );
 
-      $('#openBtn')?.addEventListener('click', () => {
-        window.open(link, '_blank', 'noopener');
-      }, { once: true });
+      $('#openBtn')?.addEventListener(
+        'click',
+        () => {
+          window.open(link, '_blank', 'noopener');
+        },
+        { once: true },
+      );
 
       setStatus('Готово.');
     } finally {
