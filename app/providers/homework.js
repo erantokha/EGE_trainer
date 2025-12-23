@@ -140,9 +140,7 @@ export async function createHomework({
     const payload = {
       owner_id: user.id,
       title: String(title || '').trim(),
-      description,
       spec_json,
-      settings_json,
       attempts_per_student: Number(attempts_per_student) || 1,
       is_active: !!is_active,
     };
