@@ -1,22 +1,18 @@
 // app/providers/homework.js
 // Минимальный набор функций для ДЗ (MVP):
-// - getHomeworkByToken(token)
-// - hasAttempt({homework_id, token_used, student_key})
-// - createHomework({title, description, spec_json, settings_json})
-// - createHomeworkLink({homework_id, token, is_active?, expires_at?})
-//
-// Ожидаемые таблицы в Supabase:
-// - homeworks
-// - homework_links (с FK на homeworks)
-// И (желательно) в attempts добавлены колонки homework_id, token_used, student_key.
+// - getHomeworkByToken(token)            (публично, по token)
+// - hasAttempt({homework_id, token_used, student_key}) (публично/anon, если вы так разрешили)
+// - createHomework({title, description, spec_json, settings_json}) (ТОЛЬКО учитель, нужен auth)
+// - createHomeworkLink({homework_id, token, is_active?, expires_at?}) (ТОЛЬКО учитель, нужен auth)
 
 import { CONFIG } from '../config.js';
+import { supabase, requireSession } from './supabase.js';
 
 function baseUrl() {
   return String(CONFIG.supabase.url || '').replace(/\/+$/g, '');
 }
 
-function headers(extra = {}) {
+function anonHeaders(extra = {}) {
   return {
     apikey: CONFIG.supabase.anonKey,
     Authorization: `Bearer ${CONFIG.supabase.anonKey}`,
@@ -24,15 +20,17 @@ function headers(extra = {}) {
   };
 }
 
-function jsonHeaders(extra = {}) {
-  return headers({ 'Content-Type': 'application/json', ...extra });
+async function authHeaders(extra = {}) {
+  const session = await requireSession();
+  return {
+    apikey: CONFIG.supabase.anonKey,
+    Authorization: `Bearer ${session.access_token}`,
+    ...extra,
+  };
 }
 
 function asErrorPayload(data, res) {
-  return {
-    status: res?.status ?? null,
-    data,
-  };
+  return { status: res?.status ?? null, data };
 }
 
 // Используй в UI: name.trim().toLowerCase().replace(/\s+/g, ' ')
@@ -44,6 +42,10 @@ export function normalizeStudentKey(name) {
  * Получить домашку по публичному token.
  * Возвращает:
  * { ok:true, homework, linkRow } или { ok:false, error }
+ *
+ * ВНИМАНИЕ:
+ * Этот запрос заработает только если у вас в Supabase есть политика,
+ * разрешающая anon select по token (или вы используете RPC).
  */
 export async function getHomeworkByToken(token) {
   if (!CONFIG.supabase.enabled) return { ok: false, error: 'supabase disabled' };
@@ -51,8 +53,6 @@ export async function getHomeworkByToken(token) {
   const t = String(token ?? '').trim();
   if (!t) return { ok: false, error: 'token is required' };
 
-  // Пытаемся одним запросом через embedded select:
-  // /homework_links?select=homework_id,token,is_active,expires_at,homeworks(...)&token=eq.T&is_active=is.true&limit=1
   const url = new URL(baseUrl() + '/rest/v1/homework_links');
   url.searchParams.set(
     'select',
@@ -63,21 +63,18 @@ export async function getHomeworkByToken(token) {
   url.searchParams.set('limit', '1');
 
   try {
-    const res = await fetch(url.toString(), { headers: headers() });
+    const res = await fetch(url.toString(), { headers: anonHeaders() });
     const data = await res.json().catch(() => null);
 
     if (!res.ok) return { ok: false, error: asErrorPayload(data, res) };
+
     const row = Array.isArray(data) ? data[0] : null;
     const hw = row?.homeworks || null;
-
     if (!row || !hw) return { ok: false, error: 'homework not found for token' };
 
-    // Проверка expires_at (если задано)
     if (row.expires_at) {
       const exp = Date.parse(row.expires_at);
-      if (Number.isFinite(exp) && Date.now() > exp) {
-        return { ok: false, error: 'link expired' };
-      }
+      if (Number.isFinite(exp) && Date.now() > exp) return { ok: false, error: 'link expired' };
     }
 
     return { ok: true, homework: hw, linkRow: row };
@@ -109,7 +106,7 @@ export async function hasAttempt({ homework_id, token_used, student_key }) {
   url.searchParams.set('limit', '1');
 
   try {
-    const res = await fetch(url.toString(), { headers: headers() });
+    const res = await fetch(url.toString(), { headers: anonHeaders() });
     const data = await res.json().catch(() => null);
 
     if (!res.ok) return { ok: false, error: asErrorPayload(data, res) };
@@ -120,13 +117,16 @@ export async function hasAttempt({ homework_id, token_used, student_key }) {
 }
 
 /**
- * Создать домашку (для страницы учителя).
- * Возвращает { ok:true, row } или { ok:false, error }.
+ * Создать домашку (учитель).
+ * ВАЖНО: owner_id ставим автоматически из auth.uid().
  */
 export async function createHomework({ title, description = null, spec_json, settings_json }) {
   if (!CONFIG.supabase.enabled) return { ok: false, error: 'supabase disabled' };
 
+  const session = await requireSession();
+
   const row = {
+    owner_id: session.user.id,
     title: String(title ?? '').trim(),
     description: description == null ? null : String(description),
     spec_json: spec_json ?? {},
@@ -140,12 +140,13 @@ export async function createHomework({ title, description = null, spec_json, set
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: jsonHeaders({ Prefer: 'return=representation' }),
+      headers: await authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
       body: JSON.stringify(row),
     });
-    const data = await res.json().catch(() => null);
 
+    const data = await res.json().catch(() => null);
     if (!res.ok) return { ok: false, error: asErrorPayload(data, res) };
+
     const created = Array.isArray(data) ? data[0] : data;
     return { ok: true, row: created };
   } catch (e) {
@@ -154,8 +155,7 @@ export async function createHomework({ title, description = null, spec_json, set
 }
 
 /**
- * Создать публичную ссылку (token) для домашки.
- * Возвращает { ok:true, row } или { ok:false, error }.
+ * Создать публичную ссылку (token) для домашки (учитель).
  */
 export async function createHomeworkLink({ homework_id, token, is_active = true, expires_at = null }) {
   if (!CONFIG.supabase.enabled) return { ok: false, error: 'supabase disabled' };
@@ -175,12 +175,13 @@ export async function createHomeworkLink({ homework_id, token, is_active = true,
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: jsonHeaders({ Prefer: 'return=representation' }),
+      headers: await authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
       body: JSON.stringify(row),
     });
-    const data = await res.json().catch(() => null);
 
+    const data = await res.json().catch(() => null);
     if (!res.ok) return { ok: false, error: asErrorPayload(data, res) };
+
     const created = Array.isArray(data) ? data[0] : data;
     return { ok: true, row: created };
   } catch (e) {
