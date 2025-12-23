@@ -44,7 +44,15 @@ export function uniqueBaseCount(prototypes) {
   return set.size;
 }
 
+function asRngFn(rnd) {
+  if (typeof rnd === 'function') return rnd;
+  if (rnd && typeof rnd.nextFloat === 'function') return () => rnd.nextFloat();
+  if (rnd && typeof rnd.random === 'function') return () => rnd.random();
+  return Math.random;
+}
+
 export function shuffleInPlace(arr, rnd = Math.random) {
+  rnd = asRngFn(rnd);
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(rnd() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -54,6 +62,7 @@ export function shuffleInPlace(arr, rnd = Math.random) {
 
 // Быстрая выборка k элементов без полного перемешивания (когда k мало).
 export function sampleK(arr, k, rnd = Math.random) {
+  rnd = asRngFn(rnd);
   const n = arr.length;
   if (k <= 0) return [];
   if (k >= n) return [...arr];
@@ -78,6 +87,7 @@ export function sampleK(arr, k, rnd = Math.random) {
 
 // Выбор k прототипов с приоритетом уникальных "баз" (семейств).
 export function sampleKByBase(prototypes, k, rnd = Math.random) {
+  rnd = asRngFn(rnd);
   const arr = prototypes || [];
   const n = arr.length;
   if (k <= 0) return [];
@@ -124,6 +134,7 @@ export function sampleKByBase(prototypes, k, rnd = Math.random) {
 // Интерливинг пачек: чтобы задачи не шли подряд "по подтемам" или "по типам".
 // batchMap: Map<id, Array<item>> или объект {id: Array<item>}
 export function interleaveBatches(batchMap, total, rnd = Math.random) {
+  rnd = asRngFn(rnd);
   const want = Number(total) || 0;
   if (want <= 0) return [];
 
