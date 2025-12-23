@@ -345,16 +345,32 @@ async function pickFromSection(sec, wantSection) {
   const candidates = (sec.topics || []).filter(t => !!t.path);
   shuffle(candidates);
 
-  // грузим только столько тем, сколько нужно, чтобы набрать wantSection по ёмкости
+  // ВАЖНО: при больших cap (после размножения прототипов) capSum может
+  // стать >= wantSection уже после 1 темы, и тогда вся выборка идёт из одной темы.
+  // Чтобы не получать "одно и то же" (одинаковые префиксы id), грузим минимум N тем.
+  const minTopics =
+    wantSection <= 1
+      ? 1
+      : Math.min(
+          candidates.length,
+          Math.max(2, Math.min(6, Math.ceil(wantSection / 2))),
+        );
+
+  // грузим темы до выполнения двух условий:
+  // (1) набрали ёмкость >= wantSection
+  // (2) загрузили минимум minTopics тем для разнообразия
   const loaded = [];
   let capSum = 0;
 
   for (const topic of candidates) {
-    if (capSum >= wantSection) break;
+    if (capSum >= wantSection && loaded.length >= minTopics) break;
+
     const man = await ensureManifest(topic);
     if (!man) continue;
+
     const cap = totalCap(man);
     if (cap <= 0) continue;
+
     loaded.push({ id: topic.id, man, cap });
     capSum += cap;
   }
