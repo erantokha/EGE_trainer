@@ -13,6 +13,7 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 import { CONFIG } from '../app/config.js';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -27,18 +28,125 @@ let TOPIC_BY_ID = new Map();
 
 let SESSION = null;
 
+// Auth (ученик): привязка результата к Google-аккаунту
+let AUTH_SESSION = null;
+let HW_READY = false;
+
+function cleanRedirectUrl() {
+  const u = new URL(location.href);
+  // Сохраняем token, но убираем OAuth-параметры, если они уже есть в URL.
+  for (const k of ['code', 'state', 'error', 'error_description']) u.searchParams.delete(k);
+  u.hash = '';
+  return u.href;
+}
+
+function cleanupAuthParamsInUrl() {
+  const u = new URL(location.href);
+  let changed = false;
+  for (const k of ['code', 'state', 'error', 'error_description']) {
+    if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true; }
+  }
+  if (u.hash) { u.hash = ''; changed = true; }
+  if (changed) history.replaceState({}, '', u.toString());
+}
+
+function setAuthUI(session) {
+  AUTH_SESSION = session || null;
+
+  const statusEl = $('#authStatus');
+  const loginBtn = $('#authLogin');
+  const logoutBtn = $('#authLogout');
+
+  const nameInput = $('#studentName');
+  const startBtn = $('#startHomework');
+  const msgEl = $('#hwGateMsg');
+
+  if (!AUTH_SESSION) {
+    if (statusEl) statusEl.textContent = 'Вы не вошли. Нажмите «Войти через Google».';
+    if (loginBtn) loginBtn.classList.remove('hidden');
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+
+    if (nameInput) nameInput.disabled = true;
+    if (startBtn) startBtn.disabled = true;
+
+    // Сообщение под кнопкой "Начать"
+    if (msgEl) {
+      if (!getToken()) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+      else if (!HW_READY) msgEl.textContent = 'Загружаем домашнее задание...';
+      else msgEl.textContent = 'Сначала войдите через Google, затем введите имя.';
+    }
+    return;
+  }
+
+  const email = AUTH_SESSION.user?.email ? String(AUTH_SESSION.user.email) : '';
+  if (statusEl) statusEl.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
+  if (loginBtn) loginBtn.classList.add('hidden');
+  if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+  const ready = !!HW_READY;
+  if (nameInput) nameInput.disabled = !ready;
+  if (startBtn) startBtn.disabled = !ready;
+
+  if (msgEl) {
+    if (!getToken()) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+    else if (!ready) msgEl.textContent = 'Загружаем домашнее задание...';
+    else msgEl.textContent = 'Введите имя и нажмите «Начать».';
+  }
+}
+
+async function initAuth() {
+  // Кнопки входа/выхода
+  $('#authLogin')?.addEventListener('click', async () => {
+    try {
+      await signInWithGoogle(cleanRedirectUrl());
+    } catch (e) {
+      console.error(e);
+      const msgEl = $('#hwGateMsg');
+      if (msgEl) msgEl.textContent = 'Не удалось начать вход через Google. Проверьте разрешённые Redirect URLs в Supabase.';
+    }
+  });
+
+  $('#authLogout')?.addEventListener('click', async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      console.error(e);
+    }
+    // Проще и надёжнее перезагрузить страницу, чтобы сбросить состояние.
+    location.reload();
+  });
+
+  // Инициализация текущей сессии
+  let s = null;
+  try { s = await getSession(); } catch { s = null; }
+  setAuthUI(s);
+
+  // Реакция на изменения сессии
+  supabase.auth.onAuthStateChange((_event, session) => {
+    // после успешного sign-in в URL обычно появляются code/state; уберём их
+    if (session) cleanupAuthParamsInUrl();
+    setAuthUI(session);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Auth обязателен: результат привязывается к Google-аккаунту ученика
+  initAuth();
+
   const token = getToken();
   const startBtn = $('#startHomework');
+  const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
 
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+    if (nameInput) nameInput.disabled = true;
     if (startBtn) startBtn.disabled = true;
     return;
   }
 
   if (startBtn) startBtn.disabled = true;
+  if (nameInput) nameInput.disabled = true;
   if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
 
   // Загрузим описание ДЗ сразу, чтобы показать заголовок до ввода имени.
@@ -46,7 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const hwRes = await getHomeworkByToken(token);
     if (!hwRes.ok) {
       console.error(hwRes.error);
+      HW_READY = false;
       if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
+      if ($('#studentName')) $('#studentName').disabled = true;
       if (startBtn) startBtn.disabled = true;
       return;
     }
@@ -63,12 +173,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Каталог нужен для сборки задач
     await loadCatalog();
 
-    if (msgEl) msgEl.textContent = 'Введите имя и нажмите «Начать».';
-    if (startBtn) startBtn.disabled = false;
+    HW_READY = true;
+    setAuthUI(AUTH_SESSION);
   })().catch((e) => {
     console.error(e);
+    HW_READY = false;
     if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
     if (startBtn) startBtn.disabled = true;
+    if ($('#studentName')) $('#studentName').disabled = true;
   });
 
   startBtn?.addEventListener('click', onStart);
@@ -79,6 +191,15 @@ async function onStart() {
   const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
   const startBtn = $('#startHomework');
+
+  if (!HW_READY) {
+    if (msgEl) msgEl.textContent = 'Домашнее задание ещё загружается. Подождите.';
+    return;
+  }
+  if (!AUTH_SESSION) {
+    if (msgEl) msgEl.textContent = 'Сначала войдите через Google.';
+    return;
+  }
 
   const studentName = String(nameInput?.value || '').trim();
   if (!studentName) {
@@ -93,8 +214,8 @@ async function onStart() {
   }
 
   // Проверка "1 попытка".
-// Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
-// Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
+  // Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+  // Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
   if (msgEl) msgEl.textContent = 'Проверяем доступ...';
   if (startBtn) startBtn.disabled = true;
 
@@ -133,7 +254,6 @@ async function onStart() {
       const frozenQs = await buildFixedQuestions(frozenRefs);
       questions.push(...frozenQs);
     } else {
-
       // A) фиксированные задачи (в порядке задания)
       const fixedQs = await buildFixedQuestions(fixed);
       questions.push(...fixedQs);
@@ -206,7 +326,6 @@ function parseFrozenQuestions(frozen) {
   }
   return out;
 }
-
 
 // ---------- Supabase API (через app/providers/homework.js) ----------
 
@@ -325,6 +444,7 @@ async function buildGeneratedQuestions(generated) {
 
   return out;
 }
+
 function totalUniqueCap(man) {
   return (man.types || []).reduce(
     (s, t) => s + uniqueBaseCount(t.prototypes || []),
@@ -342,6 +462,7 @@ function sumMapValues(m) {
   for (const v of m.values()) s += v;
   return s;
 }
+
 function pickFromManifest(man, want) {
   const out = [];
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
@@ -390,6 +511,7 @@ function pickFromManifest(man, want) {
   }
   return out;
 }
+
 async function pickFromSection(sec, wantSection) {
   const out = [];
   const candidates = (sec.topics || []).filter(t => !!t.path);
@@ -455,7 +577,6 @@ async function pickFromSection(sec, wantSection) {
     }
   }
 
-  
   // Собираем пачки по подтемам и затем интерливим их,
   // чтобы задачи не шли блоками "по подтемам".
   const batches = new Map();
@@ -467,7 +588,6 @@ async function pickFromSection(sec, wantSection) {
   }
 
   return interleaveBatches(batches, wantSection);
-
 }
 
 // ---------- построение вопроса (копия из trainer.js) ----------
@@ -608,7 +728,15 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
     timerId: null,
     total_ms: 0,
     t0: null,
-    meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
+    meta: {
+      studentName,
+      studentKey,
+      token,
+      homeworkId: homework.id,
+      homeworkAttemptId: homeworkAttemptId || null,
+      auth_user_id: AUTH_SESSION?.user?.id || null,
+      auth_email: AUTH_SESSION?.user?.email || null,
+    },
   };
 
   $('#summary')?.classList.add('hidden');
@@ -863,6 +991,8 @@ async function finishSession() {
       homework_id: SESSION.meta?.homeworkId || null,
       title: SESSION.meta?.title || null,
       student_name: SESSION.meta?.studentName || null,
+      student_email: SESSION.meta?.auth_email || null,
+      auth_user_id: SESSION.meta?.auth_user_id || null,
       questions: payloadQuestions,
     };
 
