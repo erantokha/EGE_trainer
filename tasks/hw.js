@@ -114,10 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
 
-      const res = await getHomeworkByToken({ token });
+      const res = await getHomeworkByToken(token);
       if (!res.ok) throw res.error || new Error('getHomeworkByToken failed');
 
-      HOMEWORK = res.data;
+      HOMEWORK = res.homework ?? res.data ?? null;
+      if (!HOMEWORK) throw new Error('homework payload empty');
 
       // Заголовок
       const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
