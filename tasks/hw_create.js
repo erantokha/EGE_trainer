@@ -398,14 +398,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       setStatus('Создаём ДЗ...');
 
-      const hwRes = await createHomework({ title, description, spec_json, settings_json });
-      if (!hwRes.ok) {
-        console.error(hwRes.error);
-        setStatus('Ошибка создания ДЗ в Supabase. Проверь таблицу homeworks и RLS (teachers).');
-        return;
-      }
+      
+const hwRes = await createHomework({
+  title,
+  spec_json,
+  attempts_per_student: 1,
+  is_active: true,
+});
 
-      const homework_id = hwRes.row?.id;
+if (!hwRes.ok) {
+  // Показываем реальную ошибку от PostgREST (очень помогает без консоли)
+  const err = hwRes.error || {};
+  const status = err.status ?? '—';
+  const msg =
+    err?.data?.message ||
+    err?.data?.hint ||
+    err?.data?.details ||
+    err?.message ||
+    JSON.stringify(err);
+
+  setStatus(`Ошибка создания ДЗ в Supabase (HTTP ${status}): ${msg}`);
+  return;
+}
+
+const homework_id = hwRes.row?.id;
       if (!homework_id) {
         setStatus('ДЗ создано, но не удалось получить id.');
         return;
