@@ -1,20 +1,22 @@
 // app/providers/homework.js
-// ДЗ: создание/линки/получение по token.
+// ДЗ: создание/линки/получение по token + попытки.
+// ВАЖНО (обязательный вход ученика):
+// - RPC get_homework_by_token / start_homework_attempt / submit_homework_attempt доступны только authenticated
+// - попытки привязываются к auth.uid() внутри RPC (student_id), имя — только отображаемое.
 
 import { CONFIG } from '../config.js';
 import { supabase } from './supabase.js';
 
-// supabase-js v2: getUser() возвращает { data: { user }, error }
-async function getAuth() {
+// supabase-js v2: getUser() -> { data: { user }, error }
+async function getAuthUser() {
   const { data, error } = await supabase.auth.getUser();
   if (error) return { user: null, error };
   return { user: data?.user || null, error: null };
 }
 
-
-// Нормализованный ключ ученика (для уникальности попытки на ДЗ).
-// Держим простым и стабильным: trim + lower + схлопывание пробелов.
 export function normalizeStudentKey(name) {
+  // Для совместимости со старым кодом. В режиме обязательного входа
+  // уникальность попытки обеспечивается student_id = auth.uid().
   return String(name || '')
     .trim()
     .toLowerCase()
@@ -26,7 +28,7 @@ function isMissingRpcFunction(error) {
   return (
     error?.code === 'PGRST202' ||
     msg.includes('could not find the function') ||
-    msg.includes('function') && msg.includes('does not exist')
+    (msg.includes('function') && msg.includes('does not exist'))
   );
 }
 
@@ -42,19 +44,59 @@ async function rpcWithFallback(fnNames, args) {
   return { ok: false, fn: fnNames[0] || null, data: null, error: lastError };
 }
 
-// Создать/получить попытку по token+имя. Должно быть разрешено через SECURITY DEFINER RPC.
-// Ожидаем, что функция в БД называется start_homework_attempt (или совместимое имя).
+function err(msg, code = null) {
+  const e = new Error(msg);
+  if (code) e.code = code;
+  return e;
+}
+
+// ---------- Student (authenticated) ----------
+
+export async function getHomeworkByToken(token) {
+  try {
+    const t = String(token || '').trim();
+    if (!t) return { ok: false, homework: null, error: err('token is empty') };
+
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return { ok: false, homework: null, error: authError };
+    if (!user) return { ok: false, homework: null, error: err('AUTH_REQUIRED', 'AUTH_REQUIRED') };
+
+    const { data, error } = await supabase.rpc('get_homework_by_token', { p_token: t });
+    if (error) return { ok: false, homework: null, error };
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { ok: false, homework: null, error: err('homework not found') };
+
+    const homework = {
+      id: row.homework_id ?? row.id ?? null,
+      title: row.title ?? null,
+      spec_json: row.spec_json ?? null,
+      frozen_questions: row.frozen_questions ?? null,
+      seed: row.seed ?? null,
+      attempts_per_student: row.attempts_per_student ?? 1,
+    };
+
+    return { ok: true, homework, error: null };
+  } catch (e) {
+    return { ok: false, homework: null, error: e };
+  }
+}
+
 export async function startHomeworkAttempt({ token, student_name } = {}) {
   try {
     const t = String(token || '').trim();
     const s = String(student_name || '').trim();
-    if (!t || !s) return { ok: false, attempt_id: null, already_exists: false, error: new Error('token or student_name empty') };
+    if (!t) return { ok: false, attempt_id: null, already_exists: false, error: err('token empty') };
+    if (!s) return { ok: false, attempt_id: null, already_exists: false, error: err('student_name empty') };
+
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return { ok: false, attempt_id: null, already_exists: false, error: authError };
+    if (!user) return { ok: false, attempt_id: null, already_exists: false, error: err('AUTH_REQUIRED', 'AUTH_REQUIRED') };
 
     const res = await rpcWithFallback(
       ['start_homework_attempt', 'start_attempt', 'startHomeworkAttempt'],
       { p_token: t, p_student_name: s },
     );
-
     if (!res.ok) return { ok: false, attempt_id: null, already_exists: false, error: res.error };
 
     const row = Array.isArray(res.data) ? res.data[0] : res.data;
@@ -69,87 +111,68 @@ export async function startHomeworkAttempt({ token, student_name } = {}) {
   }
 }
 
-export async function getHomeworkByToken(token) {
+export async function submitHomeworkAttempt({
+  attempt_id,
+  payload,
+  total,
+  correct,
+  duration_ms,
+} = {}) {
   try {
-    const t = String(token || '').trim();
-    if (!t) return { ok: false, homework: null, error: new Error('token is empty') };
+    const id = String(attempt_id || '').trim();
+    if (!id) return { ok: false, error: err('attempt_id empty') };
 
-    // RPC (security definer) — доступно anon + authenticated (по grant).
-    const { data, error } = await supabase.rpc('get_homework_by_token', { p_token: t });
-    if (error) return { ok: false, homework: null, error };
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) return { ok: false, homework: null, error: new Error('homework not found') };
-
-    // Важно: после обновления RPC-таблицы набор полей может отличаться.
-    // Берём безопасно с fallback.
-    const homework = {
-      id: row.homework_id ?? row.id ?? null,
-      title: row.title ?? null,
-      description: row.description ?? null,
-      spec_json: row.spec_json ?? null,
-      settings_json: row.settings_json ?? null,
-      frozen_questions: row.frozen_questions ?? null,
-      seed: row.seed ?? null,
-      attempts_per_student: row.attempts_per_student ?? 1,
-    };
-
-    return { ok: true, homework, error: null };
-  } catch (e) {
-    return { ok: false, homework: null, error: e };
-  }
-}
-
-export async function hasAttempt(token, student_name) {
-  try {
-    const t = String(token || '').trim();
-    const s = String(student_name || '').trim();
-    if (!t || !s) return { ok: false, has: false, error: new Error('token or student_name empty') };
+    const { user, error: authError } = await getAuthUser();
+    if (authError) return { ok: false, error: authError };
+    if (!user) return { ok: false, error: err('AUTH_REQUIRED', 'AUTH_REQUIRED') };
 
     const res = await rpcWithFallback(
-      ['has_homework_attempt', 'has_attempt', 'hasAttempt'],
-      { p_token: t, p_student_name: s },
+      ['submit_homework_attempt', 'submit_attempt', 'submitHomeworkAttempt'],
+      {
+        p_attempt_id: attempt_id,
+        p_payload: payload ?? {},
+        p_total: Number(total) || 0,
+        p_correct: Number(correct) || 0,
+        p_duration_ms: Number(duration_ms) || 0,
+      },
     );
-
-    if (!res.ok) return { ok: false, has: false, error: res.error };
-
-    const row = Array.isArray(res.data) ? res.data[0] : res.data;
-    // Функция может вернуть boolean напрямую или объект {has_attempt: boolean}
-    const has = typeof row === 'boolean' ? row : !!(row?.has_attempt ?? row?.has ?? row);
-    return { ok: true, has, error: null };
+    if (!res.ok) return { ok: false, error: res.error };
+    return { ok: true, error: null };
   } catch (e) {
-    return { ok: false, has: false, error: e };
+    return { ok: false, error: e };
   }
 }
+
+// Оставляем для совместимости (сейчас не используется).
+export async function hasAttempt() {
+  return { ok: false, has: false, error: err('hasAttempt is not supported in mandatory-auth mode') };
+}
+
+// ---------- Teacher (authenticated) ----------
 
 export async function createHomework({
   title,
-  description = null,
   spec_json,
-  settings_json = null,
   frozen_questions = null,
   seed = null,
   attempts_per_student = 1,
   is_active = true,
 } = {}) {
   try {
-    const { user, error: authError } = await getAuth();
+    const { user, error: authError } = await getAuthUser();
     if (authError) return { ok: false, row: null, error: authError };
-    if (!user) return { ok: false, row: null, error: new Error('Not authenticated') };
+    if (!user) return { ok: false, row: null, error: err('Not authenticated') };
 
     const payload = {
       owner_id: user.id,
       title: String(title || '').trim(),
-      description,
       spec_json,
-      settings_json,
       attempts_per_student: Number(attempts_per_student) || 1,
       is_active: !!is_active,
     };
 
-    // Добавляем только если реально передали (иначе не трогаем дефолты в БД)
-    if (frozen_questions !== undefined) payload.frozen_questions = frozen_questions;
-    if (seed !== undefined) payload.seed = seed;
+    if (seed !== null && seed !== undefined) payload.seed = seed;
+    if (frozen_questions !== null && frozen_questions !== undefined) payload.frozen_questions = frozen_questions;
 
     const { data, error } = await supabase
       .from('homeworks')
@@ -171,9 +194,9 @@ export async function createHomeworkLink({
   is_active = true,
 } = {}) {
   try {
-    const { user, error: authError } = await getAuth();
+    const { user, error: authError } = await getAuthUser();
     if (authError) return { ok: false, row: null, error: authError };
-    if (!user) return { ok: false, row: null, error: new Error('Not authenticated') };
+    if (!user) return { ok: false, row: null, error: err('Not authenticated') };
 
     const payload = {
       homework_id,
