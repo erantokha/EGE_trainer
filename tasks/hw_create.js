@@ -8,7 +8,6 @@ import { createHomework, createHomeworkLink } from '../app/providers/homework.js
 import {
   uniqueBaseCount,
   sampleKByBase,
-  computeTargetTopics,
   interleaveBatches,
 } from '../app/core/pick.js';
 
@@ -454,8 +453,6 @@ async function pickRefsFromSection(sec, wantSection) {
   }
   if (!loaded.length) return out;
 
-  const target = computeTargetTopics(wantSection, loaded.map(x => x.id));
-
   const bucketsU = loaded.map(x => ({ id: x.id, cap: x.capU }));
   const bucketsR = loaded.map(x => ({ id: x.id, cap: x.capR }));
   shuffle(bucketsU);
@@ -475,7 +472,7 @@ async function pickRefsFromSection(sec, wantSection) {
 
   // Перемешиваем порядок, но так, чтобы было 1+1+1+... по подтемам насколько возможно
   // (interleaveBatches делает круговой обход).
-  const inter = interleaveBatches(batches, wantSection, target);
+  const inter = interleaveBatches(batches, wantSection);
   out.push(...inter);
   return out;
 }
