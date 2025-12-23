@@ -63,9 +63,7 @@ export async function hasAttempt(token, student_name) {
 
 export async function createHomework({
   title,
-  description = null,
   spec_json,
-  settings_json = null,
   frozen_questions = null,
   seed = null,
   attempts_per_student = 1,
@@ -76,12 +74,12 @@ export async function createHomework({
     if (authError) return { ok: false, row: null, error: authError };
     if (!user) return { ok: false, row: null, error: new Error('Not authenticated') };
 
+    // ВАЖНО: вставляем ТОЛЬКО те поля, которые реально есть в таблице public.homeworks.
+    // В вашей текущей схеме нет колонок description/settings_json, поэтому их не отправляем.
     const payload = {
       owner_id: user.id,
       title: String(title || '').trim(),
-      description,
       spec_json,
-      settings_json,
       attempts_per_student: Number(attempts_per_student) || 1,
       is_active: !!is_active,
     };
