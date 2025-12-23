@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadCatalog();
     renderAccordion();
+    initBulkControls();
   } catch (e) {
     console.error(e);
     const host = $('#accordion');
@@ -108,6 +109,56 @@ function initShuffleToggle() {
   cb.addEventListener('change', () => {
     SHUFFLE_TASKS = cb.checked;
   });
+}
+
+// ---------- Массовые действия (главный аккордеон) ----------
+function initBulkControls() {
+  const pickBtn = $('#bulkPickAll');
+  const resetBtn = $('#bulkResetAll');
+
+  if (pickBtn) pickBtn.addEventListener('click', () => bulkPickAll(+1));
+  if (resetBtn) resetBtn.addEventListener('click', () => bulkResetAll());
+}
+
+// "Выбрать все": +delta задач в каждой из 12 тем (разделов).
+// Реализуем через счётчики разделов, чтобы генерация шла "по разделам".
+function bulkPickAll(delta) {
+  if (!SECTIONS || !SECTIONS.length) return;
+
+  // Переключаемся на выбор по разделам: обнуляем выбор по темам,
+  // чтобы в тренажёре сработал режим B (sections), а не A (topics).
+  CHOICE_TOPICS = {};
+
+  const d = Number(delta) || 0;
+  for (const sec of SECTIONS) {
+    const cur = Number(CHOICE_SECTIONS[sec.id] || 0);
+    CHOICE_SECTIONS[sec.id] = Math.max(0, cur + d);
+  }
+
+  refreshCountsUI();
+}
+
+function bulkResetAll() {
+  CHOICE_TOPICS = {};
+  CHOICE_SECTIONS = {};
+  refreshCountsUI();
+}
+
+function refreshCountsUI() {
+  // секции
+  $$('.node.section').forEach(node => {
+    const id = node.dataset.id;
+    const num = $('.count', node);
+    if (num) num.value = CHOICE_SECTIONS[id] || 0;
+  });
+
+  // темы
+  $$('.node.topic').forEach(node => {
+    const num = $('.count', node);
+    if (num) num.value = 0;
+  });
+
+  refreshTotalSum();
 }
 
 // ---------- Загрузка каталога ----------

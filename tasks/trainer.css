@@ -134,6 +134,33 @@ input[type="number"]{-moz-appearance:textfield}
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
+
+
+/* массовые кнопки под меню (главный аккордеон) */
+#picker .bulk-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:12px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+#picker .bulk-controls .bulk-hint{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-left:6px;
+}
+#picker .bulk-controls button{
+  padding:6px 10px;
+  font-size:13px;
+  border-radius:10px;
+}
+
+/* больше воздуха между меню и аккордеоном */
+#picker .accordion{
+  margin-top:18px;
+}
+
 /* верхний блок выбора (index.html) */
 #picker .controls{
   display:flex;
