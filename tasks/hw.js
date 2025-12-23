@@ -14,7 +14,7 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 
 import { CONFIG } from '../app/config.js';
 import { insertAttempt } from '../app/providers/supabase-write.js';
-import { getHomeworkByToken, hasAttempt, normalizeStudentKey } from '../app/providers/homework.js';
+import { getHomeworkByToken, startHomeworkAttempt, hasAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -93,21 +93,27 @@ async function onStart() {
     return;
   }
 
-  // Проверка "1 попытка" (если в БД есть нужные колонки и RLS разрешает чтение).
+  // Проверка "1 попытка".
+// Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+// Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
   if (msgEl) msgEl.textContent = 'Проверяем доступ...';
   if (startBtn) startBtn.disabled = true;
 
-    const canRes = await hasAttempt({ homework_id: HOMEWORK.id, token_used: token, student_key: studentKey });
-  if (!canRes.ok) {
-    // Если не удалось проверить (например, из-за RLS или отсутствия колонок),
-    // всё равно запускаем, но предупредим в консоли.
-    console.warn(
-      'Не удалось проверить ограничение по попыткам. Рекомендуется добавить колонки homework_id/token_used/student_key и уникальный индекс.',
-      canRes.error,
-    );
-  } else if (canRes.exists) {
-    if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
-    return;
+  let hwAttemptId = null;
+  try {
+    const ares = await startHomeworkAttempt({ token, student_name: studentName });
+    if (ares.ok) {
+      hwAttemptId = ares.attempt_id || null;
+      if (ares.already_exists) {
+        if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
+        if (startBtn) startBtn.disabled = false;
+        return;
+      }
+    } else {
+      console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
+    }
+  } catch (e) {
+    console.warn('startHomeworkAttempt error. Продолжаем без ограничения попыток.', e);
   }
 
   if (msgEl) msgEl.textContent = 'Собираем задачи...';
@@ -151,6 +157,7 @@ async function onStart() {
       studentKey,
       token,
       homework: HOMEWORK,
+      homeworkAttemptId: hwAttemptId,
     });
   } catch (e) {
     console.error(e);
@@ -558,7 +565,7 @@ function mountRunnerUI() {
 }
 
 // ---------- Сессия ----------
-async function startHomeworkSession({ questions, studentName, studentKey, token, homework }) {
+async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId }) {
   SESSION = {
     questions,
     idx: 0,
@@ -566,7 +573,7 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
     timerId: null,
     total_ms: 0,
     t0: null,
-    meta: { studentName, studentKey, token, homeworkId: homework.id },
+    meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
   $('#summary')?.classList.add('hidden');
