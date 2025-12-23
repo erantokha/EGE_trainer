@@ -19,6 +19,17 @@
     <section id="hw">
       <div class="panel">
         <h1 id="hwTitle">Домашнее задание</h1>
+
+      <div class="row" id="authRow">
+        <div id="authStatus" class="muted">Проверяем вход...</div>
+        <div class="actions">
+          <button id="authLogin" class="btn">Войти через Google</button>
+          <button id="authLogout" class="btn secondary hidden">Выйти</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-top:6px">
+        Вход обязателен: результат будет привязан к вашему аккаунту.
+      </div>
         <p id="hwSubtitle" style="opacity:.8;margin-top:6px">
           Откройте ссылку, которую выдал преподаватель (обычно с параметром token).
         </p>
@@ -27,7 +38,7 @@
           <label style="display:block; margin:10px 0 8px">
             <div style="opacity:.8; margin-bottom:6px">Ваше имя</div>
             <input id="studentName" type="text" autocomplete="name" placeholder="Например: Антон"
-                   style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
+                   style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)" disabled>
           </label>
           <button id="startHomework" type="button">Начать</button>
           <div id="hwGateMsg" style="opacity:.8;margin-top:10px"></div>
