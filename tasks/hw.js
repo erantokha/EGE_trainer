@@ -127,19 +127,28 @@ async function onStart() {
 
     const questions = [];
 
-    // A) фиксированные задачи (в порядке задания)
-    const fixedQs = await buildFixedQuestions(fixed);
-    questions.push(...fixedQs);
+    // Если на стороне преподавателя задания уже "заморожены",
+    // используем зафиксированный список и НЕ пересобираем генерацией.
+    const frozenRefs = parseFrozenQuestions(HOMEWORK.frozen_questions);
+    if (frozenRefs.length) {
+      const frozenQs = await buildFixedQuestions(frozenRefs);
+      questions.push(...frozenQs);
+    } else {
 
-    // B) добивка генерацией (если задано)
-    if (generated) {
-      const genQs = await buildGeneratedQuestions(generated);
-      questions.push(...genQs);
+      // A) фиксированные задачи (в порядке задания)
+      const fixedQs = await buildFixedQuestions(fixed);
+      questions.push(...fixedQs);
+
+      // B) добивка генерацией (если задано)
+      if (generated) {
+        const genQs = await buildGeneratedQuestions(generated);
+        questions.push(...genQs);
+      }
+
+      // перемешивание итогового списка
+      const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
+      if (shuffleFlag) shuffle(questions);
     }
-
-    // перемешивание итогового списка
-    const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
-    if (shuffleFlag) shuffle(questions);
 
     if (!questions.length) {
       if (msgEl) msgEl.textContent = 'Не удалось собрать задачи. Проверьте состав домашнего задания.';
@@ -170,6 +179,33 @@ async function onStart() {
 function getToken() {
   const p = new URLSearchParams(location.search);
   return p.get('token');
+}
+
+function inferTopicIdFromQuestionId(questionId) {
+  const id = String(questionId || '').trim();
+  if (!id) return '';
+  const parts = id.split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function parseFrozenQuestions(frozen) {
+  if (!frozen) return [];
+  let arr = frozen;
+  if (typeof arr === 'string') {
+    try { arr = JSON.parse(arr); } catch { return []; }
+  }
+  if (!Array.isArray(arr)) return [];
+
+  const out = [];
+  for (const it of arr) {
+    if (!it) continue;
+    const qid = it.question_id || it.id;
+    const tid = it.topic_id || it.topic_id || it.topic || inferTopicIdFromQuestionId(qid);
+    if (!qid || !tid) continue;
+    out.push({ topic_id: String(tid), question_id: String(qid) });
+  }
+  return out;
 }
 
 

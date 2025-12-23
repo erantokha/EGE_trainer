@@ -5,10 +5,69 @@
 import { CONFIG } from '../app/config.js';
 import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js';
+import {
+  uniqueBaseCount,
+  sampleKByBase,
+  computeTargetTopics,
+  interleaveBatches,
+} from '../app/core/pick.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
+
+// Кэш каталога и манифестов (нужно, чтобы при создании ДЗ "заморозить" набор задач)
+let CATALOG = null;
+let SECTIONS = [];
+let TOPIC_BY_ID = new Map();
+
+async function loadCatalog() {
+  if (CATALOG && SECTIONS.length) return;
+  const res = await fetch(withV(INDEX_URL), { cache: 'force-cache' });
+  if (!res.ok) throw new Error(`index.json not found: ${res.status}`);
+  CATALOG = await res.json();
+
+  const sections = (CATALOG || []).filter(x => x.type === 'group');
+  const topics = (CATALOG || []).filter(x => !!x.parent && x.enabled !== false);
+
+  const byId = (a, b) => compareId(a.id, b.id);
+
+  TOPIC_BY_ID = new Map();
+  for (const t of topics) TOPIC_BY_ID.set(t.id, t);
+
+  for (const sec of sections) {
+    sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
+  }
+  sections.sort(byId);
+  SECTIONS = sections;
+}
+
+async function ensureManifest(topic) {
+  if (!topic || !topic.path) return null;
+  if (topic._manifest) return topic._manifest;
+  if (topic._manifestPromise) return topic._manifestPromise;
+
+  const url = new URL('../' + topic.path, location.href);
+  const href = withV(url.href);
+
+  topic._manifestPromise = (async () => {
+    const resp = await fetch(href, { cache: 'force-cache' });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    topic._manifest = j;
+    return j;
+  })();
+
+  return topic._manifestPromise;
+}
+
+function withV(url) {
+  const v = CONFIG?.content?.version;
+  if (!v) return url;
+  const u = new URL(url, location.href);
+  if (!u.searchParams.has('v')) u.searchParams.set('v', v);
+  return u.href;
+}
 
 function normNameForKey(s) {
   return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -239,13 +298,8 @@ function readSectionsGenerated() {
 }
 
 async function loadSectionsUI() {
-  const res = await fetch(INDEX_URL, { cache: 'force-cache' });
-  if (!res.ok) throw new Error(`index.json not found: ${res.status}`);
-  const catalog = await res.json();
-
-  const sections = (catalog || [])
-    .filter(x => x.type === 'group')
-    .sort((a, b) => compareId(a.id, b.id));
+  await loadCatalog();
+  const sections = SECTIONS;
 
   const host = $('#sectionsGrid');
   if (!host) return;
@@ -286,6 +340,178 @@ async function loadSectionsUI() {
     card.appendChild(row);
     host.appendChild(card);
   }
+}
+
+// ---------- генерация и заморозка задач (чтобы ДЗ было одинаковым для всех учеников) ----------
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function sumMapValues(m) {
+  let s = 0;
+  for (const v of m.values()) s += v;
+  return s;
+}
+
+function distributeNonNegative(buckets, total) {
+  // buckets: [{id,cap}]
+  const out = new Map(buckets.map(b => [b.id, 0]));
+  let left = total;
+  let i = 0;
+  while (left > 0 && buckets.some(b => out.get(b.id) < b.cap)) {
+    const b = buckets[i % buckets.length];
+    if (out.get(b.id) < b.cap) {
+      out.set(b.id, out.get(b.id) + 1);
+      left--;
+    }
+    i++;
+  }
+  return out;
+}
+
+function totalUniqueCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + uniqueBaseCount(t.prototypes || []),
+    0,
+  );
+}
+
+function totalRawCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + ((t.prototypes || []).length),
+    0,
+  );
+}
+
+function buildRef(manifest, proto) {
+  return {
+    topic_id: manifest.topic || inferTopicIdFromQuestionId(proto.id),
+    question_id: proto.id,
+  };
+}
+
+function pickRefsFromManifest(man, want) {
+  const out = [];
+  const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
+  if (!types.length) return out;
+
+  const max = totalRawCap(man);
+  const need = Math.min(Math.max(0, want || 0), max);
+  if (!need) return out;
+
+  const capsU = types.map(t => ({ id: t.id, cap: uniqueBaseCount(t.prototypes || []) }));
+  const capsR = types.map(t => ({ id: t.id, cap: (t.prototypes || []).length }));
+
+  shuffle(capsU);
+  shuffle(capsR);
+
+  const uniqueBudget = Math.min(need, totalUniqueCap(man));
+  const planU = distributeNonNegative(capsU, uniqueBudget);
+  const left = need - sumMapValues(planU);
+  const planR = left > 0 ? distributeNonNegative(capsR, left) : new Map();
+
+  for (const typ of types) {
+    const k = (planU.get(typ.id) || 0) + (planR.get(typ.id) || 0);
+    if (!k) continue;
+    for (const p of sampleKByBase(typ.prototypes || [], k)) {
+      out.push(buildRef(man, p));
+    }
+  }
+
+  return out;
+}
+
+async function pickRefsFromSection(sec, wantSection) {
+  const out = [];
+  const candidates = (sec.topics || []).filter(t => !!t.path);
+  shuffle(candidates);
+
+  // Загружаем не одну тему, а несколько (иначе при огромном cap после размножения
+  // всё ДЗ может собраться из 1 подтемы).
+  const minTopics =
+    wantSection <= 1
+      ? 1
+      : Math.min(candidates.length, Math.max(2, Math.min(8, Math.ceil(wantSection / 2))));
+
+  const loaded = [];
+  let capU = 0;
+  let capR = 0;
+
+  for (const topic of candidates) {
+    if (loaded.length >= minTopics && capR >= wantSection) break;
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+    const u = totalUniqueCap(man);
+    const r = totalRawCap(man);
+    if (r <= 0) continue;
+    loaded.push({ id: topic.id, man, capU: u, capR: r });
+    capU += u;
+    capR += r;
+  }
+  if (!loaded.length) return out;
+
+  const target = computeTargetTopics(wantSection, loaded.map(x => x.id));
+
+  const bucketsU = loaded.map(x => ({ id: x.id, cap: x.capU }));
+  const bucketsR = loaded.map(x => ({ id: x.id, cap: x.capR }));
+  shuffle(bucketsU);
+  shuffle(bucketsR);
+
+  const uniqueBudget = Math.min(wantSection, capU);
+  const planU = distributeNonNegative(bucketsU, uniqueBudget);
+  const left = wantSection - sumMapValues(planU);
+  const planR = left > 0 ? distributeNonNegative(bucketsR, left) : new Map();
+
+  const batches = new Map();
+  for (const x of loaded) {
+    const wantT = (planU.get(x.id) || 0) + (planR.get(x.id) || 0);
+    if (!wantT) continue;
+    batches.set(x.id, pickRefsFromManifest(x.man, wantT));
+  }
+
+  // Перемешиваем порядок, но так, чтобы было 1+1+1+... по подтемам насколько возможно
+  // (interleaveBatches делает круговой обход).
+  const inter = interleaveBatches(batches, wantSection, target);
+  out.push(...inter);
+  return out;
+}
+
+async function freezeHomeworkQuestions(spec_json) {
+  const frozen = [];
+  const used = new Set();
+
+  const pushRef = (r) => {
+    if (!r || !r.question_id) return;
+    const topic_id = r.topic_id || inferTopicIdFromQuestionId(r.question_id);
+    const key = `${topic_id}::${r.question_id}`;
+    if (used.has(key)) return;
+    used.add(key);
+    frozen.push({ topic_id, question_id: r.question_id });
+  };
+
+  // 1) фиксированные (ручные)
+  for (const r of spec_json?.fixed || []) pushRef(r);
+
+  // 2) добивка генерацией
+  const gen = spec_json?.generated;
+  if (gen && gen.by === 'sections' && gen.sections) {
+    await loadCatalog();
+    for (const [secId, want] of Object.entries(gen.sections)) {
+      const n = Math.max(0, Math.floor(Number(want) || 0));
+      if (!n) continue;
+      const sec = SECTIONS.find(s => String(s.id) === String(secId));
+      if (!sec) continue;
+      const refs = await pickRefsFromSection(sec, n);
+      for (const r of refs) pushRef(r);
+    }
+  }
+
+  if (spec_json?.shuffle) shuffle(frozen);
+  return frozen;
 }
 
 function buildStudentLink(token) {
@@ -380,7 +606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const spec_json = {
       v: 1,
-      content_version: todayISO(),
+      content_version: CONFIG?.content?.version || todayISO(),
       fixed,
       generated: generated || null,
       shuffle,
@@ -396,15 +622,28 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     $('#createBtn').disabled = true;
     try {
+      // 1) фиксируем список задач (иначе добивка будет меняться при каждом открытии)
+      setStatus('Фиксируем список задач...');
+      const frozen_questions = await freezeHomeworkQuestions(spec_json);
+      if (!Array.isArray(frozen_questions) || frozen_questions.length === 0) {
+        setStatus('Не удалось зафиксировать список задач (пустой список). Проверь выбор и манифесты.');
+        return;
+      }
+
+      // 2) сохраняем ДЗ в Supabase
       setStatus('Создаём ДЗ...');
 
-      
-const hwRes = await createHomework({
-  title,
-  spec_json,
-  attempts_per_student: 1,
-  is_active: true,
-});
+      const hwRes = await createHomework({
+        title,
+        description,
+        spec_json,
+        settings_json,
+        frozen_questions,
+        // seed можно не использовать в варианте 1
+        seed: null,
+        attempts_per_student: 1,
+        is_active: true,
+      });
 
 if (!hwRes.ok) {
   // Показываем реальную ошибку от PostgREST (очень помогает без консоли)
@@ -421,7 +660,7 @@ if (!hwRes.ok) {
   return;
 }
 
-const homework_id = hwRes.row?.id;
+      const homework_id = hwRes.row?.id;
       if (!homework_id) {
         setStatus('ДЗ создано, но не удалось получить id.');
         return;
