@@ -15,16 +15,14 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 import { CONFIG } from '../app/config.js';
 import { getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { insertAttempt } from '../app/providers/supabase-write.js';
-import { getHomeworkByToken, startHomeworkAttempt, hasAttempt, normalizeStudentKey } from '../app/providers/homework.js';
+import { getHomeworkByToken, startHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
 
-let HOMEWORK = null;
-let AUTH = null; // {session,user,uid,email,accountKey,displayName}
-let HW_READY = false;
-let AUTH_READY = false;   // { id, title, description, spec_json, settings_json }
+let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
+let AUTH = null; // {session,user,uid,email,displayName,accountKey}
 let LINK = null;       // строка homework_links (если вернётся)
 let CATALOG = null;    // массив index.json
 let SECTIONS = [];
@@ -34,108 +32,156 @@ let SESSION = null;
 
 document.addEventListener('DOMContentLoaded', () => {
   const token = getToken();
+
   const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
 
+  const loginBtn = $('#authLogin');
+  const logoutBtn = $('#authLogout');
+  const authStatus = $('#authStatus');
 
-  // Авторизация обязательна: включаем/выключаем кнопку старта через флаги.
-  // initAuth сама обновит AUTH_READY и UI.
-  (async () => { await initAuth(); })();
+  const setStartEnabled = () => {
+    if (!startBtn) return;
+    startBtn.disabled = !(token && AUTH && HOMEWORK);
+  };
+
+  // Кнопки входа/выхода (обязательная авторизация)
+  if (loginBtn) {
+    loginBtn.onclick = async () => {
+      try {
+        // redirectTo оставляем текущий URL, чтобы token сохранился
+        await signInWithGoogle(location.href);
+      } catch (e) {
+        console.error(e);
+        if (msgEl) msgEl.textContent = 'Не удалось открыть вход Google. Проверьте настройки Auth в Supabase.';
+      }
+    };
+  }
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      try {
+        await signOut();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        location.reload();
+      }
+    };
+  }
 
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    HW_READY = false;
-      updateStartAvailability();
-  HW_READY = false;
-  updateStartAvailability();
+    if (authStatus) authStatus.textContent = '';
+    setStartEnabled();
     return;
   }
 
-  HW_READY = false;
-      updateStartAvailability();
-  if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
+  if (startBtn) startBtn.disabled = true;
+  if (msgEl) msgEl.textContent = 'Проверяем вход...';
 
-  // Загрузим описание ДЗ сразу, чтобы показать заголовок до ввода имени.
+  // Вход → загрузка ДЗ
   (async () => {
-    const hwRes = await getHomeworkByToken(token);
-    if (!hwRes.ok) {
-      console.error(hwRes.error);
+    try {
+      const session = await getSession();
+
+      if (!session) {
+        AUTH = null;
+        if (authStatus) authStatus.textContent = 'Нужен вход через Google';
+        loginBtn?.classList.remove('hidden');
+        logoutBtn?.classList.add('hidden');
+        if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы открыть ДЗ.';
+        return;
+      }
+
+      AUTH = {
+        session,
+        user: session.user || null,
+        uid: session.user?.id || null,
+        email: session.user?.email || null,
+        displayName:
+          session.user?.user_metadata?.full_name ||
+          session.user?.user_metadata?.name ||
+          session.user?.email ||
+          'Ученик',
+        accountKey: session.user?.email || session.user?.id || '',
+      };
+
+      if (authStatus) {
+        authStatus.textContent = AUTH.email ? `Вы вошли: ${AUTH.email}` : 'Вы вошли';
+      }
+      loginBtn?.classList.add('hidden');
+      logoutBtn?.classList.remove('hidden');
+
+      if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
+
+      const res = await getHomeworkByToken({ token });
+      if (!res.ok) throw res.error || new Error('getHomeworkByToken failed');
+
+      HOMEWORK = res.data;
+
+      // Заголовок
+      const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
+      $('#hwTitle').textContent = t;
+      if ($('#hwSubtitle')) {
+        $('#hwSubtitle').textContent = HOMEWORK.description
+          ? String(HOMEWORK.description)
+          : 'Введите имя и нажмите «Начать».';
+      }
+
+      // Каталог нужен для сборки задач
+      await loadCatalog();
+
+      // Автозаполним имя (можно отредактировать)
+      const nameInput = $('#studentName');
+      if (nameInput && !String(nameInput.value || '').trim()) {
+        nameInput.value = AUTH.displayName || '';
+      }
+
+      if (msgEl) msgEl.textContent = 'Введите имя и нажмите «Начать».';
+    } catch (e) {
+      console.error(e);
       if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
-      HW_READY = false;
-      updateStartAvailability();
-      return;
+    } finally {
+      setStartEnabled();
     }
-    HOMEWORK = hwRes.homework;
-    LINK = hwRes.linkRow || null;
+  })().catch(console.error);
 
-    // Заголовок
-    const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
-    $('#hwTitle').textContent = t;
-    if ($('#hwSubtitle')) {
-      $('#hwSubtitle').textContent = HOMEWORK.description ? String(HOMEWORK.description) : 'Введите имя и нажмите «Начать».';
-    }
-
-    // Каталог нужен для сборки задач
-    await loadCatalog();
-
-    if (msgEl) msgEl.textContent = 'Введите имя и нажмите «Начать».';
-    HW_READY = true;
-      updateStartAvailability();
-  })().catch((e) => {
-    console.error(e);
-    if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
-    HW_READY = false;
-      updateStartAvailability();
-  });
-
-  startBtn?.addEventListener('click', onStart);
+  if (startBtn) startBtn.onclick = onStart;
 });
 
 async function onStart() {
   const token = getToken();
   const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
+  const startBtn = $('#startHomework');
 
-  if (!AUTH_READY || !AUTH) {
-    if (msgEl) msgEl.textContent = 'Нужен вход через Google. Нажмите «Войти через Google».';
+  const studentName = String(nameInput?.value || '').trim();
+  if (!studentName) {
+    if (msgEl) msgEl.textContent = 'Введите имя.';
     return;
   }
-  if (!HW_READY || !HOMEWORK) {
+  const studentKey = normalizeStudentKey(studentName);
+
+  if (!HOMEWORK) {
     if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
     return;
   }
 
-  // Имя — только для отображения. Ключ попыток берём из аккаунта.
-  const displayName = String(nameInput?.value || '').trim() || AUTH.displayName || 'Ученик';
-  const accountKey = AUTH.accountKey || AUTH.email || AUTH.uid || '';
-  const studentKey = normalizeStudentKey(accountKey);
-
-  // В RPC используем accountKey, чтобы попытки были уникальны на уровне аккаунта.
-  const studentNameForRpc = accountKey || displayName;
-
-  const startBtn = $('#startHomework');
+  // Проверка "1 попытка".
+// Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+// Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
+  if (msgEl) msgEl.textContent = 'Проверяем доступ...';
   if (startBtn) startBtn.disabled = true;
-  updateStartAvailability();
 
   let hwAttemptId = null;
-
-  if (msgEl) msgEl.textContent = 'Проверяем попытки...';
-
-  // 0) ограничение попыток через RPC (если настроено)
   try {
-    const ares = await startHomeworkAttempt(token, studentNameForRpc);
+    const ares = await startHomeworkAttempt({ token, student_name: studentName });
     if (ares.ok) {
-      hwAttemptId = ares.attempt_id || ares.attemptId || null;
-
-      if (HOMEWORK.attempts_per_student != null) {
-        const already = !!(ares.already_exists ?? ares.alreadyExists);
-        // если попытка уже существовала, это значит "лимит" уже использован
-        if (already && Number(HOMEWORK.attempts_per_student) <= 1) {
-          if (msgEl) msgEl.textContent = 'Лимит попыток исчерпан. Обратитесь к преподавателю.';
-          if (startBtn) startBtn.disabled = false;
-          updateStartAvailability();
-          return;
-        }
+      hwAttemptId = ares.attempt_id || null;
+      if (ares.already_exists) {
+        if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
+        if (startBtn) startBtn.disabled = false;
+        return;
       }
     } else {
       console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
@@ -155,53 +201,445 @@ async function onStart() {
 
     const questions = [];
 
-    // Если на стороне преподавателя задания уже "заморожены",
-    // используем зафиксированный список и НЕ пересобираем генерацией.
-    const frozenRefs = parseFrozenQuestions(HOMEWORK.frozen_questions);
-    if (frozenRefs.length) {
-      const frozenQs = await buildFixedQuestions(frozenRefs);
-      questions.push(...frozenQs);
-    } else {
+    // A) фиксированные задачи (в порядке задания)
+    const fixedQs = await buildFixedQuestions(fixed);
+    questions.push(...fixedQs);
 
-      // A) фиксированные задачи (в порядке задания)
-      const fixedQs = await buildFixedQuestions(fixed);
-      questions.push(...fixedQs);
-
-      // B) добивка генерацией
-      if (generated) {
-        const genQs = await buildGeneratedQuestions(generated, settings);
-        questions.push(...genQs);
-      }
-
-      // если учитель указал seed и не заморозил — перемешивание детерминируется seed'ом на стороне pick.js
-      // (порядок вопросов в рамках homework зависит от того, как вы реализуете pick)
+    // B) добивка генерацией (если задано)
+    if (generated) {
+      const genQs = await buildGeneratedQuestions(generated);
+      questions.push(...genQs);
     }
+
+    // перемешивание итогового списка
+    const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
+    if (shuffleFlag) shuffle(questions);
+
+    if (!questions.length) {
+      if (msgEl) msgEl.textContent = 'Не удалось собрать задачи. Проверьте состав домашнего задания.';
+      return;
+    }
+
+    // Скрываем "гейт", показываем тренажёр
+    $('#hwGate')?.classList.add('hidden');
+    mountRunnerUI(); // создаёт #summary тоже
 
     // Запуск сессии
     await startHomeworkSession({
       questions,
-      studentName: displayName,
+      studentName,
       studentKey,
       token,
       homework: HOMEWORK,
       homeworkAttemptId: hwAttemptId,
-      studentId: AUTH.uid || null,
-      studentEmail: AUTH.email || null,
     });
   } catch (e) {
     console.error(e);
     if (msgEl) msgEl.textContent = 'Ошибка сборки задач. Проверьте настройки домашнего задания.';
   } finally {
-    // возвращаем кнопку только если остаёмся на экране выбора
-    // (если старт прошёл — UI уже переключён на runner)
-    if ($('#hwGate') && !$('#hwGate')?.classList.contains('hidden')) {
-      if (startBtn) startBtn.disabled = false;
-      updateStartAvailability();
-    }
+    if (startBtn) startBtn.disabled = false;
   }
 }
 
-async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId, studentId, studentEmail }) {
+function getToken() {
+  const p = new URLSearchParams(location.search);
+  return p.get('token');
+}
+
+
+// ---------- Supabase API (через app/providers/homework.js) ----------
+
+// ---------- Каталог (index.json) ----------
+async function loadCatalog() {
+  if (CATALOG) return;
+
+  const url = withV(INDEX_URL);
+  const resp = await fetch(url, { cache: 'force-cache' });
+  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
+  CATALOG = await resp.json();
+
+  const sections = CATALOG.filter(x => x.type === 'group');
+  const topics = CATALOG.filter(x => !!x.parent && x.enabled !== false);
+
+  const byId = (a, b) => compareId(a.id, b.id);
+
+  for (const sec of sections) {
+    sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
+  }
+  sections.sort(byId);
+  SECTIONS = sections;
+
+  TOPIC_BY_ID = new Map();
+  for (const t of topics) TOPIC_BY_ID.set(t.id, t);
+}
+
+// ---------- Контент: манифесты ----------
+async function ensureManifest(topic) {
+  if (topic._manifest) return topic._manifest;
+  if (topic._manifestPromise) return topic._manifestPromise;
+  if (!topic.path) return null;
+
+  const url = new URL('../' + topic.path, location.href);
+  // cache-busting по версии контента
+  if (CONFIG?.content?.version) url.searchParams.set('v', CONFIG.content.version);
+
+  topic._manifestPromise = (async () => {
+    const resp = await fetch(url.href, { cache: 'force-cache' });
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    topic._manifest = j;
+    return j;
+  })();
+
+  return topic._manifestPromise;
+}
+
+// ---------- Сбор задач ----------
+async function buildFixedQuestions(fixed) {
+  const out = [];
+  for (const item of fixed) {
+    const topicId = item?.topic_id;
+    const qid = item?.question_id;
+    if (!topicId || !qid) continue;
+
+    const topic = TOPIC_BY_ID.get(topicId);
+    if (!topic) {
+      console.warn('Topic not found in index:', topicId);
+      continue;
+    }
+    const man = await ensureManifest(topic);
+    if (!man) {
+      console.warn('Manifest not found:', topicId);
+      continue;
+    }
+    const found = findProto(man, qid);
+    if (!found) {
+      console.warn('Question id not found in manifest:', topicId, qid);
+      continue;
+    }
+    out.push(buildQuestion(man, found.type, found.proto));
+  }
+  return out;
+}
+
+function findProto(man, questionId) {
+  for (const typ of man.types || []) {
+    for (const p of typ.prototypes || []) {
+      if (p && p.id === questionId) return { type: typ, proto: p };
+    }
+  }
+  return null;
+}
+
+// --- генерация добивки (как в trainer.js), но без sessionStorage ---
+async function buildGeneratedQuestions(generated) {
+  const out = [];
+  const by = generated.by;
+  if (by === 'topics' && generated.topics && typeof generated.topics === 'object') {
+    for (const [topicId, want] of Object.entries(generated.topics)) {
+      const k = Number(want) || 0;
+      if (k <= 0) continue;
+      const topic = TOPIC_BY_ID.get(topicId);
+      if (!topic) continue;
+      const man = await ensureManifest(topic);
+      if (!man) continue;
+      out.push(...pickFromManifest(man, k));
+    }
+    return out;
+  }
+
+  if (by === 'sections' && generated.sections && typeof generated.sections === 'object') {
+    const jobs = [];
+    for (const [secId, want] of Object.entries(generated.sections)) {
+      const k = Number(want) || 0;
+      if (k <= 0) continue;
+      const sec = SECTIONS.find(s => s.id === secId);
+      if (!sec) continue;
+      jobs.push(pickFromSection(sec, k));
+    }
+    const parts = await Promise.all(jobs);
+    for (const a of parts) out.push(...a);
+    return out;
+  }
+
+  return out;
+}
+function totalUniqueCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + uniqueBaseCount(t.prototypes || []),
+    0,
+  );
+}
+function totalRawCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + ((t.prototypes || []).length),
+    0,
+  );
+}
+function sumMapValues(m) {
+  let s = 0;
+  for (const v of m.values()) s += v;
+  return s;
+}
+function pickFromManifest(man, want) {
+  const out = [];
+  const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
+  if (!types.length) return out;
+
+  // 1) Сначала распределяем "уникальные базы" (семейства), чтобы не брать несколько
+  // аналогов одного и того же прототипа, отличающихся только числами.
+  const bucketsU = types.map(t => ({
+    id: t.id,
+    cap: uniqueBaseCount(t.prototypes || []),
+  })).filter(b => b.cap > 0);
+
+  const sumU = bucketsU.reduce((s, b) => s + b.cap, 0);
+  const wantU = Math.min(want, sumU);
+
+  shuffle(bucketsU);
+  const planU = distributeNonNegative(bucketsU, wantU);
+
+  // 2) Если нужно больше (уникальных баз не хватает) — добиваем "аналогами"
+  // с учётом оставшейся вместимости по raw-прототипам.
+  const plan = new Map(planU);
+  const usedU = sumMapValues(planU);
+  let left = want - usedU;
+
+  if (left > 0) {
+    const bucketsR = types.map(t => {
+      const raw = (t.prototypes || []).length;
+      const used = planU.get(t.id) || 0;
+      return { id: t.id, cap: Math.max(0, raw - used) };
+    }).filter(b => b.cap > 0);
+
+    shuffle(bucketsR);
+    const planR = distributeNonNegative(bucketsR, left);
+    for (const [id, v] of planR) {
+      plan.set(id, (plan.get(id) || 0) + v);
+    }
+  }
+
+  for (const typ of types) {
+    const k = plan.get(typ.id) || 0;
+    if (!k) continue;
+
+    for (const p of sampleKByBase(typ.prototypes || [], k)) {
+      out.push(buildQuestion(man, typ, p));
+    }
+  }
+  return out;
+}
+async function pickFromSection(sec, wantSection) {
+  const out = [];
+  const candidates = (sec.topics || []).filter(t => !!t.path);
+  shuffle(candidates);
+
+  // Минимум тем для разнообразия (иначе после размножения прототипов
+  // всё может набраться из 1 темы, а отличия будут только в числах).
+  const targetTopics = computeTargetTopics(wantSection, candidates.length);
+
+  // Загружаем темы, пока не наберём достаточно УНИКАЛЬНОЙ ёмкости (по baseId)
+  // и минимум minTopics тем.
+  const loaded = [];
+  let capSumU = 0;
+
+  for (const topic of candidates) {
+    if (capSumU >= wantSection && loaded.length >= targetTopics) break;
+
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+
+    const capU = totalUniqueCap(man);
+    if (capU <= 0) continue;
+
+    const capR = totalRawCap(man);
+    loaded.push({ id: topic.id, man, capU, capR });
+    capSumU += capU;
+  }
+
+  if (!loaded.length) return out;
+
+  if (loaded.length < Math.min(wantSection, candidates.length)) {
+    console.warn('[tasks] Недостаточно подтем с задачами для 1+1+...:', {
+      section: sec.id,
+      want: wantSection,
+      loaded: loaded.map(x => x.id),
+      loadedCount: loaded.length,
+      candidates: candidates.length,
+    });
+  }
+
+  // План распределения: сначала уникальные базы, потом добивка аналогами
+  const bucketsU = loaded.map(x => ({ id: x.id, cap: x.capU })).filter(b => b.cap > 0);
+  const sumU = bucketsU.reduce((s, b) => s + b.cap, 0);
+  const wantU = Math.min(wantSection, sumU);
+
+  shuffle(bucketsU);
+  const planU = distributeNonNegative(bucketsU, wantU);
+
+  const plan = new Map(planU);
+  const usedU = sumMapValues(planU);
+  let left = wantSection - usedU;
+
+  if (left > 0) {
+    const bucketsR = loaded.map(x => {
+      const used = planU.get(x.id) || 0;
+      return { id: x.id, cap: Math.max(0, x.capR - used) };
+    }).filter(b => b.cap > 0);
+
+    shuffle(bucketsR);
+    const planR = distributeNonNegative(bucketsR, left);
+    for (const [id, v] of planR) {
+      plan.set(id, (plan.get(id) || 0) + v);
+    }
+  }
+
+  
+  // Собираем пачки по подтемам и затем интерливим их,
+  // чтобы задачи не шли блоками "по подтемам".
+  const batches = new Map();
+  for (const x of loaded) {
+    const wantT = plan.get(x.id) || 0;
+    if (!wantT) continue;
+    const arr = pickFromManifest(x.man, wantT);
+    if (arr.length) batches.set(x.id, arr);
+  }
+
+  return interleaveBatches(batches, wantSection);
+
+}
+
+// ---------- построение вопроса (копия из trainer.js) ----------
+function buildQuestion(manifest, type, proto) {
+  const params = proto.params || {};
+  const stemTpl = proto.stem || type.stem_template || type.stem || '';
+  const stem = interpolate(stemTpl, params);
+  const fig = proto.figure || type.figure || null;
+  const ans = computeAnswer(type, proto, params);
+  return {
+    topic_id: manifest.topic || '',
+    topic_title: manifest.title || '',
+    question_id: proto.id,
+    difficulty: proto.difficulty ?? (type.defaults?.difficulty ?? 1),
+    figure: fig,
+    stem,
+    answer: ans,
+    chosen_text: null,
+    normalized_text: null,
+    correct_text: null,
+    correct: null,
+    time_ms: 0,
+  };
+}
+
+function computeAnswer(type, proto, params) {
+  const spec = type.answer_spec || type.answerSpec;
+  const t = { ...(type.defaults || {}), ...(spec || {}) };
+  const out = {
+    type: t.type || 'number',
+    format: t.format || null,
+    units: t.units || null,
+    tolerance: t.tolerance || null,
+    accept: t.accept || null,
+    normalize: t.normalize || [],
+  };
+  if (proto.answer) {
+    if (proto.answer.value != null) out.value = proto.answer.value;
+    if (proto.answer.text != null) out.text = proto.answer.text;
+  } else if (t.expr) {
+    out.value = evalExpr(t.expr, params);
+  }
+  return out;
+}
+
+function interpolate(tpl, params) {
+  return String(tpl || '').replace(
+    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
+    (_, k) => (params[k] !== undefined ? String(params[k]) : ''),
+  );
+}
+function evalExpr(expr, params) {
+  const pnames = Object.keys(params || {});
+  // eslint-disable-next-line no-new-func
+  const f = new Function(...pnames, `return (${expr});`);
+  return f(...pnames.map(k => params[k]));
+}
+
+// ---------- UI тренажёра (вставка разметки trainer.html) ----------
+function mountRunnerUI() {
+  const host = $('#runner');
+  if (!host) return;
+
+  host.classList.remove('hidden');
+  host.innerHTML = `
+    <div class="panel">
+      <header class="run-head">
+        <div class="crumb"><span id="topicTitle"></span></div>
+        <div class="progress"><span id="idx">1</span>/<span id="total">1</span></div>
+        <div class="timer"><span id="tmin">00</span>:<span id="tsec">00</span></div>
+        <div class="theme-toggle">
+          <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
+          <label for="themeToggle" class="theme-toggle-label">
+            <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+            <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+          </label>
+        </div>
+      </header>
+
+      <div class="run-body">
+        <article class="task-card q-card">
+          <div class="task-stem">
+            <div class="qwrap">
+              <div class="qtext" id="stem"></div>
+              <div class="qfig task-fig"><img id="figure" alt=""></div>
+            </div>
+          </div>
+        </article>
+
+        <div class="answer-row">
+          <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
+          <button id="check">Проверить</button>
+        </div>
+
+        <div class="result" id="result"></div>
+
+        <div class="nav">
+          <button id="prev">Назад</button>
+          <button id="skip">Пропустить</button>
+          <button id="next">Далее</button>
+          <button id="finish">Завершить</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // На этой странице тёмная тема запрещена, отключаем переключатель (theme.js мог отработать раньше инъекции)
+  const toggle = $('#themeToggle');
+  if (toggle) { toggle.checked = false; toggle.disabled = true; }
+
+  // summary создаём рядом (внутри того же panel-контейнера страницы)
+  let summary = $('#summary');
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.id = 'summary';
+    summary.className = 'hidden';
+    summary.innerHTML = `
+      <div class="panel">
+        <h2>Сессия завершена</h2>
+        <div id="stats" class="stats"></div>
+        <div class="actions">
+          <button id="restart">На главную</button>
+          <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
+        </div>
+      </div>
+    `;
+    // добавляем после блока #runner
+    host.parentElement?.appendChild(summary);
+  }
+}
+
+// ---------- Сессия ----------
+async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId }) {
   SESSION = {
     questions,
     idx: 0,
@@ -209,7 +647,7 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
     timerId: null,
     total_ms: 0,
     t0: null,
-    meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null, studentId: studentId || null, studentEmail: studentEmail || null },
+    meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
   $('#summary')?.classList.add('hidden');
@@ -442,9 +880,9 @@ async function finishSession() {
   const topic_ids = Array.from(new Set(SESSION.questions.map(q => q.topic_id)));
 
   const attemptRowBase = {
-    student_id: SESSION.meta.studentId || null,
+    student_id: null,
     student_name: SESSION.meta.studentName,
-    student_email: SESSION.meta.studentEmail || null,
+    student_email: null,
     mode: 'homework',
     seed: null,
     topic_ids,
