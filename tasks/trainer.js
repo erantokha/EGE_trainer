@@ -479,7 +479,6 @@ async function pickPrototypes() {
         if (!man) continue;
 
         chosen.push(...pickFromManifest(man, want));
-}
       }
     }
 
