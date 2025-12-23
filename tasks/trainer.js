@@ -2,7 +2,7 @@
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
 import { insertAttempt } from '../app/providers/supabase-write.js';
-import { uniqueBaseCount, sampleKByBase } from '../app/core/pick.js';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics } from '../app/core/pick.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -385,13 +385,7 @@ async function pickFromSection(sec, wantSection) {
 
   // Минимум тем для разнообразия (иначе после размножения прототипов
   // всё может набраться из 1 темы, а отличия будут только в числах).
-  const minTopics =
-    wantSection <= 1
-      ? 1
-      : Math.min(
-          candidates.length,
-          Math.max(2, Math.min(6, Math.ceil(wantSection / 2))),
-        );
+  const targetTopics = computeTargetTopics(wantSection, candidates.length);
 
   // Загружаем темы, пока не наберём достаточно УНИКАЛЬНОЙ ёмкости (по baseId)
   // и минимум minTopics тем.
@@ -399,7 +393,7 @@ async function pickFromSection(sec, wantSection) {
   let capSumU = 0;
 
   for (const topic of candidates) {
-    if (capSumU >= wantSection && loaded.length >= minTopics) break;
+    if (capSumU >= wantSection && loaded.length >= targetTopics) break;
 
     const man = await ensureManifest(topic);
     if (!man) continue;
@@ -413,6 +407,16 @@ async function pickFromSection(sec, wantSection) {
   }
 
   if (!loaded.length) return out;
+
+  if (loaded.length < Math.min(wantSection, candidates.length)) {
+    console.warn('[tasks] Недостаточно подтем с задачами для 1+1+...:', {
+      section: sec.id,
+      want: wantSection,
+      loaded: loaded.map(x => x.id),
+      loadedCount: loaded.length,
+      candidates: candidates.length,
+    });
+  }
 
   // План распределения: сначала уникальные базы, потом добивка аналогами
   const bucketsU = loaded.map(x => ({ id: x.id, cap: x.capU })).filter(b => b.cap > 0);
