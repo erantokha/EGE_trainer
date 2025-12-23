@@ -120,3 +120,49 @@ export function sampleKByBase(prototypes, k, rnd = Math.random) {
   const rest = sampleK(pool, k - out.length, rnd);
   return out.concat(rest);
 }
+
+// Интерливинг пачек: чтобы задачи не шли подряд "по подтемам" или "по типам".
+// batchMap: Map<id, Array<item>> или объект {id: Array<item>}
+export function interleaveBatches(batchMap, total, rnd = Math.random) {
+  const want = Number(total) || 0;
+  if (want <= 0) return [];
+
+  // Нормализуем вход к Map<id, Array<item>>
+  const src = new Map();
+  if (batchMap instanceof Map) {
+    for (const [id, arr] of batchMap.entries()) {
+      if (Array.isArray(arr) && arr.length) src.set(id, arr);
+    }
+  } else if (batchMap && typeof batchMap === 'object') {
+    for (const id of Object.keys(batchMap)) {
+      const arr = batchMap[id];
+      if (Array.isArray(arr) && arr.length) src.set(id, arr);
+    }
+  }
+
+  // Готовим к pop() за O(1)
+  const work = new Map();
+  for (const [id, arr] of src.entries()) {
+    work.set(id, arr.slice().reverse());
+  }
+
+  const out = [];
+  while (out.length < want) {
+    const activeIds = [];
+    for (const [id, arr] of work.entries()) {
+      if (arr.length) activeIds.push(id);
+    }
+    if (!activeIds.length) break;
+
+    // Каждый "круг" в случайном порядке, чтобы не было блоков по подтемам.
+    shuffleInPlace(activeIds, rnd);
+
+    for (const id of activeIds) {
+      if (out.length >= want) break;
+      const arr = work.get(id);
+      if (arr && arr.length) out.push(arr.pop());
+    }
+  }
+  return out;
+}
+
