@@ -10,7 +10,7 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics } from '../app/core/pick.js';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 import { CONFIG } from '../app/config.js';
 import { insertAttempt } from '../app/providers/supabase-write.js';
@@ -413,13 +413,19 @@ async function pickFromSection(sec, wantSection) {
     }
   }
 
+  
+  // Собираем пачки по подтемам и затем интерливим их,
+  // чтобы задачи не шли блоками "по подтемам".
+  const batches = new Map();
   for (const x of loaded) {
     const wantT = plan.get(x.id) || 0;
     if (!wantT) continue;
-    out.push(...pickFromManifest(x.man, wantT));
+    const arr = pickFromManifest(x.man, wantT);
+    if (arr.length) batches.set(x.id, arr);
   }
 
-  return out;
+  return interleaveBatches(batches, wantSection);
+
 }
 
 // ---------- построение вопроса (копия из trainer.js) ----------
