@@ -19,6 +19,23 @@ export function baseIdFromProtoId(id) {
   return s;
 }
 
+
+export const MAX_TOPICS_DIVERSITY = 10;
+
+/**
+ * Сколько подтем (topic) подгружать внутри одного раздела (section),
+ * чтобы задачи различались по подтемам.
+ * По умолчанию стараемся задействовать want подтем (1+1+...),
+ * но ограничиваем сверху MAX_TOPICS_DIVERSITY ради скорости.
+ */
+export function computeTargetTopics(want, candidatesLen, maxTopics = MAX_TOPICS_DIVERSITY) {
+  const w = Number(want) || 0;
+  const n = Number(candidatesLen) || 0;
+  if (w <= 1) return Math.min(1, n) || 1;
+  return Math.min(n, Math.min(maxTopics, w));
+}
+
+
 export function uniqueBaseCount(prototypes) {
   const set = new Set();
   for (const p of prototypes || []) {
