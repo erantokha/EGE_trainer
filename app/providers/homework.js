@@ -11,6 +11,64 @@ async function getAuth() {
   return { user: data?.user || null, error: null };
 }
 
+
+// Нормализованный ключ ученика (для уникальности попытки на ДЗ).
+// Держим простым и стабильным: trim + lower + схлопывание пробелов.
+export function normalizeStudentKey(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function isMissingRpcFunction(error) {
+  const msg = String(error?.message || '').toLowerCase();
+  return (
+    error?.code === 'PGRST202' ||
+    msg.includes('could not find the function') ||
+    msg.includes('function') && msg.includes('does not exist')
+  );
+}
+
+async function rpcWithFallback(fnNames, args) {
+  let lastError = null;
+  for (const fn of fnNames) {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (!error) return { ok: true, fn, data, error: null };
+    lastError = error;
+    if (isMissingRpcFunction(error)) continue;
+    return { ok: false, fn, data: null, error };
+  }
+  return { ok: false, fn: fnNames[0] || null, data: null, error: lastError };
+}
+
+// Создать/получить попытку по token+имя. Должно быть разрешено через SECURITY DEFINER RPC.
+// Ожидаем, что функция в БД называется start_homework_attempt (или совместимое имя).
+export async function startHomeworkAttempt({ token, student_name } = {}) {
+  try {
+    const t = String(token || '').trim();
+    const s = String(student_name || '').trim();
+    if (!t || !s) return { ok: false, attempt_id: null, already_exists: false, error: new Error('token or student_name empty') };
+
+    const res = await rpcWithFallback(
+      ['start_homework_attempt', 'start_attempt', 'startHomeworkAttempt'],
+      { p_token: t, p_student_name: s },
+    );
+
+    if (!res.ok) return { ok: false, attempt_id: null, already_exists: false, error: res.error };
+
+    const row = Array.isArray(res.data) ? res.data[0] : res.data;
+    return {
+      ok: true,
+      attempt_id: row?.attempt_id ?? row?.id ?? null,
+      already_exists: !!(row?.already_exists ?? row?.alreadyExists ?? false),
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, attempt_id: null, already_exists: false, error: e };
+  }
+}
+
 export async function getHomeworkByToken(token) {
   try {
     const t = String(token || '').trim();
@@ -48,14 +106,17 @@ export async function hasAttempt(token, student_name) {
     const s = String(student_name || '').trim();
     if (!t || !s) return { ok: false, has: false, error: new Error('token or student_name empty') };
 
-    const { data, error } = await supabase.rpc('has_attempt', {
-      p_token: t,
-      p_student_name: s,
-    });
+    const res = await rpcWithFallback(
+      ['has_homework_attempt', 'has_attempt', 'hasAttempt'],
+      { p_token: t, p_student_name: s },
+    );
 
-    if (error) return { ok: false, has: false, error };
-    const row = Array.isArray(data) ? data[0] : data;
-    return { ok: true, has: !!(row?.has_attempt ?? row), error: null };
+    if (!res.ok) return { ok: false, has: false, error: res.error };
+
+    const row = Array.isArray(res.data) ? res.data[0] : res.data;
+    // Функция может вернуть boolean напрямую или объект {has_attempt: boolean}
+    const has = typeof row === 'boolean' ? row : !!(row?.has_attempt ?? row?.has ?? row);
+    return { ok: true, has, error: null };
   } catch (e) {
     return { ok: false, has: false, error: e };
   }
@@ -63,7 +124,9 @@ export async function hasAttempt(token, student_name) {
 
 export async function createHomework({
   title,
+  description = null,
   spec_json,
+  settings_json = null,
   frozen_questions = null,
   seed = null,
   attempts_per_student = 1,
@@ -74,12 +137,12 @@ export async function createHomework({
     if (authError) return { ok: false, row: null, error: authError };
     if (!user) return { ok: false, row: null, error: new Error('Not authenticated') };
 
-    // ВАЖНО: вставляем ТОЛЬКО те поля, которые реально есть в таблице public.homeworks.
-    // В вашей текущей схеме нет колонок description/settings_json, поэтому их не отправляем.
     const payload = {
       owner_id: user.id,
       title: String(title || '').trim(),
+      description,
       spec_json,
+      settings_json,
       attempts_per_student: Number(attempts_per_student) || 1,
       is_active: !!is_active,
     };
