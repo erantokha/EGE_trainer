@@ -120,43 +120,53 @@ export async function hasAttempt({ homework_id, token_used, student_key }) {
  * Создать домашку (учитель).
  * ВАЖНО: owner_id ставим автоматически из auth.uid().
  */
-export async function createHomework({ title, description = null, spec_json, settings_json }) {
+export async function createHomework({
+  title,
+  spec_json,
+  attempts_per_student = 1,
+  is_active = true,
+}) {
   if (!CONFIG.supabase.enabled) return { ok: false, error: 'supabase disabled' };
 
+  // Нужна авторизация (Google/Email) — иначе RLS не пропустит
   const session = await requireSession();
 
+  // ВАЖНО: отправляем только поля, которые точно есть в минимальной схеме таблицы homeworks.
+  // Если вы добавите новые колонки (description/settings_json), можно расширить вставку позже.
   const row = {
     owner_id: session.user.id,
     title: String(title ?? '').trim(),
-    description: description == null ? null : String(description),
     spec_json: spec_json ?? {},
-    settings_json: settings_json ?? {},
+    attempts_per_student: Number.isFinite(+attempts_per_student) ? Math.max(1, Math.floor(+attempts_per_student)) : 1,
+    is_active: !!is_active,
   };
 
-  if (!row.title) return { ok: false, error: 'title is required' };
+  if (!row.title) return { ok: false, error: { message: 'title is required' } };
 
   const url = baseUrl() + '/rest/v1/homeworks';
 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      headers: await authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=representation' }),
+      headers: await authHeaders({
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      }),
       body: JSON.stringify(row),
     });
 
     const data = await res.json().catch(() => null);
-    if (!res.ok) return { ok: false, error: asErrorPayload(data, res) };
 
-    const created = Array.isArray(data) ? data[0] : data;
-    return { ok: true, row: created };
+    if (!res.ok) {
+      return { ok: false, error: asErrorPayload(data, res) };
+    }
+
+    return { ok: true, row: Array.isArray(data) ? data[0] : data };
   } catch (e) {
-    return { ok: false, error: String(e) };
+    return { ok: false, error: { message: String(e?.message || e) } };
   }
 }
 
-/**
- * Создать публичную ссылку (token) для домашки (учитель).
- */
 export async function createHomeworkLink({ homework_id, token, is_active = true, expires_at = null }) {
   if (!CONFIG.supabase.enabled) return { ok: false, error: 'supabase disabled' };
 
