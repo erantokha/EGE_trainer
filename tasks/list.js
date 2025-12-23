@@ -5,6 +5,8 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
+import { uniqueBaseCount, sampleKByBase } from '../app/core/pick.js';
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -293,61 +295,134 @@ function sampleK(arr, k) {
   shuffle(a);
   return a.slice(0, k);
 }
-
-function totalCap(man) {
+function totalUniqueCap(man) {
+  return (man.types || []).reduce(
+    (s, t) => s + uniqueBaseCount(t.prototypes || []),
+    0,
+  );
+}
+function totalRawCap(man) {
   return (man.types || []).reduce(
     (s, t) => s + ((t.prototypes || []).length),
     0,
   );
 }
-
+function sumMapValues(m) {
+  let s = 0;
+  for (const v of m.values()) s += v;
+  return s;
+}
 function pickFromManifest(man, want) {
   const out = [];
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
   if (!types.length) return out;
 
-  const caps = types.map(t => ({ id: t.id, cap: (t.prototypes || []).length }));
-  // чтобы при малом want не было перекоса в первые type
-  shuffle(caps);
-  const plan = distributeNonNegative(caps, want);
+  // 1) Сначала распределяем "уникальные базы" (семейства), чтобы не брать несколько
+  // аналогов одного и того же прототипа, отличающихся только числами.
+  const bucketsU = types.map(t => ({
+    id: t.id,
+    cap: uniqueBaseCount(t.prototypes || []),
+  })).filter(b => b.cap > 0);
+
+  const sumU = bucketsU.reduce((s, b) => s + b.cap, 0);
+  const wantU = Math.min(want, sumU);
+
+  shuffle(bucketsU);
+  const planU = distributeNonNegative(bucketsU, wantU);
+
+  // 2) Если нужно больше (уникальных баз не хватает) — добиваем "аналогами"
+  // с учётом оставшейся вместимости по raw-прототипам.
+  const plan = new Map(planU);
+  const usedU = sumMapValues(planU);
+  let left = want - usedU;
+
+  if (left > 0) {
+    const bucketsR = types.map(t => {
+      const raw = (t.prototypes || []).length;
+      const used = planU.get(t.id) || 0;
+      return { id: t.id, cap: Math.max(0, raw - used) };
+    }).filter(b => b.cap > 0);
+
+    shuffle(bucketsR);
+    const planR = distributeNonNegative(bucketsR, left);
+    for (const [id, v] of planR) {
+      plan.set(id, (plan.get(id) || 0) + v);
+    }
+  }
 
   for (const typ of types) {
     const k = plan.get(typ.id) || 0;
     if (!k) continue;
-    for (const p of sampleK(typ.prototypes || [], k)) {
+
+    for (const p of sampleKByBase(typ.prototypes || [], k)) {
       out.push(buildQuestion(man, typ, p));
     }
   }
   return out;
 }
-
 async function pickFromSection(sec, wantSection) {
   const out = [];
   const candidates = (sec.topics || []).filter(t => !!t.path);
   shuffle(candidates);
 
-  // грузим только столько тем, сколько нужно, чтобы набрать wantSection по ёмкости
+  // Минимум тем для разнообразия (иначе после размножения прототипов
+  // всё может набраться из 1 темы, а отличия будут только в числах).
+  const minTopics =
+    wantSection <= 1
+      ? 1
+      : Math.min(
+          candidates.length,
+          Math.max(2, Math.min(6, Math.ceil(wantSection / 2))),
+        );
+
+  // Загружаем темы, пока не наберём достаточно УНИКАЛЬНОЙ ёмкости (по baseId)
+  // и минимум minTopics тем.
   const loaded = [];
-  let capSum = 0;
+  let capSumU = 0;
 
   for (const topic of candidates) {
-    if (capSum >= wantSection) break;
+    if (capSumU >= wantSection && loaded.length >= minTopics) break;
+
     const man = await ensureManifest(topic);
     if (!man) continue;
-    const cap = totalCap(man);
-    if (cap <= 0) continue;
-    loaded.push({ id: topic.id, man, cap });
-    capSum += cap;
+
+    const capU = totalUniqueCap(man);
+    if (capU <= 0) continue;
+
+    const capR = totalRawCap(man);
+    loaded.push({ id: topic.id, man, capU, capR });
+    capSumU += capU;
   }
 
   if (!loaded.length) return out;
 
-  const buckets = loaded.map(x => ({ id: x.id, cap: x.cap }));
-  shuffle(buckets);
-  const planTopics = distributeNonNegative(buckets, wantSection);
+  // План распределения: сначала уникальные базы, потом добивка аналогами
+  const bucketsU = loaded.map(x => ({ id: x.id, cap: x.capU })).filter(b => b.cap > 0);
+  const sumU = bucketsU.reduce((s, b) => s + b.cap, 0);
+  const wantU = Math.min(wantSection, sumU);
+
+  shuffle(bucketsU);
+  const planU = distributeNonNegative(bucketsU, wantU);
+
+  const plan = new Map(planU);
+  const usedU = sumMapValues(planU);
+  let left = wantSection - usedU;
+
+  if (left > 0) {
+    const bucketsR = loaded.map(x => {
+      const used = planU.get(x.id) || 0;
+      return { id: x.id, cap: Math.max(0, x.capR - used) };
+    }).filter(b => b.cap > 0);
+
+    shuffle(bucketsR);
+    const planR = distributeNonNegative(bucketsR, left);
+    for (const [id, v] of planR) {
+      plan.set(id, (plan.get(id) || 0) + v);
+    }
+  }
 
   for (const x of loaded) {
-    const wantT = planTopics.get(x.id) || 0;
+    const wantT = plan.get(x.id) || 0;
     if (!wantT) continue;
     out.push(...pickFromManifest(x.man, wantT));
   }
