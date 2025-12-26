@@ -136,14 +136,13 @@ a:hover{text-decoration:underline}
 
 
 
-/* массовые кнопки под меню (главный аккордеон) */
+/* массовые кнопки (ряд 2) */
 #picker .bulk-controls{
   display:flex;
   align-items:center;
   gap:8px;
-  margin-top:18px;
-  margin-bottom:18px;
   flex-wrap:wrap;
+  margin:0; /* вертикальные отступы задаёт .sub-controls */
 }
 #picker .bulk-controls .bulk-hint{
   font-size:12px;
@@ -156,35 +155,43 @@ a:hover{text-decoration:underline}
   border-radius:10px;
 }
 
-/* больше воздуха между меню и аккордеоном */
+/* одинаковые вертикальные отступы между рядами */
+#picker{
+  --block-gap:18px;
+}
+#picker .sub-controls{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:var(--block-gap);
+}
+#picker .sub-controls .sum{
+  padding:6px 10px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  background:var(--panel-2);
+  white-space:nowrap;
+}
 #picker .accordion{
-  margin-top:0;
+  margin-top:var(--block-gap);
 }
 
-/* верхний блок выбора (index.html) */
+/* верхний блок выбора (ряд 1) */
 #picker .controls{
-  display:grid;
-  grid-template-columns: 1fr auto;
-  column-gap:10px;
-  row-gap:8px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
   margin-top:8px;
-  align-items:start;
+  flex-wrap:wrap;
 }
 #picker .controls-left{
-  grid-column:1;
-  grid-row:1;
   display:flex;
   align-items:center;
   gap:6px;
   flex-wrap:wrap;
-}
-#picker .controls-right{
-  grid-column:2;
-  grid-row:1;
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:8px;
 }
 #picker .controls-actions-right{
   display:flex;
@@ -198,38 +205,17 @@ a:hover{text-decoration:underline}
   font-size:13px;
   border-radius:10px;
 }
-#picker .controls-right .sum{
-  text-align:right;
-  padding:6px 10px;
-  border:1px dashed var(--border);
-  border-radius:10px;
-  background:var(--panel-2);
-  display:inline-block;
-}
 
 @media (max-width: 640px){
   #picker .controls{
-    grid-template-columns: 1fr;
-    row-gap:10px;
-  }
-  #picker .controls-left{
-    grid-column:1;
-    grid-row:1;
-  }
-  #picker .controls-right{
-    grid-column:1;
-    grid-row:2;
-    align-items:flex-start;
+    justify-content:flex-start;
   }
   #picker .controls-actions-right{
     justify-content:flex-start;
     flex-wrap:wrap;
   }
-  #picker .controls-actions-right button{
-    min-width:0;
-  }
-  #picker .controls-right .sum{
-    text-align:left;
+  #picker .sub-controls{
+    justify-content:flex-start;
   }
 }
 
@@ -571,7 +557,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
     width:100%;
     align-items:flex-start;
   }
-  #picker .controls-actions-right{
+  #picker .controls-right .right-actions{
     align-items:flex-start;
   }
 
