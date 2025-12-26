@@ -1,5 +1,5 @@
 // tasks/hw_create.js
-// Создание ДЗ (MVP): вручную выбранные задачи + опциональная добивка по разделам.
+// Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js';
@@ -14,6 +14,22 @@ import {
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
+
+// Выбор с главного аккордеона → автозаполнение "ручного списка" (fixed) на этой странице.
+const HW_PREFILL_KEY = 'hw_create_prefill_v1';
+
+function safeJsonParse(raw) {
+  try { return JSON.parse(raw); } catch { return null; }
+}
+function normalizeCount(x) {
+  const n = Math.floor(Number(x) || 0);
+  return n > 0 ? n : 0;
+}
+function refKey(r) {
+  const topic_id = r.topic_id || inferTopicIdFromQuestionId(r.question_id);
+  return `${topic_id}::${r.question_id}`;
+}
+
 
 // Кэш каталога и манифестов (нужно, чтобы при создании ДЗ "заморозить" набор задач)
 let CATALOG = null;
@@ -279,67 +295,79 @@ function readFixedRows() {
   return rows.filter(x => x.topic_id && x.question_id);
 }
 
-function readSectionsGenerated() {
-  const enabled = $('#enableGenerated')?.checked;
-  if (!enabled) return null;
 
-  const secInputs = Array.from(document.querySelectorAll('[data-sec-id]'));
-  const sections = {};
-  for (const inp of secInputs) {
-    const id = inp.getAttribute('data-sec-id');
-    const v = Number(String(inp.value || '0').replace(',', '.'));
-    const n = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
-    if (n > 0) sections[id] = n;
-  }
-  if (!Object.keys(sections).length) return null;
+async function importSelectionIntoFixedTable() {
+  const raw = sessionStorage.getItem(HW_PREFILL_KEY);
+  if (!raw) return;
 
-  return { by: 'sections', sections, topics: null };
-}
+  // убираем сразу, чтобы при reload не применялось повторно
+  sessionStorage.removeItem(HW_PREFILL_KEY);
 
-async function loadSectionsUI() {
+  const prefill = safeJsonParse(raw);
+  if (!prefill || prefill.v !== 1) return;
+
+  // переносим флаг перемешивания
+  const sh = $('#shuffle');
+  if (sh && typeof prefill.shuffle === 'boolean') sh.checked = prefill.shuffle;
+
   await loadCatalog();
-  const sections = SECTIONS;
 
-  const host = $('#sectionsGrid');
-  if (!host) return;
+  const wanted = [];
+  if (prefill.by === 'topics') {
+    for (const [topicId, cntRaw] of Object.entries(prefill.topics || {})) {
+      const n = normalizeCount(cntRaw);
+      if (!n) continue;
 
-  host.innerHTML = '';
-  for (const sec of sections) {
-    const card = document.createElement('div');
-    card.className = 'panel';
-    card.style.padding = '10px';
-    card.style.background = 'var(--panel-2)';
+      const topic = TOPIC_BY_ID.get(String(topicId));
+      if (!topic) continue;
 
-    const title = document.createElement('div');
-    title.textContent = `${sec.id}. ${sec.title}`;
-    title.style.marginBottom = '6px';
+      const man = await ensureManifest(topic);
+      if (!man) continue;
 
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '8px';
-    row.style.alignItems = 'center';
+      wanted.push(...pickRefsFromManifest(man, n));
+    }
+  } else {
+    for (const [secId, cntRaw] of Object.entries(prefill.sections || {})) {
+      const n = normalizeCount(cntRaw);
+      if (!n) continue;
 
-    const inp = document.createElement('input');
-    inp.className = 'input';
-    inp.type = 'number';
-    inp.min = '0';
-    inp.step = '1';
-    inp.value = '0';
-    inp.setAttribute('data-sec-id', sec.id);
-    inp.style.width = '90px';
+      const sec = SECTIONS.find(s => String(s.id) === String(secId));
+      if (!sec) continue;
 
-    const hint = document.createElement('div');
-    hint.style.opacity = '.8';
-    hint.textContent = 'шт.';
-
-    row.appendChild(inp);
-    row.appendChild(hint);
-
-    card.appendChild(title);
-    card.appendChild(row);
-    host.appendChild(card);
+      wanted.push(...(await pickRefsFromSection(sec, n)));
+    }
   }
+
+  // дедуп
+  const uniq = [];
+  const seen = new Set();
+  for (const r of wanted) {
+    const key = refKey(r);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    uniq.push({
+      topic_id: r.topic_id || inferTopicIdFromQuestionId(r.question_id),
+      question_id: r.question_id,
+    });
+  }
+
+  if (!uniq.length) {
+    setStatus('Не удалось импортировать задачи из выбора на главной странице.');
+    return;
+  }
+
+  // заполняем таблицу: список задач + 1 пустая строка в конце
+  const tbody = $('#fixedTbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  for (const r of uniq) tbody.appendChild(makeRow(r));
+  tbody.appendChild(makeRow());
+
+  setStatus(`Добавлено из аккордеона: ${uniq.length} задач(и). Можно добавить ещё вручную.`);
 }
+
+
 
 // ---------- генерация и заморозка задач (чтобы ДЗ было одинаковым для всех учеников) ----------
 function shuffle(arr) {
@@ -492,19 +520,6 @@ async function freezeHomeworkQuestions(spec_json) {
 
   // 1) фиксированные (ручные)
   for (const r of spec_json?.fixed || []) pushRef(r);
-
-  // 2) добивка генерацией
-  const gen = spec_json?.generated;
-  if (gen && gen.by === 'sections' && gen.sections) {
-    await loadCatalog();
-    for (const [secId, want] of Object.entries(gen.sections)) {
-      const n = Math.max(0, Math.floor(Number(want) || 0));
-      if (!n) continue;
-      const sec = SECTIONS.find(s => String(s.id) === String(secId));
-      if (!sec) continue;
-      const refs = await pickRefsFromSection(sec, n);
-      for (const r of refs) pushRef(r);
-    }
   }
 
   if (spec_json?.shuffle) shuffle(frozen);
@@ -537,6 +552,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tbody = $('#fixedTbody');
   if (tbody) tbody.appendChild(makeRow());
 
+  // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
+  await importSelectionIntoFixedTable();
+
   $('#addRowBtn')?.addEventListener('click', () => {
     $('#fixedTbody')?.appendChild(makeRow());
   });
@@ -559,21 +577,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if ($('#importText')) $('#importText').value = '';
   });
 
-  // добивка
-  $('#enableGenerated')?.addEventListener('change', async (e) => {
-    const on = !!e.target.checked;
-    const box = $('#generatedBox');
-    if (box) box.style.display = on ? 'block' : 'none';
-    if (on) {
-      try {
-        await loadSectionsUI();
-      } catch (err) {
-        console.error(err);
-        setStatus('Не удалось загрузить список разделов (index.json).');
-      }
-    }
-  });
-
   // создание
   $('#createBtn')?.addEventListener('click', async () => {
     setStatus('');
@@ -590,14 +593,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const shuffle = !!$('#shuffle')?.checked;
 
     const fixed = readFixedRows();
-    const generated = readSectionsGenerated();
 
     if (!title) {
       setStatus('Укажи название ДЗ.');
       return;
     }
-    if (!fixed.length && !generated) {
-      setStatus('Добавь хотя бы одну задачу или включи добивку генерацией.');
+    if (!fixed.length) {
+      setStatus('Добавь хотя бы одну задачу (или выбери их на главной странице и нажми «Создать ДЗ»).');
       return;
     }
 
@@ -605,7 +607,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       v: 1,
       content_version: CONFIG?.content?.version || todayISO(),
       fixed,
-      generated: generated || null,
+      generated: null,
       shuffle,
     };
 
