@@ -141,8 +141,8 @@ a:hover{text-decoration:underline}
   display:flex;
   align-items:center;
   gap:8px;
-  margin-top:22px;
-  margin-bottom:10px;
+  margin-top:18px;
+  margin-bottom:18px;
   flex-wrap:wrap;
 }
 #picker .bulk-controls .bulk-hint{
@@ -158,18 +158,17 @@ a:hover{text-decoration:underline}
 
 /* больше воздуха между меню и аккордеоном */
 #picker .accordion{
-  margin-top:18px;
+  margin-top:0;
 }
 
 /* верхний блок выбора (index.html) */
 #picker .controls{
   display:grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
   column-gap:10px;
-  row-gap:10px;
+  row-gap:8px;
   margin-top:8px;
-  align-items:center;
+  align-items:start;
 }
 #picker .controls-left{
   grid-column:1;
@@ -179,19 +178,15 @@ a:hover{text-decoration:underline}
   gap:6px;
   flex-wrap:wrap;
 }
-#picker .controls .sum{
+#picker .controls-right{
   grid-column:2;
   grid-row:1;
-  justify-self:stretch;
-  text-align:right;
-  padding:6px 10px;
-  border:1px dashed var(--border);
-  border-radius:10px;
-  background:var(--panel-2);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
 }
 #picker .controls-actions-right{
-  grid-column:2;
-  grid-row:2;
   display:flex;
   align-items:center;
   justify-content:flex-end;
@@ -203,28 +198,38 @@ a:hover{text-decoration:underline}
   font-size:13px;
   border-radius:10px;
 }
+#picker .controls-right .sum{
+  text-align:right;
+  padding:6px 10px;
+  border:1px dashed var(--border);
+  border-radius:10px;
+  background:var(--panel-2);
+  display:inline-block;
+}
 
 @media (max-width: 640px){
   #picker .controls{
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
     row-gap:10px;
   }
   #picker .controls-left{
     grid-column:1;
     grid-row:1;
   }
-  #picker .controls .sum{
+  #picker .controls-right{
     grid-column:1;
     grid-row:2;
-    justify-self:stretch;
-    text-align:left;
+    align-items:flex-start;
   }
   #picker .controls-actions-right{
-    grid-column:1;
-    grid-row:3;
     justify-content:flex-start;
     flex-wrap:wrap;
+  }
+  #picker .controls-actions-right button{
+    min-width:0;
+  }
+  #picker .controls-right .sum{
+    text-align:left;
   }
 }
 
@@ -566,7 +571,7 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
     width:100%;
     align-items:flex-start;
   }
-  #picker .controls-right .right-actions{
+  #picker .controls-actions-right{
     align-items:flex-start;
   }
 
