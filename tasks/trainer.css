@@ -731,3 +731,39 @@ input:focus{
   outline:2px solid rgba(59,130,246,.35);
   outline-offset:2px;
 }
+
+/* hw_create: верхняя панель + авторизация */
+.create-head { display:flex; justify-content:space-between; align-items:center; }
+.create-head-right { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
+
+.auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.auth-email { opacity:.85; }
+
+.editable-wrap { display:flex; flex-direction:column; gap:6px; }
+.editable-btn {
+  width:100%;
+  text-align:left;
+  padding:10px 12px;
+  border:1px dashed var(--border);
+  border-radius:12px;
+  background:transparent;
+}
+.editable-btn:hover { background:rgba(148,163,184,.12); }
+.editable-muted { opacity:.85; }
+
+.link-box {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel-2);
+}
+.link-box .link-label { opacity:.85; }
+.link-box .link-meta { opacity:.75; font-size:12px; }
+
+.tiny-btn { padding:4px 8px; font-size:12px; border-radius:10px; }
+
+.topic-auto { opacity:.85; }

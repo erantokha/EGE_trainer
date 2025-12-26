@@ -148,29 +148,15 @@ function setStatus(msg) {
 }
 
 function ensureAuthBar() {
-  const controls = document.querySelector('.controls');
-  if (!controls) return;
+  // auth-блок теперь в разметке (hw_create.html), тут оставляем заглушку для совместимости.
+}
 
-  if ($('#authBar')) return;
+let AUTH_WIRED = false;
+function wireAuthControls() {
+  if (AUTH_WIRED) return;
+  AUTH_WIRED = true;
 
-  const wrap = document.createElement('span');
-  wrap.id = 'authBar';
-  wrap.style.display = 'inline-flex';
-  wrap.style.gap = '8px';
-  wrap.style.alignItems = 'center';
-  wrap.style.flexWrap = 'wrap';
-
-  const label = document.createElement('span');
-  label.id = 'authLabel';
-  label.style.opacity = '.85';
-  label.textContent = 'Проверяем вход...';
-
-  const loginBtn = document.createElement('button');
-  loginBtn.id = 'loginGoogleBtn';
-  loginBtn.className = 'btn';
-  loginBtn.type = 'button';
-  loginBtn.textContent = 'Войти через Google';
-  loginBtn.addEventListener('click', async () => {
+  $('#loginGoogleBtn')?.addEventListener('click', async () => {
     try {
       setStatus('Открываем вход через Google...');
       await signInWithGoogle(location.href);
@@ -180,12 +166,7 @@ function ensureAuthBar() {
     }
   });
 
-  const logoutBtn = document.createElement('button');
-  logoutBtn.id = 'logoutBtn';
-  logoutBtn.className = 'btn';
-  logoutBtn.type = 'button';
-  logoutBtn.textContent = 'Выйти';
-  logoutBtn.addEventListener('click', async () => {
+  $('#logoutBtn')?.addEventListener('click', async () => {
     try {
       await signOut();
       location.reload();
@@ -195,36 +176,145 @@ function ensureAuthBar() {
     }
   });
 
-  wrap.appendChild(label);
-  wrap.appendChild(loginBtn);
-  wrap.appendChild(logoutBtn);
-  controls.appendChild(wrap);
+  // ссылка: клик = копировать
+  $('#hwLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const url = String($('#hwLink')?.dataset?.url || '');
+    if (!url) return;
+    const ok = await copyToClipboard(url);
+    setStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+  });
+
+  // маленькая кнопка открыть
+  $('#openLinkBtn')?.addEventListener('click', () => {
+    const url = String($('#openLinkBtn')?.dataset?.url || '');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  });
+}
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+function defaultTitleDM() {
+  const d = new Date();
+  return `ДЗ ${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
+}
+function initEditableFields() {
+  const titleBtn = $('#titleBtn');
+  const titleInput = $('#titleInput');
+  const descBtn = $('#descBtn');
+  const descInput = $('#descInput');
+
+  if (titleInput && !String(titleInput.value || '').trim()) {
+    titleInput.value = defaultTitleDM();
+  }
+  if (titleBtn) titleBtn.textContent = String(titleInput?.value || defaultTitleDM());
+
+  // Title: клик -> показать input, blur/Enter -> сохранить
+  titleBtn?.addEventListener('click', () => {
+    if (!titleInput) return;
+    titleBtn.classList.add('hidden');
+    titleInput.classList.remove('hidden');
+    titleInput.focus();
+    titleInput.select?.();
+  });
+
+  const commitTitle = () => {
+    if (!titleInput || !titleBtn) return;
+    const v = String(titleInput.value || '').trim() || defaultTitleDM();
+    titleInput.value = v;
+    titleBtn.textContent = v;
+    titleInput.classList.add('hidden');
+    titleBtn.classList.remove('hidden');
+  };
+
+  titleInput?.addEventListener('blur', commitTitle);
+  titleInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitTitle();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      commitTitle();
+    }
+  });
+
+  // Description: клик -> textarea, blur -> скрыть
+  descBtn?.addEventListener('click', () => {
+    if (!descInput) return;
+    descBtn.classList.add('hidden');
+    descInput.classList.remove('hidden');
+    descInput.focus();
+  });
+
+  const commitDesc = () => {
+    if (!descInput || !descBtn) return;
+    const v = String(descInput.value || '').trim();
+    descBtn.textContent = v ? v : 'Описание';
+    descInput.classList.add('hidden');
+    descBtn.classList.remove('hidden');
+  };
+
+  descInput?.addEventListener('blur', commitDesc);
+}
+
+function getTitleValue() {
+  const v = String($('#titleInput')?.value || '').trim();
+  return v || defaultTitleDM();
+}
+function getDescriptionValue() {
+  const v = String($('#descInput')?.value || '').trim();
+  return v ? v : null;
+}
+
+function showStudentLink(link, metaText = '') {
+  const box = $('#linkBox');
+  if (box) box.classList.remove('hidden');
+
+  const a = $('#hwLink');
+  if (a) {
+    a.textContent = link;
+    a.href = link;
+    a.dataset.url = link;
+  }
+
+  const openBtn = $('#openLinkBtn');
+  if (openBtn) openBtn.dataset.url = link;
+
+  const meta = $('#linkMeta');
+  if (meta) meta.textContent = metaText || '';
 }
 
 async function refreshAuthUI() {
   ensureAuthBar();
 
   const session = await getSession().catch(() => null);
-  const label = $('#authLabel');
+
   const loginBtn = $('#loginGoogleBtn');
+  const authMini = $('#authMini');
+  const authEmail = $('#authEmail');
   const logoutBtn = $('#logoutBtn');
   const createBtn = $('#createBtn');
 
   if (!session) {
-    if (label) label.textContent = 'Вы не вошли. Нужен вход через Google (учитель).';
     if (loginBtn) loginBtn.style.display = '';
+    if (authMini) authMini.classList.add('hidden');
     if (logoutBtn) logoutBtn.style.display = 'none';
     if (createBtn) createBtn.disabled = true;
     return null;
   }
 
   const email = session.user?.email || '';
-  if (label) label.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
+  if (authEmail) authEmail.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
   if (loginBtn) loginBtn.style.display = 'none';
   if (logoutBtn) logoutBtn.style.display = '';
+  if (authMini) authMini.classList.remove('hidden');
   if (createBtn) createBtn.disabled = false;
   return session;
 }
+
 
 function makeRow({ topic_id = '', question_id = '' } = {}) {
   const tr = document.createElement('tr');
@@ -542,6 +632,9 @@ async function copyToClipboard(text) {
 
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
+  wireAuthControls();
+  initEditableFields();
+
   // auth
   await refreshAuthUI();
   // обновление статуса при входе/выходе в другой вкладке
@@ -587,8 +680,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const title = String($('#title')?.value || '').trim();
-    const description = String($('#description')?.value || '').trim() || null;
+    const title = getTitleValue();
+    const description = getDescriptionValue();
     const shuffle = !!$('#shuffle')?.checked;
 
     const fixed = readFixedRows();
@@ -675,32 +768,7 @@ if (!hwRes.ok) {
       }
 
       const link = buildStudentLink(token);
-
-      const resBox = $('#result');
-      if (resBox) resBox.style.display = 'block';
-
-      const linkInp = $('#resultLink');
-      if (linkInp) linkInp.value = link;
-
-      const meta = $('#resultMeta');
-      if (meta) meta.textContent = `homework_id: ${homework_id}, token: ${token}`;
-
-      $('#copyBtn')?.addEventListener(
-        'click',
-        async () => {
-          const ok = await copyToClipboard(link);
-          setStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку. Скопируй вручную.');
-        },
-        { once: true },
-      );
-
-      $('#openBtn')?.addEventListener(
-        'click',
-        () => {
-          window.open(link, '_blank', 'noopener');
-        },
-        { once: true },
-      );
+      showStudentLink(link, `homework_id: ${homework_id}`);
 
       setStatus('Готово.');
     } finally {

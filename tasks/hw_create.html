@@ -12,25 +12,42 @@
       <div class="panel">
         <h1>Создать ДЗ</h1>
 
-        <div class="controls" style="gap:10px;flex-wrap:wrap">
+        <div class="controls create-head" style="gap:10px;flex-wrap:wrap">
           <a class="btn" href="./index.html">← Назад</a>
-          <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
+
+          <div class="create-head-right">
+            <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
+
+            <button id="loginGoogleBtn" class="btn" type="button">Войти через Google</button>
+
+            <span id="authMini" class="auth-mini hidden">
+              <span id="authEmail" class="auth-email">Вы вошли</span>
+              <button id="logoutBtn" class="btn" type="button">Выйти</button>
+            </span>
+          </div>
         </div>
 
         <div id="status" style="margin-top:10px;opacity:.85"></div>
 
+        <div id="linkBox" class="link-box hidden" style="margin-top:10px">
+          <span class="link-label">Ссылка на ДЗ:</span>
+          <a id="hwLink" href="#" class="link-copy" title="Нажмите, чтобы скопировать"></a>
+          <button id="openLinkBtn" class="btn tiny-btn" type="button" title="Открыть в новой вкладке" aria-label="Открыть">↗</button>
+          <span id="linkMeta" class="link-meta"></span>
+        </div>
+
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
         <div class="grid2" style="display:grid;grid-template-columns:1fr;gap:10px">
-          <label>
-            Название
-            <input id="title" class="input" type="text" placeholder="например: ДЗ №5 (неделя 3)" style="width:100%;margin-top:6px">
-          </label>
+          <div class="editable-wrap">
+            <button id="titleBtn" class="editable-btn" type="button"></button>
+            <input id="titleInput" class="input hidden" type="text" placeholder="Название ДЗ" style="width:100%">
+          </div>
 
-          <label>
-            Описание (необязательно)
-            <textarea id="description" class="input" rows="3" placeholder="краткие инструкции" style="width:100%;margin-top:6px"></textarea>
-          </label>
+          <div class="editable-wrap">
+            <button id="descBtn" class="editable-btn editable-muted" type="button">Описание</button>
+            <textarea id="descInput" class="input hidden" rows="3" placeholder="Описание (необязательно)" style="width:100%"></textarea>
+          </div>
 
           <label style="display:flex;gap:8px;align-items:center;user-select:none">
             <input id="shuffle" type="checkbox">
@@ -40,11 +57,7 @@
 
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
-        <h2 style="margin:0 0 8px">Задачи, выбранные вручную</h2>
-
-        <div style="opacity:.8;margin-bottom:8px">
-          Формат: question_id (например 8.1.1.17) или topic_id question_id (например 8.1 8.1.1.17). Topic_id будет выведен автоматически.
-        </div>
+        <h2 style="margin:0 0 8px">Добавить задачи</h2>
 
         <div class="controls" style="gap:8px;flex-wrap:wrap">
           <button id="addRowBtn" class="btn" type="button">Добавить задачу</button>
@@ -72,19 +85,6 @@
             </thead>
             <tbody id="fixedTbody"></tbody>
           </table>
-        </div>
-
-        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
-
-        <h2 style="margin:0 0 8px">Ссылка для ученика</h2>
-        <div id="result" style="display:none">
-          <div style="margin-bottom:6px;opacity:.85">Готово. Ссылка:</div>
-          <input id="resultLink" class="input" type="text" readonly style="width:100%">
-          <div class="controls" style="gap:8px;margin-top:8px;flex-wrap:wrap">
-            <button id="copyBtn" class="btn" type="button">Скопировать ссылку</button>
-            <button id="openBtn" class="btn primary" type="button">Открыть</button>
-          </div>
-          <div id="resultMeta" style="margin-top:8px;opacity:.8"></div>
         </div>
 
       </div>
