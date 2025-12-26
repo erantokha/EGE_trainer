@@ -13,11 +13,10 @@
         <h1>Создать ДЗ</h1>
 
         <div class="controls create-head" style="gap:10px;flex-wrap:wrap">
-          <a class="btn" href="./index.html">← Назад</a>
+
+          <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
 
           <div class="create-head-right">
-            <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
-
             <button id="loginGoogleBtn" class="btn" type="button">Войти через Google</button>
 
             <span id="authMini" class="auth-mini hidden">
@@ -57,7 +56,10 @@
 
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
-        <h2 style="margin:0 0 8px">Добавить задачи</h2>
+        <div class="hrow">
+          <h2 style="margin:0">Добавить задачи</h2>
+          <div id="fixedCount" style="opacity:.85">(Итого: 0)</div>
+        </div>
 
         <div class="controls" style="gap:8px;flex-wrap:wrap">
           <button id="addRowBtn" class="btn" type="button">Добавить задачу</button>

@@ -284,7 +284,11 @@ function showStudentLink(link, metaText = '') {
   if (openBtn) openBtn.dataset.url = link;
 
   const meta = $('#linkMeta');
-  if (meta) meta.textContent = metaText || '';
+  if (meta) {
+    const t = String(metaText || '').trim();
+    meta.textContent = t;
+    meta.style.display = t ? '' : 'none';
+  }
 }
 
 async function refreshAuthUI() {
@@ -348,7 +352,10 @@ function makeRow({ topic_id = '', question_id = '' } = {}) {
   del.className = 'btn';
   del.type = 'button';
   del.textContent = '×';
-  del.addEventListener('click', () => tr.remove());
+  del.addEventListener('click', () => {
+    tr.remove();
+    updateFixedCountUI();
+  });
   tdDel.appendChild(del);
 
   q.addEventListener('input', () => {
@@ -356,6 +363,7 @@ function makeRow({ topic_id = '', question_id = '' } = {}) {
     if (inferred && (!t.value || t.value === inferTopicIdFromQuestionId(t.value))) {
       t.value = inferred;
     }
+    updateFixedCountUI();
   });
 
   tr.appendChild(tdQ);
@@ -383,6 +391,13 @@ function readFixedRows() {
     });
   }
   return rows.filter(x => x.topic_id && x.question_id);
+}
+
+function updateFixedCountUI() {
+  const el = $('#fixedCount');
+  if (!el) return;
+  const n = readFixedRows().length;
+  el.textContent = `(Итого: ${n})`;
 }
 
 
@@ -454,7 +469,9 @@ async function importSelectionIntoFixedTable() {
   for (const r of uniq) tbody.appendChild(makeRow(r));
   tbody.appendChild(makeRow());
 
-  setStatus(`Добавлено из аккордеона: ${uniq.length} задач(и). Можно добавить ещё вручную.`);
+  // статус про импорт убран по требованию (чтобы не мешал)
+  setStatus('');
+  updateFixedCountUI();
 }
 
 
@@ -643,12 +660,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // стартовые строки
   const tbody = $('#fixedTbody');
   if (tbody) tbody.appendChild(makeRow());
+  updateFixedCountUI();
 
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
   await importSelectionIntoFixedTable();
 
   $('#addRowBtn')?.addEventListener('click', () => {
     $('#fixedTbody')?.appendChild(makeRow());
+    updateFixedCountUI();
   });
 
   // импорт
@@ -664,6 +683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const text = $('#importText')?.value || '';
     const parsed = parseImportLines(text);
     for (const row of parsed) $('#fixedTbody')?.appendChild(makeRow(row));
+    updateFixedCountUI();
     const box = $('#importBox');
     if (box) box.style.display = 'none';
     if ($('#importText')) $('#importText').value = '';
@@ -768,7 +788,7 @@ if (!hwRes.ok) {
       }
 
       const link = buildStudentLink(token);
-      showStudentLink(link, `homework_id: ${homework_id}`);
+      showStudentLink(link);
 
       setStatus('Готово.');
     } finally {

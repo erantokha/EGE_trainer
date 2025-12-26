@@ -767,3 +767,7 @@ input:focus{
 .tiny-btn { padding:4px 8px; font-size:12px; border-radius:10px; }
 
 .topic-auto { opacity:.85; }
+
+/* hw_create: заголовок блока + счётчик */
+.hrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px;}
+#fixedCount{white-space:nowrap;}
