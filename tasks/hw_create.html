@@ -24,7 +24,6 @@
         <div class="controls" style="gap:10px;flex-wrap:wrap;margin-top:8px">
           <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
         </div>
-        </div>
 
         <div id="status" style="margin-top:10px;opacity:.85"></div>
 
@@ -53,6 +52,7 @@
             Перемешать задачи
           </label>
         </div>
+
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
         <div class="hrow" style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px">
@@ -77,9 +77,37 @@
             <tbody id="fixedTbody"></tbody>
           </table>
         </div>
-</div>
+      </div>
     </section>
   </main>
+
+  <!-- Модалка выбора задач по подтемам -->
+  <div id="taskPickerModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Добавить задачи">
+      <div class="modal-head">
+        <div class="modal-title">Добавить задачи</div>
+        <button id="tpClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="tp-nav" id="tpNav"></div>
+
+        <div class="tp-main">
+          <div class="tp-main-head">
+            <div id="tpPath" class="muted">Выберите подтему слева</div>
+            <div class="tp-main-actions">
+              <div id="tpSelectedCount" class="muted">Выбрано: 0</div>
+              <button id="tpAddSelected" class="btn primary small" type="button" disabled>Добавить</button>
+            </div>
+          </div>
+
+          <div id="tpList" class="tp-list"></div>
+          <div id="tpHint" class="muted tp-hint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="./theme.js" defer></script>
   <script type="module" src="./hw_create.js"></script>

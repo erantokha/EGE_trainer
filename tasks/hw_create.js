@@ -6,6 +6,7 @@ import { CONFIG } from '../app/config.js';
 import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js';
 import {
+  baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
@@ -14,6 +15,15 @@ import {
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
+
+// "Пикер" задач на этой странице: выбираем подтему → видим только уникальные прототипы (baseId)
+// и задаём количество задач по каждому прототипу.
+const TASK_PICKER_STATE = {
+  open: false,
+  active: null, // { topicId, typeId, manifest, type }
+  groups: new Map(), // baseId -> { baseId, cap, protos: [], sampleProto }
+  counts: new Map(), // baseId -> int
+};
 
 // Выбор с главного аккордеона → автозаполнение "ручного списка" (fixed) на этой странице.
 const HW_PREFILL_KEY = 'hw_create_prefill_v1';
@@ -669,6 +679,461 @@ async function copyToClipboard(text) {
   }
 }
 
+// ---------- tasks picker (modal) ----------
+function openTaskPicker() {
+  const modal = $('#taskPickerModal');
+  const nav = $('#tpNav');
+  const list = $('#tpList');
+  const pathEl = $('#tpPath');
+  const hint = $('#tpHint');
+  const addBtn = $('#tpAddSelected');
+  const cntEl = $('#tpSelectedCount');
+
+  if (!modal || !nav || !list || !pathEl || !hint || !addBtn || !cntEl) {
+    setStatus('Ошибка: не найдены элементы окна добавления задач (task picker).');
+    return;
+  }
+
+  TASK_PICKER_STATE.open = true;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+
+  // сброс правой панели
+  TASK_PICKER_STATE.active = null;
+  TASK_PICKER_STATE.groups = new Map();
+  TASK_PICKER_STATE.counts = new Map();
+
+  nav.innerHTML = '';
+  list.innerHTML = '';
+  pathEl.textContent = 'Загрузка тем...';
+  hint.textContent = '';
+  cntEl.textContent = 'Выбрано: 0';
+  addBtn.disabled = true;
+
+  // каталоги подгружаем лениво
+  loadCatalog()
+    .then(() => {
+      renderPickerNav();
+      pathEl.textContent = 'Выберите подтему слева';
+    })
+    .catch((e) => {
+      console.error(e);
+      nav.innerHTML = '<div class="muted">Не удалось загрузить каталог.</div>';
+      pathEl.textContent = 'Ошибка';
+      hint.textContent = 'Не удалось загрузить каталог тем (index.json).';
+    });
+}
+
+function closeTaskPicker() {
+  const modal = $('#taskPickerModal');
+  if (!modal) return;
+  TASK_PICKER_STATE.open = false;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function renderPickerNav() {
+  const nav = $('#tpNav');
+  if (!nav) return;
+
+  const secSort = (a, b) => compareId(a.id, b.id);
+  const sections = [...SECTIONS].sort(secSort);
+
+  const frag = document.createDocumentFragment();
+
+  for (const sec of sections) {
+    const dSec = document.createElement('details');
+    dSec.className = 'tp-sec';
+
+    const sSum = document.createElement('summary');
+    sSum.textContent = `${sec.id}. ${sec.title || ''}`.trim();
+    dSec.appendChild(sSum);
+
+    const topics = (sec.topics || []).slice().sort(secSort);
+    const wrap = document.createElement('div');
+    wrap.className = 'tp-sec-body';
+
+    for (const topic of topics) {
+      const dTop = document.createElement('details');
+      dTop.className = 'tp-topic';
+      dTop.dataset.topicId = topic.id;
+
+      const tSum = document.createElement('summary');
+      tSum.textContent = `${topic.id} ${topic.title || ''}`.trim();
+      dTop.appendChild(tSum);
+
+      const typesHost = document.createElement('div');
+      typesHost.className = 'tp-types';
+      typesHost.dataset.topicId = topic.id;
+      typesHost.innerHTML = '<div class="muted">Откройте, чтобы загрузить подтемы…</div>';
+      dTop.appendChild(typesHost);
+
+      dTop.addEventListener('toggle', async () => {
+        if (!dTop.open) return;
+        if (typesHost.dataset.loaded === '1') return;
+        await loadPickerTypesForTopic(topic.id, typesHost);
+      });
+
+      wrap.appendChild(dTop);
+    }
+
+    dSec.appendChild(wrap);
+    frag.appendChild(dSec);
+  }
+
+  nav.innerHTML = '';
+  nav.appendChild(frag);
+}
+
+async function loadPickerTypesForTopic(topicId, hostEl) {
+  if (!hostEl) return;
+  hostEl.innerHTML = '<div class="muted">Загрузка…</div>';
+
+  const topic = TOPIC_BY_ID.get(topicId);
+  if (!topic) {
+    hostEl.innerHTML = '<div class="muted">Тема не найдена в index.json</div>';
+    return;
+  }
+
+  const man = await ensureManifest(topic);
+  if (!man || !Array.isArray(man.types)) {
+    hostEl.innerHTML = '<div class="muted">Не удалось загрузить манифест темы</div>';
+    return;
+  }
+
+  const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
+  if (!types.length) {
+    hostEl.innerHTML = '<div class="muted">В этой теме нет задач</div>';
+    hostEl.dataset.loaded = '1';
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'tp-types-list';
+
+  for (const typ of types) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tp-type-btn';
+    b.dataset.topicId = topicId;
+    b.dataset.typeId = typ.id;
+    b.textContent = `${typ.id} ${typ.title || ''}`.trim();
+
+    b.addEventListener('click', async () => {
+      // активная подсветка
+      document.querySelectorAll('.tp-type-btn.active').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+
+      await selectPickerType(topicId, man, typ);
+    });
+
+    list.appendChild(b);
+  }
+
+  hostEl.innerHTML = '';
+  hostEl.appendChild(list);
+  hostEl.dataset.loaded = '1';
+}
+
+async function selectPickerType(topicId, manifest, typeObj) {
+  TASK_PICKER_STATE.active = { topicId, manifest, typeId: typeObj.id, type: typeObj };
+  TASK_PICKER_STATE.groups = new Map();
+  TASK_PICKER_STATE.counts = new Map();
+
+  const pathEl = $('#tpPath');
+  const listEl = $('#tpList');
+  const hint = $('#tpHint');
+  if (pathEl) pathEl.textContent = `${topicId} → ${typeObj.id} ${typeObj.title || ''}`.trim();
+  if (hint) hint.textContent = '';
+  if (listEl) listEl.innerHTML = '<div class="muted">Собираем уникальные прототипы…</div>';
+
+  // группировка по baseId
+  const protos = (typeObj.prototypes || []).slice();
+  const groups = new Map(); // baseId -> protos
+  for (const p of protos) {
+    if (!p || !p.id) continue;
+    const baseId = baseIdFromProtoId(p.id);
+    if (!groups.has(baseId)) groups.set(baseId, []);
+    groups.get(baseId).push(p);
+  }
+
+  const out = [];
+  const sortedBaseIds = [...groups.keys()].sort(compareId);
+  for (const baseId of sortedBaseIds) {
+    const arr = groups.get(baseId) || [];
+    arr.sort((a, b) => compareId(a.id, b.id));
+    out.push({
+      baseId,
+      cap: arr.length,
+      protos: arr,
+      sampleProto: arr[0],
+    });
+  }
+
+  TASK_PICKER_STATE.groups = new Map(out.map(x => [x.baseId, x]));
+  TASK_PICKER_STATE.counts = new Map(out.map(x => [x.baseId, 0]));
+
+  renderPickerList();
+  await typesetMathIfNeeded(listEl);
+}
+
+function renderPickerList() {
+  const listEl = $('#tpList');
+  const addBtn = $('#tpAddSelected');
+  const cntEl = $('#tpSelectedCount');
+  if (!listEl || !addBtn || !cntEl) return;
+
+  const active = TASK_PICKER_STATE.active;
+  if (!active) {
+    listEl.innerHTML = '';
+    cntEl.textContent = 'Выбрано: 0';
+    addBtn.disabled = true;
+    return;
+  }
+
+  const items = [...TASK_PICKER_STATE.groups.values()];
+  if (!items.length) {
+    listEl.innerHTML = '<div class="muted">В этой подтеме нет задач.</div>';
+    cntEl.textContent = 'Выбрано: 0';
+    addBtn.disabled = true;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+
+  for (const it of items) {
+    const row = document.createElement('div');
+    row.className = 'tp-item';
+    row.dataset.baseId = it.baseId;
+
+    const left = document.createElement('div');
+    left.className = 'tp-item-left';
+
+    const meta = document.createElement('div');
+    meta.className = 'tp-item-meta';
+    meta.textContent = `${it.baseId} (вариантов: ${it.cap})`;
+
+    const stem = document.createElement('div');
+    stem.className = 'tp-item-stem';
+    stem.innerHTML = buildStemPreview(active.manifest, active.type, it.sampleProto);
+
+    left.appendChild(meta);
+    left.appendChild(stem);
+
+    const right = document.createElement('div');
+    right.className = 'tp-item-right';
+
+    const minus = document.createElement('button');
+    minus.type = 'button';
+    minus.className = 'tp-ctr-btn';
+    minus.textContent = '−';
+
+    const val = document.createElement('div');
+    val.className = 'tp-ctr-val';
+
+    const plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'tp-ctr-btn';
+    plus.textContent = '+';
+
+    const cap = document.createElement('div');
+    cap.className = 'tp-ctr-cap';
+    cap.textContent = `из ${it.cap}`;
+
+    const setBtnState = () => {
+      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
+      val.textContent = String(c);
+      minus.disabled = c <= 0;
+      plus.disabled = c >= it.cap;
+    };
+
+    minus.addEventListener('click', () => {
+      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
+      TASK_PICKER_STATE.counts.set(it.baseId, Math.max(0, c - 1));
+      setBtnState();
+      updatePickerSelectedUI();
+    });
+    plus.addEventListener('click', () => {
+      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
+      TASK_PICKER_STATE.counts.set(it.baseId, Math.min(it.cap, c + 1));
+      setBtnState();
+      updatePickerSelectedUI();
+    });
+
+    setBtnState();
+
+    right.appendChild(minus);
+    right.appendChild(val);
+    right.appendChild(plus);
+    right.appendChild(cap);
+
+    row.appendChild(left);
+    row.appendChild(right);
+
+    frag.appendChild(row);
+  }
+
+  listEl.innerHTML = '';
+  listEl.appendChild(frag);
+  updatePickerSelectedUI();
+}
+
+function updatePickerSelectedUI() {
+  const addBtn = $('#tpAddSelected');
+  const cntEl = $('#tpSelectedCount');
+  if (!addBtn || !cntEl) return;
+
+  let sum = 0;
+  for (const v of TASK_PICKER_STATE.counts.values()) sum += (Number(v) || 0);
+
+  cntEl.textContent = `Выбрано: ${sum}`;
+  addBtn.disabled = sum <= 0;
+}
+
+function addSelectedFromPicker() {
+  const active = TASK_PICKER_STATE.active;
+  const hint = $('#tpHint');
+  if (!active) return;
+
+  const wantByBase = new Map();
+  for (const [baseId, k] of TASK_PICKER_STATE.counts.entries()) {
+    const n = Number(k) || 0;
+    if (n > 0) wantByBase.set(baseId, n);
+  }
+  if (!wantByBase.size) return;
+
+  const existing = new Set(readFixedRows().map(r => refKey(r)));
+  const toAdd = [];
+  let short = 0;
+
+  for (const [baseId, k] of wantByBase.entries()) {
+    const g = TASK_PICKER_STATE.groups.get(baseId);
+    if (!g) continue;
+
+    let got = 0;
+    for (const p of g.protos) {
+      const topic_id = active.manifest.topic || inferTopicIdFromQuestionId(p.id);
+      const key = `${topic_id}::${p.id}`;
+      if (existing.has(key)) continue;
+      existing.add(key);
+      toAdd.push({ topic_id, question_id: p.id });
+      got++;
+      if (got >= k) break;
+    }
+    if (got < k) short += (k - got);
+  }
+
+  if (!toAdd.length) {
+    if (hint) hint.textContent = 'Нечего добавлять: все выбранные варианты уже были добавлены.';
+    return;
+  }
+
+  addRefsToFixedTable(toAdd);
+  updateFixedCountUI();
+
+  if (hint) {
+    hint.textContent = short > 0
+      ? `Добавлено: ${toAdd.length}. Не хватило ещё ${short} (дубликаты или в базе меньше вариантов).`
+      : `Добавлено: ${toAdd.length}.`;
+  }
+
+  // на всякий — обнулим счётчики, чтобы повторно не добавить то же самое
+  for (const [baseId] of wantByBase.entries()) TASK_PICKER_STATE.counts.set(baseId, 0);
+  renderPickerList();
+}
+
+function addRefsToFixedTable(refs) {
+  const tbody = $('#fixedTbody');
+  if (!tbody) return;
+
+  // гарантируем, что внизу есть пустая строка для ручного ввода (если нужно)
+  let last = tbody.lastElementChild;
+  let lastEmpty = false;
+
+  if (last && typeof last._get === 'function') {
+    const v = last._get();
+    lastEmpty = !String(v?.question_id || '').trim() && !String(v?.topic_id || '').trim();
+  }
+
+  if (!lastEmpty) {
+    tbody.appendChild(makeRow());
+    last = tbody.lastElementChild;
+  }
+
+  for (const r of refs) {
+    tbody.insertBefore(makeRow(r), last);
+  }
+}
+
+function buildStemPreview(manifest, type, proto) {
+  const params = proto?.params || {};
+  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
+  const stem = interpolate(stemTpl, params);
+
+  const fig = proto?.figure || type?.figure || null;
+  const figHtml = fig?.img ? `<img class="tp-fig" src="${asset(fig.img)}" alt="${escapeHtml(fig.alt || '')}">` : '';
+  const textHtml = `<div class="tp-stem">${stem}</div>`;
+  return figHtml ? `<div class="tp-preview">${textHtml}${figHtml}</div>` : textHtml;
+}
+
+// преобразование "content/..." в путь от /tasks/
+function asset(p) {
+  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+}
+
+
+// минимальная интерполяция ${var} как в тренажёре
+function interpolate(tpl, params) {
+  return String(tpl || '').replace(
+    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
+    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
+  );
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function typesetMathIfNeeded(rootEl) {
+  if (!rootEl) return;
+  await ensureMathJaxLoaded();
+
+  if (window.MathJax?.typesetPromise) {
+    try { await window.MathJax.typesetPromise([rootEl]); } catch (e) { /* ignore */ }
+  } else if (window.MathJax?.typeset) {
+    try { window.MathJax.typeset([rootEl]); } catch (e) { /* ignore */ }
+  }
+}
+
+let __mjLoading = null;
+function ensureMathJaxLoaded() {
+  if (window.MathJax && (window.MathJax.typesetPromise || window.MathJax.typeset)) return Promise.resolve();
+  if (__mjLoading) return __mjLoading;
+
+  __mjLoading = new Promise((resolve) => {
+    // конфиг (как на странице ученика)
+    window.MathJax = window.MathJax || {
+      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
+      svg: { fontCache: 'global' },
+    };
+
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => resolve(); // даже если нет сети — просто не типсетим
+    document.head.appendChild(s);
+  });
+
+  return __mjLoading;
+}
+
+
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
   wireAuthControls();
@@ -692,9 +1157,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     $('#addedBox')?.classList.toggle('hidden');
   });
 
-  // Заглушка: добавление задач кнопкой "+" допилим позже
+  // Добавление задач через "пикер" (аккордеон → подтема → уникальные прототипы)
   $('#addTaskPlus')?.addEventListener('click', () => {
-    setStatus('Скоро: добавление задач через "+" будет в следующем апдейте.');
+    openTaskPicker();
+  });
+
+  // модалка
+  $('#tpClose')?.addEventListener('click', () => closeTaskPicker());
+  $('#taskPickerModal .modal-backdrop')?.addEventListener('click', () => closeTaskPicker());
+  $('#tpAddSelected')?.addEventListener('click', () => addSelectedFromPicker());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && TASK_PICKER_STATE.open) closeTaskPicker();
   });
 
 
