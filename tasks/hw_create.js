@@ -519,8 +519,7 @@ async function freezeHomeworkQuestions(spec_json) {
   };
 
   // 1) фиксированные (ручные)
-  for (const r of spec_json?.fixed || []) pushRef(r);
-  }
+  for (const r of (spec_json?.fixed || [])) pushRef(r);
 
   if (spec_json?.shuffle) shuffle(frozen);
   return frozen;

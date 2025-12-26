@@ -115,44 +115,11 @@ function initShuffleToggle() {
 
 
 // ---------- Кнопка "Создать ДЗ" ----------
-// Логика:
-// - сохраняем текущий выбор (по темам или по разделам) в sessionStorage
-// - переходим на hw_create.html, где выбор будет превращён в фиксированный список задач
-const HW_PREFILL_KEY = 'hw_create_prefill_v1';
-
-function anyPositive(obj) {
-  return Object.values(obj || {}).some(v => Number(v) > 0);
-}
-
-function buildHwCreatePrefill() {
-  const by = anyPositive(CHOICE_TOPICS) ? 'topics' : 'sections';
-  return {
-    v: 1,
-    by,
-    topics: CHOICE_TOPICS || {},
-    sections: CHOICE_SECTIONS || {},
-    shuffle: !!SHUFFLE_TASKS,
-    ts: Date.now(),
-  };
-}
-
 function initCreateHomeworkButton() {
   const btn = $('#createHwBtn');
   if (!btn) return;
 
   btn.addEventListener('click', () => {
-    try {
-      const prefill = buildHwCreatePrefill();
-      const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections);
-      if (hasAny) {
-        sessionStorage.setItem(HW_PREFILL_KEY, JSON.stringify(prefill));
-      } else {
-        sessionStorage.removeItem(HW_PREFILL_KEY);
-      }
-    } catch (e) {
-      console.warn('Не удалось сохранить выбор для ДЗ в sessionStorage', e);
-    }
-
     location.href = './hw_create.html';
   });
 }
