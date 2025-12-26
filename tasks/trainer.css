@@ -164,10 +164,32 @@ a:hover{text-decoration:underline}
 /* верхний блок выбора (index.html) */
 #picker .controls{
   display:flex;
-  align-items:center;
-  gap:8px;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
   margin-top:8px;
   flex-wrap:wrap;
+}
+#picker .controls-left{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+#picker .controls-right{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+}
+#picker .controls-right .right-actions{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:6px;
+}
+#picker .controls-right .right-actions button{
+  min-width:132px;
 }
 #picker .controls .sum{
   padding:6px 10px;
@@ -176,6 +198,12 @@ a:hover{text-decoration:underline}
   background:var(--panel-2);
 }
 
+/* компактная кнопка (как в bulk-controls) */
+.btn-compact{
+  padding:6px 10px;
+  font-size:13px;
+  border-radius:10px;
+}
 /* чекбокс "Перемешать задачи" */
 #picker .controls .shuffle{
   display:inline-flex;
@@ -207,7 +235,7 @@ a:hover{text-decoration:underline}
   font-weight:500;
   box-shadow:none;
 }
-.mode-toggle .mode-btn:hover:not(.active)){
+.mode-toggle .mode-btn:hover:not(.active){
   background:rgba(148,163,184,.12);
 }
 .mode-toggle .mode-btn.active{
@@ -502,6 +530,15 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   .qwrap{flex-direction:column}
   .qfig{min-height:auto}
   input[type="number"]{width:56px}
+
+  /* шапка выбора задач */
+  #picker .controls-right{
+    width:100%;
+    align-items:flex-start;
+  }
+  #picker .controls-right .right-actions{
+    align-items:flex-start;
+  }
 
   /* аккордеон на узких экранах:
      текст раздела остаётся в одной строке со счётчиком,

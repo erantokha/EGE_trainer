@@ -21,6 +21,7 @@ let LAST_SELECTION = null;
 document.addEventListener('DOMContentLoaded', async () => {
   initModeToggle();
   initShuffleToggle();
+  initCreateHomeworkButton();
 
   try {
     await loadCatalog();
@@ -108,6 +109,18 @@ function initShuffleToggle() {
 
   cb.addEventListener('change', () => {
     SHUFFLE_TASKS = cb.checked;
+  });
+}
+
+
+
+// ---------- Кнопка "Создать ДЗ" ----------
+function initCreateHomeworkButton() {
+  const btn = $('#createHwBtn');
+  if (!btn) return;
+
+  btn.addEventListener('click', () => {
+    location.href = './hw_create.html';
   });
 }
 

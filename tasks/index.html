@@ -13,28 +13,42 @@
         <h1>Тренажер по задачам из банка ФИПИ</h1>
 
         <div class="controls">
-          <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-            <button
-              type="button"
-              class="mode-btn active"
-              id="modeList"
-              data-mode="list"
-              aria-selected="true"
-            >
-              Список задач
-            </button>
-            <button
-              type="button"
-              class="mode-btn"
-              id="modeTest"
-              data-mode="test"
-              aria-selected="false"
-            >
-              Тестирование
-            </button>
-          
-          <a class="btn" href="./hw_create.html">Создать ДЗ</a></div>
-          
+          <div class="controls-left">
+            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+              <button
+                type="button"
+                class="mode-btn active"
+                id="modeList"
+                data-mode="list"
+                aria-selected="true"
+              >
+                Список задач
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                id="modeTest"
+                data-mode="test"
+                aria-selected="false"
+              >
+                Тестирование
+              </button>
+            </div>
+
+            <label class="shuffle">
+              <input type="checkbox" id="shuffleToggle">
+              Перемешать задачи
+            </label>
+          </div>
+
+          <div class="controls-right">
+            <div class="sum">Итого: <span id="sum">0</span></div>
+            <div class="right-actions">
+              <button id="start" disabled>Начать</button>
+              <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
+            </div>
+          </div>
+
           <div class="theme-toggle">
             <input
               type="checkbox"
@@ -47,23 +61,12 @@
               <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
             </label>
           </div>
-
-          <div class="sum">Итого: <span id="sum">0</span></div>
-
-          <label class="shuffle">
-            <input type="checkbox" id="shuffleToggle">
-            Перемешать задачи
-          </label>
-
-          <button id="start" disabled>Начать</button>
         </div>
+
         <div class="bulk-controls" id="bulkControls">
           <button id="bulkPickAll" type="button">Выбрать все</button>
           <button id="bulkResetAll" type="button">Сбросить все</button>
-          <div class="bulk-hint">Каждое нажатие добавляет +1 в каждой теме.</div>
         </div>
-
-
 
         <div id="accordion" class="accordion"></div>
       </div>
