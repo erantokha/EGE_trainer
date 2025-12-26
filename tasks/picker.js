@@ -115,11 +115,74 @@ function initShuffleToggle() {
 
 
 // ---------- Кнопка "Создать ДЗ" ----------
+// Логика:
+// - сохраняем текущий выбор (по темам или по разделам) в sessionStorage
+// - переходим на hw_create.html, где выбор будет превращён в фиксированный список задач
+const HW_PREFILL_KEY = 'hw_create_prefill_v1';
+
+function anyPositive(obj) {
+  return Object.values(obj || {}).some(v => Number(v) > 0);
+}
+
+function readSelectionFromDOM() {
+  const topics = {};
+  const sections = {};
+
+  // Читаем значения из DOM (устойчиво при возврате "назад", когда JS-состояние может сброситься)
+  $$('.node.topic').forEach(node => {
+    const id = node?.dataset?.id;
+    if (!id) return;
+    const num = $('.count', node);
+    const v = Math.max(0, Math.floor(Number(num?.value ?? 0)));
+    if (v > 0) topics[id] = v;
+  });
+
+  $$('.node.section').forEach(node => {
+    const id = node?.dataset?.id;
+    if (!id) return;
+    const num = $('.count', node);
+    const v = Math.max(0, Math.floor(Number(num?.value ?? 0)));
+    if (v > 0) sections[id] = v;
+  });
+
+  return { topics, sections };
+}
+
+function buildHwCreatePrefill() {
+  const { topics, sections } = readSelectionFromDOM();
+  const hasDom = anyPositive(topics) || anyPositive(sections);
+
+  const t = hasDom ? topics : (CHOICE_TOPICS || {});
+  const s = hasDom ? sections : (CHOICE_SECTIONS || {});
+
+  const by = anyPositive(t) ? 'topics' : 'sections';
+  return {
+    v: 1,
+    by,
+    topics: t,
+    sections: s,
+    shuffle: !!SHUFFLE_TASKS,
+    ts: Date.now(),
+  };
+}
+
 function initCreateHomeworkButton() {
   const btn = $('#createHwBtn');
   if (!btn) return;
 
   btn.addEventListener('click', () => {
+    try {
+      const prefill = buildHwCreatePrefill();
+      const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections);
+      if (hasAny) {
+        sessionStorage.setItem(HW_PREFILL_KEY, JSON.stringify(prefill));
+      } else {
+        sessionStorage.removeItem(HW_PREFILL_KEY);
+      }
+    } catch (e) {
+      console.warn('Не удалось сохранить выбор для ДЗ в sessionStorage', e);
+    }
+
     location.href = './hw_create.html';
   });
 }
@@ -296,7 +359,7 @@ function renderTopicRow(topic) {
       <div class="countbox">
         <button class="btn minus" type="button">−</button>
         <input class="count" type="number" min="0" step="1"
-          value="\${CHOICE_TOPICS['${topic.id}'] || 0}">
+          value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
