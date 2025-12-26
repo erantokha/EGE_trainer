@@ -736,6 +736,49 @@ input:focus{
 .create-head { display:flex; justify-content:space-between; align-items:center; }
 .create-head-right { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
 
+
+.page-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.page-head-right {
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.btn.small {
+  padding:6px 10px;
+  font-size:13px;
+  border-radius:10px;
+}
+
+.added-head {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.icon-btn {
+  min-width:36px;
+  height:36px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--card);
+  cursor:pointer;
+  font-size:22px;
+  line-height:1;
+}
+.icon-btn:hover { background:rgba(0,0,0,.03); }
+
 .auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .auth-email { opacity:.85; }
 
@@ -767,7 +810,3 @@ input:focus{
 .tiny-btn { padding:4px 8px; font-size:12px; border-radius:10px; }
 
 .topic-auto { opacity:.85; }
-
-/* hw_create: заголовок блока + счётчик */
-.hrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px;}
-#fixedCount{white-space:nowrap;}

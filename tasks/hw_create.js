@@ -241,13 +241,20 @@ function initEditableFields() {
     }
   });
 
-  // Description: клик -> textarea, blur -> скрыть
-  descBtn?.addEventListener('click', () => {
-    if (!descInput) return;
+
+  // Description: клик -> показать input, blur/Enter -> сохранить
+  if (descBtn) {
+    const v0 = String(descInput?.value || '').trim();
+    descBtn.textContent = v0 ? v0 : 'Описание';
+  }
+
+  const openDesc = () => {
+    if (!descInput || !descBtn) return;
     descBtn.classList.add('hidden');
     descInput.classList.remove('hidden');
     descInput.focus();
-  });
+    descInput.select?.();
+  };
 
   const commitDesc = () => {
     if (!descInput || !descBtn) return;
@@ -257,7 +264,25 @@ function initEditableFields() {
     descBtn.classList.remove('hidden');
   };
 
+  const cancelDesc = () => {
+    if (!descInput || !descBtn) return;
+    // просто закрываем без изменений текста кнопки
+    descInput.classList.add('hidden');
+    descBtn.classList.remove('hidden');
+  };
+
+  descBtn?.addEventListener('click', openDesc);
+
   descInput?.addEventListener('blur', commitDesc);
+  descInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitDesc();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelDesc();
+    }
+  });
 }
 
 function getTitleValue() {
@@ -284,11 +309,7 @@ function showStudentLink(link, metaText = '') {
   if (openBtn) openBtn.dataset.url = link;
 
   const meta = $('#linkMeta');
-  if (meta) {
-    const t = String(metaText || '').trim();
-    meta.textContent = t;
-    meta.style.display = t ? '' : 'none';
-  }
+  if (meta) meta.textContent = metaText || '';
 }
 
 async function refreshAuthUI() {
@@ -311,7 +332,7 @@ async function refreshAuthUI() {
   }
 
   const email = session.user?.email || '';
-  if (authEmail) authEmail.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
+  if (authEmail) authEmail.textContent = email ? `${email}` : '';
   if (loginBtn) loginBtn.style.display = 'none';
   if (logoutBtn) logoutBtn.style.display = '';
   if (authMini) authMini.classList.remove('hidden');
@@ -393,12 +414,14 @@ function readFixedRows() {
   return rows.filter(x => x.topic_id && x.question_id);
 }
 
+
 function updateFixedCountUI() {
   const el = $('#fixedCount');
   if (!el) return;
   const n = readFixedRows().length;
   el.textContent = `(Итого: ${n})`;
 }
+
 
 
 async function importSelectionIntoFixedTable() {
@@ -469,7 +492,6 @@ async function importSelectionIntoFixedTable() {
   for (const r of uniq) tbody.appendChild(makeRow(r));
   tbody.appendChild(makeRow());
 
-  // статус про импорт убран по требованию (чтобы не мешал)
   setStatus('');
   updateFixedCountUI();
 }
@@ -660,34 +682,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // стартовые строки
   const tbody = $('#fixedTbody');
   if (tbody) tbody.appendChild(makeRow());
-  updateFixedCountUI();
 
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
   await importSelectionIntoFixedTable();
+  updateFixedCountUI();
 
-  $('#addRowBtn')?.addEventListener('click', () => {
-    $('#fixedTbody')?.appendChild(makeRow());
-    updateFixedCountUI();
+  // показать/скрыть список добавленных задач
+  $('#toggleAdded')?.addEventListener('click', () => {
+    $('#addedBox')?.classList.toggle('hidden');
   });
 
-  // импорт
-  $('#importBtn')?.addEventListener('click', () => {
-    const box = $('#importBox');
-    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  // Заглушка: добавление задач кнопкой "+" допилим позже
+  $('#addTaskPlus')?.addEventListener('click', () => {
+    setStatus('Скоро: добавление задач через "+" будет в следующем апдейте.');
   });
-  $('#cancelImportBtn')?.addEventListener('click', () => {
-    const box = $('#importBox');
-    if (box) box.style.display = 'none';
-  });
-  $('#applyImportBtn')?.addEventListener('click', () => {
-    const text = $('#importText')?.value || '';
-    const parsed = parseImportLines(text);
-    for (const row of parsed) $('#fixedTbody')?.appendChild(makeRow(row));
-    updateFixedCountUI();
-    const box = $('#importBox');
-    if (box) box.style.display = 'none';
-    if ($('#importText')) $('#importText').value = '';
-  });
+
 
   // создание
   $('#createBtn')?.addEventListener('click', async () => {
@@ -788,7 +797,7 @@ if (!hwRes.ok) {
       }
 
       const link = buildStudentLink(token);
-      showStudentLink(link);
+      showStudentLink(link, '');
 
       setStatus('Готово.');
     } finally {
