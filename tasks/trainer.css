@@ -140,7 +140,7 @@ a:hover{text-decoration:underline}
 #picker .bulk-controls{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:var(--btn-gap);
   flex-wrap:wrap;
   margin:0; /* вертикальные отступы задаёт .sub-controls */
 }
@@ -155,9 +155,11 @@ a:hover{text-decoration:underline}
   border-radius:10px;
 }
 
-/* одинаковые вертикальные отступы между рядами */
+/* вертикальные отступы между рядами */
 #picker{
   --block-gap:18px;
+  --btn-gap:8px;
+  --row-gap:var(--btn-gap);
 }
 #picker .sub-controls{
   display:flex;
@@ -165,7 +167,7 @@ a:hover{text-decoration:underline}
   justify-content:space-between;
   gap:10px;
   flex-wrap:wrap;
-  margin-top:var(--block-gap);
+  margin-top:var(--row-gap);
 }
 #picker .sub-controls .sum{
   padding:6px 10px;
@@ -197,7 +199,7 @@ a:hover{text-decoration:underline}
   display:flex;
   align-items:center;
   justify-content:flex-end;
-  gap:8px;
+  gap:var(--btn-gap);
 }
 #picker .controls-actions-right button{
   min-width:132px;
