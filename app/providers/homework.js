@@ -201,7 +201,7 @@ export function createHomeworkLinkUrl(token) {
 
 export async function getHomeworkAttempt({ token, attempt_id } = {}) {
   // Получить уже завершённую попытку ДЗ, чтобы показать результаты при повторном входе.
-  // Приоритет: RPC (SECURITY DEFINER) -> прямой select (если RLS позволяет).
+  // Приоритет: RPC (SECURITY DEFINER) -> прямой select (если RLS позволяет) -> 2-step по token через homework_links.
   try {
     const t = String(token || '').trim();
     const id = String(attempt_id || '').trim();
@@ -221,7 +221,7 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
       }
     }
 
-    // 2) RPC по attempt_id
+    // 2) RPC по attempt_id (если есть)
     if (id) {
       const resId = await rpcWithFallback(
         ['get_homework_attempt', 'get_homework_attempt_by_id', 'getHomeworkAttempt'],
@@ -236,27 +236,55 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
       }
     }
 
-    // 3) Прямой select fallback (если RLS разрешает читать свои попытки)
+    // 3) Прямой select по id (если RLS разрешает читать свои попытки)
     if (id) {
       const { data, error } = await supabase
         .from('homework_attempts')
-        .select('id,payload,total,correct,duration_ms,started_at,created_at,finished_at')
+        .select('id,payload,total,correct,duration_ms,created_at,started_at,finished_at')
         .eq('id', id)
         .maybeSingle();
       if (!error && data) return { ok: true, row: data, error: null };
+      // если запрос запрещён — просто идём дальше
     }
 
-    // 4) Token-based select fallback (если есть колонка с токеном)
+    // 4) Fallback по token через homework_links -> homework_attempts (без несуществующих колонок в attempts)
     if (t) {
-      for (const col of ['token_used', 'token', 'link_token']) {
-        const { data, error } = await supabase
-          .from('homework_attempts')
-          .select('id,payload,total,correct,duration_ms,started_at,created_at,finished_at')
-          .eq(col, t)
-          .maybeSingle();
+      const { user } = await getAuth();
+      if (user) {
+        let link = null;
 
-        if (!error && data) return { ok: true, row: data, error: null };
-        // если колонки нет/запрос запрещён — просто пробуем следующий вариант
+        // пробуем типичные имена колонки токена в homework_links
+        for (const col of ['token', 'link_token']) {
+          try {
+            const { data, error } = await supabase
+              .from('homework_links')
+              .select('homework_id')
+              .eq(col, t)
+              .maybeSingle();
+            if (!error && data?.homework_id) {
+              link = data;
+              break;
+            }
+          } catch (e) {
+            // игнорируем и пробуем следующий вариант
+          }
+        }
+
+        if (link?.homework_id) {
+          const { data, error } = await supabase
+            .from('homework_attempts')
+            .select('id,payload,total,correct,duration_ms,created_at,started_at,finished_at')
+            .eq('homework_id', link.homework_id)
+            .eq('student_id', user.id)
+            .not('payload', 'is', null)
+            .not('finished_at', 'is', null)
+            .order('finished_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!error && data) return { ok: true, row: data, error: null };
+          // если не найдено — это нормально (попытка могла быть не завершена)
+        }
       }
     }
 
