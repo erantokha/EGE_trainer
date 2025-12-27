@@ -18,6 +18,21 @@ import { supabase, getSession, signInWithGoogle, signOut } from '../app/provider
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
+
+function asset(p) {
+  return (typeof p === 'string' && p.startsWith('content/'))
+    ? '../' + p
+    : p;
+}
+
+function withV(url) {
+  const v = CONFIG?.content?.version;
+  if (!v) return url;
+  const u = new URL(url, location.href);
+  if (!u.searchParams.has('v')) u.searchParams.set('v', v);
+  return u.href;
+}
+
 const INDEX_URL = '../content/tasks/index.json';
 
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
