@@ -980,19 +980,26 @@ function addSelectedFromPicker() {
   for (const [groupId, k] of wantByGroup.entries()) {
     const g = TASK_PICKER_STATE.groups.get(groupId);
     if (!g) continue;
-
-    let got = 0;
+    // Выбираем СЛУЧАЙНЫЕ варианты внутри подтипа (groupId), без повторов
+    // и с учётом уже добавленных задач.
+    const candidates = [];
     for (const p of g.protos) {
       const topic_id = active.manifest.topic || inferTopicIdFromQuestionId(p.id);
       const key = `${topic_id}::${p.id}`;
       if (existing.has(key)) continue;
-      existing.add(key);
-      toAdd.push({ topic_id, question_id: p.id });
-      got++;
-      if (got >= k) break;
+      candidates.push({ topic_id, question_id: p.id, key });
     }
-    if (got < k) short += (k - got);
-  }
+
+    shuffle(candidates);
+    const take = candidates.slice(0, k);
+
+    for (const it of take) {
+      existing.add(it.key);
+      toAdd.push({ topic_id: it.topic_id, question_id: it.question_id });
+    }
+
+    if (take.length < k) short += (k - take.length);
+}
 
   if (!toAdd.length) {
     if (hint) hint.textContent = 'Нечего добавлять: все выбранные варианты уже были добавлены.';
