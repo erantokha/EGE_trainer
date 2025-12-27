@@ -240,8 +240,8 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
     if (id) {
       const { data, error } = await supabase
         .from('homework_attempts')
-        .select('attempt_id,payload,total,correct,duration_ms,created_at,finished_at')
-        .eq('attempt_id', id)
+        .select('id,payload,total,correct,duration_ms,started_at,created_at,finished_at')
+        .eq('id', id)
         .maybeSingle();
       if (!error && data) return { ok: true, row: data, error: null };
     }
@@ -251,7 +251,7 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
       for (const col of ['token_used', 'token', 'link_token']) {
         const { data, error } = await supabase
           .from('homework_attempts')
-          .select('attempt_id,payload,total,correct,duration_ms,created_at,finished_at')
+          .select('id,payload,total,correct,duration_ms,started_at,created_at,finished_at')
           .eq(col, t)
           .maybeSingle();
 
