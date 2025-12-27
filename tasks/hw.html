@@ -7,7 +7,6 @@
   <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="./trainer.css">
 
-
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
@@ -20,21 +19,18 @@
   <main class="container">
     <section id="hw">
       <div class="panel">
-        <h1 id="hwTitle">Домашнее задание</h1>
+        <header class="page-head">
+          <h1 id="hwTitle">Домашнее задание</h1>
+          <div class="page-head-right">
+            <button id="authLogin" class="btn" type="button">Войти через Google</button>
+            <span id="authMini" class="auth-mini hidden">
+              <span id="authEmail" class="auth-email"></span>
+              <button id="authLogout" class="btn small" type="button">Выйти</button>
+            </span>
+          </div>
+        </header>
 
-      <div class="row" id="authRow">
-        <div id="authStatus" class="muted">Проверяем вход...</div>
-        <div class="actions">
-          <button id="authLogin" class="btn">Войти через Google</button>
-          <button id="authLogout" class="btn secondary hidden">Выйти</button>
-        </div>
-      </div>
-      <div class="muted" style="margin-top:6px">
-        Вход обязателен: результат будет привязан к вашему аккаунту.
-      </div>
-        <p id="hwSubtitle" style="opacity:.8;margin-top:6px">
-          Если вы вошли, ДЗ откроется автоматически. Если нет — войдите через Google.
-        </p>
+        <div id="hwDesc" class="muted hidden" style="margin-top:6px"></div>
 
         <div id="hwGate" style="margin-top:12px">
           <label style="display:block; margin:10px 0 8px">

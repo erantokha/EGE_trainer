@@ -77,12 +77,21 @@ document.addEventListener('DOMContentLoaded', () => {
     HOMEWORK = hwRes.homework;
     LINK = hwRes.linkRow || null;
     HOMEWORK_READY = true;
-
     // Заголовок
     const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
     $('#hwTitle').textContent = t;
-    if ($('#hwSubtitle')) {
-      $('#hwSubtitle').textContent = HOMEWORK.description ? String(HOMEWORK.description) : 'Если вы вошли, ДЗ откроется автоматически. Если нет — войдите через Google.';
+
+    // Описание (если задано)
+    const descEl = $('#hwDesc');
+    if (descEl) {
+      const d = HOMEWORK.description ? String(HOMEWORK.description).trim() : '';
+      if (d) {
+        descEl.textContent = d;
+        descEl.classList.remove('hidden');
+      } else {
+        descEl.textContent = '';
+        descEl.classList.add('hidden');
+      }
     }
 
     // Каталог нужен для сборки задач
@@ -264,8 +273,8 @@ async function initAuthUI() {
       await signInWithGoogle(location.href);
     } catch (e) {
       console.error(e);
-      const s = $('#authStatus');
-      if (s) s.textContent = 'Не удалось запустить вход. Проверьте настройки Google OAuth в Supabase.';
+      const m = $('#hwGateMsg');
+      if (m) m.textContent = 'Не удалось запустить вход. Проверьте настройки Google OAuth в Supabase.';
     }
   });
 
@@ -315,21 +324,23 @@ async function refreshAuthUI() {
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
-  const statusEl = $('#authStatus');
   const loginBtn = $('#authLogin');
   const logoutBtn = $('#authLogout');
+  const mini = $('#authMini');
+  const emailEl = $('#authEmail');
   const nameInput = $('#studentName');
 
-
   if (nameInput) nameInput.disabled = !AUTH_SESSION;
+
   if (!AUTH_USER) {
-    if (statusEl) statusEl.textContent = 'Не выполнен вход. Нажмите «Войти через Google».';
     if (loginBtn) loginBtn.classList.remove('hidden');
+    if (mini) mini.classList.add('hidden');
+    if (emailEl) emailEl.textContent = '';
     if (logoutBtn) logoutBtn.classList.add('hidden');
   } else {
-    const email = AUTH_USER.email ? String(AUTH_USER.email) : 'Выполнен вход';
-    if (statusEl) statusEl.textContent = email;
     if (loginBtn) loginBtn.classList.add('hidden');
+    if (mini) mini.classList.remove('hidden');
+    if (emailEl) emailEl.textContent = AUTH_USER.email ? String(AUTH_USER.email) : '';
     if (logoutBtn) logoutBtn.classList.remove('hidden');
 
     // автоподстановка имени (если пользователь ещё не правил поле)
@@ -746,18 +757,6 @@ function mountRunnerUI() {
   host.classList.remove('hidden');
   host.innerHTML = `
     <div class="panel">
-      <header class="run-head">
-        <div class="crumb"><span id="topicTitle"></span></div>
-
-        <div class="theme-toggle">
-          <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
-          <label for="themeToggle" class="theme-toggle-label">
-            <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-            <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-          </label>
-        </div>
-      </header>
-
       <div class="run-body">
         <div class="list-meta" id="hwMeta"></div>
 
@@ -770,17 +769,12 @@ function mountRunnerUI() {
     </div>
   `;
 
-  // На этой странице тёмная тема запрещена
-  const toggle = $('#themeToggle');
-  if (toggle) { toggle.checked = false; toggle.disabled = true; }
-
   // summary создаём рядом
   let summary = $('#summary');
   if (!summary) {
     summary = document.createElement('div');
     summary.id = 'summary';
     summary.className = 'hidden';
-    // добавляем после блока #runner
     host.parentElement?.appendChild(summary);
   }
 
@@ -811,8 +805,6 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 
   $('#summary')?.classList.add('hidden');
   $('#runner')?.classList.remove('hidden');
-
-  $('#topicTitle').textContent = homework.title ? String(homework.title) : 'Домашнее задание';
   const metaEl = $('#hwMeta');
   if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
 
