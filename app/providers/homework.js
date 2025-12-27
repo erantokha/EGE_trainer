@@ -198,6 +198,74 @@ export function createHomeworkLinkUrl(token) {
   u.searchParams.set('token', String(token || ''));
   return u.href;
 }
+
+export async function getHomeworkAttempt({ token, attempt_id } = {}) {
+  // Получить уже завершённую попытку ДЗ, чтобы показать результаты при повторном входе.
+  // Приоритет: RPC (SECURITY DEFINER) -> прямой select (если RLS позволяет).
+  try {
+    const t = String(token || '').trim();
+    const id = String(attempt_id || '').trim();
+
+    // 1) RPC по token (рекомендуется)
+    if (t) {
+      const resT = await rpcWithFallback(
+        ['get_homework_attempt_by_token', 'getHomeworkAttemptByToken', 'get_homework_result_by_token'],
+        { p_token: t },
+      );
+
+      if (resT.ok) {
+        const row = Array.isArray(resT.data) ? resT.data[0] : resT.data;
+        if (row) return { ok: true, row, error: null };
+      } else if (resT.error && !isMissingRpcFunction(resT.error)) {
+        return { ok: false, row: null, error: resT.error };
+      }
+    }
+
+    // 2) RPC по attempt_id
+    if (id) {
+      const resId = await rpcWithFallback(
+        ['get_homework_attempt', 'get_homework_attempt_by_id', 'getHomeworkAttempt'],
+        { p_attempt_id: id },
+      );
+
+      if (resId.ok) {
+        const row = Array.isArray(resId.data) ? resId.data[0] : resId.data;
+        if (row) return { ok: true, row, error: null };
+      } else if (resId.error && !isMissingRpcFunction(resId.error)) {
+        return { ok: false, row: null, error: resId.error };
+      }
+    }
+
+    // 3) Прямой select fallback (если RLS разрешает читать свои попытки)
+    if (id) {
+      const { data, error } = await supabase
+        .from('homework_attempts')
+        .select('attempt_id,payload,total,correct,duration_ms,created_at,finished_at')
+        .eq('attempt_id', id)
+        .maybeSingle();
+      if (!error && data) return { ok: true, row: data, error: null };
+    }
+
+    // 4) Token-based select fallback (если есть колонка с токеном)
+    if (t) {
+      for (const col of ['token_used', 'token', 'link_token']) {
+        const { data, error } = await supabase
+          .from('homework_attempts')
+          .select('attempt_id,payload,total,correct,duration_ms,created_at,finished_at')
+          .eq(col, t)
+          .maybeSingle();
+
+        if (!error && data) return { ok: true, row: data, error: null };
+        // если колонки нет/запрос запрещён — просто пробуем следующий вариант
+      }
+    }
+
+    return { ok: false, row: null, error: new Error('ATTEMPT_NOT_FOUND') };
+  } catch (e) {
+    return { ok: false, row: null, error: e };
+  }
+}
+
 export async function submitHomeworkAttempt({ attempt_id, payload, total, correct, duration_ms }) {
   // Пишем результат ДЗ в таблицу homework_attempts через RPC (SECURITY DEFINER).
   // Требует авторизацию (authenticated) и корректные GRANT на функцию.
