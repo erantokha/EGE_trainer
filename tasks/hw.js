@@ -41,101 +41,6 @@ let EXISTING_ATTEMPT_ROW = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
-
-// ---------- сохранение прогресса (чтобы обновление страницы не сбрасывало ответы) ----------
-const PROGRESS_NS = 'hw_progress:v1';
-let PROGRESS_SAVE_TIMER = null;
-
-function getUserId() {
-  return AUTH_USER?.id || AUTH_SESSION?.user?.id || '';
-}
-
-function progressKey(token) {
-  const t = String(token || '').trim();
-  const uid = getUserId();
-  return `${PROGRESS_NS}:${t}:${uid || 'anon'}`;
-}
-
-function readProgress(token) {
-  try {
-    const raw = localStorage.getItem(progressKey(token));
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    return obj;
-  } catch {
-    return null;
-  }
-}
-
-function writeProgress(token, obj) {
-  try {
-    localStorage.setItem(progressKey(token), JSON.stringify(obj));
-  } catch (e) {
-    // ignore quota / private mode
-  }
-}
-
-function clearProgress(token) {
-  try {
-    localStorage.removeItem(progressKey(token));
-  } catch {}
-}
-
-function collectAnswersFromInputs() {
-  const out = {};
-  document.querySelectorAll('#taskList input[type="text"][data-key]').forEach((el) => {
-    const key = String(el.dataset.key || '');
-    if (!key) return;
-    out[key] = String(el.value ?? '');
-  });
-  return out;
-}
-
-function scheduleSaveProgress() {
-  const token = getToken();
-  if (!token) return;
-  if (!AUTH_SESSION) return;
-
-  if (PROGRESS_SAVE_TIMER) return;
-  PROGRESS_SAVE_TIMER = setTimeout(() => {
-    PROGRESS_SAVE_TIMER = null;
-    const prev = readProgress(token) || { v: 1, started_at: SESSION?.started_at || Date.now(), answers: {} };
-    const answers = collectAnswersFromInputs();
-    const started_at = Number(prev.started_at || SESSION?.started_at || Date.now());
-    writeProgress(token, { v: 1, started_at, answers, saved_at: Date.now() });
-  }, 300);
-}
-
-function restoreProgressToSessionAndInputs() {
-  const token = getToken();
-  if (!token) return;
-
-  const pr = readProgress(token);
-  if (!pr || typeof pr !== 'object') return;
-
-  // started_at (чтобы время считалось с первого старта)
-  if (SESSION && pr.started_at) {
-    const s = Number(pr.started_at);
-    if (Number.isFinite(s) && s > 0) SESSION.started_at = s;
-  }
-
-  const answers = pr.answers && typeof pr.answers === 'object' ? pr.answers : null;
-  if (!answers) return;
-
-  document.querySelectorAll('#taskList input[type="text"][data-idx][data-key]').forEach((el) => {
-    const key = String(el.dataset.key || '');
-    if (!key) return;
-    const val = answers[key];
-    if (val == null) return;
-
-    el.value = String(val);
-    const i = Number(el.dataset.idx);
-    const q = SESSION?.questions?.[i];
-    if (q) q.chosen_text = String(val);
-  });
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   const token = getToken();
   const startBtn = $('#startHomework');
@@ -246,19 +151,21 @@ async function onStart() {
       const ares = await startHomeworkAttempt({ token, student_name: studentName });
       if (ares.ok) {
         hwAttemptId = ares.attempt_id || null;
-
-        // already_exists может означать:
-        // - попытка уже ЗАВЕРШЕНА (тогда показываем результаты),
-        // - попытка уже НАЧАТА ранее (например, после обновления страницы) — тогда продолжаем выполнение.
         if (ares.already_exists) {
-          const fin = await getHomeworkAttempt({ token, attempt_id: hwAttemptId });
-          if (fin?.ok && fin.row) {
-            RUN_STARTED = true;
-            EXISTING_ATTEMPT_SHOWN = true;
-            await showAttemptSummaryFromRow(fin.row);
-            return;
+          // Есть запись попытки. Если она УЖЕ завершена — показываем результаты,
+          // иначе позволяем продолжить (refresh не должен «сжигать» попытку).
+          try {
+            const ex = await getHomeworkAttempt({ token, attempt_id: hwAttemptId });
+            if (ex?.ok && ex.row) {
+              EXISTING_ATTEMPT_ROW = ex.row;
+              EXISTING_ATTEMPT_SHOWN = true;
+              RUN_STARTED = true;
+              await showAttemptSummaryFromRow(ex.row);
+              return;
+            }
+          } catch (e) {
+            console.warn('getHomeworkAttempt failed for existing attempt; continue as in-progress', e);
           }
-          if (msgEl) msgEl.textContent = 'Продолжаем начатое выполнение...';
         }
       } else {
         console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
@@ -1089,24 +996,12 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
     meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
-  // Восстанавливаем прогресс (ответы + started_at) после обновления страницы
-  restoreProgressToSessionAndInputs();
-
   $('#summary')?.classList.add('hidden');
   $('#runner')?.classList.remove('hidden');
   const metaEl = $('#hwMeta');
   if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
 
   renderHomeworkList();
-
-  // Если прогресса ещё нет — создаём запись со started_at, чтобы длительность считалась корректно.
-  const pr = readProgress(token);
-  if (!pr || !pr.started_at) {
-    writeProgress(token, { v: 1, started_at: SESSION.started_at, answers: {}, saved_at: Date.now() });
-  }
-
-  // Подставляем сохранённые ответы в инпуты
-  restoreProgressToSessionAndInputs();
   wireRunner();
 }
 
@@ -1162,15 +1057,12 @@ function renderHomeworkList() {
     input.placeholder = 'Ответ';
     input.autocomplete = 'off';
     input.dataset.idx = String(idx);
-    input.dataset.key = `${q.topic_id}::${q.question_id}`;
-    input.value = q.chosen_text ? String(q.chosen_text) : '';
 
     input.addEventListener('input', () => {
       const i = Number(input.dataset.idx);
       const qq = SESSION.questions[i];
       if (!qq) return;
       qq.chosen_text = String(input.value ?? '');
-      scheduleSaveProgress();
     });
 
     ansRow.appendChild(input);
@@ -1477,10 +1369,6 @@ async function finishSession() {
   };
 
   renderReviewCards();
-
-  if (savedOk) {
-    clearProgress(token);
-  }
 
   if (!savedOk) {
     console.warn('Homework submit error', savedErr);
