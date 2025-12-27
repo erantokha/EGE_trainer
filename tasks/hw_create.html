@@ -61,21 +61,11 @@
         </div>
 
         <div class="added-head">
-          <button id="toggleAdded" class="btn" type="button">Добавленные задачи</button>
-          <div id="fixedCount" class="muted" style="opacity:.85">(Итого: 0)</div>
+          <button id="toggleAdded" class="btn" type="button">Добавленные задачи: 0</button>
         </div>
 
         <div id="addedBox" class="hidden" style="overflow:auto;margin-top:10px">
-          <table class="table" style="width:100%;border-collapse:collapse">
-            <thead>
-              <tr>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">question_id</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">topic_id</th>
-                <th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">удалить</th>
-              </tr>
-            </thead>
-            <tbody id="fixedTbody"></tbody>
-          </table>
+          <div id="fixedCards" class="fixed-mini-list"></div>
         </div>
       </div>
     </section>

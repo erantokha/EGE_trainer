@@ -356,85 +356,155 @@ async function refreshAuthUI() {
 }
 
 
-function makeRow({ topic_id = '', question_id = '' } = {}) {
-  const tr = document.createElement('tr');
+function ensureTrailingEmptyCard() {
+  const box = $('#fixedCards');
+  if (!box) return;
 
-  const tdQ = document.createElement('td');
-  tdQ.style.padding = '8px';
-  tdQ.style.borderBottom = '1px solid var(--border)';
+  const cards = Array.from(box.children || []);
+
+  // если вообще нет карточек — добавим одну пустую
+  if (!cards.length) {
+    box.appendChild(makeCard());
+    return;
+  }
+
+  const isEmpty = (card) => {
+    if (!card || typeof card._get !== 'function') return false;
+    const v = card._get();
+    const q = String(v?.question_id || '').trim();
+    const t = String(v?.topic_id || '').trim();
+    return !q && !t;
+  };
+
+  // уберём лишние пустые карточки в конце (оставим только одну)
+  while (cards.length >= 2 && isEmpty(cards[cards.length - 1]) && isEmpty(cards[cards.length - 2])) {
+    cards[cards.length - 1].remove();
+    cards.pop();
+  }
+
+  const last = box.lastElementChild;
+  if (!isEmpty(last)) {
+    box.appendChild(makeCard());
+  }
+}
+
+function renumberFixedCards() {
+  const box = $('#fixedCards');
+  if (!box) return;
+
+  const cards = Array.from(box.children || []);
+  let n = 0;
+
+  for (const card of cards) {
+    const numEl = card.querySelector?.('.fixed-mini-num');
+    if (!numEl || typeof card._get !== 'function') continue;
+    const v = card._get();
+    const q = String(v?.question_id || '').trim();
+    const t = String(v?.topic_id || '').trim();
+
+    if (q || t) {
+      n += 1;
+      numEl.textContent = String(n);
+    } else {
+      numEl.textContent = '';
+    }
+  }
+}
+
+function makeCard({ topic_id = '', question_id = '' } = {}) {
+  const card = document.createElement('div');
+  card.className = 'fixed-mini-card';
+
+  const num = document.createElement('div');
+  num.className = 'fixed-mini-num';
+  num.textContent = '';
+  card.appendChild(num);
+
+  const qWrap = document.createElement('div');
+  qWrap.className = 'fixed-mini-field fixed-mini-q';
+  const qLbl = document.createElement('div');
+  qLbl.className = 'fixed-mini-label';
+  qLbl.textContent = 'question_id';
   const q = document.createElement('input');
   q.className = 'input';
   q.type = 'text';
   q.placeholder = 'например 8.1.1.17';
-  q.value = question_id;
+  q.value = question_id || '';
   q.style.width = '100%';
-  tdQ.appendChild(q);
+  qWrap.appendChild(qLbl);
+  qWrap.appendChild(q);
+  card.appendChild(qWrap);
 
-  const tdT = document.createElement('td');
-  tdT.style.padding = '8px';
-  tdT.style.borderBottom = '1px solid var(--border)';
+  const tWrap = document.createElement('div');
+  tWrap.className = 'fixed-mini-field fixed-mini-t';
+  const tLbl = document.createElement('div');
+  tLbl.className = 'fixed-mini-label';
+  tLbl.textContent = 'topic_id';
   const t = document.createElement('input');
   t.className = 'input';
   t.type = 'text';
   t.placeholder = 'например 8.1';
-  t.value = topic_id;
+  t.value = topic_id || '';
   t.style.width = '100%';
-  tdT.appendChild(t);
+  tWrap.appendChild(tLbl);
+  tWrap.appendChild(t);
+  card.appendChild(tWrap);
 
-  const tdDel = document.createElement('td');
-  tdDel.style.padding = '8px';
-  tdDel.style.borderBottom = '1px solid var(--border)';
   const del = document.createElement('button');
-  del.className = 'btn';
+  del.className = 'btn fixed-mini-del';
   del.type = 'button';
   del.textContent = '×';
   del.addEventListener('click', () => {
-    tr.remove();
+    card.remove();
+    ensureTrailingEmptyCard();
     updateFixedCountUI();
   });
-  tdDel.appendChild(del);
+  card.appendChild(del);
 
   q.addEventListener('input', () => {
     const inferred = inferTopicIdFromQuestionId(q.value);
     if (inferred && (!t.value || t.value === inferTopicIdFromQuestionId(t.value))) {
       t.value = inferred;
     }
+    ensureTrailingEmptyCard();
     updateFixedCountUI();
   });
 
-  tr.appendChild(tdQ);
-  tr.appendChild(tdT);
-  tr.appendChild(tdDel);
+  t.addEventListener('input', () => {
+    ensureTrailingEmptyCard();
+    updateFixedCountUI();
+  });
 
-  tr._get = () => ({
+  card._get = () => ({
     question_id: String(q.value || '').trim(),
     topic_id: String(t.value || '').trim(),
   });
 
-  return tr;
+  return card;
 }
 
 function readFixedRows() {
   const rows = [];
-  const trs = Array.from($('#fixedTbody')?.children || []);
-  for (const tr of trs) {
-    if (!tr._get) continue;
-    const { topic_id, question_id } = tr._get();
-    if (!question_id) continue;
-    rows.push({
-      topic_id: topic_id || inferTopicIdFromQuestionId(question_id),
-      question_id,
-    });
+  const cards = Array.from($('#fixedCards')?.children || []);
+  for (const card of cards) {
+    if (!card._get) continue;
+    const { topic_id, question_id } = card._get();
+    if (!question_id && !topic_id) continue;
+    const qid = String(question_id || '').trim();
+    if (!qid) continue;
+    const tid = String(topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
+    if (!tid) continue;
+    rows.push({ topic_id: tid, question_id: qid });
   }
-  return rows.filter(x => x.topic_id && x.question_id);
+  return rows;
 }
 
 
 function updateFixedCountUI() {
-  const el = $('#fixedCount');
-  if (!el) return;
+  const btn = $('#toggleAdded');
   const n = readFixedRows().length;
-  el.textContent = `(Итого: ${n})`;
+  if (btn) btn.textContent = `Добавленные задачи: ${n}`;
+  renumberFixedCards();
 }
 
 
@@ -499,13 +569,13 @@ async function importSelectionIntoFixedTable() {
     return;
   }
 
-  // заполняем таблицу: список задач + 1 пустая строка в конце
-  const tbody = $('#fixedTbody');
-  if (!tbody) return;
+  // заполняем список: задачи + 1 пустая карточка в конце
+  const box = $('#fixedCards');
+  if (!box) return;
 
-  tbody.innerHTML = '';
-  for (const r of uniq) tbody.appendChild(makeRow(r));
-  tbody.appendChild(makeRow());
+  box.innerHTML = '';
+  for (const r of uniq) box.appendChild(makeCard(r));
+  box.appendChild(makeCard());
 
   setStatus('');
   updateFixedCountUI();
@@ -1021,26 +1091,17 @@ function addSelectedFromPicker() {
 }
 
 function addRefsToFixedTable(refs) {
-  const tbody = $('#fixedTbody');
-  if (!tbody) return;
+  const box = $('#fixedCards');
+  if (!box) return;
 
-  // гарантируем, что внизу есть пустая строка для ручного ввода (если нужно)
-  let last = tbody.lastElementChild;
-  let lastEmpty = false;
-
-  if (last && typeof last._get === 'function') {
-    const v = last._get();
-    lastEmpty = !String(v?.question_id || '').trim() && !String(v?.topic_id || '').trim();
-  }
-
-  if (!lastEmpty) {
-    tbody.appendChild(makeRow());
-    last = tbody.lastElementChild;
-  }
+  ensureTrailingEmptyCard();
+  const last = box.lastElementChild;
 
   for (const r of refs) {
-    tbody.insertBefore(makeRow(r), last);
+    box.insertBefore(makeCard(r), last);
   }
+
+  ensureTrailingEmptyCard();
 }
 
 function buildStemPreview(manifest, type, proto) {
@@ -1123,9 +1184,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   supabase.auth.onAuthStateChange(() => { refreshAuthUI(); });
 
   // стартовые строки
-  const tbody = $('#fixedTbody');
-  if (tbody) tbody.appendChild(makeRow());
-
+  const box = $('#fixedCards');
+  if (box) box.appendChild(makeCard());
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
   await importSelectionIntoFixedTable();
   updateFixedCountUI();
