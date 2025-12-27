@@ -18,21 +18,6 @@ import { supabase, getSession, signInWithGoogle, signOut } from '../app/provider
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-
-function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
-    ? '../' + p
-    : p;
-}
-
-function withV(url) {
-  const v = CONFIG?.content?.version;
-  if (!v) return url;
-  const u = new URL(url, location.href);
-  if (!u.searchParams.has('v')) u.searchParams.set('v', v);
-  return u.href;
-}
-
 const INDEX_URL = '../content/tasks/index.json';
 
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
@@ -48,10 +33,6 @@ let AUTH_USER = null;
 let NAME_TOUCHED = false;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
-
-let FINISHING = false;
-let SAVE_TASK = null; // функция повторной отправки результата
-let SIGNOUT_IN_PROGRESS = false;
 
 document.addEventListener('DOMContentLoaded', () => {
   const token = getToken();
@@ -107,12 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startBtn) startBtn.disabled = true;
   });
 
-  if (startBtn) startBtn.setAttribute('type', 'button');
   startBtn?.addEventListener('click', onStart);
 });
 
-async function onStart(ev) {
-  try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
+async function onStart() {
   const token = getToken();
   const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
@@ -147,19 +126,10 @@ async function onStart(ev) {
     const ares = await startHomeworkAttempt({ token, student_name: studentName });
     if (ares.ok) {
       hwAttemptId = ares.attempt_id || null;
-
-      if (ares.already_exists && hwAttemptId) {
-        // Попытка уже есть для этого аккаунта.
-        // Пытаемся понять: она завершена или нет (если есть RLS-политика на SELECT для ученика).
-        const st = await tryGetAttemptStatus(hwAttemptId);
-        if (st.ok && st.data && st.data.finished_at) {
-          if (msgEl) msgEl.textContent = 'Попытка уже завершена. Повторное прохождение запрещено.';
-          if (startBtn) startBtn.disabled = false;
-          FINISHING = false;
-          return;
-        }
-        // если статус не прочитали (RLS) — продолжаем (важно, чтобы пользователь мог завершить незавершённую попытку)
-        if (msgEl) msgEl.textContent = 'Попытка уже была начата на этом аккаунте. Продолжаем...';
+      if (ares.already_exists) {
+        if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
+        if (startBtn) startBtn.disabled = false;
+        return;
       }
     } else {
       console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
@@ -252,8 +222,8 @@ function parseFrozenQuestions(frozen) {
   const out = [];
   for (const it of arr) {
     if (!it) continue;
-    const qid = it.question_id || it.questionId || it.id;
-    const tid = it.topic_id || it.topicId || it.topic || inferTopicIdFromQuestionId(qid);
+    const qid = it.question_id || it.id;
+    const tid = it.topic_id || it.topic_id || it.topic || inferTopicIdFromQuestionId(qid);
     if (!qid || !tid) continue;
     out.push({ topic_id: String(tid), question_id: String(qid) });
   }
@@ -263,31 +233,12 @@ function parseFrozenQuestions(frozen) {
 
 
 
-
-// ---------- Проверка статуса попытки (необязательно, зависит от RLS) ----------
-async function tryGetAttemptStatus(attemptId) {
-  if (!attemptId) return { ok: false, error: new Error('NO_ATTEMPT_ID') };
-  try {
-    const { data, error } = await supabase
-      .from('homework_attempts')
-      .select('id, finished_at')
-      .eq('id', attemptId)
-      .maybeSingle();
-    if (error) return { ok: false, error };
-    return { ok: true, data: data || null };
-  } catch (e) {
-    return { ok: false, error: e };
-  }
-}
-
 // ---------- Авторизация (Google) ----------
 async function initAuthUI() {
   const loginBtn = $('#authLogin');
   const logoutBtn = $('#authLogout');
 
-  if (loginBtn) loginBtn.setAttribute('type', 'button');
-  loginBtn?.addEventListener('click', async (ev) => {
-    try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
+  loginBtn?.addEventListener('click', async () => {
     try {
       await signInWithGoogle(location.href);
     } catch (e) {
@@ -297,33 +248,18 @@ async function initAuthUI() {
     }
   });
 
-  if (logoutBtn) logoutBtn.setAttribute('type', 'button');
-  logoutBtn?.addEventListener('click', async (ev) => {
-    try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
-    if (SIGNOUT_IN_PROGRESS) return;
-    SIGNOUT_IN_PROGRESS = true;
-
-    // UI: сразу показываем "выходим" и блокируем кнопку
-    const statusEl = $('#authStatus');
-    if (statusEl) statusEl.textContent = 'Выходим...';
-    if (logoutBtn) logoutBtn.disabled = true;
-
+  logoutBtn?.addEventListener('click', async () => {
     try {
-      await safeSignOut(); // локальный выход (быстро) + fallback
+      await signOut();
     } catch (e) {
       console.warn('signOut error', e);
-    } finally {
-      SIGNOUT_IN_PROGRESS = false;
-      if (logoutBtn) logoutBtn.disabled = false;
     }
-
     AUTH_SESSION = null;
     AUTH_USER = null;
-    await refreshAuthUI({ skipFetch: true });
-    // на всякий случай повторно проверим сессию чуть позже
-    setTimeout(() => { refreshAuthUI().catch(() => {}); }, 250);
+    await refreshAuthUI();
   });
-await refreshAuthUI();
+
+  await refreshAuthUI();
 
   // реагируем на редирект после Google OAuth и любые изменения сессии
   try {
@@ -334,23 +270,6 @@ await refreshAuthUI();
     console.warn('onAuthStateChange not available', e);
   }
 }
-
-
-async function safeSignOut() {
-  // supabase-js v2: scope 'local' быстро сбрасывает сессию в браузере
-  try {
-    await supabase.auth.signOut({ scope: 'local' });
-    return;
-  } catch (e) {
-    // fallback ниже
-  }
-  try {
-    await signOut();
-  } catch (e) {
-    // игнорируем
-  }
-}
-
 
 function inferNameFromUser(user) {
   const md = user?.user_metadata || {};
@@ -364,16 +283,12 @@ function inferNameFromUser(user) {
   return String(name || '').trim();
 }
 
-async function refreshAuthUI(opts = {}) {
-  const skipFetch = !!opts?.skipFetch;
-
+async function refreshAuthUI() {
   let session = null;
-  if (!skipFetch) {
-    try {
-      session = await getSession();
-    } catch (e) {
-      console.warn('getSession error', e);
-    }
+  try {
+    session = await getSession();
+  } catch (e) {
+    console.warn('getSession error', e);
   }
 
   AUTH_SESSION = session;
@@ -808,12 +723,6 @@ function mountRunnerUI() {
     <div class="panel">
       <h2>Сессия завершена</h2>
       <div id="stats" class="stats"></div>
-
-      <div id="saveState" class="hw-save-state hidden"></div>
-      <div id="saveActions" class="hw-save-actions hidden">
-        <button id="retrySave" type="button">Повторить отправку</button>
-      </div>
-
       <div class="actions">
         <button id="restart" type="button">На главную</button>
         <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
@@ -829,13 +738,9 @@ function mountRunnerUI() {
 
 // ---------- Сессия ----------
 async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId }) {
-  const now = Date.now();
   SESSION = {
     questions,
-    idx: 0,
-    started_at: now,
-    t0: now,
-    total_ms: 0,
+    started_at: Date.now(),
     meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
@@ -851,32 +756,11 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 }
 
 function wireRunner() {
-  const finishBtn = $('#finishHomework');
-  if (finishBtn) {
-    finishBtn.setAttribute('type', 'button');
-    finishBtn.addEventListener('click', finishSession);
-  }
-
-  // Повторная отправка результата (если сохранение не удалось/зависло)
-  const retryBtn = $('#retrySave');
-  if (retryBtn) {
-    retryBtn.setAttribute('type', 'button');
-    retryBtn.addEventListener('click', (ev) => {
-      try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
-      if (typeof SAVE_TASK === 'function') SAVE_TASK();
-    });
-  }
-
-  const restartBtn = $('#restart');
-  if (restartBtn) {
-    restartBtn.setAttribute('type', 'button');
-    restartBtn.addEventListener('click', (ev) => {
-      try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
-      location.href = './index.html';
-    });
-  }
+  $('#finishHomework').onclick = finishSession;
+  $('#restart').onclick = () => {
+    location.href = './index.html';
+  };
 }
-
 
 
 
@@ -923,11 +807,6 @@ function renderHomeworkList() {
     input.placeholder = 'Ответ';
     input.autocomplete = 'off';
     input.dataset.idx = String(idx);
-
-    // ссылка на поле (чтобы finishSession мог собрать ответы без querySelector)
-    q._inputEl = input;
-    if (q.chosen_text == null) q.chosen_text = '';
-
 
     input.addEventListener('input', () => {
       const i = Number(input.dataset.idx);
@@ -1046,24 +925,6 @@ function onCheck() {
 // ---------- проверка ответа (копия из trainer.js) ----------
 function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
-
-  if (!spec) {
-    return { correct: false, chosen_text, normalized_text: '', correct_text: '' };
-  }
-
-  // Пустой ввод всегда считаем неверным (чтобы '' не превращался в 0).
-  if (chosen_text === '') {
-    let expected = '';
-    if (spec.type === 'string' && spec.format === 'ege_decimal') {
-      expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
-    } else if (spec.type === 'number') {
-      expected = String(spec.value != null ? spec.value : '');
-    } else {
-      expected = (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '';
-    }
-    return { correct: false, chosen_text, normalized_text: '', correct_text: expected };
-  }
-
   const norm = normalize(chosen_text, spec.normalize || []);
 
   if (spec.type === 'string' && spec.format === 'ege_decimal') {
@@ -1098,11 +959,9 @@ function normalize(s, kinds) {
 }
 
 function parseNumber(s) {
-  const t = String(s ?? '').trim();
-  if (!t) return NaN;
-  const frac = t.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
+  const frac = s.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
   if (frac) return Number(frac[1]) / Number(frac[2]);
-  return Number(t);
+  return Number(s);
 }
 
 function compareNumber(x, v, tol) {
@@ -1150,68 +1009,245 @@ function tick() {
   secEl.textContent = String(elapsed % 60).padStart(2, '0');
 }
 function saveTimeForCurrent() {
-  if (!SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) return;
-  const idx = Number.isFinite(SESSION.idx) ? SESSION.idx : 0;
-  const q = SESSION.questions[idx];
+  const q = SESSION.questions[SESSION.idx];
   if (!q) return;
   const now = Date.now();
-  const prev = Number(SESSION.t0 || now);
-  const dt = Math.max(0, now - prev);
-  q.time_ms = Number(q.time_ms || 0) + dt;
-  SESSION.total_ms = Number(SESSION.total_ms || 0) + dt;
+  const dt = now - (SESSION.t0 || now);
+  q.time_ms += dt;
+  SESSION.total_ms += dt;
   SESSION.t0 = now;
 }
 
 // ---------- завершение ----------
-function setSaveState(kind, text, canRetry) {
-  const box = $('#saveState');
-  const actions = $('#saveActions');
-  const retry = $('#retrySave');
+async function finishSession() {
+  const finishBtn = $('#finishHomework');
+  if (finishBtn) finishBtn.disabled = true;
 
-  if (box) {
-    box.classList.remove('hidden');
-    box.textContent = String(text || '');
-    box.dataset.kind = String(kind || '');
+  const total = SESSION.questions.length;
+
+  // Считываем ответы из полей (на случай, если input event не успел)
+  document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
+    const i = Number(el.dataset.idx);
+    const q = SESSION.questions[i];
+    if (!q) return;
+    q.chosen_text = String(el.value ?? '');
+  });
+
+  // Проверяем все ответы
+  for (const q of SESSION.questions) {
+    const raw = q.chosen_text ?? '';
+    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
+    q.correct = correct;
+    q.chosen_text = chosen_text;
+    q.normalized_text = normalized_text;
+    q.correct_text = correct_text;
+    q.time_ms = q.time_ms || 0;
   }
 
-  const showRetry = !!canRetry;
-  if (actions) actions.classList.toggle('hidden', !showRetry);
-  if (retry) retry.disabled = !showRetry;
+  const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
+  const duration_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
+  const avg_ms = Math.round(duration_ms / Math.max(1, total));
+
+  const payloadQuestions = SESSION.questions.map(q => ({
+    topic_id: q.topic_id,
+    question_id: q.question_id,
+    difficulty: q.difficulty,
+    correct: !!q.correct,
+    time_ms: q.time_ms || 0,
+    chosen_text: q.chosen_text,
+    normalized_text: q.normalized_text,
+    correct_text: q.correct_text,
+  }));
+
+  // 1) гарантируем наличие attempt_id
+  let attemptId = SESSION.meta?.homeworkAttemptId || null;
+  const token = getToken();
+
+  if (!attemptId && token && SESSION.meta?.studentName) {
+    try {
+      const res = await startHomeworkAttempt({ token, student_name: SESSION.meta.studentName });
+      if (res?.ok && res?.attempt_id) {
+        attemptId = res.attempt_id;
+        SESSION.meta.homeworkAttemptId = attemptId;
+      }
+    } catch (e) {
+      console.warn('startHomeworkAttempt failed at finish', e);
+    }
+  }
+
+  // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
+  let savedOk = false;
+  let savedErr = null;
+
+  if (attemptId) {
+    const payload = {
+      homework_id: SESSION.meta?.homeworkId || null,
+      title: SESSION.meta?.title || null,
+      student_name: SESSION.meta?.studentName || null,
+      questions: payloadQuestions,
+    };
+
+    try {
+      const res = await submitHomeworkAttempt({
+        attempt_id: attemptId,
+        payload,
+        total,
+        correct,
+        duration_ms,
+      });
+      savedOk = !!res?.ok;
+      savedErr = res?.error || null;
+    } catch (e) {
+      savedOk = false;
+      savedErr = e;
+    }
+  } else {
+    savedOk = false;
+    savedErr = new Error('NO_ATTEMPT_ID');
+  }
+
+  // UI: показываем summary + карточки
+  $('#runner')?.classList.add('hidden');
+  $('#summary')?.classList.remove('hidden');
+
+  const statsEl = $('#stats');
+  if (statsEl) {
+    statsEl.innerHTML =
+      `<div>Всего: ${total}</div>` +
+      `<div>Верно: ${correct}</div>` +
+      `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+      `<div>Время: ${Math.round(duration_ms / 1000)} c</div>` +
+      `<div>Среднее: ${Math.round(avg_ms / 1000)} c</div>`;
+  }
+
+  $('#exportCsv').onclick = (e) => {
+    e.preventDefault();
+    const csv = toCsv(SESSION.questions);
+    download('homework_session.csv', csv);
+  };
+
+  renderReviewCards();
+
+  if (!savedOk) {
+    console.warn('Homework submit error', savedErr);
+    const summaryPanel = $('#summary .panel') || $('#summary');
+    if (summaryPanel) {
+      const warn = document.createElement('div');
+      warn.className = 'hw-warn';
+      warn.textContent =
+        'Внимание: запись результата не выполнена. Проверьте RPC submit_homework_attempt и таблицу homework_attempts.';
+      summaryPanel.appendChild(warn);
+    }
+  }
+}
+
+
+
+// ---------- утилиты ----------
+function withV(url) {
+  if (!CONFIG?.content?.version) return url;
+  const u = new URL(url, location.href);
+  u.searchParams.set('v', CONFIG.content.version);
+  return u.href;
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+}
+
+function sampleK(arr, k) {
+  const n = arr.length;
+  if (k <= 0) return [];
+  if (k >= n) return [...arr];
+  if (k * 3 < n) {
+    const used = new Set();
+    const out = [];
+    while (out.length < k) {
+      const i = Math.floor(Math.random() * n);
+      if (!used.has(i)) {
+        used.add(i);
+        out.push(arr[i]);
+      }
+    }
+    return out;
+  }
+  const a = [...arr];
+  shuffle(a);
+  return a.slice(0, k);
+}
+
+function distributeNonNegative(buckets, total) {
+  const out = new Map(buckets.map(b => [b.id, 0]));
+  let left = total;
+  let i = 0;
+  while (left > 0 && buckets.some(b => out.get(b.id) < b.cap)) {
+    const b = buckets[i % buckets.length];
+    if (out.get(b.id) < b.cap) {
+      out.set(b.id, out.get(b.id) + 1);
+      left--;
+    }
+    i++;
+  }
+  return out;
+}
+
+function compareId(a, b) {
+  const as = String(a).split('.').map(Number);
+  const bs = String(b).split('.').map(Number);
+  const L = Math.max(as.length, bs.length);
+  for (let i = 0; i < L; i++) {
+    const ai = as[i] ?? 0;
+    const bi = bs[i] ?? 0;
+    if (ai !== bi) return ai - bi;
+  }
+  return 0;
+}
+
+// преобразование "content/..." в абсолютный путь от /tasks/
+function asset(p) {
+  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+}
+
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"]/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+  }[m]));
 }
 
 function renderReviewCards() {
   const host = $('#reviewList');
   if (!host) return;
-
   host.innerHTML = '';
-  (SESSION?.questions || []).forEach((q, idx) => {
+
+  SESSION.questions.forEach((q, idx) => {
     const card = document.createElement('div');
     card.className = 'task-card q-card';
 
     const head = document.createElement('div');
     head.className = 'hw-review-head';
 
-    const left = document.createElement('div');
-    left.style.display = 'flex';
-    left.style.alignItems = 'center';
-    left.style.gap = '10px';
-
     const num = document.createElement('div');
     num.className = 'task-num';
     num.textContent = String(idx + 1);
-    left.appendChild(num);
 
     const badge = document.createElement('div');
     badge.className = 'hw-badge ' + (q.correct ? 'ok' : 'bad');
-    badge.textContent = q.correct ? 'Верно' : 'Неверно';
-    left.appendChild(badge);
+    badge.textContent = q.correct ? 'верно' : 'неверно';
 
-    head.appendChild(left);
+    head.appendChild(num);
+    head.appendChild(badge);
     card.appendChild(head);
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    stem.innerHTML = q.stem || '';
+    stem.innerHTML = q.stem;
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -1224,30 +1260,16 @@ function renderReviewCards() {
       card.appendChild(figWrap);
     }
 
-    const answers = document.createElement('div');
-    answers.className = 'hw-review-answers';
+    const ans = document.createElement('div');
+    ans.className = 'hw-review-answers';
+    ans.innerHTML =
+      `<div>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></div>` +
+      `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+    card.appendChild(ans);
 
-    const a1 = document.createElement('div');
-    a1.appendChild(document.createTextNode('Ваш ответ: '));
-    const s1 = document.createElement('span');
-    s1.className = 'muted';
-    s1.textContent = (q.chosen_text != null && String(q.chosen_text).trim() !== '') ? String(q.chosen_text) : '—';
-    a1.appendChild(s1);
-    answers.appendChild(a1);
-
-    const a2 = document.createElement('div');
-    a2.appendChild(document.createTextNode('Правильный: '));
-    const s2 = document.createElement('span');
-    s2.className = 'muted';
-    s2.textContent = (q.correct_text != null && String(q.correct_text).trim() !== '') ? String(q.correct_text) : '—';
-    a2.appendChild(s2);
-    answers.appendChild(a2);
-
-    card.appendChild(answers);
     host.appendChild(card);
   });
 
-  // MathJax: типографим итоговый список
   if (window.MathJax) {
     try {
       if (window.MathJax.typesetPromise) {
@@ -1257,128 +1279,6 @@ function renderReviewCards() {
       }
     } catch (e) {
       console.error('MathJax error', e);
-    }
-  }
-}
-
-async function finishSession(ev) {
-  try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
-  if (FINISHING) return;
-
-  const finishBtn = $('#finishHomework');
-  FINISHING = true;
-  if (finishBtn) finishBtn.disabled = true;
-  let uiShown = false;
-
-  try {
-    if (!SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) {
-      throw new Error('NO_SESSION');
-    }
-
-    // Собираем ответы и сразу проверяем
-    for (const q of SESSION.questions) {
-      const raw = (q._inputEl && typeof q._inputEl.value === 'string')
-        ? q._inputEl.value
-        : (q.chosen_text ?? '');
-      const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
-      q.correct = !!correct;
-      q.chosen_text = chosen_text;
-      q.normalized_text = normalized_text;
-      q.correct_text = correct_text;
-    }
-
-    const total = SESSION.questions.length;
-    const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
-
-    // UI: сразу показываем итог и карточки (не ждём сети)
-    $('#runner')?.classList.add('hidden');
-    $('#summary')?.classList.remove('hidden');
-    uiShown = true;
-
-    const stats = $('#stats');
-    if (stats) {
-      const pct = Math.round((100 * correct) / Math.max(1, total));
-      stats.innerHTML =
-        `<div>Всего: ${total}</div>` +
-        `<div>Верно: ${correct}</div>` +
-        `<div>Точность: ${pct}%</div>`;
-    }
-
-    try { renderReviewCards(); } catch (e) { console.error('renderReviewCards error', e); }
-
-    const exportLink = $('#exportCsv');
-    if (exportLink) {
-      exportLink.onclick = (e) => {
-        e.preventDefault();
-        const csv = toCsv(SESSION.questions);
-        download('homework_session.csv', csv);
-      };
-    }
-
-    // Готовим payload для сохранения
-    const payloadQuestions = SESSION.questions.map(q => ({
-      topic_id: q.topic_id,
-      question_id: q.question_id,
-      difficulty: q.difficulty,
-      correct: !!q.correct,
-      time_ms: Number(q.time_ms || 0),
-      chosen_text: q.chosen_text,
-      normalized_text: q.normalized_text,
-      correct_text: q.correct_text,
-    }));
-
-    const payload = {
-      homework_id: SESSION.meta?.homeworkId || null,
-      title: HOMEWORK?.title || null,
-      student_name: SESSION.meta?.studentName || null,
-      questions: payloadQuestions,
-    };
-
-    const attemptId = SESSION.meta?.homeworkAttemptId || null;
-    const duration_ms = Number(Date.now() - (SESSION.started_at || Date.now()));
-
-    if (!attemptId) {
-      setSaveState('bad', 'Не удалось сохранить результат: отсутствует attempt_id (проверьте RPC start_homework_attempt).', false);
-      return;
-    }
-
-    setSaveState('saving', 'Сохраняем результат...', false);
-
-    SAVE_TASK = async () => {
-      setSaveState('saving', 'Сохраняем результат...', false);
-      try {
-        const res = await submitHomeworkAttempt({
-          attempt_id: attemptId,
-          payload,
-          total,
-          correct,
-          duration_ms,
-        });
-        if (res?.ok) {
-          setSaveState('ok', 'Результат сохранён.', false);
-        } else {
-          console.warn('Homework submit error', res?.error);
-          setSaveState('bad', 'Не удалось сохранить результат. Нажмите «Повторить отправку».', true);
-        }
-      } catch (e) {
-        console.warn('Homework submit error', e);
-        setSaveState('bad', 'Не удалось сохранить результат. Нажмите «Повторить отправку».', true);
-      }
-    };
-
-    // Стартуем сохранение (но UI уже показан)
-    SAVE_TASK().catch(() => {});
-  } catch (e) {
-    console.error('finishSession error', e);
-    try {
-      const msg = $('#hwRuntimeMsg') || $('#hwGateMsg');
-      if (msg) msg.textContent = 'Ошибка при завершении. Проверьте ответы и попробуйте ещё раз.';
-    } catch {}
-  } finally {
-    // Если не успели показать итоговый экран — разрешаем повторную попытку.
-    if (!uiShown) {
-      FINISHING = false;
-      if (finishBtn) finishBtn.disabled = false;
     }
   }
 }
