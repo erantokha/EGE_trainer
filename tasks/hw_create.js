@@ -61,7 +61,12 @@ async function loadCatalog() {
   for (const t of topics) TOPIC_BY_ID.set(t.id, t);
 
   for (const sec of sections) {
-    sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
+    // В index.json есть "служебные" подтемы вида "1.0", "2.0" и т.п.
+    // Они дублируют сам раздел и не должны появляться в списках выбора.
+    const secId = String(sec.id);
+    sec.topics = topics
+      .filter(t => t.parent === sec.id && !(String(t?.id || '').split('.').length === 2 && String(t.id).startsWith(secId + '.') && String(t.id).endsWith('.0')))
+      .sort(byId);
   }
   sections.sort(byId);
   SECTIONS = sections;
@@ -714,7 +719,7 @@ function openTaskPicker() {
   loadCatalog()
     .then(() => {
       renderPickerNav();
-      pathEl.textContent = 'Выберите подтему слева';
+      pathEl.textContent = 'Выберите тему слева';
     })
     .catch((e) => {
       console.error(e);
@@ -754,27 +759,20 @@ function renderPickerNav() {
     wrap.className = 'tp-sec-body';
 
     for (const topic of topics) {
-      const dTop = document.createElement('details');
-      dTop.className = 'tp-topic';
-      dTop.dataset.topicId = topic.id;
+      const b = document.createElement('button');
+      b.type = 'button';
+      // переиспользуем стили кнопок подтем
+      b.className = 'tp-type-btn tp-topic-btn';
+      b.dataset.topicId = topic.id;
+      b.textContent = `${topic.id} ${topic.title || ''}`.trim();
 
-      const tSum = document.createElement('summary');
-      tSum.textContent = `${topic.id} ${topic.title || ''}`.trim();
-      dTop.appendChild(tSum);
-
-      const typesHost = document.createElement('div');
-      typesHost.className = 'tp-types';
-      typesHost.dataset.topicId = topic.id;
-      typesHost.innerHTML = '<div class="muted">Откройте, чтобы загрузить подтемы…</div>';
-      dTop.appendChild(typesHost);
-
-      dTop.addEventListener('toggle', async () => {
-        if (!dTop.open) return;
-        if (typesHost.dataset.loaded === '1') return;
-        await loadPickerTypesForTopic(topic.id, typesHost);
+      b.addEventListener('click', async () => {
+        document.querySelectorAll('.tp-topic-btn.active').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        await selectPickerTopic(topic.id);
       });
 
-      wrap.appendChild(dTop);
+      wrap.appendChild(b);
     }
 
     dSec.appendChild(wrap);
@@ -785,93 +783,66 @@ function renderPickerNav() {
   nav.appendChild(frag);
 }
 
-async function loadPickerTypesForTopic(topicId, hostEl) {
-  if (!hostEl) return;
-  hostEl.innerHTML = '<div class="muted">Загрузка…</div>';
+async function selectPickerTopic(topicId) {
+  const listEl = $('#tpList');
+  const pathEl = $('#tpPath');
+  const hint = $('#tpHint');
+
+  // сброс
+  TASK_PICKER_STATE.active = null;
+  TASK_PICKER_STATE.groups = new Map();
+  TASK_PICKER_STATE.counts = new Map();
+
+  if (listEl) listEl.innerHTML = '<div class="muted">Загрузка…</div>';
+  if (hint) hint.textContent = '';
 
   const topic = TOPIC_BY_ID.get(topicId);
   if (!topic) {
-    hostEl.innerHTML = '<div class="muted">Тема не найдена в index.json</div>';
+    if (pathEl) pathEl.textContent = 'Тема не найдена';
+    if (listEl) listEl.innerHTML = '<div class="muted">Тема не найдена в index.json</div>';
+    updatePickerSelectedUI();
     return;
   }
 
+  if (pathEl) pathEl.textContent = `${topic.id} ${topic.title || ''}`.trim();
+
   const man = await ensureManifest(topic);
   if (!man || !Array.isArray(man.types)) {
-    hostEl.innerHTML = '<div class="muted">Не удалось загрузить манифест темы</div>';
+    if (listEl) listEl.innerHTML = '<div class="muted">Не удалось загрузить манифест темы</div>';
+    updatePickerSelectedUI();
     return;
   }
 
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
   if (!types.length) {
-    hostEl.innerHTML = '<div class="muted">В этой теме нет задач</div>';
-    hostEl.dataset.loaded = '1';
+    if (listEl) listEl.innerHTML = '<div class="muted">В этой теме нет задач</div>';
+    updatePickerSelectedUI();
     return;
   }
 
-  const list = document.createElement('div');
-  list.className = 'tp-types-list';
-
-  for (const typ of types) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'tp-type-btn';
-    b.dataset.topicId = topicId;
-    b.dataset.typeId = typ.id;
-    b.textContent = `${typ.id} ${typ.title || ''}`.trim();
-
-    b.addEventListener('click', async () => {
-      // активная подсветка
-      document.querySelectorAll('.tp-type-btn.active').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-
-      await selectPickerType(topicId, man, typ);
-    });
-
-    list.appendChild(b);
-  }
-
-  hostEl.innerHTML = '';
-  hostEl.appendChild(list);
-  hostEl.dataset.loaded = '1';
-}
-
-async function selectPickerType(topicId, manifest, typeObj) {
-  TASK_PICKER_STATE.active = { topicId, manifest, typeId: typeObj.id, type: typeObj };
-  TASK_PICKER_STATE.groups = new Map();
-  TASK_PICKER_STATE.counts = new Map();
-
-  const pathEl = $('#tpPath');
-  const listEl = $('#tpList');
-  const hint = $('#tpHint');
-  if (pathEl) pathEl.textContent = `${topicId} → ${typeObj.id} ${typeObj.title || ''}`.trim();
-  if (hint) hint.textContent = '';
-  if (listEl) listEl.innerHTML = '<div class="muted">Собираем уникальные прототипы…</div>';
-
-  // группировка по baseId
-  const protos = (typeObj.prototypes || []).slice();
-  const groups = new Map(); // baseId -> protos
-  for (const p of protos) {
-    if (!p || !p.id) continue;
-    const baseId = baseIdFromProtoId(p.id);
-    if (!groups.has(baseId)) groups.set(baseId, []);
-    groups.get(baseId).push(p);
-  }
-
+  // ВАЖНО:
+  // В вашем контенте "уникальные прототипы" = "types" внутри манифеста темы.
+  // Внутри каждого type лежат аналоги (prototypes) — обычно 20–21 шт.
   const out = [];
-  const sortedBaseIds = [...groups.keys()].sort(compareId);
-  for (const baseId of sortedBaseIds) {
-    const arr = groups.get(baseId) || [];
-    arr.sort((a, b) => compareId(a.id, b.id));
+  const sortedTypes = types.slice().sort((a, b) => compareId(a.id, b.id));
+
+  for (const typ of sortedTypes) {
+    const protos = (typ.prototypes || []).slice().filter(p => p && p.id);
+    protos.sort((a, b) => compareId(a.id, b.id));
+    if (!protos.length) continue;
+
     out.push({
-      baseId,
-      cap: arr.length,
-      protos: arr,
-      sampleProto: arr[0],
+      groupId: typ.id,
+      type: typ,
+      cap: protos.length,
+      protos,
+      sampleProto: protos[0],
     });
   }
 
-  TASK_PICKER_STATE.groups = new Map(out.map(x => [x.baseId, x]));
-  TASK_PICKER_STATE.counts = new Map(out.map(x => [x.baseId, 0]));
+  TASK_PICKER_STATE.active = { topicId, manifest: man };
+  TASK_PICKER_STATE.groups = new Map(out.map(x => [x.groupId, x]));
+  TASK_PICKER_STATE.counts = new Map(out.map(x => [x.groupId, 0]));
 
   renderPickerList();
   await typesetMathIfNeeded(listEl);
@@ -893,7 +864,7 @@ function renderPickerList() {
 
   const items = [...TASK_PICKER_STATE.groups.values()];
   if (!items.length) {
-    listEl.innerHTML = '<div class="muted">В этой подтеме нет задач.</div>';
+    listEl.innerHTML = '<div class="muted">В этой теме нет прототипов.</div>';
     cntEl.textContent = 'Выбрано: 0';
     addBtn.disabled = true;
     return;
@@ -904,18 +875,18 @@ function renderPickerList() {
   for (const it of items) {
     const row = document.createElement('div');
     row.className = 'tp-item';
-    row.dataset.baseId = it.baseId;
+    row.dataset.groupId = it.groupId;
 
     const left = document.createElement('div');
     left.className = 'tp-item-left';
 
     const meta = document.createElement('div');
     meta.className = 'tp-item-meta';
-    meta.textContent = `${it.baseId} (вариантов: ${it.cap})`;
+    meta.textContent = `${it.type.id} ${it.type.title || ''} (вариантов: ${it.cap})`.trim();
 
     const stem = document.createElement('div');
     stem.className = 'tp-item-stem';
-    stem.innerHTML = buildStemPreview(active.manifest, active.type, it.sampleProto);
+    stem.innerHTML = buildStemPreview(active.manifest, it.type, it.sampleProto);
 
     left.appendChild(meta);
     left.appendChild(stem);
@@ -941,21 +912,21 @@ function renderPickerList() {
     cap.textContent = `из ${it.cap}`;
 
     const setBtnState = () => {
-      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
+      const c = TASK_PICKER_STATE.counts.get(it.groupId) || 0;
       val.textContent = String(c);
       minus.disabled = c <= 0;
       plus.disabled = c >= it.cap;
     };
 
     minus.addEventListener('click', () => {
-      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
-      TASK_PICKER_STATE.counts.set(it.baseId, Math.max(0, c - 1));
+      const c = TASK_PICKER_STATE.counts.get(it.groupId) || 0;
+      TASK_PICKER_STATE.counts.set(it.groupId, Math.max(0, c - 1));
       setBtnState();
       updatePickerSelectedUI();
     });
     plus.addEventListener('click', () => {
-      const c = TASK_PICKER_STATE.counts.get(it.baseId) || 0;
-      TASK_PICKER_STATE.counts.set(it.baseId, Math.min(it.cap, c + 1));
+      const c = TASK_PICKER_STATE.counts.get(it.groupId) || 0;
+      TASK_PICKER_STATE.counts.set(it.groupId, Math.min(it.cap, c + 1));
       setBtnState();
       updatePickerSelectedUI();
     });
@@ -995,19 +966,19 @@ function addSelectedFromPicker() {
   const hint = $('#tpHint');
   if (!active) return;
 
-  const wantByBase = new Map();
-  for (const [baseId, k] of TASK_PICKER_STATE.counts.entries()) {
+  const wantByGroup = new Map();
+  for (const [groupId, k] of TASK_PICKER_STATE.counts.entries()) {
     const n = Number(k) || 0;
-    if (n > 0) wantByBase.set(baseId, n);
+    if (n > 0) wantByGroup.set(groupId, n);
   }
-  if (!wantByBase.size) return;
+  if (!wantByGroup.size) return;
 
   const existing = new Set(readFixedRows().map(r => refKey(r)));
   const toAdd = [];
   let short = 0;
 
-  for (const [baseId, k] of wantByBase.entries()) {
-    const g = TASK_PICKER_STATE.groups.get(baseId);
+  for (const [groupId, k] of wantByGroup.entries()) {
+    const g = TASK_PICKER_STATE.groups.get(groupId);
     if (!g) continue;
 
     let got = 0;
@@ -1033,12 +1004,12 @@ function addSelectedFromPicker() {
 
   if (hint) {
     hint.textContent = short > 0
-      ? `Добавлено: ${toAdd.length}. Не хватило ещё ${short} (дубликаты или в базе меньше вариантов).`
+      ? `Добавлено: ${toAdd.length}. Не хватило ещё ${short} (дубликаты или в теме меньше вариантов).`
       : `Добавлено: ${toAdd.length}.`;
   }
 
-  // на всякий — обнулим счётчики, чтобы повторно не добавить то же самое
-  for (const [baseId] of wantByBase.entries()) TASK_PICKER_STATE.counts.set(baseId, 0);
+  // обнулим счётчики выбранных прототипов
+  for (const [groupId] of wantByGroup.entries()) TASK_PICKER_STATE.counts.set(groupId, 0);
   renderPickerList();
 }
 
