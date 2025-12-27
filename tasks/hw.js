@@ -31,6 +31,10 @@ let SESSION = null;
 let AUTH_SESSION = null;
 let AUTH_USER = null;
 let NAME_TOUCHED = false;
+let AUTO_START_DONE = false;
+let RUN_STARTED = false;
+let STARTING = false;
+let AUTO_START_TIMER = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
@@ -45,6 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
   $('#studentName')?.addEventListener('input', () => {
     NAME_TOUCHED = true;
+    if (AUTO_START_TIMER) {
+      clearTimeout(AUTO_START_TIMER);
+      AUTO_START_TIMER = null;
+    }
     updateGateUI();
   });
 
@@ -74,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
     $('#hwTitle').textContent = t;
     if ($('#hwSubtitle')) {
-      $('#hwSubtitle').textContent = HOMEWORK.description ? String(HOMEWORK.description) : 'Введите имя и нажмите «Начать».';
+      $('#hwSubtitle').textContent = HOMEWORK.description ? String(HOMEWORK.description) : 'Если вы вошли, ДЗ откроется автоматически. Если нет — войдите через Google.';
     }
 
     // Каталог нужен для сборки задач
@@ -82,7 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
     CATALOG_READY = true;
 
     updateGateUI();
-  })().catch((e) => {
+    maybeAutoStart('load');
+})().catch((e) => {
     console.error(e);
     if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
     if (startBtn) startBtn.disabled = true;
@@ -92,109 +101,121 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function onStart() {
-  const token = getToken();
-  const nameInput = $('#studentName');
-  const msgEl = $('#hwGateMsg');
-  const startBtn = $('#startHomework');
-
-  const studentName = String(nameInput?.value || '').trim();
-  if (!studentName) {
-    if (msgEl) msgEl.textContent = 'Введите имя.';
-    return;
-  }
-  const studentKey = normalizeStudentKey(studentName);
-
-  if (!AUTH_SESSION) {
-    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
-    if (startBtn) startBtn.disabled = false;
-    return;
-  }
-
-  if (!HOMEWORK) {
-    if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
-    return;
-  }
-
-  // Проверка "1 попытка".
-// Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
-// Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
-  if (msgEl) msgEl.textContent = 'Проверяем доступ...';
-  if (startBtn) startBtn.disabled = true;
-
-  let hwAttemptId = null;
+  if (STARTING || RUN_STARTED) return;
+  STARTING = true;
   try {
-    const ares = await startHomeworkAttempt({ token, student_name: studentName });
-    if (ares.ok) {
-      hwAttemptId = ares.attempt_id || null;
-      if (ares.already_exists) {
-        if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
-        if (startBtn) startBtn.disabled = false;
-        return;
-      }
-    } else {
-      console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
+    const token = getToken();
+    const nameInput = $('#studentName');
+    const msgEl = $('#hwGateMsg');
+    const startBtn = $('#startHomework');
+
+    const studentName = String(nameInput?.value || '').trim();
+    if (!studentName) {
+      if (msgEl) msgEl.textContent = 'Введите имя.';
+      return;
     }
-  } catch (e) {
-    console.warn('startHomeworkAttempt error. Продолжаем без ограничения попыток.', e);
-  }
+    const studentKey = normalizeStudentKey(studentName);
 
-  if (msgEl) msgEl.textContent = 'Собираем задачи...';
-
-  try {
-    // Сбор задач: fixed + generated
-    const spec = HOMEWORK.spec_json || {};
-    const settings = HOMEWORK.settings_json || {};
-    const fixed = Array.isArray(spec.fixed) ? spec.fixed : [];
-    const generated = spec.generated || null;
-
-    const questions = [];
-
-    // Если на стороне преподавателя задания уже "заморожены",
-    // используем зафиксированный список и НЕ пересобираем генерацией.
-    const frozenRefs = parseFrozenQuestions(HOMEWORK.frozen_questions);
-    if (frozenRefs.length) {
-      const frozenQs = await buildFixedQuestions(frozenRefs);
-      questions.push(...frozenQs);
-    } else {
-
-      // A) фиксированные задачи (в порядке задания)
-      const fixedQs = await buildFixedQuestions(fixed);
-      questions.push(...fixedQs);
-
-      // B) добивка генерацией (если задано)
-      if (generated) {
-        const genQs = await buildGeneratedQuestions(generated);
-        questions.push(...genQs);
-      }
-
-      // перемешивание итогового списка
-      const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
-      if (shuffleFlag) shuffle(questions);
-    }
-
-    if (!questions.length) {
-      if (msgEl) msgEl.textContent = 'Не удалось собрать задачи. Проверьте состав домашнего задания.';
+    if (!AUTH_SESSION) {
+      if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
+      if (startBtn) startBtn.disabled = true;
       return;
     }
 
-    // Скрываем "гейт", показываем тренажёр
-    $('#hwGate')?.classList.add('hidden');
-    mountRunnerUI(); // создаёт #summary тоже
+    if (!HOMEWORK) {
+      if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
+      return;
+    }
 
-    // Запуск сессии
-    await startHomeworkSession({
-      questions,
-      studentName,
-      studentKey,
-      token,
-      homework: HOMEWORK,
-      homeworkAttemptId: hwAttemptId,
-    });
-  } catch (e) {
-    console.error(e);
-    if (msgEl) msgEl.textContent = 'Ошибка сборки задач. Проверьте настройки домашнего задания.';
+    // Проверка "1 попытка".
+  // Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+  // Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
+    if (msgEl) msgEl.textContent = 'Проверяем доступ...';
+    if (startBtn) startBtn.disabled = true;
+
+    let hwAttemptId = null;
+    try {
+      const ares = await startHomeworkAttempt({ token, student_name: studentName });
+      if (ares.ok) {
+        hwAttemptId = ares.attempt_id || null;
+        if (ares.already_exists) {
+          if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
+          if (startBtn) startBtn.disabled = false;
+          return;
+        }
+      } else {
+        console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
+      }
+    } catch (e) {
+      console.warn('startHomeworkAttempt error. Продолжаем без ограничения попыток.', e);
+    }
+
+    if (msgEl) msgEl.textContent = 'Собираем задачи...';
+
+    try {
+      // Сбор задач: fixed + generated
+      const spec = HOMEWORK.spec_json || {};
+      const settings = HOMEWORK.settings_json || {};
+      const fixed = Array.isArray(spec.fixed) ? spec.fixed : [];
+      const generated = spec.generated || null;
+
+      const questions = [];
+
+      // Если на стороне преподавателя задания уже "заморожены",
+      // используем зафиксированный список и НЕ пересобираем генерацией.
+      const frozenRefs = parseFrozenQuestions(HOMEWORK.frozen_questions);
+      if (frozenRefs.length) {
+        const frozenQs = await buildFixedQuestions(frozenRefs);
+        questions.push(...frozenQs);
+      } else {
+
+        // A) фиксированные задачи (в порядке задания)
+        const fixedQs = await buildFixedQuestions(fixed);
+        questions.push(...fixedQs);
+
+        // B) добивка генерацией (если задано)
+        if (generated) {
+          const genQs = await buildGeneratedQuestions(generated);
+          questions.push(...genQs);
+        }
+
+        // перемешивание итогового списка
+        const shuffleFlag = !!spec.shuffle || !!settings.shuffle;
+        if (shuffleFlag) shuffle(questions);
+      }
+
+      if (!questions.length) {
+        if (msgEl) msgEl.textContent = 'Не удалось собрать задачи. Проверьте состав домашнего задания.';
+        return;
+      }
+
+      // Скрываем "гейт", показываем тренажёр
+
+      RUN_STARTED = true;
+      if (AUTO_START_TIMER) {
+        clearTimeout(AUTO_START_TIMER);
+        AUTO_START_TIMER = null;
+      }
+      $('#hwGate')?.classList.add('hidden');
+      mountRunnerUI(); // создаёт #summary тоже
+
+      // Запуск сессии
+      await startHomeworkSession({
+        questions,
+        studentName,
+        studentKey,
+        token,
+        homework: HOMEWORK,
+        homeworkAttemptId: hwAttemptId,
+      });
+    } catch (e) {
+      console.error(e);
+      if (msgEl) msgEl.textContent = 'Ошибка сборки задач. Проверьте настройки домашнего задания.';
+    } finally {
+      if (startBtn) startBtn.disabled = false;
+    }
   } finally {
-    if (startBtn) startBtn.disabled = false;
+    STARTING = false;
   }
 }
 
@@ -299,6 +320,8 @@ async function refreshAuthUI() {
   const logoutBtn = $('#authLogout');
   const nameInput = $('#studentName');
 
+
+  if (nameInput) nameInput.disabled = !AUTH_SESSION;
   if (!AUTH_USER) {
     if (statusEl) statusEl.textContent = 'Не выполнен вход. Нажмите «Войти через Google».';
     if (loginBtn) loginBtn.classList.remove('hidden');
@@ -317,6 +340,7 @@ async function refreshAuthUI() {
   }
 
   updateGateUI();
+  maybeAutoStart('auth');
 }
 
 function updateGateUI() {
@@ -355,6 +379,47 @@ function updateGateUI() {
   if (msgEl) msgEl.textContent = 'Нажмите «Начать».';
   if (startBtn) startBtn.disabled = false;
 }
+
+function maybeAutoStart(reason = '') {
+  if (AUTO_START_DONE || RUN_STARTED || STARTING) return;
+
+  const token = getToken();
+  if (!token) return;
+
+  // Ждём, пока загрузится ДЗ и каталог (нужны для сборки вопросов)
+  if (!HOMEWORK_READY || !CATALOG_READY) return;
+
+  // Требуем авторизацию (результат привязан к аккаунту)
+  if (!AUTH_SESSION) return;
+
+  // Автостарт только если пользователь не начал менять имя вручную
+  if (NAME_TOUCHED) return;
+
+  const nameInput = $('#studentName');
+  const studentName = String(nameInput?.value || '').trim();
+  if (!studentName) return;
+
+  const msgEl = $('#hwGateMsg');
+  const startBtn = $('#startHomework');
+  if (msgEl) msgEl.textContent = 'Открываем домашнее задание...';
+  if (startBtn) startBtn.disabled = true;
+
+  if (AUTO_START_TIMER) return;
+  AUTO_START_TIMER = setTimeout(() => {
+    AUTO_START_TIMER = null;
+
+    if (AUTO_START_DONE || RUN_STARTED || STARTING) return;
+    if (!AUTH_SESSION || !HOMEWORK_READY || !CATALOG_READY) return;
+    if (NAME_TOUCHED) return;
+
+    const nm = String($('#studentName')?.value || '').trim();
+    if (!nm) return;
+
+    AUTO_START_DONE = true;
+    onStart();
+  }, 150);
+}
+
 // ---------- Supabase API (через app/providers/homework.js) ----------
 
 // ---------- Каталог (index.json) ----------
