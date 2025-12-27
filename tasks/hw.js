@@ -1118,69 +1118,105 @@ function saveTimeForCurrent() {
 }
 
 // ---------- завершение ----------
-async function finishSession() {
-  if (FINISHING) return;
-  FINISHING = true;
+function setSaveState(kind, text, canRetry) {
+  const box = $('#saveState');
+  const actions = $('#saveActions');
+  const retry = $('#retrySave');
 
-  const finishBtn = $('#finishHomework');
-  if (finishBtn) finishBtn.disabled = true;
-
-  // Проверяем ответы
-  for (const q of SESSION.questions) {
-    const input = q._inputEl ? q._inputEl.value : '';
-    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, input);
-    q.correct = correct;
-    q.chosen_text = chosen_text;
-    q.normalized_text = normalized_text;
-    q.correct_text = correct_text;
+  if (box) {
+    box.classList.remove('hidden');
+    box.textContent = String(text || '');
+    box.dataset.kind = String(kind || '');
   }
 
-  const total = SESSION.questions.length;
-  const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
+  const showRetry = !!canRetry;
+  if (actions) actions.classList.toggle('hidden', !showRetry);
+  if (retry) retry.disabled = !showRetry;
+}
 
-  // UI: сразу показываем итог и карточки (не ждём сети)
-  $('#runner')?.classList.add('hidden');
-  $('#summary')?.classList.remove('hidden');
+function renderReviewCards() {
+  const host = $('#reviewList');
+  if (!host) return;
 
-  $('#stats').innerHTML =
-    `<div>Всего: ${total}</div>` +
-    `<div>Верно: ${correct}</div>` +
-    `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>`;
+  host.innerHTML = '';
+  (SESSION?.questions || []).forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
 
-  renderReviewCards();
+    const head = document.createElement('div');
+    head.className = 'hw-review-head';
 
-  $('#exportCsv').onclick = (e) => {
-    e.preventDefault();
-    const csv = toCsv(SESSION.questions);
-    download('homework_session.csv', csv);
-  };
+    const left = document.createElement('div');
+    left.style.display = 'flex';
+    left.style.alignItems = 'center';
+    left.style.gap = '10px';
 
-  // Готовим payload для сохранения
-  const payloadQuestions = SESSION.questions.map(q => ({
-    topic_id: q.topic_id,
-    question_id: q.question_id,
-    difficulty: q.difficulty,
-    correct: !!q.correct,
-    time_ms: q.time_ms,
-    chosen_text: q.chosen_text,
-    normalized_text: q.normalized_text,
-    correct_text: q.correct_text,
-  }));
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    left.appendChild(num);
 
-  const payload = {
-    homework_id: SESSION.meta?.homeworkId || null,
-    title: HOMEWORK?.title || null,
-    student_name: SESSION.meta?.studentName || null,
-    questions: payloadQuestions,
-  };
+    const badge = document.createElement('div');
+    badge.className = 'hw-badge ' + (q.correct ? 'ok' : 'bad');
+    badge.textContent = q.correct ? 'Верно' : 'Неверно';
+    left.appendChild(badge);
 
-  const saveParams = {
-    attemptId: SESSION.meta?.homeworkAttemptId || null,
-    token: getToken(),
-    studentName: SESSION.meta?.studentName || null,
-    total,
-    correct,
-    duration_ms: SESSION.questions.reduce((s, q) => s + (q.time_async function finishSession() {
+    head.appendChild(left);
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    stem.innerHTML = q.stem || '';
+    card.appendChild(stem);
+
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const answers = document.createElement('div');
+    answers.className = 'hw-review-answers';
+
+    const a1 = document.createElement('div');
+    a1.appendChild(document.createTextNode('Ваш ответ: '));
+    const s1 = document.createElement('span');
+    s1.className = 'muted';
+    s1.textContent = (q.chosen_text != null && String(q.chosen_text).trim() !== '') ? String(q.chosen_text) : '—';
+    a1.appendChild(s1);
+    answers.appendChild(a1);
+
+    const a2 = document.createElement('div');
+    a2.appendChild(document.createTextNode('Правильный: '));
+    const s2 = document.createElement('span');
+    s2.className = 'muted';
+    s2.textContent = (q.correct_text != null && String(q.correct_text).trim() !== '') ? String(q.correct_text) : '—';
+    a2.appendChild(s2);
+    answers.appendChild(a2);
+
+    card.appendChild(answers);
+    host.appendChild(card);
+  });
+
+  // MathJax: типографим итоговый список
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([host]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
+    }
+  }
+}
+
+async function finishSession() {
   if (FINISHING) return;
 
   const finishBtn = $('#finishHomework');
@@ -1198,7 +1234,7 @@ async function finishSession() {
         ? q._inputEl.value
         : (q.chosen_text ?? '');
       const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
-      q.correct = correct;
+      q.correct = !!correct;
       q.chosen_text = chosen_text;
       q.normalized_text = normalized_text;
       q.correct_text = correct_text;
@@ -1211,25 +1247,25 @@ async function finishSession() {
     $('#runner')?.classList.add('hidden');
     $('#summary')?.classList.remove('hidden');
 
-    const statsEl = $('#stats');
-    if (statsEl) {
-      statsEl.innerHTML =
+    const stats = $('#stats');
+    if (stats) {
+      const pct = Math.round((100 * correct) / Math.max(1, total));
+      stats.innerHTML =
         `<div>Всего: ${total}</div>` +
         `<div>Верно: ${correct}</div>` +
-        `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>`;
+        `<div>Точность: ${pct}%</div>`;
     }
 
-    try {
-      renderReviewCards();
-    } catch (e) {
-      console.error('renderReviewCards error', e);
-    }
+    try { renderReviewCards(); } catch (e) { console.error('renderReviewCards error', e); }
 
-    $('#exportCsv').onclick = (e) => {
-      e.preventDefault();
-      const csv = toCsv(SESSION.questions);
-      download('homework_session.csv', csv);
-    };
+    const exportLink = $('#exportCsv');
+    if (exportLink) {
+      exportLink.onclick = (e) => {
+        e.preventDefault();
+        const csv = toCsv(SESSION.questions);
+        download('homework_session.csv', csv);
+      };
+    }
 
     // Готовим payload для сохранения
     const payloadQuestions = SESSION.questions.map(q => ({
@@ -1237,7 +1273,7 @@ async function finishSession() {
       question_id: q.question_id,
       difficulty: q.difficulty,
       correct: !!q.correct,
-      time_ms: q.time_ms,
+      time_ms: Number(q.time_ms || 0),
       chosen_text: q.chosen_text,
       normalized_text: q.normalized_text,
       correct_text: q.correct_text,
@@ -1250,60 +1286,32 @@ async function finishSession() {
       questions: payloadQuestions,
     };
 
-    const saveParams = {
-      attemptId: SESSION.meta?.homeworkAttemptId || null,
-      token: getToken(),
-      studentName: SESSION.meta?.studentName || null,
-      total,
-      correct,
-      duration_ms: Math.max(0, Date.now() - (SESSION.started_at || Date.now())),
-      payload,
-    };
+    const attemptId = SESSION.meta?.homeworkAttemptId || null;
+    const duration_ms = Number(Date.now() - (SESSION.started_at || Date.now()));
 
-    // Создаём/обновляем функцию повторной отправки
+    if (!attemptId) {
+      setSaveState('bad', 'Не удалось сохранить результат: отсутствует attempt_id (проверьте RPC start_homework_attempt).', false);
+      return;
+    }
+
+    setSaveState('saving', 'Сохраняем результат...', false);
+
     SAVE_TASK = async () => {
-      if (!saveParams.token || !saveParams.studentName) {
-        setSaveState('bad', 'Не удалось сохранить: нет token или имени ученика.', true);
-        return;
-      }
-
-      setSaveState('pending', 'Сохраняем результат...', false);
-
+      setSaveState('saving', 'Сохраняем результат...', false);
       try {
-        // 1) гарантируем attempt_id (если его не было/не сохранился)
-        let attemptId = saveParams.attemptId;
-        if (!attemptId) {
-          const ares = await withTimeout(
-            startHomeworkAttempt({ token: saveParams.token, student_name: saveParams.studentName }),
-            12000,
-            'START_TIMEOUT',
-          );
-          if (ares?.ok && ares?.attempt_id) {
-            attemptId = ares.attempt_id;
-          } else {
-            throw ares?.error || new Error('NO_ATTEMPT_ID');
-          }
+        const res = await submitHomeworkAttempt({
+          attempt_id: attemptId,
+          payload,
+          total,
+          correct,
+          duration_ms,
+        });
+        if (res?.ok) {
+          setSaveState('ok', 'Результат сохранён.', false);
+        } else {
+          console.warn('Homework submit error', res?.error);
+          setSaveState('bad', 'Не удалось сохранить результат. Нажмите «Повторить отправку».', true);
         }
-
-        saveParams.attemptId = attemptId;
-        if (SESSION?.meta) SESSION.meta.homeworkAttemptId = attemptId;
-
-        // 2) отправляем результат
-        const sres = await withTimeout(
-          submitHomeworkAttempt({
-            attempt_id: attemptId,
-            payload: saveParams.payload,
-            total: saveParams.total,
-            correct: saveParams.correct,
-            duration_ms: saveParams.duration_ms,
-          }),
-          12000,
-          'SUBMIT_TIMEOUT',
-        );
-
-        if (!sres?.ok) throw sres?.error || new Error('SUBMIT_FAILED');
-
-        setSaveState('ok', 'Результат сохранён.', false);
       } catch (e) {
         console.warn('Homework submit error', e);
         setSaveState('bad', 'Не удалось сохранить результат. Нажмите «Повторить отправку».', true);
@@ -1314,8 +1322,6 @@ async function finishSession() {
     SAVE_TASK().catch(() => {});
   } catch (e) {
     console.error('finishSession error', e);
-
-    // Если мы ещё на странице выполнения — возвращаем кнопку
     try {
       const msg = $('#hwRuntimeMsg') || $('#hwGateMsg');
       if (msg) msg.textContent = 'Ошибка при завершении. Проверьте ответы и попробуйте ещё раз.';
@@ -1323,24 +1329,6 @@ async function finishSession() {
 
     FINISHING = false;
     if (finishBtn) finishBtn.disabled = false;
-  }
-}"muted">${escHtml(q.chosen_text || '')}</span></div>` +
-      `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
-    card.appendChild(ans);
-
-    host.appendChild(card);
-  });
-
-  if (window.MathJax) {
-    try {
-      if (window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
-      } else if (window.MathJax.typeset) {
-        window.MathJax.typeset([host]);
-      }
-    } catch (e) {
-      console.error('MathJax error', e);
-    }
   }
 }
 

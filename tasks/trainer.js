@@ -704,6 +704,19 @@ function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
   const norm = normalize(chosen_text, spec.normalize || []);
 
+// Пустой ввод всегда считаем неверным (чтобы '' не превращался в 0)
+if (chosen_text === '') {
+  let expected = '';
+  if (spec?.type === 'string' && spec?.format === 'ege_decimal') {
+    expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
+  } else if (spec?.type === 'number') {
+    expected = String(spec.value != null ? spec.value : '');
+  } else {
+    expected = (spec?.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '';
+  }
+  return { correct: false, chosen_text, normalized_text: '', correct_text: expected };
+}
+
   if (spec.type === 'string' && spec.format === 'ege_decimal') {
     const expected = String(
       spec.text != null ? spec.text : spec.value != null ? spec.value : '',
