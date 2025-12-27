@@ -834,6 +834,23 @@ input:focus{
   .fixed-mini-del{ grid-area:del; }
 }
 
+
+/* hw_create: превью‑карточки добавленных задач (номер + условие + картинка) */
+.fixed-prev-card{
+  align-items:flex-start;
+}
+.fixed-prev-card .fixed-mini-num{
+  flex-shrink:0;
+  margin-top:2px;
+}
+.fixed-prev-card .fixed-mini-del{
+  flex-shrink:0;
+  align-self:flex-start;
+}
+.fixed-prev-card .fixed-prev-body{
+  min-width:0;
+}
+
 .icon-btn {
   min-width:36px;
   height:36px;

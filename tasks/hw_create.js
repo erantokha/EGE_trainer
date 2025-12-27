@@ -356,159 +356,205 @@ async function refreshAuthUI() {
 }
 
 
-function ensureTrailingEmptyCard() {
-  const box = $('#fixedCards');
-  if (!box) return;
 
-  const cards = Array.from(box.children || []);
+// ---------- fixed list (добавленные задачи) ----------
+// Теперь "Добавленные задачи" показываются как мини‑карточки (как в аккордеоне выбора):
+// номер → мета (подтип + название + кол-во вариантов) → условие + картинка.
 
-  // если вообще нет карточек — добавим одну пустую
-  if (!cards.length) {
-    box.appendChild(makeCard());
-    return;
-  }
+let FIXED_REFS = [];
+let FIXED_RENDER_SEQ = 0;
 
-  const isEmpty = (card) => {
-    if (!card || typeof card._get !== 'function') return false;
-    const v = card._get();
-    const q = String(v?.question_id || '').trim();
-    const t = String(v?.topic_id || '').trim();
-    return !q && !t;
-  };
-
-  // уберём лишние пустые карточки в конце (оставим только одну)
-  while (cards.length >= 2 && isEmpty(cards[cards.length - 1]) && isEmpty(cards[cards.length - 2])) {
-    cards[cards.length - 1].remove();
-    cards.pop();
-  }
-
-  const last = box.lastElementChild;
-  if (!isEmpty(last)) {
-    box.appendChild(makeCard());
-  }
+function normalizeFixedRef(r) {
+  const qid = String(r?.question_id || '').trim();
+  if (!qid) return null;
+  const tid = String(r?.topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
+  if (!tid) return null;
+  return { topic_id: tid, question_id: qid };
 }
 
-function renumberFixedCards() {
-  const box = $('#fixedCards');
-  if (!box) return;
-
-  const cards = Array.from(box.children || []);
-  let n = 0;
-
-  for (const card of cards) {
-    const numEl = card.querySelector?.('.fixed-mini-num');
-    if (!numEl || typeof card._get !== 'function') continue;
-    const v = card._get();
-    const q = String(v?.question_id || '').trim();
-    const t = String(v?.topic_id || '').trim();
-
-    if (q || t) {
-      n += 1;
-      numEl.textContent = String(n);
-    } else {
-      numEl.textContent = '';
-    }
+function setFixedRefs(refs) {
+  const out = [];
+  const seen = new Set();
+  for (const r of (refs || [])) {
+    const nr = normalizeFixedRef(r);
+    if (!nr) continue;
+    const key = refKey(nr);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(nr);
   }
+  FIXED_REFS = out;
+  renderFixedList();
+  updateFixedCountUI();
 }
 
-function makeCard({ topic_id = '', question_id = '' } = {}) {
-  const card = document.createElement('div');
-  card.className = 'fixed-mini-card';
+function addFixedRefs(refs) {
+  const seen = new Set(FIXED_REFS.map(refKey));
+  let added = 0;
 
-  const num = document.createElement('div');
-  num.className = 'fixed-mini-num';
-  num.textContent = '';
-  card.appendChild(num);
+  for (const r of (refs || [])) {
+    const nr = normalizeFixedRef(r);
+    if (!nr) continue;
+    const key = refKey(nr);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    FIXED_REFS.push(nr);
+    added += 1;
+  }
 
-  const qWrap = document.createElement('div');
-  qWrap.className = 'fixed-mini-field fixed-mini-q';
-  const qLbl = document.createElement('div');
-  qLbl.className = 'fixed-mini-label';
-  qLbl.textContent = 'question_id';
-  const q = document.createElement('input');
-  q.className = 'input';
-  q.type = 'text';
-  q.placeholder = 'например 8.1.1.17';
-  q.value = question_id || '';
-  q.style.width = '100%';
-  qWrap.appendChild(qLbl);
-  qWrap.appendChild(q);
-  card.appendChild(qWrap);
-
-  const tWrap = document.createElement('div');
-  tWrap.className = 'fixed-mini-field fixed-mini-t';
-  const tLbl = document.createElement('div');
-  tLbl.className = 'fixed-mini-label';
-  tLbl.textContent = 'topic_id';
-  const t = document.createElement('input');
-  t.className = 'input';
-  t.type = 'text';
-  t.placeholder = 'например 8.1';
-  t.value = topic_id || '';
-  t.style.width = '100%';
-  tWrap.appendChild(tLbl);
-  tWrap.appendChild(t);
-  card.appendChild(tWrap);
-
-  const del = document.createElement('button');
-  del.className = 'btn fixed-mini-del';
-  del.type = 'button';
-  del.textContent = '×';
-  del.addEventListener('click', () => {
-    card.remove();
-    ensureTrailingEmptyCard();
+  if (added > 0) {
+    renderFixedList();
     updateFixedCountUI();
-  });
-  card.appendChild(del);
+  }
+  return added;
+}
 
-  q.addEventListener('input', () => {
-    const inferred = inferTopicIdFromQuestionId(q.value);
-    if (inferred && (!t.value || t.value === inferTopicIdFromQuestionId(t.value))) {
-      t.value = inferred;
-    }
-    ensureTrailingEmptyCard();
+function removeFixedByKey(key) {
+  const k = String(key || '');
+  if (!k) return;
+  const before = FIXED_REFS.length;
+  FIXED_REFS = FIXED_REFS.filter(r => refKey(r) !== k);
+  if (FIXED_REFS.length !== before) {
+    renderFixedList();
     updateFixedCountUI();
-  });
-
-  t.addEventListener('input', () => {
-    ensureTrailingEmptyCard();
-    updateFixedCountUI();
-  });
-
-  card._get = () => ({
-    question_id: String(q.value || '').trim(),
-    topic_id: String(t.value || '').trim(),
-  });
-
-  return card;
+  }
 }
 
 function readFixedRows() {
-  const rows = [];
-  const cards = Array.from($('#fixedCards')?.children || []);
-  for (const card of cards) {
-    if (!card._get) continue;
-    const { topic_id, question_id } = card._get();
-    if (!question_id && !topic_id) continue;
-    const qid = String(question_id || '').trim();
-    if (!qid) continue;
-    const tid = String(topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
-    if (!tid) continue;
-    rows.push({ topic_id: tid, question_id: qid });
-  }
-  return rows;
+  // источник истины — массив, а не инпуты
+  return FIXED_REFS.slice();
 }
-
 
 function updateFixedCountUI() {
   const btn = $('#toggleAdded');
   const n = readFixedRows().length;
   if (btn) btn.textContent = `Добавленные задачи: ${n}`;
-  renumberFixedCards();
 }
 
+function makeFixedPreviewCard(n, ref) {
+  const key = refKey(ref);
 
+  const row = document.createElement('div');
+  row.className = 'tp-item fixed-prev-card';
+  row.dataset.key = key;
 
+  const num = document.createElement('div');
+  num.className = 'fixed-mini-num';
+  num.textContent = String(n);
+  row.appendChild(num);
+
+  const left = document.createElement('div');
+  left.className = 'tp-item-left';
+
+  const meta = document.createElement('div');
+  meta.className = 'tp-item-meta fixed-prev-meta';
+  meta.textContent = `${ref.question_id}`; // уточним после загрузки манифеста
+  left.appendChild(meta);
+
+  const stem = document.createElement('div');
+  stem.className = 'tp-item-stem fixed-prev-body';
+  stem.innerHTML = '<span class="muted">Загрузка…</span>';
+  left.appendChild(stem);
+
+  row.appendChild(left);
+
+  const del = document.createElement('button');
+  del.className = 'btn fixed-mini-del';
+  del.type = 'button';
+  del.textContent = '×';
+  del.addEventListener('click', () => removeFixedByKey(key));
+  row.appendChild(del);
+
+  return row;
+}
+
+function renderFixedList() {
+  const box = $('#fixedCards');
+  if (!box) return;
+
+  const seq = ++FIXED_RENDER_SEQ;
+
+  box.innerHTML = '';
+  if (!FIXED_REFS.length) {
+    box.innerHTML = '<div class="muted">Пока нет добавленных задач.</div>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < FIXED_REFS.length; i++) {
+    frag.appendChild(makeFixedPreviewCard(i + 1, FIXED_REFS[i]));
+  }
+  box.appendChild(frag);
+
+  // заполним карточки (условия/картинки/мета) асинхронно
+  updateFixedPreviews(seq).catch((e) => console.error(e));
+}
+
+async function updateFixedPreviews(seq) {
+  // если после старта отрисовки список уже обновили — прекращаем
+  if (seq !== FIXED_RENDER_SEQ) return;
+
+  const box = $('#fixedCards');
+  if (!box) return;
+
+  await loadCatalog();
+
+  const cards = Array.from(box.querySelectorAll('.fixed-prev-card'));
+  for (const card of cards) {
+    if (seq !== FIXED_RENDER_SEQ) return;
+
+    const key = String(card.dataset.key || '');
+    const ref = FIXED_REFS.find(r => refKey(r) === key);
+    if (!ref) continue;
+
+    const qid = ref.question_id;
+    const tid = ref.topic_id || inferTopicIdFromQuestionId(qid);
+
+    const metaEl = card.querySelector('.fixed-prev-meta');
+    const bodyEl = card.querySelector('.fixed-prev-body');
+
+    const topic = TOPIC_BY_ID.get(String(tid));
+    if (!topic) {
+      if (metaEl) metaEl.textContent = qid;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(tid))} не найдена в каталоге.</span>`;
+      continue;
+    }
+
+    const man = await ensureManifest(topic);
+    if (!man) {
+      if (metaEl) metaEl.textContent = qid;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось загрузить манифест темы.</span>`;
+      continue;
+    }
+
+    const base = baseIdFromProtoId(qid) || '';
+    let type = (man.types || []).find(t => String(t.id) === String(base));
+    let proto = type?.prototypes?.find(p => String(p?.id) === String(qid)) || null;
+
+    if (!proto) {
+      // fallback: ищем по всем типам
+      for (const t of (man.types || [])) {
+        const p = (t?.prototypes || []).find(pp => String(pp?.id) === String(qid));
+        if (p) { type = t; proto = p; break; }
+      }
+    }
+
+    if (type && proto) {
+      const cap = (type.prototypes || []).length;
+      const meta = `${type.id} ${type.title || ''} (вариантов: ${cap})`.trim();
+      if (metaEl) metaEl.textContent = meta;
+
+      if (bodyEl) bodyEl.innerHTML = buildStemPreview(man, type, proto);
+    } else {
+      if (metaEl) metaEl.textContent = qid;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось найти задачу в манифесте темы.</span>`;
+    }
+  }
+
+  if (seq === FIXED_RENDER_SEQ) {
+    await typesetMathIfNeeded(box);
+  }
+}
 async function importSelectionIntoFixedTable() {
   const raw = sessionStorage.getItem(HW_PREFILL_KEY);
   if (!raw) return;
@@ -568,17 +614,10 @@ async function importSelectionIntoFixedTable() {
     setStatus('Не удалось импортировать задачи из выбора на главной странице.');
     return;
   }
-
-  // заполняем список: задачи + 1 пустая карточка в конце
-  const box = $('#fixedCards');
-  if (!box) return;
-
-  box.innerHTML = '';
-  for (const r of uniq) box.appendChild(makeCard(r));
-  box.appendChild(makeCard());
+  // переносим в список добавленных задач
+  setFixedRefs(uniq);
 
   setStatus('');
-  updateFixedCountUI();
 }
 
 
@@ -1076,8 +1115,7 @@ function addSelectedFromPicker() {
     return;
   }
 
-  addRefsToFixedTable(toAdd);
-  updateFixedCountUI();
+  addFixedRefs(toAdd);
 
   if (hint) {
     hint.textContent = short > 0
@@ -1088,20 +1126,6 @@ function addSelectedFromPicker() {
   // обнулим счётчики выбранных прототипов
   for (const [groupId] of wantByGroup.entries()) TASK_PICKER_STATE.counts.set(groupId, 0);
   renderPickerList();
-}
-
-function addRefsToFixedTable(refs) {
-  const box = $('#fixedCards');
-  if (!box) return;
-
-  ensureTrailingEmptyCard();
-  const last = box.lastElementChild;
-
-  for (const r of refs) {
-    box.insertBefore(makeCard(r), last);
-  }
-
-  ensureTrailingEmptyCard();
 }
 
 function buildStemPreview(manifest, type, proto) {
@@ -1182,10 +1206,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   await refreshAuthUI();
   // обновление статуса при входе/выходе в другой вкладке
   supabase.auth.onAuthStateChange(() => { refreshAuthUI(); });
-
-  // стартовые строки
-  const box = $('#fixedCards');
-  if (box) box.appendChild(makeCard());
+  // список добавленных задач
+  setFixedRefs([]);
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
   await importSelectionIntoFixedTable();
   updateFixedCountUI();
