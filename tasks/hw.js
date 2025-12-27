@@ -938,7 +938,7 @@ function mountRunnerUI() {
 
   host.classList.remove('hidden');
   host.innerHTML = `
-    <div class="panel">
+    <div class="panel hw-panel">
       <div class="run-body">
         <div class="list-meta" id="hwMeta"></div>
 

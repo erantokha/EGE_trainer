@@ -968,3 +968,22 @@ input:focus{
   .modal-body { grid-template-columns:1fr; }
   .tp-nav { border-right:none; border-bottom:1px solid var(--border); max-height:240px; }
 }
+
+/* ------- hw: отступы поля ответа + центрирование кнопки ------- */
+.hw-panel{ padding-bottom:0; }
+.hw-panel .run-body{
+  display:flex;
+  flex-direction:column;
+  padding-bottom:24px; /* отступ снизу равен отступу над кнопкой */
+}
+.hw-panel .hw-answer-row{
+  margin-top:18px; /* увеличенный отступ между условием и полем ответа */
+}
+.hw-panel .hw-answer-row input[type="text"]{
+  width:220px;
+}
+.hw-panel .hw-bottom{
+  display:flex;
+  justify-content:center; /* кнопка по центру */
+  margin-top:24px;        /* отступ от последней карточки до кнопки */
+}
