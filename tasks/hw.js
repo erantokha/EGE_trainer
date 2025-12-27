@@ -34,6 +34,10 @@ let NAME_TOUCHED = false;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
+let FINISHING = false;
+let SAVE_TASK = null; // функция повторной отправки результата
+let SIGNOUT_IN_PROGRESS = false;
+
 document.addEventListener('DOMContentLoaded', () => {
   const token = getToken();
   const startBtn = $('#startHomework');
@@ -126,10 +130,19 @@ async function onStart() {
     const ares = await startHomeworkAttempt({ token, student_name: studentName });
     if (ares.ok) {
       hwAttemptId = ares.attempt_id || null;
-      if (ares.already_exists) {
-        if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
-        if (startBtn) startBtn.disabled = false;
-        return;
+
+      if (ares.already_exists && hwAttemptId) {
+        // Попытка уже есть для этого аккаунта.
+        // Пытаемся понять: она завершена или нет (если есть RLS-политика на SELECT для ученика).
+        const st = await tryGetAttemptStatus(hwAttemptId);
+        if (st.ok && st.data && st.data.finished_at) {
+          if (msgEl) msgEl.textContent = 'Попытка уже завершена. Повторное прохождение запрещено.';
+          if (startBtn) startBtn.disabled = false;
+          FINISHING = false;
+          return;
+        }
+        // если статус не прочитали (RLS) — продолжаем (важно, чтобы пользователь мог завершить незавершённую попытку)
+        if (msgEl) msgEl.textContent = 'Попытка уже была начата на этом аккаунте. Продолжаем...';
       }
     } else {
       console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
@@ -233,6 +246,23 @@ function parseFrozenQuestions(frozen) {
 
 
 
+
+// ---------- Проверка статуса попытки (необязательно, зависит от RLS) ----------
+async function tryGetAttemptStatus(attemptId) {
+  if (!attemptId) return { ok: false, error: new Error('NO_ATTEMPT_ID') };
+  try {
+    const { data, error } = await supabase
+      .from('homework_attempts')
+      .select('id, finished_at')
+      .eq('id', attemptId)
+      .maybeSingle();
+    if (error) return { ok: false, error };
+    return { ok: true, data: data || null };
+  } catch (e) {
+    return { ok: false, error: e };
+  }
+}
+
 // ---------- Авторизация (Google) ----------
 async function initAuthUI() {
   const loginBtn = $('#authLogin');
@@ -249,17 +279,28 @@ async function initAuthUI() {
   });
 
   logoutBtn?.addEventListener('click', async () => {
+    if (SIGNOUT_IN_PROGRESS) return;
+    SIGNOUT_IN_PROGRESS = true;
+
+    // UI: сразу показываем "выходим" и блокируем кнопку
+    const statusEl = $('#authStatus');
+    if (statusEl) statusEl.textContent = 'Выходим...';
+    if (logoutBtn) logoutBtn.disabled = true;
+
     try {
-      await signOut();
+      await safeSignOut(); // локальный выход (быстро) + fallback
     } catch (e) {
       console.warn('signOut error', e);
+    } finally {
+      SIGNOUT_IN_PROGRESS = false;
+      if (logoutBtn) logoutBtn.disabled = false;
     }
+
     AUTH_SESSION = null;
     AUTH_USER = null;
     await refreshAuthUI();
   });
-
-  await refreshAuthUI();
+await refreshAuthUI();
 
   // реагируем на редирект после Google OAuth и любые изменения сессии
   try {
@@ -270,6 +311,23 @@ async function initAuthUI() {
     console.warn('onAuthStateChange not available', e);
   }
 }
+
+
+async function safeSignOut() {
+  // supabase-js v2: scope 'local' быстро сбрасывает сессию в браузере
+  try {
+    await supabase.auth.signOut({ scope: 'local' });
+    return;
+  } catch (e) {
+    // fallback ниже
+  }
+  try {
+    await signOut();
+  } catch (e) {
+    // игнорируем
+  }
+}
+
 
 function inferNameFromUser(user) {
   const md = user?.user_metadata || {};
@@ -723,6 +781,12 @@ function mountRunnerUI() {
     <div class="panel">
       <h2>Сессия завершена</h2>
       <div id="stats" class="stats"></div>
+
+      <div id="saveState" class="hw-save-state hidden"></div>
+      <div id="saveActions" class="hw-save-actions hidden">
+        <button id="retrySave" type="button">Повторить отправку</button>
+      </div>
+
       <div class="actions">
         <button id="restart" type="button">На главную</button>
         <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
@@ -757,10 +821,20 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 
 function wireRunner() {
   $('#finishHomework').onclick = finishSession;
+
+  // Повторная отправка результата (если сохранение не удалось/зависло)
+  const retryBtn = $('#retrySave');
+  if (retryBtn) {
+    retryBtn.onclick = () => {
+      if (typeof SAVE_TASK === 'function') SAVE_TASK();
+    };
+  }
+
   $('#restart').onclick = () => {
     location.href = './index.html';
   };
 }
+
 
 
 
@@ -807,6 +881,11 @@ function renderHomeworkList() {
     input.placeholder = 'Ответ';
     input.autocomplete = 'off';
     input.dataset.idx = String(idx);
+
+    // ссылка на поле (чтобы finishSession мог собрать ответы без querySelector)
+    q._inputEl = input;
+    if (q.chosen_text == null) q.chosen_text = '';
+
 
     input.addEventListener('input', () => {
       const i = Number(input.dataset.idx);
@@ -925,6 +1004,24 @@ function onCheck() {
 // ---------- проверка ответа (копия из trainer.js) ----------
 function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
+
+  if (!spec) {
+    return { correct: false, chosen_text, normalized_text: '', correct_text: '' };
+  }
+
+  // Пустой ввод всегда считаем неверным (чтобы '' не превращался в 0).
+  if (chosen_text === '') {
+    let expected = '';
+    if (spec.type === 'string' && spec.format === 'ege_decimal') {
+      expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
+    } else if (spec.type === 'number') {
+      expected = String(spec.value != null ? spec.value : '');
+    } else {
+      expected = (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '';
+    }
+    return { correct: false, chosen_text, normalized_text: '', correct_text: expected };
+  }
+
   const norm = normalize(chosen_text, spec.normalize || []);
 
   if (spec.type === 'string' && spec.format === 'ege_decimal') {
@@ -959,9 +1056,11 @@ function normalize(s, kinds) {
 }
 
 function parseNumber(s) {
-  const frac = s.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
+  const t = String(s ?? '').trim();
+  if (!t) return NaN;
+  const frac = t.match(/^\s*([+-]?\d+(?:\.\d+)?)\s*\/\s*([+-]?\d+(?:\.\d+)?)\s*$/);
   if (frac) return Number(frac[1]) / Number(frac[2]);
-  return Number(s);
+  return Number(t);
 }
 
 function compareNumber(x, v, tol) {
@@ -1020,105 +1119,35 @@ function saveTimeForCurrent() {
 
 // ---------- завершение ----------
 async function finishSession() {
+  if (FINISHING) return;
+  FINISHING = true;
+
   const finishBtn = $('#finishHomework');
   if (finishBtn) finishBtn.disabled = true;
 
-  const total = SESSION.questions.length;
-
-  // Считываем ответы из полей (на случай, если input event не успел)
-  document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
-    const i = Number(el.dataset.idx);
-    const q = SESSION.questions[i];
-    if (!q) return;
-    q.chosen_text = String(el.value ?? '');
-  });
-
-  // Проверяем все ответы
+  // Проверяем ответы
   for (const q of SESSION.questions) {
-    const raw = q.chosen_text ?? '';
-    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
+    const input = q._inputEl ? q._inputEl.value : '';
+    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, input);
     q.correct = correct;
     q.chosen_text = chosen_text;
     q.normalized_text = normalized_text;
     q.correct_text = correct_text;
-    q.time_ms = q.time_ms || 0;
   }
 
+  const total = SESSION.questions.length;
   const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
-  const duration_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
-  const avg_ms = Math.round(duration_ms / Math.max(1, total));
 
-  const payloadQuestions = SESSION.questions.map(q => ({
-    topic_id: q.topic_id,
-    question_id: q.question_id,
-    difficulty: q.difficulty,
-    correct: !!q.correct,
-    time_ms: q.time_ms || 0,
-    chosen_text: q.chosen_text,
-    normalized_text: q.normalized_text,
-    correct_text: q.correct_text,
-  }));
-
-  // 1) гарантируем наличие attempt_id
-  let attemptId = SESSION.meta?.homeworkAttemptId || null;
-  const token = getToken();
-
-  if (!attemptId && token && SESSION.meta?.studentName) {
-    try {
-      const res = await startHomeworkAttempt({ token, student_name: SESSION.meta.studentName });
-      if (res?.ok && res?.attempt_id) {
-        attemptId = res.attempt_id;
-        SESSION.meta.homeworkAttemptId = attemptId;
-      }
-    } catch (e) {
-      console.warn('startHomeworkAttempt failed at finish', e);
-    }
-  }
-
-  // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
-  let savedOk = false;
-  let savedErr = null;
-
-  if (attemptId) {
-    const payload = {
-      homework_id: SESSION.meta?.homeworkId || null,
-      title: SESSION.meta?.title || null,
-      student_name: SESSION.meta?.studentName || null,
-      questions: payloadQuestions,
-    };
-
-    try {
-      const res = await submitHomeworkAttempt({
-        attempt_id: attemptId,
-        payload,
-        total,
-        correct,
-        duration_ms,
-      });
-      savedOk = !!res?.ok;
-      savedErr = res?.error || null;
-    } catch (e) {
-      savedOk = false;
-      savedErr = e;
-    }
-  } else {
-    savedOk = false;
-    savedErr = new Error('NO_ATTEMPT_ID');
-  }
-
-  // UI: показываем summary + карточки
+  // UI: сразу показываем итог и карточки (не ждём сети)
   $('#runner')?.classList.add('hidden');
   $('#summary')?.classList.remove('hidden');
 
-  const statsEl = $('#stats');
-  if (statsEl) {
-    statsEl.innerHTML =
-      `<div>Всего: ${total}</div>` +
-      `<div>Верно: ${correct}</div>` +
-      `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-      `<div>Время: ${Math.round(duration_ms / 1000)} c</div>` +
-      `<div>Среднее: ${Math.round(avg_ms / 1000)} c</div>`;
-  }
+  $('#stats').innerHTML =
+    `<div>Всего: ${total}</div>` +
+    `<div>Верно: ${correct}</div>` +
+    `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>`;
+
+  renderReviewCards();
 
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();
@@ -1126,144 +1155,176 @@ async function finishSession() {
     download('homework_session.csv', csv);
   };
 
-  renderReviewCards();
+  // Готовим payload для сохранения
+  const payloadQuestions = SESSION.questions.map(q => ({
+    topic_id: q.topic_id,
+    question_id: q.question_id,
+    difficulty: q.difficulty,
+    correct: !!q.correct,
+    time_ms: q.time_ms,
+    chosen_text: q.chosen_text,
+    normalized_text: q.normalized_text,
+    correct_text: q.correct_text,
+  }));
 
-  if (!savedOk) {
-    console.warn('Homework submit error', savedErr);
-    const summaryPanel = $('#summary .panel') || $('#summary');
-    if (summaryPanel) {
-      const warn = document.createElement('div');
-      warn.className = 'hw-warn';
-      warn.textContent =
-        'Внимание: запись результата не выполнена. Проверьте RPC submit_homework_attempt и таблицу homework_attempts.';
-      summaryPanel.appendChild(warn);
+  const payload = {
+    homework_id: SESSION.meta?.homeworkId || null,
+    title: HOMEWORK?.title || null,
+    student_name: SESSION.meta?.studentName || null,
+    questions: payloadQuestions,
+  };
+
+  const saveParams = {
+    attemptId: SESSION.meta?.homeworkAttemptId || null,
+    token: getToken(),
+    studentName: SESSION.meta?.studentName || null,
+    total,
+    correct,
+    duration_ms: SESSION.questions.reduce((s, q) => s + (q.time_async function finishSession() {
+  if (FINISHING) return;
+
+  const finishBtn = $('#finishHomework');
+  FINISHING = true;
+  if (finishBtn) finishBtn.disabled = true;
+
+  try {
+    if (!SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) {
+      throw new Error('NO_SESSION');
     }
-  }
-}
 
+    // Собираем ответы и сразу проверяем
+    for (const q of SESSION.questions) {
+      const raw = (q._inputEl && typeof q._inputEl.value === 'string')
+        ? q._inputEl.value
+        : (q.chosen_text ?? '');
+      const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
+      q.correct = correct;
+      q.chosen_text = chosen_text;
+      q.normalized_text = normalized_text;
+      q.correct_text = correct_text;
+    }
 
+    const total = SESSION.questions.length;
+    const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
 
-// ---------- утилиты ----------
-function withV(url) {
-  if (!CONFIG?.content?.version) return url;
-  const u = new URL(url, location.href);
-  u.searchParams.set('v', CONFIG.content.version);
-  return u.href;
-}
+    // UI: сразу показываем итог и карточки (не ждём сети)
+    $('#runner')?.classList.add('hidden');
+    $('#summary')?.classList.remove('hidden');
 
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-}
+    const statsEl = $('#stats');
+    if (statsEl) {
+      statsEl.innerHTML =
+        `<div>Всего: ${total}</div>` +
+        `<div>Верно: ${correct}</div>` +
+        `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>`;
+    }
 
-function sampleK(arr, k) {
-  const n = arr.length;
-  if (k <= 0) return [];
-  if (k >= n) return [...arr];
-  if (k * 3 < n) {
-    const used = new Set();
-    const out = [];
-    while (out.length < k) {
-      const i = Math.floor(Math.random() * n);
-      if (!used.has(i)) {
-        used.add(i);
-        out.push(arr[i]);
+    try {
+      renderReviewCards();
+    } catch (e) {
+      console.error('renderReviewCards error', e);
+    }
+
+    $('#exportCsv').onclick = (e) => {
+      e.preventDefault();
+      const csv = toCsv(SESSION.questions);
+      download('homework_session.csv', csv);
+    };
+
+    // Готовим payload для сохранения
+    const payloadQuestions = SESSION.questions.map(q => ({
+      topic_id: q.topic_id,
+      question_id: q.question_id,
+      difficulty: q.difficulty,
+      correct: !!q.correct,
+      time_ms: q.time_ms,
+      chosen_text: q.chosen_text,
+      normalized_text: q.normalized_text,
+      correct_text: q.correct_text,
+    }));
+
+    const payload = {
+      homework_id: SESSION.meta?.homeworkId || null,
+      title: HOMEWORK?.title || null,
+      student_name: SESSION.meta?.studentName || null,
+      questions: payloadQuestions,
+    };
+
+    const saveParams = {
+      attemptId: SESSION.meta?.homeworkAttemptId || null,
+      token: getToken(),
+      studentName: SESSION.meta?.studentName || null,
+      total,
+      correct,
+      duration_ms: Math.max(0, Date.now() - (SESSION.started_at || Date.now())),
+      payload,
+    };
+
+    // Создаём/обновляем функцию повторной отправки
+    SAVE_TASK = async () => {
+      if (!saveParams.token || !saveParams.studentName) {
+        setSaveState('bad', 'Не удалось сохранить: нет token или имени ученика.', true);
+        return;
       }
-    }
-    return out;
+
+      setSaveState('pending', 'Сохраняем результат...', false);
+
+      try {
+        // 1) гарантируем attempt_id (если его не было/не сохранился)
+        let attemptId = saveParams.attemptId;
+        if (!attemptId) {
+          const ares = await withTimeout(
+            startHomeworkAttempt({ token: saveParams.token, student_name: saveParams.studentName }),
+            12000,
+            'START_TIMEOUT',
+          );
+          if (ares?.ok && ares?.attempt_id) {
+            attemptId = ares.attempt_id;
+          } else {
+            throw ares?.error || new Error('NO_ATTEMPT_ID');
+          }
+        }
+
+        saveParams.attemptId = attemptId;
+        if (SESSION?.meta) SESSION.meta.homeworkAttemptId = attemptId;
+
+        // 2) отправляем результат
+        const sres = await withTimeout(
+          submitHomeworkAttempt({
+            attempt_id: attemptId,
+            payload: saveParams.payload,
+            total: saveParams.total,
+            correct: saveParams.correct,
+            duration_ms: saveParams.duration_ms,
+          }),
+          12000,
+          'SUBMIT_TIMEOUT',
+        );
+
+        if (!sres?.ok) throw sres?.error || new Error('SUBMIT_FAILED');
+
+        setSaveState('ok', 'Результат сохранён.', false);
+      } catch (e) {
+        console.warn('Homework submit error', e);
+        setSaveState('bad', 'Не удалось сохранить результат. Нажмите «Повторить отправку».', true);
+      }
+    };
+
+    // Стартуем сохранение (но UI уже показан)
+    SAVE_TASK().catch(() => {});
+  } catch (e) {
+    console.error('finishSession error', e);
+
+    // Если мы ещё на странице выполнения — возвращаем кнопку
+    try {
+      const msg = $('#hwRuntimeMsg') || $('#hwGateMsg');
+      if (msg) msg.textContent = 'Ошибка при завершении. Проверьте ответы и попробуйте ещё раз.';
+    } catch {}
+
+    FINISHING = false;
+    if (finishBtn) finishBtn.disabled = false;
   }
-  const a = [...arr];
-  shuffle(a);
-  return a.slice(0, k);
-}
-
-function distributeNonNegative(buckets, total) {
-  const out = new Map(buckets.map(b => [b.id, 0]));
-  let left = total;
-  let i = 0;
-  while (left > 0 && buckets.some(b => out.get(b.id) < b.cap)) {
-    const b = buckets[i % buckets.length];
-    if (out.get(b.id) < b.cap) {
-      out.set(b.id, out.get(b.id) + 1);
-      left--;
-    }
-    i++;
-  }
-  return out;
-}
-
-function compareId(a, b) {
-  const as = String(a).split('.').map(Number);
-  const bs = String(b).split('.').map(Number);
-  const L = Math.max(as.length, bs.length);
-  for (let i = 0; i < L; i++) {
-    const ai = as[i] ?? 0;
-    const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
-
-// преобразование "content/..." в абсолютный путь от /tasks/
-function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
-}
-
-
-function escHtml(s) {
-  return String(s ?? '').replace(/[&<>"]/g, (m) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-  }[m]));
-}
-
-function renderReviewCards() {
-  const host = $('#reviewList');
-  if (!host) return;
-  host.innerHTML = '';
-
-  SESSION.questions.forEach((q, idx) => {
-    const card = document.createElement('div');
-    card.className = 'task-card q-card';
-
-    const head = document.createElement('div');
-    head.className = 'hw-review-head';
-
-    const num = document.createElement('div');
-    num.className = 'task-num';
-    num.textContent = String(idx + 1);
-
-    const badge = document.createElement('div');
-    badge.className = 'hw-badge ' + (q.correct ? 'ok' : 'bad');
-    badge.textContent = q.correct ? 'верно' : 'неверно';
-
-    head.appendChild(num);
-    head.appendChild(badge);
-    card.appendChild(head);
-
-    const stem = document.createElement('div');
-    stem.className = 'task-stem';
-    stem.innerHTML = q.stem;
-    card.appendChild(stem);
-
-    if (q.figure?.img) {
-      const figWrap = document.createElement('div');
-      figWrap.className = 'task-fig';
-      const img = document.createElement('img');
-      img.src = asset(q.figure.img);
-      img.alt = q.figure.alt || '';
-      figWrap.appendChild(img);
-      card.appendChild(figWrap);
-    }
-
-    const ans = document.createElement('div');
-    ans.className = 'hw-review-answers';
-    ans.innerHTML =
-      `<div>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></div>` +
+}"muted">${escHtml(q.chosen_text || '')}</span></div>` +
       `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
     card.appendChild(ans);
 
