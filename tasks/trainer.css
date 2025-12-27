@@ -660,6 +660,10 @@ body[data-theme="light"] .task-card{
   margin-bottom:4px;
 }
 
+/* подсветка номера задачи в итоговом экране ДЗ */
+.task-num.ok{ border-color:#166534; }
+.task-num.bad{ border-color:#b91c1c; }
+
 /* текст условия */
 .ws-stem,
 .task-stem{

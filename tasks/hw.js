@@ -13,7 +13,7 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 import { CONFIG } from '../app/config.js';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
 import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -35,6 +35,9 @@ let AUTO_START_DONE = false;
 let RUN_STARTED = false;
 let STARTING = false;
 let AUTO_START_TIMER = null;
+let EXISTING_ATTEMPT_INFLIGHT = false;
+let EXISTING_ATTEMPT_SHOWN = false;
+let EXISTING_ATTEMPT_ROW = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
@@ -99,6 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     CATALOG_READY = true;
 
     updateGateUI();
+    await maybeShowExistingAttempt('load');
     maybeAutoStart('load');
 })().catch((e) => {
     console.error(e);
@@ -148,8 +152,8 @@ async function onStart() {
       if (ares.ok) {
         hwAttemptId = ares.attempt_id || null;
         if (ares.already_exists) {
-          if (msgEl) msgEl.textContent = 'Попытка уже была выполнена. Повторное прохождение запрещено.';
-          if (startBtn) startBtn.disabled = false;
+          RUN_STARTED = true;
+          await showExistingAttemptSummary({ token, attemptId: hwAttemptId });
           return;
         }
       } else {
@@ -351,6 +355,7 @@ async function refreshAuthUI() {
   }
 
   updateGateUI();
+  await maybeShowExistingAttempt('auth');
   maybeAutoStart('auth');
 }
 
@@ -393,6 +398,7 @@ function updateGateUI() {
 
 function maybeAutoStart(reason = '') {
   if (AUTO_START_DONE || RUN_STARTED || STARTING) return;
+  if (EXISTING_ATTEMPT_INFLIGHT || EXISTING_ATTEMPT_SHOWN) return;
 
   const token = getToken();
   if (!token) return;
@@ -430,6 +436,182 @@ function maybeAutoStart(reason = '') {
     onStart();
   }, 150);
 }
+
+
+// ---------- повторный вход: показываем результаты ----------
+function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
+  const t = Number(total ?? 0);
+  const c = Number(correct ?? 0);
+  const d = Number(duration_ms ?? 0);
+  const a = Number(avg_ms ?? Math.round(d / Math.max(1, t)));
+
+  const statsEl = $('#stats');
+  if (!statsEl) return;
+
+  statsEl.innerHTML =
+    `<div>Всего: ${t}</div>` +
+    `<div>Верно: ${c}</div>` +
+    `<div>Точность: ${Math.round((100 * c) / Math.max(1, t))}%</div>` +
+    `<div>Время: ${Math.round(d / 1000)} c</div>` +
+    `<div>Среднее: ${Math.round(a / 1000)} c</div>`;
+}
+
+function parseAttemptPayload(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+  if (typeof raw === 'object') return raw;
+  return null;
+}
+
+async function showAttemptSummaryFromRow(row) {
+  const payload = parseAttemptPayload(row?.payload ?? row?.p_payload ?? null);
+  const saved = Array.isArray(payload?.questions) ? payload.questions : [];
+  if (!saved.length) {
+    const m = $('#hwGateMsg');
+    if (m) m.textContent = 'Результаты не найдены (попытка была создана, но не завершена).';
+    const b = $('#startHomework');
+    if (b) b.disabled = false;
+    return;
+  }
+
+  // Подтягиваем "условия" из текущего контента, а correctness/time/answers берём из сохранённого payload
+  const refs = saved
+    .map(x => ({ topic_id: x?.topic_id, question_id: x?.question_id }))
+    .filter(x => x.topic_id && x.question_id);
+
+  const built = await buildFixedQuestions(refs);
+
+  const key = (x) => `${String(x?.topic_id || '')}::${String(x?.question_id || '')}`;
+  const savedMap = new Map(saved.map(x => [key(x), x]));
+
+  for (const q of built) {
+    const s = savedMap.get(key(q));
+    if (!s) continue;
+    q.correct = !!s.correct;
+    q.time_ms = Number(s.time_ms ?? 0);
+    q.chosen_text = s.chosen_text ?? '';
+    q.normalized_text = s.normalized_text ?? '';
+    q.correct_text = s.correct_text ?? '';
+  }
+
+  SESSION = {
+    questions: built,
+    started_at: null,
+    meta: {
+      token: getToken(),
+      homeworkId: HOMEWORK?.id ?? payload?.homework_id ?? null,
+      title: HOMEWORK?.title ?? payload?.title ?? null,
+      studentName: payload?.student_name ?? null,
+      homeworkAttemptId: row?.attempt_id ?? row?.id ?? null,
+    },
+  };
+
+  // создаём summary разметку (если её ещё нет)
+  mountRunnerUI();
+
+  // показываем summary
+  $('#hwGate')?.classList.add('hidden');
+  $('#runner')?.classList.add('hidden');
+  $('#summary')?.classList.remove('hidden');
+
+  const total = Number(row?.total ?? built.length);
+  const correct = Number(row?.correct ?? built.reduce((s, q) => s + (q.correct ? 1 : 0), 0));
+  const duration_ms = Number(row?.duration_ms ?? 0);
+  const avg_ms = Math.round(duration_ms / Math.max(1, total));
+
+  renderStats({ total, correct, duration_ms, avg_ms });
+
+  $('#restart').onclick = () => {
+    location.href = './index.html';
+  };
+  $('#exportCsv').onclick = (e) => {
+    e.preventDefault();
+    const csv = toCsv(SESSION.questions);
+    download('homework_session.csv', csv);
+  };
+
+  renderReviewCards();
+}
+
+async function maybeShowExistingAttempt(reason = '') {
+  if (EXISTING_ATTEMPT_SHOWN || EXISTING_ATTEMPT_INFLIGHT) return;
+  if (RUN_STARTED || STARTING) return;
+
+  const token = getToken();
+  if (!token) return;
+  if (!AUTH_SESSION) return;
+
+  // ждём, пока будет готов контент (нужен для построения карточек задач)
+  if (!HOMEWORK_READY || !CATALOG_READY) return;
+
+  EXISTING_ATTEMPT_INFLIGHT = true;
+  try {
+    const res = await getHomeworkAttempt({ token });
+    if (res?.ok && res.row) {
+      const payload = parseAttemptPayload(res.row?.payload ?? res.row?.p_payload ?? null);
+      const saved = Array.isArray(payload?.questions) ? payload.questions : [];
+      if (saved.length) {
+        EXISTING_ATTEMPT_ROW = res.row;
+        RUN_STARTED = true;
+        EXISTING_ATTEMPT_SHOWN = true;
+        await showAttemptSummaryFromRow(res.row);
+      }
+    }
+  } catch (e) {
+    console.warn('maybeShowExistingAttempt error', e);
+  } finally {
+    EXISTING_ATTEMPT_INFLIGHT = false;
+  }
+}
+
+async function showExistingAttemptSummary({ token, attemptId } = {}) {
+  if (EXISTING_ATTEMPT_SHOWN) return;
+
+  const t = String(token || getToken() || '').trim();
+  if (!t) return;
+
+  // UI гейта
+  const msgEl = $('#hwGateMsg');
+  const startBtn = $('#startHomework');
+  if (msgEl) msgEl.textContent = 'Загружаем результаты...';
+  if (startBtn) startBtn.disabled = true;
+
+  if (!AUTH_SESSION) {
+    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы увидеть результаты.';
+    return;
+  }
+
+  if (!HOMEWORK_READY || !CATALOG_READY) {
+    if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
+    return;
+  }
+
+  EXISTING_ATTEMPT_INFLIGHT = true;
+  try {
+    const res = EXISTING_ATTEMPT_ROW
+      ? { ok: true, row: EXISTING_ATTEMPT_ROW }
+      : await getHomeworkAttempt({ token: t, attempt_id: attemptId });
+
+    if (res?.ok && res.row) {
+      EXISTING_ATTEMPT_ROW = res.row;
+      EXISTING_ATTEMPT_SHOWN = true;
+      await showAttemptSummaryFromRow(res.row);
+      return;
+    }
+
+    if (msgEl) msgEl.textContent = 'Не удалось загрузить результаты. Попробуйте обновить страницу.';
+    if (startBtn) startBtn.disabled = false;
+  } catch (e) {
+    console.error(e);
+    if (msgEl) msgEl.textContent = 'Не удалось загрузить результаты. Попробуйте обновить страницу.';
+    if (startBtn) startBtn.disabled = false;
+  } finally {
+    EXISTING_ATTEMPT_INFLIGHT = false;
+  }
+}
+
 
 // ---------- Supabase API (через app/providers/homework.js) ----------
 
@@ -1167,15 +1349,7 @@ async function finishSession() {
   $('#runner')?.classList.add('hidden');
   $('#summary')?.classList.remove('hidden');
 
-  const statsEl = $('#stats');
-  if (statsEl) {
-    statsEl.innerHTML =
-      `<div>Всего: ${total}</div>` +
-      `<div>Верно: ${correct}</div>` +
-      `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-      `<div>Время: ${Math.round(duration_ms / 1000)} c</div>` +
-      `<div>Среднее: ${Math.round(avg_ms / 1000)} c</div>`;
-  }
+  renderStats({ total, correct, duration_ms, avg_ms });
 
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();
@@ -1291,15 +1465,10 @@ function renderReviewCards() {
     head.className = 'hw-review-head';
 
     const num = document.createElement('div');
-    num.className = 'task-num';
+    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
     num.textContent = String(idx + 1);
 
-    const badge = document.createElement('div');
-    badge.className = 'hw-badge ' + (q.correct ? 'ok' : 'bad');
-    badge.textContent = q.correct ? 'верно' : 'неверно';
-
     head.appendChild(num);
-    head.appendChild(badge);
     card.appendChild(head);
 
     const stem = document.createElement('div');
