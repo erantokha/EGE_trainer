@@ -107,10 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (startBtn) startBtn.disabled = true;
   });
 
+  if (startBtn) startBtn.setAttribute('type', 'button');
   startBtn?.addEventListener('click', onStart);
 });
 
-async function onStart() {
+async function onStart(ev) {
+  try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
   const token = getToken();
   const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
@@ -250,8 +252,8 @@ function parseFrozenQuestions(frozen) {
   const out = [];
   for (const it of arr) {
     if (!it) continue;
-    const qid = it.question_id || it.id;
-    const tid = it.topic_id || it.topic_id || it.topic || inferTopicIdFromQuestionId(qid);
+    const qid = it.question_id || it.questionId || it.id;
+    const tid = it.topic_id || it.topicId || it.topic || inferTopicIdFromQuestionId(qid);
     if (!qid || !tid) continue;
     out.push({ topic_id: String(tid), question_id: String(qid) });
   }
@@ -283,7 +285,9 @@ async function initAuthUI() {
   const loginBtn = $('#authLogin');
   const logoutBtn = $('#authLogout');
 
-  loginBtn?.addEventListener('click', async () => {
+  if (loginBtn) loginBtn.setAttribute('type', 'button');
+  loginBtn?.addEventListener('click', async (ev) => {
+    try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
     try {
       await signInWithGoogle(location.href);
     } catch (e) {
@@ -293,7 +297,9 @@ async function initAuthUI() {
     }
   });
 
-  logoutBtn?.addEventListener('click', async () => {
+  if (logoutBtn) logoutBtn.setAttribute('type', 'button');
+  logoutBtn?.addEventListener('click', async (ev) => {
+    try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
     if (SIGNOUT_IN_PROGRESS) return;
     SIGNOUT_IN_PROGRESS = true;
 
@@ -313,7 +319,9 @@ async function initAuthUI() {
 
     AUTH_SESSION = null;
     AUTH_USER = null;
-    await refreshAuthUI();
+    await refreshAuthUI({ skipFetch: true });
+    // на всякий случай повторно проверим сессию чуть позже
+    setTimeout(() => { refreshAuthUI().catch(() => {}); }, 250);
   });
 await refreshAuthUI();
 
@@ -356,12 +364,16 @@ function inferNameFromUser(user) {
   return String(name || '').trim();
 }
 
-async function refreshAuthUI() {
+async function refreshAuthUI(opts = {}) {
+  const skipFetch = !!opts?.skipFetch;
+
   let session = null;
-  try {
-    session = await getSession();
-  } catch (e) {
-    console.warn('getSession error', e);
+  if (!skipFetch) {
+    try {
+      session = await getSession();
+    } catch (e) {
+      console.warn('getSession error', e);
+    }
   }
 
   AUTH_SESSION = session;
@@ -817,9 +829,13 @@ function mountRunnerUI() {
 
 // ---------- Сессия ----------
 async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId }) {
+  const now = Date.now();
   SESSION = {
     questions,
-    started_at: Date.now(),
+    idx: 0,
+    started_at: now,
+    t0: now,
+    total_ms: 0,
     meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
@@ -835,19 +851,30 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 }
 
 function wireRunner() {
-  $('#finishHomework').onclick = finishSession;
+  const finishBtn = $('#finishHomework');
+  if (finishBtn) {
+    finishBtn.setAttribute('type', 'button');
+    finishBtn.addEventListener('click', finishSession);
+  }
 
   // Повторная отправка результата (если сохранение не удалось/зависло)
   const retryBtn = $('#retrySave');
   if (retryBtn) {
-    retryBtn.onclick = () => {
+    retryBtn.setAttribute('type', 'button');
+    retryBtn.addEventListener('click', (ev) => {
+      try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
       if (typeof SAVE_TASK === 'function') SAVE_TASK();
-    };
+    });
   }
 
-  $('#restart').onclick = () => {
-    location.href = './index.html';
-  };
+  const restartBtn = $('#restart');
+  if (restartBtn) {
+    restartBtn.setAttribute('type', 'button');
+    restartBtn.addEventListener('click', (ev) => {
+      try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
+      location.href = './index.html';
+    });
+  }
 }
 
 
@@ -1123,12 +1150,15 @@ function tick() {
   secEl.textContent = String(elapsed % 60).padStart(2, '0');
 }
 function saveTimeForCurrent() {
-  const q = SESSION.questions[SESSION.idx];
+  if (!SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) return;
+  const idx = Number.isFinite(SESSION.idx) ? SESSION.idx : 0;
+  const q = SESSION.questions[idx];
   if (!q) return;
   const now = Date.now();
-  const dt = now - (SESSION.t0 || now);
-  q.time_ms += dt;
-  SESSION.total_ms += dt;
+  const prev = Number(SESSION.t0 || now);
+  const dt = Math.max(0, now - prev);
+  q.time_ms = Number(q.time_ms || 0) + dt;
+  SESSION.total_ms = Number(SESSION.total_ms || 0) + dt;
   SESSION.t0 = now;
 }
 
@@ -1231,12 +1261,14 @@ function renderReviewCards() {
   }
 }
 
-async function finishSession() {
+async function finishSession(ev) {
+  try { ev?.preventDefault?.(); ev?.stopPropagation?.(); } catch {}
   if (FINISHING) return;
 
   const finishBtn = $('#finishHomework');
   FINISHING = true;
   if (finishBtn) finishBtn.disabled = true;
+  let uiShown = false;
 
   try {
     if (!SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) {
@@ -1261,6 +1293,7 @@ async function finishSession() {
     // UI: сразу показываем итог и карточки (не ждём сети)
     $('#runner')?.classList.add('hidden');
     $('#summary')?.classList.remove('hidden');
+    uiShown = true;
 
     const stats = $('#stats');
     if (stats) {
@@ -1341,9 +1374,12 @@ async function finishSession() {
       const msg = $('#hwRuntimeMsg') || $('#hwGateMsg');
       if (msg) msg.textContent = 'Ошибка при завершении. Проверьте ответы и попробуйте ещё раз.';
     } catch {}
-
-    FINISHING = false;
-    if (finishBtn) finishBtn.disabled = false;
+  } finally {
+    // Если не успели показать итоговый экран — разрешаем повторную попытку.
+    if (!uiShown) {
+      FINISHING = false;
+      if (finishBtn) finishBtn.disabled = false;
+    }
   }
 }
 
