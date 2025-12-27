@@ -13,8 +13,8 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 import { CONFIG } from '../app/config.js';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -28,125 +28,33 @@ let TOPIC_BY_ID = new Map();
 
 let SESSION = null;
 
-// Auth (ученик): привязка результата к Google-аккаунту
 let AUTH_SESSION = null;
-let HW_READY = false;
-
-function cleanRedirectUrl() {
-  const u = new URL(location.href);
-  // Сохраняем token, но убираем OAuth-параметры, если они уже есть в URL.
-  for (const k of ['code', 'state', 'error', 'error_description']) u.searchParams.delete(k);
-  u.hash = '';
-  return u.href;
-}
-
-function cleanupAuthParamsInUrl() {
-  const u = new URL(location.href);
-  let changed = false;
-  for (const k of ['code', 'state', 'error', 'error_description']) {
-    if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true; }
-  }
-  if (u.hash) { u.hash = ''; changed = true; }
-  if (changed) history.replaceState({}, '', u.toString());
-}
-
-function setAuthUI(session) {
-  AUTH_SESSION = session || null;
-
-  const statusEl = $('#authStatus');
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
-
-  const nameInput = $('#studentName');
-  const startBtn = $('#startHomework');
-  const msgEl = $('#hwGateMsg');
-
-  if (!AUTH_SESSION) {
-    if (statusEl) statusEl.textContent = 'Вы не вошли. Нажмите «Войти через Google».';
-    if (loginBtn) loginBtn.classList.remove('hidden');
-    if (logoutBtn) logoutBtn.classList.add('hidden');
-
-    if (nameInput) nameInput.disabled = true;
-    if (startBtn) startBtn.disabled = true;
-
-    // Сообщение под кнопкой "Начать"
-    if (msgEl) {
-      if (!getToken()) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-      else if (!HW_READY) msgEl.textContent = 'Загружаем домашнее задание...';
-      else msgEl.textContent = 'Сначала войдите через Google, затем введите имя.';
-    }
-    return;
-  }
-
-  const email = AUTH_SESSION.user?.email ? String(AUTH_SESSION.user.email) : '';
-  if (statusEl) statusEl.textContent = email ? `Вы вошли: ${email}` : 'Вы вошли';
-  if (loginBtn) loginBtn.classList.add('hidden');
-  if (logoutBtn) logoutBtn.classList.remove('hidden');
-
-  const ready = !!HW_READY;
-  if (nameInput) nameInput.disabled = !ready;
-  if (startBtn) startBtn.disabled = !ready;
-
-  if (msgEl) {
-    if (!getToken()) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    else if (!ready) msgEl.textContent = 'Загружаем домашнее задание...';
-    else msgEl.textContent = 'Введите имя и нажмите «Начать».';
-  }
-}
-
-async function initAuth() {
-  // Кнопки входа/выхода
-  $('#authLogin')?.addEventListener('click', async () => {
-    try {
-      await signInWithGoogle(cleanRedirectUrl());
-    } catch (e) {
-      console.error(e);
-      const msgEl = $('#hwGateMsg');
-      if (msgEl) msgEl.textContent = 'Не удалось начать вход через Google. Проверьте разрешённые Redirect URLs в Supabase.';
-    }
-  });
-
-  $('#authLogout')?.addEventListener('click', async () => {
-    try {
-      await signOut();
-    } catch (e) {
-      console.error(e);
-    }
-    // Проще и надёжнее перезагрузить страницу, чтобы сбросить состояние.
-    location.reload();
-  });
-
-  // Инициализация текущей сессии
-  let s = null;
-  try { s = await getSession(); } catch { s = null; }
-  setAuthUI(s);
-
-  // Реакция на изменения сессии
-  supabase.auth.onAuthStateChange((_event, session) => {
-    // после успешного sign-in в URL обычно появляются code/state; уберём их
-    if (session) cleanupAuthParamsInUrl();
-    setAuthUI(session);
-  });
-}
+let AUTH_USER = null;
+let NAME_TOUCHED = false;
+let HOMEWORK_READY = false;
+let CATALOG_READY = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Auth обязателен: результат привязывается к Google-аккаунту ученика
-  initAuth();
-
   const token = getToken();
   const startBtn = $('#startHomework');
-  const nameInput = $('#studentName');
   const msgEl = $('#hwGateMsg');
+
+  // UI авторизации (Google)
+  initAuthUI().catch((e) => console.error(e));
+
+  // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
+  $('#studentName')?.addEventListener('input', () => {
+    NAME_TOUCHED = true;
+    updateGateUI();
+  });
 
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    if (nameInput) nameInput.disabled = true;
     if (startBtn) startBtn.disabled = true;
     return;
   }
 
   if (startBtn) startBtn.disabled = true;
-  if (nameInput) nameInput.disabled = true;
   if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
 
   // Загрузим описание ДЗ сразу, чтобы показать заголовок до ввода имени.
@@ -154,14 +62,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const hwRes = await getHomeworkByToken(token);
     if (!hwRes.ok) {
       console.error(hwRes.error);
-      HW_READY = false;
       if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
-      if ($('#studentName')) $('#studentName').disabled = true;
       if (startBtn) startBtn.disabled = true;
       return;
     }
     HOMEWORK = hwRes.homework;
     LINK = hwRes.linkRow || null;
+    HOMEWORK_READY = true;
 
     // Заголовок
     const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
@@ -172,15 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Каталог нужен для сборки задач
     await loadCatalog();
+    CATALOG_READY = true;
 
-    HW_READY = true;
-    setAuthUI(AUTH_SESSION);
+    updateGateUI();
   })().catch((e) => {
     console.error(e);
-    HW_READY = false;
     if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
     if (startBtn) startBtn.disabled = true;
-    if ($('#studentName')) $('#studentName').disabled = true;
   });
 
   startBtn?.addEventListener('click', onStart);
@@ -192,15 +97,6 @@ async function onStart() {
   const msgEl = $('#hwGateMsg');
   const startBtn = $('#startHomework');
 
-  if (!HW_READY) {
-    if (msgEl) msgEl.textContent = 'Домашнее задание ещё загружается. Подождите.';
-    return;
-  }
-  if (!AUTH_SESSION) {
-    if (msgEl) msgEl.textContent = 'Сначала войдите через Google.';
-    return;
-  }
-
   const studentName = String(nameInput?.value || '').trim();
   if (!studentName) {
     if (msgEl) msgEl.textContent = 'Введите имя.';
@@ -208,14 +104,20 @@ async function onStart() {
   }
   const studentKey = normalizeStudentKey(studentName);
 
+  if (!AUTH_SESSION) {
+    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
+    if (startBtn) startBtn.disabled = false;
+    return;
+  }
+
   if (!HOMEWORK) {
     if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
     return;
   }
 
   // Проверка "1 попытка".
-  // Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
-  // Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
+// Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+// Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
   if (msgEl) msgEl.textContent = 'Проверяем доступ...';
   if (startBtn) startBtn.disabled = true;
 
@@ -254,6 +156,7 @@ async function onStart() {
       const frozenQs = await buildFixedQuestions(frozenRefs);
       questions.push(...frozenQs);
     } else {
+
       // A) фиксированные задачи (в порядке задания)
       const fixedQs = await buildFixedQuestions(fixed);
       questions.push(...fixedQs);
@@ -327,6 +230,131 @@ function parseFrozenQuestions(frozen) {
   return out;
 }
 
+
+
+
+// ---------- Авторизация (Google) ----------
+async function initAuthUI() {
+  const loginBtn = $('#authLogin');
+  const logoutBtn = $('#authLogout');
+
+  loginBtn?.addEventListener('click', async () => {
+    try {
+      await signInWithGoogle(location.href);
+    } catch (e) {
+      console.error(e);
+      const s = $('#authStatus');
+      if (s) s.textContent = 'Не удалось запустить вход. Проверьте настройки Google OAuth в Supabase.';
+    }
+  });
+
+  logoutBtn?.addEventListener('click', async () => {
+    try {
+      await signOut();
+    } catch (e) {
+      console.warn('signOut error', e);
+    }
+    AUTH_SESSION = null;
+    AUTH_USER = null;
+    await refreshAuthUI();
+  });
+
+  await refreshAuthUI();
+
+  // реагируем на редирект после Google OAuth и любые изменения сессии
+  try {
+    supabase.auth.onAuthStateChange(async () => {
+      await refreshAuthUI();
+    });
+  } catch (e) {
+    console.warn('onAuthStateChange not available', e);
+  }
+}
+
+function inferNameFromUser(user) {
+  const md = user?.user_metadata || {};
+  const name =
+    md.full_name ||
+    md.name ||
+    md.display_name ||
+    md.preferred_username ||
+    md.given_name ||
+    '';
+  return String(name || '').trim();
+}
+
+async function refreshAuthUI() {
+  let session = null;
+  try {
+    session = await getSession();
+  } catch (e) {
+    console.warn('getSession error', e);
+  }
+
+  AUTH_SESSION = session;
+  AUTH_USER = session?.user || null;
+
+  const statusEl = $('#authStatus');
+  const loginBtn = $('#authLogin');
+  const logoutBtn = $('#authLogout');
+  const nameInput = $('#studentName');
+
+  if (!AUTH_USER) {
+    if (statusEl) statusEl.textContent = 'Не выполнен вход. Нажмите «Войти через Google».';
+    if (loginBtn) loginBtn.classList.remove('hidden');
+    if (logoutBtn) logoutBtn.classList.add('hidden');
+  } else {
+    const email = AUTH_USER.email ? String(AUTH_USER.email) : 'Выполнен вход';
+    if (statusEl) statusEl.textContent = email;
+    if (loginBtn) loginBtn.classList.add('hidden');
+    if (logoutBtn) logoutBtn.classList.remove('hidden');
+
+    // автоподстановка имени (если пользователь ещё не правил поле)
+    const inferred = inferNameFromUser(AUTH_USER);
+    if (nameInput && inferred && !NAME_TOUCHED && !String(nameInput.value || '').trim()) {
+      nameInput.value = inferred;
+    }
+  }
+
+  updateGateUI();
+}
+
+function updateGateUI() {
+  const token = getToken();
+  const startBtn = $('#startHomework');
+  const msgEl = $('#hwGateMsg');
+  const nameInput = $('#studentName');
+
+  if (!token) {
+    if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+    if (startBtn) startBtn.disabled = true;
+    return;
+  }
+
+  // пока загружаем ДЗ/каталог
+  if (!HOMEWORK_READY || !CATALOG_READY) {
+    if (startBtn) startBtn.disabled = true;
+    if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
+    return;
+  }
+
+  // обязательная авторизация для записи результата (RPC использует auth.uid())
+  if (!AUTH_SESSION) {
+    if (startBtn) startBtn.disabled = true;
+    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
+    return;
+  }
+
+  const studentName = String(nameInput?.value || '').trim();
+  if (!studentName) {
+    if (startBtn) startBtn.disabled = true;
+    if (msgEl) msgEl.textContent = 'Введите имя.';
+    return;
+  }
+
+  if (msgEl) msgEl.textContent = 'Нажмите «Начать».';
+  if (startBtn) startBtn.disabled = false;
+}
 // ---------- Supabase API (через app/providers/homework.js) ----------
 
 // ---------- Каталог (index.json) ----------
@@ -444,7 +472,6 @@ async function buildGeneratedQuestions(generated) {
 
   return out;
 }
-
 function totalUniqueCap(man) {
   return (man.types || []).reduce(
     (s, t) => s + uniqueBaseCount(t.prototypes || []),
@@ -462,7 +489,6 @@ function sumMapValues(m) {
   for (const v of m.values()) s += v;
   return s;
 }
-
 function pickFromManifest(man, want) {
   const out = [];
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
@@ -511,7 +537,6 @@ function pickFromManifest(man, want) {
   }
   return out;
 }
-
 async function pickFromSection(sec, wantSection) {
   const out = [];
   const candidates = (sec.topics || []).filter(t => !!t.path);
@@ -577,6 +602,7 @@ async function pickFromSection(sec, wantSection) {
     }
   }
 
+  
   // Собираем пачки по подтемам и затем интерливим их,
   // чтобы задачи не шли блоками "по подтемам".
   const batches = new Map();
@@ -588,6 +614,7 @@ async function pickFromSection(sec, wantSection) {
   }
 
   return interleaveBatches(batches, wantSection);
+
 }
 
 // ---------- построение вопроса (копия из trainer.js) ----------
@@ -656,8 +683,7 @@ function mountRunnerUI() {
     <div class="panel">
       <header class="run-head">
         <div class="crumb"><span id="topicTitle"></span></div>
-        <div class="progress"><span id="idx">1</span>/<span id="total">1</span></div>
-        <div class="timer"><span id="tmin">00</span>:<span id="tsec">00</span></div>
+
         <div class="theme-toggle">
           <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
           <label for="themeToggle" class="theme-toggle-label">
@@ -668,99 +694,145 @@ function mountRunnerUI() {
       </header>
 
       <div class="run-body">
-        <article class="task-card q-card">
-          <div class="task-stem">
-            <div class="qwrap">
-              <div class="qtext" id="stem"></div>
-              <div class="qfig task-fig"><img id="figure" alt=""></div>
-            </div>
-          </div>
-        </article>
+        <div class="list-meta" id="hwMeta"></div>
 
-        <div class="answer-row">
-          <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
-          <button id="check">Проверить</button>
-        </div>
+        <div class="task-list" id="taskList"></div>
 
-        <div class="result" id="result"></div>
-
-        <div class="nav">
-          <button id="prev">Назад</button>
-          <button id="skip">Пропустить</button>
-          <button id="next">Далее</button>
-          <button id="finish">Завершить</button>
+        <div class="hw-bottom">
+          <button id="finishHomework" type="button">Завершить</button>
         </div>
       </div>
     </div>
   `;
 
-  // На этой странице тёмная тема запрещена, отключаем переключатель (theme.js мог отработать раньше инъекции)
+  // На этой странице тёмная тема запрещена
   const toggle = $('#themeToggle');
   if (toggle) { toggle.checked = false; toggle.disabled = true; }
 
-  // summary создаём рядом (внутри того же panel-контейнера страницы)
+  // summary создаём рядом
   let summary = $('#summary');
   if (!summary) {
     summary = document.createElement('div');
     summary.id = 'summary';
     summary.className = 'hidden';
-    summary.innerHTML = `
-      <div class="panel">
-        <h2>Сессия завершена</h2>
-        <div id="stats" class="stats"></div>
-        <div class="actions">
-          <button id="restart">На главную</button>
-          <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
-        </div>
-      </div>
-    `;
     // добавляем после блока #runner
     host.parentElement?.appendChild(summary);
   }
+
+  summary.innerHTML = `
+    <div class="panel">
+      <h2>Сессия завершена</h2>
+      <div id="stats" class="stats"></div>
+      <div class="actions">
+        <button id="restart" type="button">На главную</button>
+        <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
+      </div>
+
+      <div class="hw-review-title">Задачи</div>
+      <div class="task-list hw-review-list" id="reviewList"></div>
+    </div>
+  `;
 }
+
+
 
 // ---------- Сессия ----------
 async function startHomeworkSession({ questions, studentName, studentKey, token, homework, homeworkAttemptId }) {
   SESSION = {
     questions,
-    idx: 0,
     started_at: Date.now(),
-    timerId: null,
-    total_ms: 0,
-    t0: null,
-    meta: {
-      studentName,
-      studentKey,
-      token,
-      homeworkId: homework.id,
-      homeworkAttemptId: homeworkAttemptId || null,
-      auth_user_id: AUTH_SESSION?.user?.id || null,
-      auth_email: AUTH_SESSION?.user?.email || null,
-    },
+    meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
   $('#summary')?.classList.add('hidden');
   $('#runner')?.classList.remove('hidden');
 
   $('#topicTitle').textContent = homework.title ? String(homework.title) : 'Домашнее задание';
-  $('#total').textContent = SESSION.questions.length;
-  $('#idx').textContent = 1;
+  const metaEl = $('#hwMeta');
+  if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
 
-  renderCurrent();
+  renderHomeworkList();
   wireRunner();
-  startTimer();
 }
 
 function wireRunner() {
-  $('#check').onclick = onCheck;
-  $('#skip').onclick = () => skipCurrent();
-  $('#next').onclick = () => goto(+1);
-  $('#prev').onclick = () => goto(-1);
-  $('#finish').onclick = finishSession;
+  $('#finishHomework').onclick = finishSession;
   $('#restart').onclick = () => {
-    // Возвращаемся на страницу задач
     location.href = './index.html';
   };
+}
+
+
+
+
+function renderHomeworkList() {
+  const listEl = $('#taskList');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+
+  SESSION.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
+
+    const head = document.createElement('div');
+    head.className = 'hw-task-head';
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    head.appendChild(num);
+
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    stem.innerHTML = q.stem;
+    card.appendChild(stem);
+
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ansRow = document.createElement('div');
+    ansRow.className = 'hw-answer-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Ответ';
+    input.autocomplete = 'off';
+    input.dataset.idx = String(idx);
+
+    input.addEventListener('input', () => {
+      const i = Number(input.dataset.idx);
+      const qq = SESSION.questions[i];
+      if (!qq) return;
+      qq.chosen_text = String(input.value ?? '');
+    });
+
+    ansRow.appendChild(input);
+    card.appendChild(ansRow);
+
+    listEl.appendChild(card);
+  });
+
+  // MathJax: типографим всё разом
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([listEl]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([listEl]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
+    }
+  }
 }
 
 function renderCurrent() {
@@ -948,25 +1020,46 @@ function saveTimeForCurrent() {
 
 // ---------- завершение ----------
 async function finishSession() {
-  stopTick();
-  saveTimeForCurrent();
+  const finishBtn = $('#finishHomework');
+  if (finishBtn) finishBtn.disabled = true;
 
   const total = SESSION.questions.length;
+
+  // Считываем ответы из полей (на случай, если input event не успел)
+  document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
+    const i = Number(el.dataset.idx);
+    const q = SESSION.questions[i];
+    if (!q) return;
+    q.chosen_text = String(el.value ?? '');
+  });
+
+  // Проверяем все ответы
+  for (const q of SESSION.questions) {
+    const raw = q.chosen_text ?? '';
+    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
+    q.correct = correct;
+    q.chosen_text = chosen_text;
+    q.normalized_text = normalized_text;
+    q.correct_text = correct_text;
+    q.time_ms = q.time_ms || 0;
+  }
+
   const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
-  const avg_ms = Math.round(SESSION.total_ms / Math.max(1, total));
+  const duration_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
+  const avg_ms = Math.round(duration_ms / Math.max(1, total));
 
   const payloadQuestions = SESSION.questions.map(q => ({
     topic_id: q.topic_id,
     question_id: q.question_id,
     difficulty: q.difficulty,
     correct: !!q.correct,
-    time_ms: q.time_ms,
+    time_ms: q.time_ms || 0,
     chosen_text: q.chosen_text,
     normalized_text: q.normalized_text,
     correct_text: q.correct_text,
   }));
 
-  // 1) гарантируем наличие attempt_id (если старт попытки был пропущен/упал)
+  // 1) гарантируем наличие attempt_id
   let attemptId = SESSION.meta?.homeworkAttemptId || null;
   const token = getToken();
 
@@ -982,7 +1075,7 @@ async function finishSession() {
     }
   }
 
-  // 2) пишем результат ДЗ в homework_attempts через RPC submit_homework_attempt
+  // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
   let savedOk = false;
   let savedErr = null;
 
@@ -991,8 +1084,6 @@ async function finishSession() {
       homework_id: SESSION.meta?.homeworkId || null,
       title: SESSION.meta?.title || null,
       student_name: SESSION.meta?.studentName || null,
-      student_email: SESSION.meta?.auth_email || null,
-      auth_user_id: SESSION.meta?.auth_user_id || null,
       questions: payloadQuestions,
     };
 
@@ -1002,7 +1093,7 @@ async function finishSession() {
         payload,
         total,
         correct,
-        duration_ms: SESSION.total_ms,
+        duration_ms,
       });
       savedOk = !!res?.ok;
       savedErr = res?.error || null;
@@ -1015,15 +1106,19 @@ async function finishSession() {
     savedErr = new Error('NO_ATTEMPT_ID');
   }
 
-  // UI
-  $('#runner').classList.add('hidden');
-  $('#summary').classList.remove('hidden');
+  // UI: показываем summary + карточки
+  $('#runner')?.classList.add('hidden');
+  $('#summary')?.classList.remove('hidden');
 
-  $('#stats').innerHTML =
-    `<div>Всего: ${total}</div>` +
-    `<div>Верно: ${correct}</div>` +
-    `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-    `<div>Среднее время: ${Math.round(avg_ms / 1000)} c</div>`;
+  const statsEl = $('#stats');
+  if (statsEl) {
+    statsEl.innerHTML =
+      `<div>Всего: ${total}</div>` +
+      `<div>Верно: ${correct}</div>` +
+      `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+      `<div>Время: ${Math.round(duration_ms / 1000)} c</div>` +
+      `<div>Среднее: ${Math.round(avg_ms / 1000)} c</div>`;
+  }
 
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();
@@ -1031,19 +1126,22 @@ async function finishSession() {
     download('homework_session.csv', csv);
   };
 
+  renderReviewCards();
+
   if (!savedOk) {
     console.warn('Homework submit error', savedErr);
     const summaryPanel = $('#summary .panel') || $('#summary');
     if (summaryPanel) {
       const warn = document.createElement('div');
-      warn.style.color = '#ff6b6b';
-      warn.style.marginTop = '8px';
+      warn.className = 'hw-warn';
       warn.textContent =
         'Внимание: запись результата не выполнена. Проверьте RPC submit_homework_attempt и таблицу homework_attempts.';
       summaryPanel.appendChild(warn);
     }
   }
 }
+
+
 
 // ---------- утилиты ----------
 function withV(url) {
@@ -1111,6 +1209,78 @@ function compareId(a, b) {
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
   return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+}
+
+
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"]/g, (m) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+  }[m]));
+}
+
+function renderReviewCards() {
+  const host = $('#reviewList');
+  if (!host) return;
+  host.innerHTML = '';
+
+  SESSION.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
+
+    const head = document.createElement('div');
+    head.className = 'hw-review-head';
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+
+    const badge = document.createElement('div');
+    badge.className = 'hw-badge ' + (q.correct ? 'ok' : 'bad');
+    badge.textContent = q.correct ? 'верно' : 'неверно';
+
+    head.appendChild(num);
+    head.appendChild(badge);
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    stem.innerHTML = q.stem;
+    card.appendChild(stem);
+
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ans = document.createElement('div');
+    ans.className = 'hw-review-answers';
+    ans.innerHTML =
+      `<div>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></div>` +
+      `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+    card.appendChild(ans);
+
+    host.appendChild(card);
+  });
+
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([host]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
+    }
+  }
 }
 
 function toCsv(questions) {
