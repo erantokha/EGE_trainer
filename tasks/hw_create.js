@@ -889,14 +889,6 @@ function renderPickerNav() {
     sSum.textContent = `${sec.id}. ${sec.title || ''}`.trim();
     dSec.appendChild(sSum);
 
-    // Аккордеон: при раскрытии одного раздела сворачиваем остальные
-    dSec.addEventListener('toggle', () => {
-      if (!dSec.open) return;
-      nav.querySelectorAll('details.tp-sec[open]').forEach((other) => {
-        if (other !== dSec) other.open = false;
-      });
-    });
-
     const topics = (sec.topics || []).slice().sort(secSort);
     const wrap = document.createElement('div');
     wrap.className = 'tp-sec-body';
@@ -1232,8 +1224,37 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- init ----------
-document.addEventListener('DOMContentLoaded', async () => {
+
+async function consumeOAuthCodeFromUrlIfAny() {
+  const url = new URL(window.location.href);
+  const hasCode = url.searchParams.has('code');
+  const hasErr = url.searchParams.has('error') || url.searchParams.has('error_description');
+  if (!hasCode && !hasErr) return;
+
+  try {
+    if (hasCode) {
+      const { error } = await supabase.auth.exchangeCodeForSession(url.toString());
+      if (error) console.warn('[auth] exchangeCodeForSession failed:', error);
+    }
+  } catch (e) {
+    console.warn('[auth] exchangeCodeForSession crashed:', e);
+  } finally {
+    // Важно: убираем oauth-параметры из адресной строки,
+    // иначе кнопка входа может формировать redirect_to с уже «грязным» URL.
+    ['code', 'state', 'error', 'error_code', 'error_description'].forEach((k) => url.searchParams.delete(k));
+    const qs = url.searchParams.toString();
+    const cleanUrl = url.pathname + (qs ? `?${qs}` : '') + url.hash;
+    window.history.replaceState({}, '', cleanUrl);
+  }
+}
+
+async function boot() {
+
   wireAuthControls();
+
+    // Если мы вернулись с Google OAuth, в URL может быть ?code=...
+    // Явно обмениваем его на сессию и чистим URL, чтобы не ломать повторный вход.
+    await consumeOAuthCodeFromUrlIfAny();
   initEditableFields();
 
   // auth
@@ -1371,4 +1392,19 @@ if (!hwRes.ok) {
       $('#createBtn').disabled = false;
     }
   });
-});
+
+}
+
+function bootSafe() {
+  boot().catch((err) => {
+    console.error(err);
+    const st = document.querySelector('#status');
+    if (st) st.textContent = 'Ошибка инициализации страницы. Откройте Console и пришлите первую ошибку.';
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootSafe, { once: true });
+} else {
+  bootSafe();
+}
