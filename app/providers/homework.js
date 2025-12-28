@@ -200,8 +200,8 @@ export function createHomeworkLinkUrl(token) {
 }
 
 export async function getHomeworkAttempt({ token, attempt_id } = {}) {
-  // Получить уже завершённую попытку ДЗ, чтобы показать результаты при повторном входе.
-  // Приоритет: RPC (SECURITY DEFINER) -> прямой select (если RLS позволяет) -> 2-step по token через homework_links.
+  // Получить уже завершённую попытку ДЗ (для экрана результатов при повторном входе).
+  // Важно: незавершённую попытку (finished_at=null, payload=null) здесь НЕ считаем "результатом".
   try {
     const t = String(token || '').trim();
     const id = String(attempt_id || '').trim();
@@ -216,83 +216,40 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
       if (resT.ok) {
         const row = Array.isArray(resT.data) ? resT.data[0] : resT.data;
         if (row) return { ok: true, row, error: null };
-      } else if (resT.error && !isMissingRpcFunction(resT.error)) {
+        // RPC отработал, но результата нет -> это нормально (попытка не завершена или отсутствует)
+        return { ok: true, row: null, error: null };
+      }
+
+      // Если RPC существует, но упал по другой причине — пробрасываем ошибку
+      if (resT.error && !isMissingRpcFunction(resT.error)) {
         return { ok: false, row: null, error: resT.error };
       }
     }
 
-    // 2) RPC по attempt_id (если есть)
-    if (id) {
-      const resId = await rpcWithFallback(
-        ['get_homework_attempt', 'get_homework_attempt_by_id', 'getHomeworkAttempt'],
-        { p_attempt_id: id },
-      );
-
-      if (resId.ok) {
-        const row = Array.isArray(resId.data) ? resId.data[0] : resId.data;
-        if (row) return { ok: true, row, error: null };
-      } else if (resId.error && !isMissingRpcFunction(resId.error)) {
-        return { ok: false, row: null, error: resId.error };
-      }
-    }
-
-    // 3) Прямой select по id (если RLS разрешает читать свои попытки)
+    // 2) Fallback: прямой select по attempt_id (только если у нас он есть и RLS разрешает)
+    // Не показываем незавершённую попытку как "результат".
     if (id) {
       const { data, error } = await supabase
         .from('homework_attempts')
-        .select('id,payload,total,correct,duration_ms,created_at,started_at,finished_at')
+        .select('id,payload,total,correct,duration_ms,created_at,finished_at')
         .eq('id', id)
         .maybeSingle();
-      if (!error && data) return { ok: true, row: data, error: null };
-      // если запрос запрещён — просто идём дальше
-    }
 
-    // 4) Fallback по token через homework_links -> homework_attempts (без несуществующих колонок в attempts)
-    if (t) {
-      const { user } = await getAuth();
-      if (user) {
-        let link = null;
-
-        // пробуем типичные имена колонки токена в homework_links
-        for (const col of ['token', 'link_token']) {
-          try {
-            const { data, error } = await supabase
-              .from('homework_links')
-              .select('homework_id')
-              .eq(col, t)
-              .maybeSingle();
-            if (!error && data?.homework_id) {
-              link = data;
-              break;
-            }
-          } catch (e) {
-            // игнорируем и пробуем следующий вариант
-          }
-        }
-
-        if (link?.homework_id) {
-          const { data, error } = await supabase
-            .from('homework_attempts')
-            .select('id,payload,total,correct,duration_ms,created_at,started_at,finished_at')
-            .eq('homework_id', link.homework_id)
-            .eq('student_id', user.id)
-            .not('payload', 'is', null)
-            .not('finished_at', 'is', null)
-            .order('finished_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (!error && data) return { ok: true, row: data, error: null };
-          // если не найдено — это нормально (попытка могла быть не завершена)
-        }
+      if (!error && data) {
+        const isFinished = !!data.finished_at;
+        const hasPayload = data.payload !== null && data.payload !== undefined;
+        if (isFinished || hasPayload) return { ok: true, row: data, error: null };
       }
+
+      if (error) return { ok: false, row: null, error };
     }
 
-    return { ok: false, row: null, error: new Error('ATTEMPT_NOT_FOUND') };
+    return { ok: true, row: null, error: null };
   } catch (e) {
     return { ok: false, row: null, error: e };
   }
 }
+
 
 export async function submitHomeworkAttempt({ attempt_id, payload, total, correct, duration_ms }) {
   // Пишем результат ДЗ в таблицу homework_attempts через RPC (SECURITY DEFINER).
