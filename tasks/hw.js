@@ -152,20 +152,22 @@ async function onStart() {
       if (ares.ok) {
         hwAttemptId = ares.attempt_id || null;
         if (ares.already_exists) {
-          // Есть запись попытки. Если она УЖЕ завершена — показываем результаты,
-          // иначе позволяем продолжить (refresh не должен «сжигать» попытку).
+          // Попытка уже создана ранее.
+          // Если она УЖЕ завершена — показываем результаты и выходим.
+          // Если не завершена — разрешаем продолжить (не считаем попытку завершённой при перезагрузке страницы).
           try {
-            const ex = await getHomeworkAttempt({ token, attempt_id: hwAttemptId });
-            if (ex?.ok && ex.row) {
-              EXISTING_ATTEMPT_ROW = ex.row;
-              EXISTING_ATTEMPT_SHOWN = true;
+            const r = await getHomeworkAttempt({ token, attempt_id: hwAttemptId });
+            const pl = parseAttemptPayload(r?.row?.payload ?? null);
+            const saved = Array.isArray(pl?.questions) ? pl.questions : [];
+            if (r?.ok && r.row && saved.length) {
               RUN_STARTED = true;
-              await showAttemptSummaryFromRow(ex.row);
+              await showAttemptSummaryFromRow(r.row);
               return;
             }
           } catch (e) {
-            console.warn('getHomeworkAttempt failed for existing attempt; continue as in-progress', e);
+            console.warn('getHomeworkAttempt failed', e);
           }
+          // незавершённая попытка: продолжаем обычный старт ниже
         }
       } else {
         console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
