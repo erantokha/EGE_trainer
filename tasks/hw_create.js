@@ -2,16 +2,33 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js';
+import { CONFIG } from '../app/config.js?v=2025-12-29-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js';
+} from '../app/core/pick.js?v=2025-12-29-1';
 
+
+// build/version (cache-busting)
+const BUILD = '2025-12-29-1';
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
+if (HTML_BUILD && HTML_BUILD !== BUILD) {
+  const k = 'hw_create:build_reload_attempted';
+  if (!sessionStorage.getItem(k)) {
+    sessionStorage.setItem(k, '1');
+    const u = new URL(location.href);
+    u.searchParams.set('_v', HTML_BUILD);
+    u.searchParams.set('_r', String(Date.now()));
+    location.replace(u.toString());
+  } else {
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+  }
+}
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
@@ -1224,37 +1241,8 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- init ----------
-
-async function consumeOAuthCodeFromUrlIfAny() {
-  const url = new URL(window.location.href);
-  const hasCode = url.searchParams.has('code');
-  const hasErr = url.searchParams.has('error') || url.searchParams.has('error_description');
-  if (!hasCode && !hasErr) return;
-
-  try {
-    if (hasCode) {
-      const { error } = await supabase.auth.exchangeCodeForSession(url.toString());
-      if (error) console.warn('[auth] exchangeCodeForSession failed:', error);
-    }
-  } catch (e) {
-    console.warn('[auth] exchangeCodeForSession crashed:', e);
-  } finally {
-    // Важно: убираем oauth-параметры из адресной строки,
-    // иначе кнопка входа может формировать redirect_to с уже «грязным» URL.
-    ['code', 'state', 'error', 'error_code', 'error_description'].forEach((k) => url.searchParams.delete(k));
-    const qs = url.searchParams.toString();
-    const cleanUrl = url.pathname + (qs ? `?${qs}` : '') + url.hash;
-    window.history.replaceState({}, '', cleanUrl);
-  }
-}
-
-async function boot() {
-
+document.addEventListener('DOMContentLoaded', async () => {
   wireAuthControls();
-
-    // Если мы вернулись с Google OAuth, в URL может быть ?code=...
-    // Явно обмениваем его на сессию и чистим URL, чтобы не ломать повторный вход.
-    await consumeOAuthCodeFromUrlIfAny();
   initEditableFields();
 
   // auth
@@ -1392,19 +1380,4 @@ if (!hwRes.ok) {
       $('#createBtn').disabled = false;
     }
   });
-
-}
-
-function bootSafe() {
-  boot().catch((err) => {
-    console.error(err);
-    const st = document.querySelector('#status');
-    if (st) st.textContent = 'Ошибка инициализации страницы. Откройте Console и пришлите первую ошибку.';
-  });
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', bootSafe, { once: true });
-} else {
-  bootSafe();
-}
+});

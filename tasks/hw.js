@@ -10,12 +10,29 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
 
-import { CONFIG } from '../app/config.js';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
+import { CONFIG } from '../app/config.js?v=2025-12-29-1';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2025-12-29-1';
 
+
+// build/version (cache-busting)
+const BUILD = '2025-12-29-1';
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
+if (HTML_BUILD && HTML_BUILD !== BUILD) {
+  const k = 'hw:build_reload_attempted';
+  if (!sessionStorage.getItem(k)) {
+    sessionStorage.setItem(k, '1');
+    const u = new URL(location.href);
+    u.searchParams.set('_v', HTML_BUILD);
+    u.searchParams.set('_r', String(Date.now()));
+    location.replace(u.toString());
+  } else {
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+  }
+}
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
@@ -539,14 +556,11 @@ async function showAttemptSummaryFromRow(row) {
   $('#restart').onclick = () => {
     location.href = './index.html';
   };
-  const exportEl = $('#exportCsv');
-  if (exportEl) {
-    exportEl.onclick = (e) => {
-      e.preventDefault();
-      const csv = toCsv(SESSION.questions);
-      download('homework_session.csv', csv);
-    };
-  }
+  $('#exportCsv').onclick = (e) => {
+    e.preventDefault();
+    const csv = toCsv(SESSION.questions);
+    download('homework_session.csv', csv);
+  };
 
   renderReviewCards();
 }
@@ -978,12 +992,14 @@ function mountRunnerUI() {
 
   summary.innerHTML = `
     <div class="panel">
-      <div class="hw-summary-head">
-        <h2>Статистика и отчет по работе</h2>
-        <button id="restart" type="button">На главную</button>
-      </div>
+      <h2>Сессия завершена</h2>
       <div id="stats" class="stats"></div>
+      <div class="actions">
+        <button id="restart" type="button">На главную</button>
+        <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
+      </div>
 
+      <div class="hw-review-title">Задачи</div>
       <div class="task-list hw-review-list" id="reviewList"></div>
     </div>
   `;
@@ -1365,16 +1381,11 @@ async function finishSession() {
 
   renderStats({ total, correct, duration_ms, avg_ms });
 
-  {
-    const exportEl = $('#exportCsv');
-    if (exportEl) {
-      exportEl.onclick = (e) => {
-        e.preventDefault();
-        const csv = toCsv(SESSION.questions);
-        download('homework_session.csv', csv);
-      };
-    }
-  }
+  $('#exportCsv').onclick = (e) => {
+    e.preventDefault();
+    const csv = toCsv(SESSION.questions);
+    download('homework_session.csv', csv);
+  };
 
   renderReviewCards();
 
