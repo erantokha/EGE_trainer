@@ -8,6 +8,12 @@
 import { CONFIG } from '../config.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
+// Если пользователь нажал «Выйти», а затем «Войти»,
+// хотим принудительно показать окно выбора Google-аккаунта.
+// (Google часто автоматически логинит в последний выбранный аккаунт,
+// даже если supabase-сессия уже очищена.)
+const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
+
 export const supabase = createClient(
   String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
   CONFIG.supabase.anonKey,
@@ -35,14 +41,35 @@ export async function requireSession() {
 
 export async function signInWithGoogle(redirectTo = null) {
   const to = redirectTo || location.href;
+
+  const forceSelectAccount =
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY) === '1';
+
+  if (forceSelectAccount) {
+    // одноразово: показали выбор — больше не принуждаем
+    localStorage.removeItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY);
+  }
+
+  const options = { redirectTo: to };
+  if (forceSelectAccount) options.queryParams = { prompt: 'select_account' };
+
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: to },
+    options,
   });
   if (error) throw error;
 }
 
 export async function signOut() {
+  // Запоминаем намерение пользователя «сменить аккаунт».
+  // При следующем signInWithGoogle покажем chooser.
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY, '1');
+    }
+  } catch (_) {}
+
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
