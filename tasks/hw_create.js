@@ -157,9 +157,35 @@ function todayISO() {
 }
 
 // ---------- UI helpers ----------
+let STATUS_TIMER = null;
+let STATUS_SEQ = 0;
+
 function setStatus(msg) {
   const el = $('#status');
+  STATUS_SEQ += 1;
+  if (STATUS_TIMER) {
+    clearTimeout(STATUS_TIMER);
+    STATUS_TIMER = null;
+  }
   if (el) el.textContent = msg || '';
+}
+
+function flashStatus(msg, ttlMs = 5000) {
+  const el = $('#status');
+  STATUS_SEQ += 1;
+  if (STATUS_TIMER) {
+    clearTimeout(STATUS_TIMER);
+    STATUS_TIMER = null;
+  }
+
+  const mySeq = STATUS_SEQ;
+  if (el) el.textContent = msg || '';
+  if (!msg) return;
+
+  STATUS_TIMER = setTimeout(() => {
+    if (mySeq !== STATUS_SEQ) return;
+    if (el) el.textContent = '';
+  }, Math.max(0, Number(ttlMs) || 0));
 }
 
 function ensureAuthBar() {
@@ -177,7 +203,7 @@ function wireAuthControls() {
       await signInWithGoogle(location.href);
     } catch (e) {
       console.error(e);
-      setStatus('Не удалось начать вход через Google.');
+      flashStatus('Не удалось начать вход через Google.');
     }
   });
 
@@ -187,7 +213,7 @@ function wireAuthControls() {
       location.reload();
     } catch (e) {
       console.error(e);
-      setStatus('Не удалось выйти.');
+      flashStatus('Не удалось выйти.');
     }
   });
 
@@ -197,7 +223,7 @@ function wireAuthControls() {
     const url = String($('#hwLink')?.dataset?.url || '');
     if (!url) return;
     const ok = await copyToClipboard(url);
-    setStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
   });
 
   // маленькая кнопка открыть
@@ -540,8 +566,8 @@ async function updateFixedPreviews(seq) {
     }
 
     if (type && proto) {
-      const cap = (type.prototypes || []).length;
-      const meta = `${type.id} ${type.title || ''} (вариантов: ${cap})`.trim();
+      // В подборке «Добавленные задачи» служебную подпись про количество вариантов не показываем.
+      const meta = `${type.id} ${type.title || ''}`.trim();
       if (metaEl) metaEl.textContent = meta;
 
       if (bodyEl) bodyEl.innerHTML = buildStemPreview(man, type, proto);
@@ -611,7 +637,7 @@ async function importSelectionIntoFixedTable() {
   }
 
   if (!uniq.length) {
-    setStatus('Не удалось импортировать задачи из выбора на главной странице.');
+    flashStatus('Не удалось импортировать задачи из выбора на главной странице.');
     return;
   }
   // переносим в список добавленных задач
@@ -1238,7 +1264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // защита: без входа не даём создавать
     const session = await refreshAuthUI();
     if (!session) {
-      setStatus('Нужно войти через Google (учитель), чтобы создавать ДЗ.');
+      flashStatus('Нужно войти через Google (учитель), чтобы создавать ДЗ.');
       return;
     }
 
@@ -1249,11 +1275,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fixed = readFixedRows();
 
     if (!title) {
-      setStatus('Укажи название ДЗ.');
+      flashStatus('Укажи название ДЗ.');
       return;
     }
     if (!fixed.length) {
-      setStatus('Добавь хотя бы одну задачу (или выбери их на главной странице и нажми «Создать ДЗ»).');
+      flashStatus('Добавь хотя бы одну задачу (или выбери их на главной странице и нажми «Создать ДЗ»).');
       return;
     }
 
@@ -1332,7 +1358,7 @@ if (!hwRes.ok) {
       const link = buildStudentLink(token);
       showStudentLink(link, '');
 
-      setStatus('Готово.');
+      flashStatus('Готово.');
     } finally {
       $('#createBtn').disabled = false;
     }
