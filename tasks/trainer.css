@@ -1098,3 +1098,23 @@ input:focus{
   justify-content:center; /* кнопка по центру */
   margin-top:24px;        /* отступ от последней карточки до кнопки */
 }
+
+/* ------- hw: итоговый экран (статистика/отчет) ------- */
+.hw-summary-head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.hw-summary-head h2{ margin:0; }
+
+.hw-summary-head #restart{
+  margin-left:auto;
+  white-space:nowrap;
+}
+
+/* Отступ от условия задачи до блока "Ваш ответ" (две строки) */
+.hw-review-answers{
+  margin-top:1.8em;
+}
