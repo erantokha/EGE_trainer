@@ -852,6 +852,7 @@ input:focus{
 }
 
 .icon-btn {
+  width:36px;
   min-width:36px;
   height:36px;
   padding:0;
@@ -860,12 +861,14 @@ input:focus{
   justify-content:center;
   border-radius:12px;
   border:1px solid var(--border);
-  background:var(--card);
+  background:var(--card, var(--panel));
   cursor:pointer;
   font-size:22px;
   line-height:1;
+  text-align:center;
 }
 .icon-btn:hover { background:rgba(0,0,0,.03); }
+
 
 .auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .auth-email { opacity:.85; }
@@ -937,6 +940,19 @@ input:focus{
 }
 .modal-title { font-size:16px; }
 
+
+/* hw_create: кнопка закрытия окна добавления задач */
+#taskPickerModal #tpClose{
+  width:36px;
+  height:36px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  line-height:1;
+  text-align:center;
+}
 .modal-body {
   display:grid;
   grid-template-columns:320px 1fr;
@@ -1005,13 +1021,19 @@ input:focus{
 .tp-ctr-btn {
   width:32px;
   height:32px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   border-radius:10px;
   border:1px solid var(--border);
-  background:var(--card);
+  background:var(--card, var(--panel));
   cursor:pointer;
   font-size:18px;
   line-height:1;
+  text-align:center;
 }
+
 .tp-ctr-btn:disabled { opacity:.5; cursor:default; }
 .tp-ctr-val { min-width:20px; text-align:center; }
 .tp-ctr-cap { font-size:12px; opacity:.75; }
