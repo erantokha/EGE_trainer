@@ -1014,9 +1014,11 @@ input:focus{
   width:96px;
   max-width:96px;
   height:auto;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:white;
+  /* без рамки/скруглений: картинка без видимого контейнера и без обрезки углов */
+  border-radius:0;
+  border:none;
+  background:transparent;
+  display:block;
 }
 
 .tp-item-right { display:flex; align-items:center; gap:8px; flex-shrink:0; }

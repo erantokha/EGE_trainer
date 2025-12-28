@@ -889,6 +889,14 @@ function renderPickerNav() {
     sSum.textContent = `${sec.id}. ${sec.title || ''}`.trim();
     dSec.appendChild(sSum);
 
+    // Аккордеон: при раскрытии одного раздела сворачиваем остальные
+    dSec.addEventListener('toggle', () => {
+      if (!dSec.open) return;
+      nav.querySelectorAll('details.tp-sec[open]').forEach((other) => {
+        if (other !== dSec) other.open = false;
+      });
+    });
+
     const topics = (sec.topics || []).slice().sort(secSort);
     const wrap = document.createElement('div');
     wrap.className = 'tp-sec-body';
