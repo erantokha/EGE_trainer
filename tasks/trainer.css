@@ -855,8 +855,8 @@ input:focus{
   width:36px;
   min-width:36px;
   height:36px;
-  /* центр символа примерно на 35% высоты (т.е. отступ от низа ~65%) */
-  padding:0 0 11px 0;
+  /* центр символа примерно на 45% высоты (т.е. отступ от низа ~55%) */
+  padding:0 0 4px 0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -946,8 +946,8 @@ input:focus{
 #taskPickerModal #tpClose{
   width:36px;
   height:36px;
-  /* центр символа примерно на 35% высоты (т.е. отступ от низа ~65%) */
-  padding:0 0 11px 0;
+  /* центр символа примерно на 45% высоты (т.е. отступ от низа ~55%) */
+  padding:0 0 4px 0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -1023,8 +1023,8 @@ input:focus{
 .tp-ctr-btn {
   width:32px;
   height:32px;
-  /* центр символа примерно на 35% высоты (т.е. отступ от низа ~65%) */
-  padding:0 0 10px 0;
+  /* центр символа примерно на 45% высоты (т.е. отступ от низа ~55%) */
+  padding:0 0 3px 0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
