@@ -14,7 +14,22 @@
     .metric .val{font-size:20px;font-weight:600}
     .topic-list{display:grid;grid-template-columns:1fr;gap:8px}
     @media (min-width:900px){ .topic-list{grid-template-columns:1fr 1fr} }
-  </style>
+  
+    /* topic tree */
+    .topic-legend{display:grid;grid-template-columns:1fr 120px 120px 120px;gap:8px;align-items:center;margin:8px 0 6px}
+    .topic-legend .tcell{justify-self:end}
+    .topic-tree{display:block}
+    .topic-node{border:1px solid var(--border);border-radius:10px;background:#0b0f14;margin:10px 0;overflow:hidden}
+    .topic-node>summary{list-style:none;cursor:pointer;padding:10px 12px;display:grid;grid-template-columns:1fr 120px 120px 120px;gap:8px;align-items:center}
+    .topic-node>summary::-webkit-details-marker{display:none}
+    .topic-node .subrow{padding:8px 12px;display:grid;grid-template-columns:1fr 120px 120px 120px;gap:8px;align-items:center;border-top:1px solid var(--border)}
+    .topic-node .name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .topic-node .cell{justify-self:end;font-variant-numeric:tabular-nums}
+    .topic-node .cell.muted{color:#9ca3af}
+    @media (max-width:720px){
+      .topic-legend,.topic-node>summary,.topic-node .subrow{grid-template-columns:1fr 92px 92px 92px}
+    }
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -47,8 +62,17 @@
     </section>
 
     <section id="topicsSec" class="panel hidden">
-      <h3>Точность по темам</h3>
-      <div id="topicsList" class="topic-list"></div>
+      <h3>Статистика по темам и подтемам</h3>
+      <div class="topic-legend">
+        <div class="muted">Тема / подтема</div>
+        <div class="muted tcell">Весь период</div>
+        <div class="muted tcell">Последние 10</div>
+        <div class="muted tcell">Последние 5</div>
+      </div>
+      <div id="topicsTree" class="topic-tree"></div>
+
+      <!-- Фолбэк: если не удалось загрузить дерево тем -->
+      <div id="topicsList" class="topic-list hidden"></div>
     </section>
 
     <section id="tableSec" class="panel hidden">

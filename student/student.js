@@ -17,6 +17,7 @@ const secSummary = el('summary');
 const secTopics = el('topicsSec');
 const secTable = el('tableSec');
 const topicsList = el('topicsList');
+const topicsTree = el('topicsTree');
 const tbody = el('tbody');
 const countInfo = el('countInfo');
 
@@ -98,6 +99,128 @@ function renderTopics(agg){
 
 function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
 
+// === topic tree stats ===
+let TOPICS_CACHE = null;
+async function loadTopicsIndex(){
+  if(TOPICS_CACHE) return TOPICS_CACHE;
+  try{
+    const res = await fetch('../content/tasks/index.json', { cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP_'+res.status);
+    const arr = await res.json();
+    const byId = Object.create(null);
+    arr.forEach(x => { if(x && x.id) byId[String(x.id)] = x; });
+    const groups = [];
+    for(let i=1;i<=12;i++){
+      const id = String(i);
+      const g = byId[id];
+      groups.push({ id, title: (g && g.title) ? String(g.title) : ('Тема ' + id) });
+    }
+    const childrenByGroup = Object.create(null);
+    arr.forEach(x => {
+      if(!x || x.type!=='topic') return;
+      if(x.hidden) return;
+      const pid = String(x.parent||'');
+      if(!/^(?:[1-9]|1[0-2])$/.test(pid)) return;
+      const id = String(x.id||'');
+      if(!/^(?:[1-9]|1[0-2])\.\d+$/.test(id)) return;
+      (childrenByGroup[pid] || (childrenByGroup[pid]=[])).push({ id, title: String(x.title||id) });
+    });
+    Object.values(childrenByGroup).forEach(list => list.sort((a,b)=> a.id.localeCompare(b.id, 'ru')));
+    TOPICS_CACHE = { groups, childrenByGroup, byId };
+    return TOPICS_CACHE;
+  }catch(_){
+    TOPICS_CACHE = { error:true };
+    return TOPICS_CACHE;
+  }
+}
+
+function topicL1(id){
+  const m = String(id||'').match(/^(\d{1,2})/);
+  return m ? m[1] : 'unknown';
+}
+function topicL2Only(id){
+  const s = String(id||'');
+  const m = s.match(/^(\d{1,2})\.(\d+)/);
+  return m ? (m[1] + '.' + m[2]) : null;
+}
+
+function makeEntriesL1(entries){
+  return entries.map(e => ({ ...e, topic: topicL1(e.topic) }));
+}
+function makeEntriesL2(entries){
+  const out=[];
+  entries.forEach(e => {
+    const t2 = topicL2Only(e.topic);
+    if(!t2) return;
+    out.push({ ...e, topic: t2 });
+  });
+  return out;
+}
+
+function fmtCell(map, id){
+  const o = map && map[id];
+  if(!o || !o.total) return '<span class="cell muted">—</span>';
+  const pct = o.total>0 ? (o.ok/o.total) : 0;
+  return '<span class="cell">' + o.ok + '/' + o.total + ' (' + fmtPct(pct) + ')</span>';
+}
+
+async function renderTopicsTree(attempts){
+  if(!topicsTree) return;
+  const idx = await loadTopicsIndex();
+  const entriesAll = flattenEntries(attempts);
+  const entries10 = flattenEntries(attempts.slice(0,10));
+  const entries5  = flattenEntries(attempts.slice(0,5));
+
+  const map1All = groupByTopicFromEntries(makeEntriesL1(entriesAll));
+  const map1_10 = groupByTopicFromEntries(makeEntriesL1(entries10));
+  const map1_5  = groupByTopicFromEntries(makeEntriesL1(entries5));
+
+  const map2All = groupByTopicFromEntries(makeEntriesL2(entriesAll));
+  const map2_10 = groupByTopicFromEntries(makeEntriesL2(entries10));
+  const map2_5  = groupByTopicFromEntries(makeEntriesL2(entries5));
+
+  // Если индекс тем не загрузился — фолбэк на старый список тем
+  if(!idx || idx.error || !idx.groups){
+    topicsTree.innerHTML = '';
+    if(topicsList){
+      topicsList.classList.remove('hidden');
+      renderTopics(map2All);
+    }
+    return;
+  }
+  if(topicsList) topicsList.classList.add('hidden');
+
+  const parts = [];
+  idx.groups.forEach(g => {
+    const title = escapeHtml(g.id + '. ' + (g.title||('Тема ' + g.id)));
+    parts.push('<details class="topic-node">');
+    parts.push('<summary>');
+    parts.push('<div class="name">' + title + '</div>');
+    parts.push(fmtCell(map1All, g.id));
+    parts.push(fmtCell(map1_10, g.id));
+    parts.push(fmtCell(map1_5, g.id));
+    parts.push('</summary>');
+
+    const kids = (idx.childrenByGroup && idx.childrenByGroup[g.id]) ? idx.childrenByGroup[g.id] : [];
+    if(kids && kids.length){
+      kids.forEach(k => {
+        const kTitle = escapeHtml(k.id + ' ' + (k.title||k.id));
+        parts.push('<div class="subrow">');
+        parts.push('<div class="name">' + kTitle + '</div>');
+        parts.push(fmtCell(map2All, k.id));
+        parts.push(fmtCell(map2_10, k.id));
+        parts.push(fmtCell(map2_5, k.id));
+        parts.push('</div>');
+      });
+    }else{
+      parts.push('<div class="subrow"><div class="name muted">Подтемы не найдены</div><span class="cell muted">—</span><span class="cell muted">—</span><span class="cell muted">—</span></div>');
+    }
+    parts.push('</details>');
+  });
+
+  topicsTree.innerHTML = parts.join('');
+}
+
 function exportCSV(rows){
   const out = rows.map(r => ({
     id: r.id,
@@ -170,7 +293,7 @@ async function loadAndRender(studentId){
     const entries = flattenEntries(rows);
     if(entries.length){
       const byTopic = groupByTopicFromEntries(entries);
-      renderTopics(byTopic);
+      await renderTopicsTree(rows);
       secTopics.classList.remove('hidden');
     }else{
       secTopics.classList.add('hidden');
