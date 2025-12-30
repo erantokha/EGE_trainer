@@ -142,7 +142,7 @@ export function initHeader(options = {}) {
     // Не блокируем интерфейс ожиданием сетевого revoke.
     // signOut сам попытается сделать global + wipe storage (если в providers/supabase.js так реализовано).
     try {
-      await signOut();
+      await signOut({ timeoutMs: 350 });
     } catch (e) {
       console.warn('signOut error', e);
     }
