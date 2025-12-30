@@ -390,30 +390,7 @@ async function initAuthUI() {
     // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
     setTimeout(navigate, 350);
   });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
 
-    // Best-effort: попросим Supabase ревокнуть refresh token (может не успеть из-за редиректа — это ок).
-    try {
-      Promise.resolve()
-        .then(() => supabase?.auth?.signOut?.({ scope: 'global' }))
-        .catch(() => supabase?.auth?.signOut?.())
-        .catch(() => {});
-    } catch (_) {}
-
-    // Сразу перезагружаем страницу без OAuth-параметров,
-    // чтобы не оставаться на callback URL и не ломать следующие страницы.
-    try {
-      const clean = cleanRedirectUrl();
-      if (clean === location.href) location.reload();
-      else location.replace(clean);
-    } catch (_) {
-      location.reload();
-    }
-  });
 
   await refreshAuthUI();
 
