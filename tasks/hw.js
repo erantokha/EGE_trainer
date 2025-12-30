@@ -326,10 +326,35 @@ async function initAuthUI() {
   logoutBtn?.addEventListener('click', (e) => {
     e?.preventDefault?.();
 
-    // Делаем выход "мгновенным" как на странице создания ДЗ:
-    // 1) синхронно чистим локальную auth-сессию и storage (чтобы не залипали кнопки/состояние)
-    // 2) запускаем signOut best-effort без ожидания (сетевой вызов может зависать в некоторых профилях/расширениях)
-    // 3) сразу переоткрываем страницу без OAuth-параметров (code/state/error)
+    // Быстрый выход без ожидания сетевых запросов:
+    // 1) запускаем ревок refresh token в Supabase (best-effort)
+    // 2) синхронно чистим локальную auth-сессию и storage (чтобы UI не «залипал»)
+    // 3) через небольшой таймаут (или раньше, если успели) перезагружаем страницу без OAuth-параметров
+    const clean = cleanRedirectUrl();
+
+    let navigated = false;
+    const navigate = () => {
+      if (navigated) return;
+      navigated = true;
+      try {
+        if (clean === location.href) location.reload();
+        else location.replace(clean);
+      } catch (_) {
+        location.reload();
+      }
+    };
+
+    // Best-effort: попросим Supabase ревокнуть refresh token.
+    let revokePromise = null;
+    try {
+      revokePromise = supabase?.auth?.signOut?.({ scope: 'global' });
+    } catch (_) {}
+    if (!revokePromise) {
+      try { revokePromise = supabase?.auth?.signOut?.(); } catch (_) {}
+    }
+    if (revokePromise && typeof revokePromise.then === 'function') {
+      Promise.resolve(revokePromise).catch(() => {}).finally(() => navigate());
+    }
 
     AUTH_SESSION = null;
     AUTH_USER = null;
@@ -340,7 +365,7 @@ async function initAuthUI() {
     } catch (_) {}
 
     // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
-    // чтобы гарантированно сбросить залипшую сессию в браузере.
+    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
     try {
       const host = String(CONFIG?.supabase?.url || '');
       const ref = host ? new URL(host).hostname.split('.')[0] : '';
@@ -356,6 +381,15 @@ async function initAuthUI() {
           keys.forEach((k) => {
             try { store.removeItem(k); } catch (_) {}
           });
+        };
+        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      }
+    } catch (_) {}
+
+    // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
+    setTimeout(navigate, 350);
+  });
         };
         wipe(typeof localStorage !== 'undefined' ? localStorage : null);
         wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);

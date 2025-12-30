@@ -236,19 +236,81 @@ function wireAuthControls() {
     }
   });
 
-  $('#logoutBtn')?.addEventListener('click', async () => {
-    try {
-      await signOut();
-      // Перезагрузка без auth-параметров (на случай залипшего состояния после OAuth)
+  $('#logoutBtn')?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+
+    // Быстрый выход без ожидания сетевых запросов:
+    // - запускаем ревок refresh token в Supabase (best-effort)
+    // - синхронно чистим локальный storage, чтобы UI не «залипал» даже если сеть/расширения тормозят
+    // - через небольшой таймаут (или раньше, если успели) перезагружаем страницу без OAuth-параметров
+    const clean = cleanRedirectUrl();
+
+    let navigated = false;
+    const navigate = () => {
+      if (navigated) return;
+      navigated = true;
       try {
-        location.replace(cleanRedirectUrl());
+        if (clean === location.href) location.reload();
+        else location.replace(clean);
       } catch (_) {
         location.reload();
       }
-    } catch (e) {
-      console.error(e);
-      flashStatus('Не удалось выйти.');
+    };
+
+    // Best-effort: попросим Supabase ревокнуть refresh token.
+    let revokePromise = null;
+    try {
+      revokePromise = supabase?.auth?.signOut?.({ scope: 'global' });
+    } catch (_) {}
+    if (!revokePromise) {
+      try { revokePromise = supabase?.auth?.signOut?.(); } catch (_) {}
     }
+    if (revokePromise && typeof revokePromise.then === 'function') {
+      Promise.resolve(revokePromise).catch(() => {}).finally(() => navigate());
+    }
+
+    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
+    try {
+      localStorage?.setItem?.('auth_force_google_select_account', '1');
+    } catch (_) {}
+
+    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
+    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
+    try {
+      const host = String(CONFIG?.supabase?.url || '');
+      const ref = host ? new URL(host).hostname.split('.')[0] : '';
+      if (ref) {
+        const prefix = `sb-${ref}-`;
+        const wipe = (store) => {
+          if (!store) return;
+          const keys = [];
+          for (let i = 0; i < store.length; i++) {
+            const k = store.key(i);
+            if (k && k.startsWith(prefix)) keys.push(k);
+          }
+          keys.forEach((k) => {
+            try { store.removeItem(k); } catch (_) {}
+          });
+        };
+        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      }
+    } catch (_) {}
+
+    // На всякий случай мгновенно погасим UI «авторизован», пока перезагрузка не произошла.
+    try {
+      const loginBtn = $('#loginGoogleBtn');
+      const authMini = $('#authMini');
+      const logoutBtn = $('#logoutBtn');
+      const createBtn = $('#createBtn');
+      if (loginBtn) loginBtn.style.display = '';
+      if (authMini) authMini.classList.add('hidden');
+      if (logoutBtn) logoutBtn.style.display = 'none';
+      if (createBtn) createBtn.disabled = true;
+    } catch (_) {}
+
+    // Не ждём дольше ~350 мс — UX остаётся «мгновенным».
+    setTimeout(navigate, 350);
   });
 
   // ссылка: клик = копировать
