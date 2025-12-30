@@ -323,21 +323,22 @@ async function initAuthUI() {
     }
   });
 
-  logoutBtn?.addEventListener('click', async () => {
+  logoutBtn?.addEventListener('click', async (e) => {
+    e?.preventDefault?.();
+    if (logoutBtn) logoutBtn.disabled = true;
     try {
-      await signOut();
-    } catch (e) {
-      console.warn('signOut error', e);
+      await signOut({ timeoutMs: 3500 });
+    } catch (err) {
+      console.warn('Logout failed', err);
+    } finally {
+      if (logoutBtn) logoutBtn.disabled = false;
     }
     AUTH_SESSION = null;
     AUTH_USER = null;
-    // Жёсткая перезагрузка убирает «залипшую» сессию в памяти supabase-js
-    // и гарантирует, что UI покажет состояние «не вошли».
-    try {
-      location.replace(cleanRedirectUrl());
-    } catch (_) {
-      location.reload();
-    }
+    // убираем возможные code/state из URL без перезагрузки
+    try { history.replaceState(null, '', cleanRedirectUrl()); } catch (_) {}
+    await refreshAuthUI();
+    updateGateUI();
   });
 
   await refreshAuthUI();
