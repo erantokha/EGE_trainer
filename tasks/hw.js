@@ -333,12 +333,22 @@ async function initAuthUI() {
     } finally {
       if (logoutBtn) logoutBtn.disabled = false;
     }
+
     AUTH_SESSION = null;
     AUTH_USER = null;
-    // убираем возможные code/state из URL без перезагрузки
-    try { history.replaceState(null, '', cleanRedirectUrl()); } catch (_) {}
-    await refreshAuthUI();
-    updateGateUI();
+
+    // Как на странице создания ДЗ: после выхода переоткрываем страницу без OAuth-параметров
+    // (code/state/error), чтобы не "залипать" на callback-URL и гарантированно сбросить UI.
+    try {
+      const clean = cleanRedirectUrl();
+      if (clean === location.href) {
+        location.reload();
+      } else {
+        location.replace(clean);
+      }
+    } catch (_) {
+      location.reload();
+    }
   });
 
   await refreshAuthUI();
