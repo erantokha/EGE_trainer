@@ -1124,31 +1124,56 @@ input:focus{
 #appHeader{width:100%;}
 #appHeader .app-header{
   max-width:1080px;
-  margin:8px auto 0;
-  padding:4px 16px;
+  margin:3px auto 0;
+  height:30px;
+  padding:3px 16px;
+  box-sizing:border-box;
+
   display:flex;
   align-items:center;
-  justify-content:space-between;
   gap:10px;
+
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
 }
 #appHeader .app-header-left,
 #appHeader .app-header-right{
   display:flex;
   align-items:center;
   gap:8px;
+  flex:0 0 auto;
 }
-#appHeader .hdr-user{
+#appHeader .app-header-center{
+  flex:1 1 auto;
+  min-width:0;
+  text-align:center;
+}
+#appHeader .hdr-title{
+  font-size:13px;
+  line-height:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  opacity:.95;
+  user-select:none;
+}
+#appHeader .app-header-user{
   display:flex;
   align-items:center;
   gap:8px;
 }
-#appHeader .hdr-user-name{
-  opacity:.9;
-  white-space:nowrap;
+#appHeader .btn{
+  height:22px;
+  padding:0 10px;
+  display:inline-flex;
+  align-items:center;
+  line-height:1;
   font-size:13px;
-  line-height:1.2;
 }
-/* Компактные кнопки в шапке (не влияет на остальные кнопки сайта) */
-#appHeader button.btn{
-  padding:6px 10px;
+
+/* убрать отступ между шапкой и основным контейнером */
+body.with-app-header .container{
+  margin-top:0;
 }
