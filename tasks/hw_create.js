@@ -5,8 +5,8 @@
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { supabase, getSession } from '../app/providers/supabase.js';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
+import { initHeader } from '../app/ui/header.js';
 import {
-import { initHeader } from "../app/ui/header.js";
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
