@@ -1,170 +1,264 @@
 // app/ui/header.js
-// Компактная универсальная шапка (header) для всех страниц.
+// Компактная шапка: (слева) «На главную», (центр) заголовок страницы, (справа) Google-вход/выход.
 //
-// Возможности:
-// - Кнопка «На главную» (опционально)
-// - Заголовок страницы по центру
-// - Вход/выход через Google (Supabase)
+// Важно:
+// - не должна падать, даже если заголовок/селекторы отсутствуют;
+// - redirectTo для OAuth должен быть абсолютным URL текущей страницы (GitHub Pages).
 
 import { supabase, getSession, signInWithGoogle, signOut } from '../providers/supabase.js';
 
-function firstNameFromUser(user) {
-  const given = user?.user_metadata?.given_name || user?.user_metadata?.name || '';
-  const s = String(given || '').trim();
-  if (s) return s.split(/\s+/)[0];
-
-  const email = String(user?.email || '').trim();
-  if (email) return email.split('@')[0];
-
-  return 'Пользователь';
-}
-
-function ensureMount(mountId, mountEl) {
-  if (mountEl instanceof HTMLElement) return mountEl;
-  const el = document.getElementById(mountId);
-  if (!el) throw new Error(`Header mount element not found: #${mountId}`);
+function ensureMount(mount) {
+  const el = typeof mount === 'string' ? document.getElementById(mount) : mount;
+  if (!el) throw new Error('HEADER_MOUNT_NOT_FOUND');
   return el;
 }
 
-function inferTitleFromPage(titleSelector) {
-  if (titleSelector) {
-    const h = document.querySelector(titleSelector);
-    const t = String(h?.textContent || '').trim();
-    if (t) return t;
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function firstNameFromUser(user) {
+  const full =
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    user?.email ||
+    '';
+  const cleaned = String(full).trim();
+  if (!cleaned) return '';
+  return cleaned.split(/\s+/g)[0] || cleaned;
+}
+
+/**
+ * Делает корректный absolute redirectTo:
+ * - принимает как absolute, так и relative (например, './' или 'tasks/hw.html')
+ * - убирает OAuth-параметры (?code=..., ?state=...) и шумовые (?error=...)
+ */
+function cleanRedirectUrl(href) {
+  try {
+    const base = String(window.location.href || '');
+    const u = new URL(href || base, base);
+
+    // OAuth / Supabase params
+    ['code', 'state', 'error', 'error_code', 'error_description'].forEach((k) =>
+      u.searchParams.delete(k),
+    );
+    // hash тоже может использоваться некоторыми провайдерами
+    if (u.hash) u.hash = '';
+
+    return u.toString();
+  } catch (e) {
+    // Последний шанс: вернуть текущий URL без параметров
+    try {
+      const u2 = new URL(String(window.location.href || ''));
+      u2.search = '';
+      u2.hash = '';
+      return u2.toString();
+    } catch (_) {
+      return String(href || window.location.href || '');
+    }
   }
-  return String(document.title || '').trim();
 }
 
-function autoShowHome() {
-  const p = String(location.pathname || '');
-  // /tasks/ или /tasks/index.html — считаем главной страницей раздела
-  return !/\/tasks\/(index\.html)?$/.test(p);
+function pickTitleSource(options) {
+  // 1) Явный title в options
+  if (typeof options?.title === 'function') return { kind: 'fn', fn: options.title };
+  if (typeof options?.title === 'string' && options.title.trim()) {
+    return { kind: 'static', text: options.title.trim() };
+  }
+
+  // 2) Явный selector
+  if (typeof options?.titleSelector === 'string' && options.titleSelector.trim()) {
+    const el = document.querySelector(options.titleSelector.trim());
+    if (el) return { kind: 'el', el };
+  }
+
+  // 3) Автопоиск: hwTitle -> первый h1 -> document.title
+  const hw = document.getElementById('hwTitle');
+  if (hw) return { kind: 'el', el: hw };
+
+  const h1 = document.querySelector('h1');
+  if (h1) return { kind: 'el', el: h1 };
+
+  return { kind: 'static', text: String(document.title || '').trim() };
 }
 
+function readTitleFromSource(src) {
+  if (!src) return '';
+  if (src.kind === 'static') return String(src.text || '').trim();
+  if (src.kind === 'fn') {
+    try {
+      return String(src.fn?.() || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+  if (src.kind === 'el') return String(src.el?.textContent || '').trim();
+  return '';
+}
+
+function observeTitle(src, onChange) {
+  if (!src || src.kind !== 'el' || !src.el) return () => {};
+  const el = src.el;
+
+  // Если заголовок меняется (например, ДЗ подгружается по токену), обновим шапку автоматически.
+  const obs = new MutationObserver(() => {
+    onChange?.(String(el.textContent || '').trim());
+  });
+  obs.observe(el, { childList: true, subtree: true, characterData: true });
+
+  return () => obs.disconnect();
+}
+
+/**
+ * initHeader(options)
+ * options:
+ *  - mount: element | id (по умолчанию 'appHeader')
+ *  - showHome: boolean (по умолчанию true)
+ *  - homeHref: string (по умолчанию './')
+ *  - redirectTo: string (если задано, используется для OAuth; иначе текущая страница)
+ *  - title: string | () => string (если не задано, берём из #hwTitle / h1 / document.title)
+ *  - titleSelector: string (альтернатива автоопределению)
+ *  - fastLogoutMs: number (таймаут выхода, по умолчанию 350 мс)
+ *  - afterLogout: 'reload' | 'replace' (по умолчанию 'replace')
+ */
 export function initHeader(options = {}) {
   const {
-    mountId = 'appHeader',
-    mountEl = null,
-
-    // true/false или undefined (тогда определим автоматически)
-    showHome = undefined,
-    homeHref = './index.html',
-
-    // если пусто — попробуем взять из <h1> или document.title
-    title = '',
-    titleSelector = 'h1',
-
-    // куда перейти после logout (null = не переходить)
+    mount = 'appHeader',
+    showHome = true,
+    homeHref = './',
     redirectTo = null,
-    // 'replace' | 'assign'
+    fastLogoutMs = 350,
     afterLogout = 'replace',
   } = options;
 
-  const host = ensureMount(mountId, mountEl);
+  const host = ensureMount(mount);
 
-  const showHomeResolved = (typeof showHome === 'boolean') ? showHome : autoShowHome();
+  const titleSrc = pickTitleSource(options);
+  const initialTitle = readTitleFromSource(titleSrc);
 
   host.innerHTML = `
-    <div class="app-header" role="banner">
+    <div class="app-header" role="banner" aria-label="Шапка">
       <div class="app-header-left">
-        ${showHomeResolved ? '<button id="hdrHome" type="button" class="btn">На главную</button>' : '<span class="hdr-spacer"></span>'}
+        ${showHome ? `<button id="hdrHomeBtn" type="button" class="btn">На главную</button>` : `<span></span>`}
       </div>
-      <div class="app-header-center">
-        <div id="hdrTitle" class="app-header-title"></div>
+
+      <div class="app-header-center" aria-label="Заголовок страницы">
+        <div class="app-header-title" id="hdrTitle">${escapeHtml(initialTitle)}</div>
       </div>
+
       <div class="app-header-right">
-        <span id="hdrName" class="hdr-user-name"></span>
-        <button id="hdrLogin" type="button" class="btn">Войти через Google</button>
-        <button id="hdrLogout" type="button" class="btn">Выйти</button>
+        <button id="hdrLoginBtn" type="button" class="btn">Войти через Google</button>
+        <div id="hdrUserBox" class="hdr-user" style="display:none;">
+          <span id="hdrUserName" class="hdr-name"></span>
+          <button id="hdrLogoutBtn" type="button" class="btn">Выйти</button>
+        </div>
       </div>
     </div>
-  `.trim();
+  `;
 
-  const homeBtn = host.querySelector('#hdrHome');
   const titleEl = host.querySelector('#hdrTitle');
-  const nameEl = host.querySelector('#hdrName');
-  const loginBtn = host.querySelector('#hdrLogin');
-  const logoutBtn = host.querySelector('#hdrLogout');
+  const homeBtn = host.querySelector('#hdrHomeBtn');
+  const loginBtn = host.querySelector('#hdrLoginBtn');
+  const userBox = host.querySelector('#hdrUserBox');
+  const userName = host.querySelector('#hdrUserName');
+  const logoutBtn = host.querySelector('#hdrLogoutBtn');
 
   function setTitle(nextTitle) {
-    // Если передали undefined/null — берём по умолчанию из страницы.
-    // Если передали строку (даже пустую) — используем её как есть.
-    const t = (nextTitle === undefined || nextTitle === null)
-      ? inferTitleFromPage(titleSelector)
-      : String(nextTitle).trim();
-
     if (!titleEl) return;
+    const t = String(nextTitle || '').trim();
     titleEl.textContent = t;
-    titleEl.style.display = t ? '' : 'none';
   }
 
-  const initialTitle = String(title || '').trim();
-  setTitle(initialTitle ? initialTitle : undefined);
+  // Следим за изменениями заголовка в основной части страницы
+  const stopTitleObs = observeTitle(titleSrc, (t) => {
+    if (t) setTitle(t);
+  });
 
   if (homeBtn) {
     homeBtn.addEventListener('click', () => {
-      try {
-        location.assign(homeHref);
-      } catch (e) {
-        location.href = homeHref;
-      }
+      const href = typeof homeHref === 'function' ? homeHref() : homeHref;
+      if (href) window.location.href = String(href);
     });
+  }
+
+  async function updateAuthUI() {
+    try {
+      const session = await getSession();
+      const user = session?.user || null;
+
+      if (user) {
+        if (loginBtn) loginBtn.style.display = 'none';
+        if (userBox) userBox.style.display = 'flex';
+        if (userName) userName.textContent = firstNameFromUser(user) || 'Пользователь';
+      } else {
+        if (loginBtn) loginBtn.style.display = 'inline-flex';
+        if (userBox) userBox.style.display = 'none';
+        if (userName) userName.textContent = '';
+      }
+    } catch (e) {
+      // Если что-то пошло не так, не ломаем страницу: просто показываем кнопку входа.
+      if (loginBtn) loginBtn.style.display = 'inline-flex';
+      if (userBox) userBox.style.display = 'none';
+      if (userName) userName.textContent = '';
+      console.warn('[header] updateAuthUI error:', e);
+    }
   }
 
   if (loginBtn) {
     loginBtn.addEventListener('click', async () => {
-      await signInWithGoogle();
+      try {
+        const absoluteRedirect = cleanRedirectUrl(redirectTo || window.location.href);
+        await signInWithGoogle(absoluteRedirect);
+      } catch (e) {
+        console.error('[header] signIn error:', e);
+        alert('Не удалось начать вход через Google. Откройте консоль (F12) для деталей.');
+      }
     });
   }
 
   if (logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
+      // Мгновенно переключаем UI, потом выходим (с коротким таймаутом)
+      if (loginBtn) loginBtn.style.display = 'inline-flex';
+      if (userBox) userBox.style.display = 'none';
+      if (userName) userName.textContent = '';
+
       try {
-        await signOut({ timeoutMs: 400 });
+        await signOut({ timeoutMs: Number(fastLogoutMs) || 350 });
       } catch (e) {
-        console.warn('signOut failed', e);
+        console.warn('[header] signOut error (ignored):', e);
       }
 
-      if (redirectTo) {
-        if (afterLogout === 'assign') location.assign(redirectTo);
-        else location.replace(redirectTo);
+      try {
+        if (afterLogout === 'reload') {
+          window.location.reload();
+        } else {
+          // replace: чистим историю (чтобы не возвращаться на URL с параметрами)
+          window.location.replace(cleanRedirectUrl(window.location.href));
+        }
+      } catch (_) {
+        window.location.reload();
       }
     });
   }
 
-  async function update() {
-    let session = null;
-    try {
-      session = await getSession();
-    } catch (e) {
-      console.warn('getSession failed', e);
-    }
-
-    const user = session?.user || null;
-
-    if (nameEl) {
-      nameEl.textContent = user ? firstNameFromUser(user) : '';
-      nameEl.style.display = user ? '' : 'none';
-    }
-    if (loginBtn) loginBtn.style.display = user ? 'none' : '';
-    if (logoutBtn) logoutBtn.style.display = user ? '' : 'none';
-  }
-
-  const { data } = supabase.auth.onAuthStateChange(() => {
-    update();
-  });
-
-  update();
+  // Первичная отрисовка и подписка на изменения сессии
+  updateAuthUI();
+  const { data } = supabase.auth.onAuthStateChange(() => updateAuthUI());
 
   return {
-    update,
+    update: updateAuthUI,
     setTitle,
     destroy() {
+      stopTitleObs?.();
       try {
-        data?.subscription?.unsubscribe();
-      } catch (e) {
-        // ignore
-      }
+        data?.subscription?.unsubscribe?.();
+      } catch (_) {}
     },
   };
 }
