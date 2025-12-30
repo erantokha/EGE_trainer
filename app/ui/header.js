@@ -83,7 +83,7 @@ export function initHeader(options = {}) {
   host.innerHTML = `
     <div class="app-header">
       <div class="app-header-left">
-        ${showHome ? `<a class="btn" id="hdrHome" href="${homeHref}">На главную</a>` : ''}
+        ${showHome ? `<button class="btn" id="hdrHome" type="button" data-href="${homeHref}">На главную</button>` : ''}
       </div>
       <div class="app-header-right">
         <button class="btn" id="hdrLogin" type="button">Войти в Google</button>
@@ -95,6 +95,7 @@ export function initHeader(options = {}) {
     </div>
   `;
 
+  const homeBtn = host.querySelector('#hdrHome');
   const loginBtn = host.querySelector('#hdrLogin');
   const logoutBtn = host.querySelector('#hdrLogout');
   const userBox = host.querySelector('#hdrUserBox');
@@ -124,6 +125,13 @@ export function initHeader(options = {}) {
 
     return session;
   }
+
+  homeBtn?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+    const href = String(homeBtn?.dataset?.href || homeHref || '').trim();
+    if (!href) return;
+    try { location.href = href; } catch (_) { try { location.assign(href); } catch (_) {} }
+  });
 
   loginBtn?.addEventListener('click', async () => {
     try {
