@@ -70,8 +70,39 @@ export async function signOut() {
     }
   } catch (_) {}
 
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  // В некоторых браузерных профилях (расширения/кэш/несколько вкладок)
+  // бывает «залипание» сессии: signOut вроде вызван, но токен остаётся в storage
+  // или его тут же возвращает другой экземпляр GoTrueClient.
+  // Поэтому делаем два шага:
+  // 1) пытаемся ревокнуть refresh token (scope: 'global')
+  // 2) жёстко очищаем все ключи sb-<project>-* из localStorage/sessionStorage.
+  try {
+    await supabase.auth.signOut({ scope: 'global' });
+  } catch (_) {
+    // фолбэк: хотя бы локально
+    try { await supabase.auth.signOut(); } catch (_) {}
+  }
+
+  try {
+    const host = String(CONFIG?.supabase?.url || '');
+    const ref = host ? new URL(host).hostname.split('.')[0] : '';
+    if (ref) {
+      const prefix = `sb-${ref}-`;
+      const wipe = (store) => {
+        if (!store) return;
+        const keys = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (k && k.startsWith(prefix)) keys.push(k);
+        }
+        keys.forEach((k) => {
+          try { store.removeItem(k); } catch (_) {}
+        });
+      };
+      wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+      wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+    }
+  } catch (_) {}
 }
 
 // ---------- Attempts (как было) ----------
