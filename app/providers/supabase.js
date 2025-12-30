@@ -195,6 +195,21 @@ export async function signOut({ timeoutMs = 3500 } = {}) {
   try { history.replaceState(null, '', stripOAuthParams(location.href)); } catch (_) {}
 }
 
+// --- helpers (UI) ---
+export function getFirstNameFromUser(user) {
+  const md = user?.user_metadata || {};
+  const given = String(md.given_name || '').trim();
+  if (given) return given;
+
+  const full = String(md.full_name || md.name || md.display_name || '').trim();
+  if (full) return full.split(/\s+/)[0] || '';
+
+  const email = String(user?.email || '').trim();
+  if (email.includes('@')) return email.split('@')[0] || '';
+
+  return '';
+}
+
 // --- попытки / записи (опционально) ---
 export async function sendAttempt(attemptRow) {
   return await supabase.from('attempts').insert([attemptRow]);
