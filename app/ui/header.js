@@ -1,62 +1,44 @@
 // app/ui/header.js
-// Универсальная шапка для страниц проекта.
-// - слева (опционально): кнопка "На главную"
-// - справа: "Войти в Google" или "Имя" + "Выйти"
-// Использование:
-//   import { initHeader } from '../app/ui/header.js';
-//   initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+// Компактная универсальная шапка (header) для всех страниц.
 //
-// Требования:
-// - На странице должен быть контейнер <header id="appHeader"></header>
-//   (или передайте mountId / mountEl).
-//
-// Зависимости:
-// - app/providers/supabase.js должен экспортировать: supabase, getSession, signInWithGoogle, signOut
+// Возможности:
+// - Кнопка «На главную» (опционально)
+// - Заголовок страницы по центру
+// - Вход/выход через Google (Supabase)
 
 import { supabase, getSession, signInWithGoogle, signOut } from '../providers/supabase.js';
 
 function firstNameFromUser(user) {
-  const md = user?.user_metadata || {};
-  const given = String(md.given_name || '').trim();
-  if (given) return given;
+  const given = user?.user_metadata?.given_name || user?.user_metadata?.name || '';
+  const s = String(given || '').trim();
+  if (s) return s.split(/\s+/)[0];
 
-  const full = String(md.full_name || md.name || md.display_name || '').trim();
-  if (full) return full.split(/\s+/)[0] || '';
-
-  // fallback: часть до @ в email
   const email = String(user?.email || '').trim();
-  if (email.includes('@')) return email.split('@')[0];
+  if (email) return email.split('@')[0];
 
-  return '';
-}
-
-function defaultCleanUrl(href) {
-  try {
-    const u = new URL(href || location.href);
-    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
-    return u.toString();
-  } catch (_) {
-    return href || location.href;
-  }
+  return 'Пользователь';
 }
 
 function ensureMount(mountId, mountEl) {
-  if (mountEl && mountEl.nodeType === 1) return mountEl;
-
-  const byId = mountId ? document.getElementById(mountId) : null;
-  if (byId) return byId;
-
-  // Фолбэк: создадим header и вставим в начало body.
-  const h = document.createElement('header');
-  h.id = mountId || 'appHeader';
-  document.body?.insertBefore(h, document.body.firstChild);
-  return h;
+  if (mountEl instanceof HTMLElement) return mountEl;
+  const el = document.getElementById(mountId);
+  if (!el) throw new Error(`Header mount element not found: #${mountId}`);
+  return el;
 }
 
-function setHidden(el, hidden) {
-  if (!el) return;
-  if (hidden) el.classList.add('hidden');
-  else el.classList.remove('hidden');
+function inferTitleFromPage(titleSelector) {
+  if (titleSelector) {
+    const h = document.querySelector(titleSelector);
+    const t = String(h?.textContent || '').trim();
+    if (t) return t;
+  }
+  return String(document.title || '').trim();
+}
+
+function autoShowHome() {
+  const p = String(location.pathname || '');
+  // /tasks/ или /tasks/index.html — считаем главной страницей раздела
+  return !/\/tasks\/(index\.html)?$/.test(p);
 }
 
 export function initHeader(options = {}) {
@@ -64,204 +46,125 @@ export function initHeader(options = {}) {
     mountId = 'appHeader',
     mountEl = null,
 
-    showHome = true,
+    // true/false или undefined (тогда определим автоматически)
+    showHome = undefined,
     homeHref = './index.html',
 
-    // куда вернуться после OAuth (важно чистить code/state)
-    redirectTo = null,
+    // если пусто — попробуем взять из <h1> или document.title
+    title = '',
+    titleSelector = 'h1',
 
-    // что сделать после выхода:
-    // - 'none' : не перезагружать страницу
-    // - 'replace' : location.replace(cleanUrl)
-    // - 'reload' : location.reload()
-    // - function(cleanUrl) : пользовательская логика
+    // куда перейти после logout (null = не переходить)
+    redirectTo = null,
+    // 'replace' | 'assign'
     afterLogout = 'replace',
   } = options;
 
   const host = ensureMount(mountId, mountEl);
-  document.body?.classList?.add('with-app-header');
+
+  const showHomeResolved = (typeof showHome === 'boolean') ? showHome : autoShowHome();
 
   host.innerHTML = `
-    <div class="app-header">
+    <div class="app-header" role="banner">
       <div class="app-header-left">
-        ${showHome ? `<button class="btn" id="hdrHome" type="button" data-href="${homeHref}">На главную</button>` : ''}
+        ${showHomeResolved ? '<button id="hdrHome" type="button" class="btn">На главную</button>' : '<span class="hdr-spacer"></span>'}
       </div>
-
       <div class="app-header-center">
-        <div id="hdrTitle" class="hdr-title"></div>
+        <div id="hdrTitle" class="app-header-title"></div>
       </div>
-
       <div class="app-header-right">
-        <button class="btn" id="hdrLogin" type="button">Войти через Google</button>
-        <div class="app-header-user" id="hdrUserBox" hidden>
-          <span class="muted" id="hdrUserName"></span>
-          <button class="btn" id="hdrLogout" type="button">Выйти</button>
-        </div>
+        <span id="hdrName" class="hdr-user-name"></span>
+        <button id="hdrLogin" type="button" class="btn">Войти через Google</button>
+        <button id="hdrLogout" type="button" class="btn">Выйти</button>
       </div>
     </div>
-`;
+  `.trim();
 
   const homeBtn = host.querySelector('#hdrHome');
+  const titleEl = host.querySelector('#hdrTitle');
+  const nameEl = host.querySelector('#hdrName');
   const loginBtn = host.querySelector('#hdrLogin');
   const logoutBtn = host.querySelector('#hdrLogout');
-  const userBox = host.querySelector('#hdrUserBox');
-  const nameEl = host.querySelector('#hdrUserName');
-  const cleanUrl = () => defaultCleanUrl(redirectTo || location.href);
+
+  function setTitle(nextTitle) {
+    // Если передали undefined/null — берём по умолчанию из страницы.
+    // Если передали строку (даже пустую) — используем её как есть.
+    const t = (nextTitle === undefined || nextTitle === null)
+      ? inferTitleFromPage(titleSelector)
+      : String(nextTitle).trim();
+
+    if (!titleEl) return;
+    titleEl.textContent = t;
+    titleEl.style.display = t ? '' : 'none';
+  }
+
+  const initialTitle = String(title || '').trim();
+  setTitle(initialTitle ? initialTitle : undefined);
+
+  if (homeBtn) {
+    homeBtn.addEventListener('click', () => {
+      try {
+        location.assign(homeHref);
+      } catch (e) {
+        location.href = homeHref;
+      }
+    });
+  }
+
+  if (loginBtn) {
+    loginBtn.addEventListener('click', async () => {
+      await signInWithGoogle();
+    });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      try {
+        await signOut({ timeoutMs: 400 });
+      } catch (e) {
+        console.warn('signOut failed', e);
+      }
+
+      if (redirectTo) {
+        if (afterLogout === 'assign') location.assign(redirectTo);
+        else location.replace(redirectTo);
+      }
+    });
+  }
 
   async function update() {
     let session = null;
     try {
       session = await getSession();
-    } catch (_) {
-      session = null;
+    } catch (e) {
+      console.warn('getSession failed', e);
     }
 
     const user = session?.user || null;
 
-    if (!user) {
-      setHidden(loginBtn, false);
-      setHidden(userBox, true);
-      if (nameEl) nameEl.textContent = '';
-    } else {
-      setHidden(loginBtn, true);
-      setHidden(userBox, false);
-      if (nameEl) nameEl.textContent = firstNameFromUser(user) || 'Профиль';
+    if (nameEl) {
+      nameEl.textContent = user ? firstNameFromUser(user) : '';
+      nameEl.style.display = user ? '' : 'none';
     }
-
-    return session;
+    if (loginBtn) loginBtn.style.display = user ? 'none' : '';
+    if (logoutBtn) logoutBtn.style.display = user ? '' : 'none';
   }
 
-  homeBtn?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-    const href = String(homeBtn?.dataset?.href || homeHref || '').trim();
-    if (!href) return;
-    try { location.href = href; } catch (_) { try { location.assign(href); } catch (_) {} }
+  const { data } = supabase.auth.onAuthStateChange(() => {
+    update();
   });
 
-  loginBtn?.addEventListener('click', async () => {
-    try {
-      await signInWithGoogle(cleanUrl());
-    } catch (e) {
-      console.error(e);
-    }
-  });
-
-  logoutBtn?.addEventListener('click', async () => {
-    // Мгновенно прячем UI "вошли", чтобы не было ощущения "залипло".
-    setHidden(userBox, true);
-    setHidden(loginBtn, false);
-    if (nameEl) nameEl.textContent = '';
-
-    // Не блокируем интерфейс ожиданием сетевого revoke.
-    // signOut сам попытается сделать global + wipe storage (если в providers/supabase.js так реализовано).
-    try {
-      await signOut({ timeoutMs: 350 });
-    } catch (e) {
-      console.warn('signOut error', e);
-    }
-
-    // Финальное действие после выхода
-    const u = cleanUrl();
-    try {
-      if (typeof afterLogout === 'function') {
-        afterLogout(u);
-      } else if (afterLogout === 'reload') {
-        location.reload();
-      } else if (afterLogout === 'replace') {
-        // Если URL не меняется, заменим его с "пустым" параметром, чтобы навигация была гарантирована.
-        const uu = new URL(u);
-        uu.searchParams.set('_logout', String(Date.now()));
-        location.replace(uu.toString());
-      } else {
-        // 'none'
-      }
-    } catch (_) {
-      try { location.reload(); } catch (_) {}
-    }
-  });
-
-  // Заголовок в центре шапки: options.title → H1 на странице → document.title.
-  // Если H1 меняется (например, после загрузки ДЗ), шапка обновится автоматически.
-  let manualTitle = title;
-  let titleSourceEl = null;
-  let titleObserver = null;
-  let rootObserver = null;
-
-  function findTitleSourceEl() {
-    if (titleSelector) {
-      return document.querySelector(titleSelector);
-    }
-    const selectors = ['#pageTitle', '#hwTitle', 'main h1', 'h1'];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      if (el) return el;
-    }
-    return null;
-  }
-
-  function computeTitleText() {
-    const mt = manualTitle != null ? String(manualTitle).trim() : '';
-    if (mt) return mt;
-
-    if (!titleSourceEl) titleSourceEl = findTitleSourceEl();
-    const h1Text = String(titleSourceEl?.textContent || '').trim();
-    if (h1Text) return h1Text;
-
-    const docTitle = String(document.title || '').trim();
-    if (docTitle) return docTitle;
-
-    return '';
-  }
-
-  function updateHeaderTitle() {
-    if (!titleEl) return;
-    titleEl.textContent = computeTitleText();
-  }
-
-  function ensureTitleWatchers() {
-    if (manualTitle || !watchTitle) return;
-
-    if (!titleSourceEl) titleSourceEl = findTitleSourceEl();
-    if (titleSourceEl && typeof MutationObserver !== 'undefined') {
-      if (!titleObserver) {
-        titleObserver = new MutationObserver(() => updateHeaderTitle());
-        titleObserver.observe(titleSourceEl, { characterData: true, childList: true, subtree: true });
-      }
-      if (rootObserver) { rootObserver.disconnect(); rootObserver = null; }
-      return;
-    }
-
-    // Если H1/источник ещё не появился, пробуем поймать его позже.
-    if (!titleSourceEl && typeof MutationObserver !== 'undefined' && !rootObserver) {
-      rootObserver = new MutationObserver(() => {
-        titleSourceEl = findTitleSourceEl();
-        if (titleSourceEl) ensureTitleWatchers();
-        updateHeaderTitle();
-      });
-      rootObserver.observe(document.body, { childList: true, subtree: true });
-    }
-  }
-
-  updateHeaderTitle();
-  ensureTitleWatchers();
-
-  // первичная отрисовка
   update();
-
-  // обновления при изменении сессии (включая возврат с OAuth)
-  try {
-    supabase.auth.onAuthStateChange(() => {
-      update();
-    });
-  } catch (e) {
-    console.warn('onAuthStateChange not available', e);
-  }
 
   return {
     update,
-    setTitle: (t) => {
-      manualTitle = t;
-      updateHeaderTitle();
+    setTitle,
+    destroy() {
+      try {
+        data?.subscription?.unsubscribe();
+      } catch (e) {
+        // ignore
+      }
     },
   };
 }
