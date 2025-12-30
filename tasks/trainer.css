@@ -1123,6 +1123,12 @@ input:focus{
 
 /* app header */
 #appHeader{width:100%;}
+
+/* если шапка есть, убираем верхний отступ у основного контейнера */
+#appHeader + .container,
+#appHeader + main.container {
+  margin-top: 0;
+}
 #appHeader .app-header{
   max-width:1080px;
   margin:3px auto 0;
