@@ -1,33 +1,137 @@
 // app/providers/supabase.js
-// Supabase client + вспомогательные методы для Auth (Google) и (опционально) отправки попыток.
+// Единый клиент Supabase + вспомогательные методы Auth (Google) и (опционально) отправки попыток.
 //
-// Важно:
-// - anonKey НЕ подходит как Authorization для RLS-операций учителя.
-// - Для операций учителя используем access_token из supabase.auth.getSession().
+// Почему тут есть singleton:
+// В проекте используются ES-модули с cache-busting (?v=...). Один и тот же файл может оказаться
+// загруженным по разным URL (с ?v и без), что приводит к нескольким экземплярам GoTrueClient
+// и «плавающим» багам (OAuth, signOut и т.д.).
+// Singleton через globalThis гарантирует ровно один createClient на вкладку.
 
 import { CONFIG } from '../config.js';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-// Если пользователь нажал «Выйти», а затем «Войти»,
-// хотим принудительно показать окно выбора Google-аккаунта.
-// (Google часто автоматически логинит в последний выбранный аккаунт,
-// даже если supabase-сессия уже очищена.)
-const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
+const FORCE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
+const GLOBAL_KEY = '__EGE_TRAINER_SUPABASE_SINGLETON__';
 
-export const supabase = createClient(
-  String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
-  CONFIG.supabase.anonKey,
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
+function getGlobal() {
+  // eslint-disable-next-line no-undef
+  return typeof globalThis !== 'undefined' ? globalThis : window;
+}
+
+function getSupabaseRef(url) {
+  try {
+    const u = new URL(url);
+    const host = u.hostname || '';
+    return host.split('.')[0] || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function stripOAuthParams(rawUrl) {
+  const url = new URL(rawUrl, location.href);
+  ['code', 'state', 'error', 'error_description', 'error_code'].forEach((k) => url.searchParams.delete(k));
+  return url.toString();
+}
+
+function wipeSupabaseAuthStorage(ref) {
+  if (!ref) return;
+  const prefix = `sb-${ref}-`;
+  const keysToRemove = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) keysToRemove.push(k);
+    }
+  } catch (_) {}
+
+  try {
+    for (const k of keysToRemove) localStorage.removeItem(k);
+  } catch (_) {}
+}
+
+function withTimeout(promise, ms) {
+  if (!ms || ms <= 0) return promise;
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(resolve, ms)),
+  ]);
+}
+
+const g = getGlobal();
+const singleton = (g[GLOBAL_KEY] ||= {});
+
+if (!singleton.client) {
+  const supabaseUrl = String(CONFIG.supabase.url || '').replace(/\/+$/g, '');
+  const anonKey = CONFIG.supabase.anonKey;
+
+  singleton.ref = getSupabaseRef(supabaseUrl);
+
+  singleton.client = createClient(
+    supabaseUrl,
+    anonKey,
+    {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+      },
     },
-  },
-);
+  );
+}
+
+export const supabase = singleton.client;
+
+/**
+ * Финализирует OAuth-редирект (PKCE): меняет code -> session.
+ * Делает это один раз (глобальный lock), и при желании чистит URL от code/state/error.
+ */
+export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
+  let urlObj;
+  try {
+    urlObj = new URL(location.href);
+  } catch (_) {
+    return { ok: true, exchanged: false };
+  }
+
+  const code = urlObj.searchParams.get('code');
+  const err = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
+
+  if (!code && !err) return { ok: true, exchanged: false };
+
+  const clean = () => {
+    if (!clearUrl) return;
+    try {
+      history.replaceState(null, '', stripOAuthParams(urlObj.toString()));
+    } catch (_) {}
+  };
+
+  if (err) {
+    clean();
+    return { ok: false, exchanged: false, error: err };
+  }
+
+  try {
+    if (!singleton.exchangePromise) {
+      singleton.exchangePromise = supabase.auth.exchangeCodeForSession(code);
+    }
+    const { data, error } = await singleton.exchangePromise;
+    singleton.exchangePromise = null;
+
+    clean();
+    if (error) return { ok: false, exchanged: true, error };
+    return { ok: true, exchanged: true, data };
+  } catch (e) {
+    singleton.exchangePromise = null;
+    clean();
+    return { ok: false, exchanged: true, error: e };
+  }
+}
 
 export async function getSession() {
+  await finalizeOAuthRedirect({ clearUrl: true });
+
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
   return data?.session || null;
@@ -39,117 +143,59 @@ export async function requireSession() {
   return session;
 }
 
-export async function signInWithGoogle(redirectTo = null) {
-  const to = redirectTo || location.href;
+export async function signInWithGoogle(redirectTo) {
+  // убираем остатки параметров OAuth, чтобы не мешали новой попытке
+  try {
+    history.replaceState(null, '', stripOAuthParams(location.href));
+  } catch (_) {}
 
-  const forceSelectAccount =
-    typeof localStorage !== 'undefined' &&
-    localStorage.getItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY) === '1';
+  const forceSelect = (() => {
+    try { return localStorage.getItem(FORCE_SELECT_ACCOUNT_KEY) === '1'; } catch (_) { return false; }
+  })();
 
-  if (forceSelectAccount) {
-    // одноразово: показали выбор — больше не принуждаем
-    localStorage.removeItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY);
-  }
+  const queryParams = {};
+  if (forceSelect) queryParams.prompt = 'select_account';
 
-  const options = { redirectTo: to };
-  if (forceSelectAccount) options.queryParams = { prompt: 'select_account' };
-
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options,
+    options: {
+      redirectTo,
+      queryParams,
+    },
   });
   if (error) throw error;
+
+  try { localStorage.removeItem(FORCE_SELECT_ACCOUNT_KEY); } catch (_) {}
+
+  return data;
 }
 
-export async function signOut() {
-  // Запоминаем намерение пользователя «сменить аккаунт».
-  // При следующем signInWithGoogle покажем chooser.
-  try {
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY, '1');
+export async function signOut({ timeoutMs = 3500 } = {}) {
+  // На следующем логине просим Google показать выбор аккаунта.
+  try { localStorage.setItem(FORCE_SELECT_ACCOUNT_KEY, '1'); } catch (_) {}
+
+  const attempt = async () => {
+    try {
+      return await supabase.auth.signOut({ scope: 'global' });
+    } catch (e1) {
+      try {
+        return await supabase.auth.signOut();
+      } catch (e2) {
+        return null;
+      }
     }
-  } catch (_) {}
-
-  // В некоторых браузерных профилях (расширения/кэш/несколько вкладок)
-  // бывает «залипание» сессии: signOut вроде вызван, но токен остаётся в storage
-  // или его тут же возвращает другой экземпляр GoTrueClient.
-  // Поэтому делаем два шага:
-  // 1) пытаемся ревокнуть refresh token (scope: 'global')
-  // 2) жёстко очищаем все ключи sb-<project>-* из localStorage/sessionStorage.
-  try {
-    await supabase.auth.signOut({ scope: 'global' });
-  } catch (_) {
-    // фолбэк: хотя бы локально
-    try { await supabase.auth.signOut(); } catch (_) {}
-  }
-
-  try {
-    const host = String(CONFIG?.supabase?.url || '');
-    const ref = host ? new URL(host).hostname.split('.')[0] : '';
-    if (ref) {
-      const prefix = `sb-${ref}-`;
-      const wipe = (store) => {
-        if (!store) return;
-        const keys = [];
-        for (let i = 0; i < store.length; i++) {
-          const k = store.key(i);
-          if (k && k.startsWith(prefix)) keys.push(k);
-        }
-        keys.forEach((k) => {
-          try { store.removeItem(k); } catch (_) {}
-        });
-      };
-      wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-      wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-    }
-  } catch (_) {}
-}
-
-// ---------- Attempts (как было) ----------
-// Оставляем старую отправку попыток через REST с anonKey.
-// Если вы включите RLS на attempts и потребуете authenticated, это нужно будет переделать.
-export async function sendAttempt(attempt) {
-  if (!CONFIG.supabase.enabled) throw new Error('supabase disabled');
-
-  const row = {
-    student_id: attempt.studentId,
-    student_name: attempt.studentName,
-    student_email: attempt.studentEmail || null,
-    mode: attempt.mode,
-    seed: attempt.seed,
-    topic_ids: attempt.topicIds || [],
-    total: attempt.total,
-    correct: attempt.correct,
-    avg_ms: attempt.avgMs,
-    duration_ms: attempt.durationMs,
-    started_at: attempt.startedAt,
-    finished_at: attempt.finishedAt,
-    payload: attempt,
   };
 
-  const url =
-    String(CONFIG.supabase.url || '').replace(/\/+$/g, '') +
-    '/rest/v1/' +
-    CONFIG.supabase.table;
+  await withTimeout(attempt(), timeoutMs);
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      apikey: CONFIG.supabase.anonKey,
-      Authorization: 'Bearer ' + CONFIG.supabase.anonKey,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify([row]),
-  });
+  // Чистим ключи Supabase Auth (token + PKCE verifier/state и т.п.)
+  wipeSupabaseAuthStorage(singleton.ref);
 
-  if (!res.ok) {
-    let text = '';
-    try {
-      text = await res.text();
-    } catch (_) {}
-    const err = new Error('Supabase insert failed: ' + res.status + ' ' + text);
-    err.status = res.status;
-    throw err;
-  }
+  // На всякий случай чистим URL от code/error
+  try { history.replaceState(null, '', stripOAuthParams(location.href)); } catch (_) {}
+}
+
+// --- попытки / записи (опционально) ---
+export async function sendAttempt(attemptRow) {
+  return await supabase.from('attempts').insert([attemptRow]);
 }
