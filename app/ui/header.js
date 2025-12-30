@@ -79,28 +79,33 @@ export function initHeader(options = {}) {
   } = options;
 
   const host = ensureMount(mountId, mountEl);
+  document.body?.classList?.add('with-app-header');
 
   host.innerHTML = `
     <div class="app-header">
       <div class="app-header-left">
         ${showHome ? `<button class="btn" id="hdrHome" type="button" data-href="${homeHref}">На главную</button>` : ''}
       </div>
+
+      <div class="app-header-center">
+        <div id="hdrTitle" class="hdr-title"></div>
+      </div>
+
       <div class="app-header-right">
-        <button class="btn" id="hdrLogin" type="button">Войти в Google</button>
-        <div id="hdrUserBox" class="hdr-user hidden">
-          <span id="hdrUserName" class="hdr-user-name"></span>
+        <button class="btn" id="hdrLogin" type="button">Войти через Google</button>
+        <div class="app-header-user" id="hdrUserBox" hidden>
+          <span class="muted" id="hdrUserName"></span>
           <button class="btn" id="hdrLogout" type="button">Выйти</button>
         </div>
       </div>
     </div>
-  `;
+`;
 
   const homeBtn = host.querySelector('#hdrHome');
   const loginBtn = host.querySelector('#hdrLogin');
   const logoutBtn = host.querySelector('#hdrLogout');
   const userBox = host.querySelector('#hdrUserBox');
   const nameEl = host.querySelector('#hdrUserName');
-
   const cleanUrl = () => defaultCleanUrl(redirectTo || location.href);
 
   async function update() {
@@ -175,6 +180,71 @@ export function initHeader(options = {}) {
     }
   });
 
+  // Заголовок в центре шапки: options.title → H1 на странице → document.title.
+  // Если H1 меняется (например, после загрузки ДЗ), шапка обновится автоматически.
+  let manualTitle = title;
+  let titleSourceEl = null;
+  let titleObserver = null;
+  let rootObserver = null;
+
+  function findTitleSourceEl() {
+    if (titleSelector) {
+      return document.querySelector(titleSelector);
+    }
+    const selectors = ['#pageTitle', '#hwTitle', 'main h1', 'h1'];
+    for (const sel of selectors) {
+      const el = document.querySelector(sel);
+      if (el) return el;
+    }
+    return null;
+  }
+
+  function computeTitleText() {
+    const mt = manualTitle != null ? String(manualTitle).trim() : '';
+    if (mt) return mt;
+
+    if (!titleSourceEl) titleSourceEl = findTitleSourceEl();
+    const h1Text = String(titleSourceEl?.textContent || '').trim();
+    if (h1Text) return h1Text;
+
+    const docTitle = String(document.title || '').trim();
+    if (docTitle) return docTitle;
+
+    return '';
+  }
+
+  function updateHeaderTitle() {
+    if (!titleEl) return;
+    titleEl.textContent = computeTitleText();
+  }
+
+  function ensureTitleWatchers() {
+    if (manualTitle || !watchTitle) return;
+
+    if (!titleSourceEl) titleSourceEl = findTitleSourceEl();
+    if (titleSourceEl && typeof MutationObserver !== 'undefined') {
+      if (!titleObserver) {
+        titleObserver = new MutationObserver(() => updateHeaderTitle());
+        titleObserver.observe(titleSourceEl, { characterData: true, childList: true, subtree: true });
+      }
+      if (rootObserver) { rootObserver.disconnect(); rootObserver = null; }
+      return;
+    }
+
+    // Если H1/источник ещё не появился, пробуем поймать его позже.
+    if (!titleSourceEl && typeof MutationObserver !== 'undefined' && !rootObserver) {
+      rootObserver = new MutationObserver(() => {
+        titleSourceEl = findTitleSourceEl();
+        if (titleSourceEl) ensureTitleWatchers();
+        updateHeaderTitle();
+      });
+      rootObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  updateHeaderTitle();
+  ensureTitleWatchers();
+
   // первичная отрисовка
   update();
 
@@ -187,5 +257,11 @@ export function initHeader(options = {}) {
     console.warn('onAuthStateChange not available', e);
   }
 
-  return { update };
+  return {
+    update,
+    setTitle: (t) => {
+      manualTitle = t;
+      updateHeaderTitle();
+    },
+  };
 }
