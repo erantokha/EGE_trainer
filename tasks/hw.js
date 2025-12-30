@@ -625,11 +625,6 @@ async function showAttemptSummaryFromRow(row) {
   $('#restart').onclick = () => {
     location.href = './index.html';
   };
-  $('#exportCsv').onclick = (e) => {
-    e.preventDefault();
-    const csv = toCsv(SESSION.questions);
-    download('homework_session.csv', csv);
-  };
 
   renderReviewCards();
 }
@@ -1061,17 +1056,13 @@ function mountRunnerUI() {
 
   summary.innerHTML = `
     <div class="panel">
-      <h2>Сессия завершена</h2>
-      <div id="stats" class="stats"></div>
-      <div class="actions">
+      <div class="hw-summary-head">
+        <h2>Отчет и статистика</h2>
         <button id="restart" type="button">На главную</button>
-        <a id="exportCsv" href="#" download="homework_session.csv">Экспорт CSV</a>
       </div>
-
-      <div class="hw-review-title">Задачи</div>
+      <div id="stats" class="stats"></div>
       <div class="task-list hw-review-list" id="reviewList"></div>
-    </div>
-  `;
+    </div>`;
 }
 
 
@@ -1449,12 +1440,6 @@ async function finishSession() {
   $('#summary')?.classList.remove('hidden');
 
   renderStats({ total, correct, duration_ms, avg_ms });
-
-  $('#exportCsv').onclick = (e) => {
-    e.preventDefault();
-    const csv = toCsv(SESSION.questions);
-    download('homework_session.csv', csv);
-  };
 
   renderReviewCards();
 
