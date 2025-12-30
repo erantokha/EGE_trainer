@@ -323,29 +323,59 @@ async function initAuthUI() {
     }
   });
 
-  logoutBtn?.addEventListener('click', async (e) => {
+  logoutBtn?.addEventListener('click', (e) => {
     e?.preventDefault?.();
-    if (logoutBtn) logoutBtn.disabled = true;
-    try {
-      await signOut({ timeoutMs: 3500 });
-    } catch (err) {
-      console.warn('Logout failed', err);
-    } finally {
-      if (logoutBtn) logoutBtn.disabled = false;
-    }
+
+    // Делаем выход "мгновенным" как на странице создания ДЗ:
+    // 1) синхронно чистим локальную auth-сессию и storage (чтобы не залипали кнопки/состояние)
+    // 2) запускаем signOut best-effort без ожидания (сетевой вызов может зависать в некоторых профилях/расширениях)
+    // 3) сразу переоткрываем страницу без OAuth-параметров (code/state/error)
 
     AUTH_SESSION = null;
     AUTH_USER = null;
 
-    // Как на странице создания ДЗ: после выхода переоткрываем страницу без OAuth-параметров
-    // (code/state/error), чтобы не "залипать" на callback-URL и гарантированно сбросить UI.
+    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
+    try {
+      localStorage?.setItem?.('auth_force_google_select_account', '1');
+    } catch (_) {}
+
+    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
+    // чтобы гарантированно сбросить залипшую сессию в браузере.
+    try {
+      const host = String(CONFIG?.supabase?.url || '');
+      const ref = host ? new URL(host).hostname.split('.')[0] : '';
+      if (ref) {
+        const prefix = `sb-${ref}-`;
+        const wipe = (store) => {
+          if (!store) return;
+          const keys = [];
+          for (let i = 0; i < store.length; i++) {
+            const k = store.key(i);
+            if (k && k.startsWith(prefix)) keys.push(k);
+          }
+          keys.forEach((k) => {
+            try { store.removeItem(k); } catch (_) {}
+          });
+        };
+        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      }
+    } catch (_) {}
+
+    // Best-effort: попросим Supabase ревокнуть refresh token (может не успеть из-за редиректа — это ок).
+    try {
+      Promise.resolve()
+        .then(() => supabase?.auth?.signOut?.({ scope: 'global' }))
+        .catch(() => supabase?.auth?.signOut?.())
+        .catch(() => {});
+    } catch (_) {}
+
+    // Сразу перезагружаем страницу без OAuth-параметров,
+    // чтобы не оставаться на callback URL и не ломать следующие страницы.
     try {
       const clean = cleanRedirectUrl();
-      if (clean === location.href) {
-        location.reload();
-      } else {
-        location.replace(clean);
-      }
+      if (clean === location.href) location.reload();
+      else location.replace(clean);
     } catch (_) {
       location.reload();
     }
