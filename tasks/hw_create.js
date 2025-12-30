@@ -239,7 +239,12 @@ function wireAuthControls() {
   $('#logoutBtn')?.addEventListener('click', async () => {
     try {
       await signOut();
-      location.reload();
+      // Перезагрузка без auth-параметров (на случай залипшего состояния после OAuth)
+      try {
+        location.replace(cleanRedirectUrl());
+      } catch (_) {
+        location.reload();
+      }
     } catch (e) {
       console.error(e);
       flashStatus('Не удалось выйти.');

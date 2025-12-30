@@ -331,7 +331,13 @@ async function initAuthUI() {
     }
     AUTH_SESSION = null;
     AUTH_USER = null;
-    await refreshAuthUI();
+    // Жёсткая перезагрузка убирает «залипшую» сессию в памяти supabase-js
+    // и гарантирует, что UI покажет состояние «не вошли».
+    try {
+      location.replace(cleanRedirectUrl());
+    } catch (_) {
+      location.reload();
+    }
   });
 
   await refreshAuthUI();
