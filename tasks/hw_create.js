@@ -3,7 +3,7 @@
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
 import {
   baseIdFromProtoId,
@@ -209,6 +209,18 @@ function ensureAuthBar() {
   // auth-блок теперь в разметке (hw_create.html), тут оставляем заглушку для совместимости.
 }
 
+
+function cleanRedirectUrl() {
+  try {
+    const u = new URL(location.href);
+    // Supabase OAuth может возвращать эти параметры. Убираем их, чтобы не мешали повторному входу.
+    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch (_) {
+    return location.href;
+  }
+}
+
 let AUTH_WIRED = false;
 function wireAuthControls() {
   if (AUTH_WIRED) return;
@@ -217,7 +229,7 @@ function wireAuthControls() {
   $('#loginGoogleBtn')?.addEventListener('click', async () => {
     try {
       setStatus('Открываем вход через Google...');
-      await signInWithGoogle(location.href);
+      await signInWithGoogle(cleanRedirectUrl());
     } catch (e) {
       console.error(e);
       flashStatus('Не удалось начать вход через Google.');

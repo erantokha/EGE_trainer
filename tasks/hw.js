@@ -14,7 +14,7 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
 
 
 // build/version (cache-busting)
@@ -297,6 +297,17 @@ function parseFrozenQuestions(frozen) {
 
 
 
+
+function cleanRedirectUrl() {
+  try {
+    const u = new URL(location.href);
+    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch (_) {
+    return location.href;
+  }
+}
+
 // ---------- Авторизация (Google) ----------
 async function initAuthUI() {
   const loginBtn = $('#authLogin');
@@ -304,7 +315,7 @@ async function initAuthUI() {
 
   loginBtn?.addEventListener('click', async () => {
     try {
-      await signInWithGoogle(location.href);
+      await signInWithGoogle(cleanRedirectUrl());
     } catch (e) {
       console.error(e);
       const m = $('#hwGateMsg');
