@@ -1124,28 +1124,31 @@ input:focus{
 #appHeader{width:100%;}
 #appHeader .app-header{
   max-width:1080px;
-  margin:16px auto 0;
-  padding:0 16px;
+  margin:8px auto 0;
+  padding:4px 16px;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:12px;
+  gap:10px;
 }
 #appHeader .app-header-left,
 #appHeader .app-header-right{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:8px;
 }
 #appHeader .hdr-user{
   display:flex;
   align-items:center;
-  gap:10px;
+  gap:8px;
 }
 #appHeader .hdr-user-name{
   opacity:.9;
   white-space:nowrap;
+  font-size:13px;
+  line-height:1.2;
 }
-#appHeader a.btn{
-  text-decoration:none;
+/* Компактные кнопки в шапке (не влияет на остальные кнопки сайта) */
+#appHeader button.btn{
+  padding:6px 10px;
 }
