@@ -14,7 +14,8 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
+import { supabase, getSession } from '../app/providers/supabase.js';
+import { initHeader } from "../app/ui/header.js";
 
 
 // build/version (cache-busting)
@@ -59,12 +60,15 @@ let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Шапка (Google Auth)
+  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+
   const token = getToken();
   const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
 
   // UI авторизации (Google)
-  initAuthUI().catch((e) => console.error(e));
+  initAuthState().catch((e) => console.error(e));
 
   // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
   $('#studentName')?.addEventListener('input', () => {
@@ -309,95 +313,17 @@ function cleanRedirectUrl() {
 }
 
 // ---------- Авторизация (Google) ----------
-async function initAuthUI() {
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
-
-  loginBtn?.addEventListener('click', async () => {
-    try {
-      await signInWithGoogle(cleanRedirectUrl());
-    } catch (e) {
-      console.error(e);
-      const m = $('#hwGateMsg');
-      if (m) m.textContent = 'Не удалось запустить вход. Проверьте настройки Google OAuth в Supabase.';
-    }
-  });
-
-  logoutBtn?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-
-    // Быстрый выход без ожидания сетевых запросов:
-    // 1) запускаем ревок refresh token в Supabase (best-effort)
-    // 2) синхронно чистим локальную auth-сессию и storage (чтобы UI не «залипал»)
-    // 3) через небольшой таймаут (или раньше, если успели) перезагружаем страницу без OAuth-параметров
-    const clean = cleanRedirectUrl();
-
-    let navigated = false;
-    const navigate = () => {
-      if (navigated) return;
-      navigated = true;
-      try {
-        if (clean === location.href) location.reload();
-        else location.replace(clean);
-      } catch (_) {
-        location.reload();
-      }
-    };
-
-    // Best-effort: попросим Supabase ревокнуть refresh token.
-    let revokePromise = null;
-    try {
-      revokePromise = supabase?.auth?.signOut?.({ scope: 'global' });
-    } catch (_) {}
-    if (!revokePromise) {
-      try { revokePromise = supabase?.auth?.signOut?.(); } catch (_) {}
-    }
-    if (revokePromise && typeof revokePromise.then === 'function') {
-      Promise.resolve(revokePromise).catch(() => {}).finally(() => navigate());
-    }
-
-    AUTH_SESSION = null;
-    AUTH_USER = null;
-
-    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
-    try {
-      localStorage?.setItem?.('auth_force_google_select_account', '1');
-    } catch (_) {}
-
-    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
-    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
-    try {
-      const host = String(CONFIG?.supabase?.url || '');
-      const ref = host ? new URL(host).hostname.split('.')[0] : '';
-      if (ref) {
-        const prefix = `sb-${ref}-`;
-        const wipe = (store) => {
-          if (!store) return;
-          const keys = [];
-          for (let i = 0; i < store.length; i++) {
-            const k = store.key(i);
-            if (k && k.startsWith(prefix)) keys.push(k);
-          }
-          keys.forEach((k) => {
-            try { store.removeItem(k); } catch (_) {}
-          });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
-
-    // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
-    setTimeout(navigate, 350);
-  });
-
-
+async function initAuthState() {
   await refreshAuthUI();
+  updateGateUI();
+  maybeAutoStart('auth_init');
 
-  // реагируем на редирект после Google OAuth и любые изменения сессии
   try {
-    supabase.auth.onAuthStateChange(async () => {
-      await refreshAuthUI();
+    supabase.auth.onAuthStateChange(() => {
+      refreshAuthUI().then(() => {
+        updateGateUI();
+        maybeAutoStart('auth_change');
+      });
     });
   } catch (e) {
     console.warn('onAuthStateChange not available', e);
@@ -406,56 +332,34 @@ async function initAuthUI() {
 
 function inferNameFromUser(user) {
   const md = user?.user_metadata || {};
-  const name =
-    md.full_name ||
-    md.name ||
-    md.display_name ||
-    md.preferred_username ||
-    md.given_name ||
-    '';
-  return String(name || '').trim();
+  const given = String(md.given_name || '').trim();
+  if (given) return given;
+
+  const full = String(md.full_name || md.name || md.display_name || '').trim();
+  if (full) return full.split(/\s+/)[0] || '';
+
+  const email = String(user?.email || '').trim();
+  if (email.includes('@')) return email.split('@')[0];
+
+  return '';
 }
 
 async function refreshAuthUI() {
-  let session = null;
-  try {
-    session = await getSession();
-  } catch (e) {
-    console.warn('getSession error', e);
-  }
-
+  const session = await getSession().catch(() => null);
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
-  const mini = $('#authMini');
-  const emailEl = $('#authEmail');
+  // авто-подстановка имени (только если пользователь сам не трогал поле)
   const nameInput = $('#studentName');
-
-  if (nameInput) nameInput.disabled = !AUTH_SESSION;
-
-  if (!AUTH_USER) {
-    if (loginBtn) loginBtn.classList.remove('hidden');
-    if (mini) mini.classList.add('hidden');
-    if (emailEl) emailEl.textContent = '';
-    if (logoutBtn) logoutBtn.classList.add('hidden');
-  } else {
-    if (loginBtn) loginBtn.classList.add('hidden');
-    if (mini) mini.classList.remove('hidden');
-    if (emailEl) emailEl.textContent = AUTH_USER.email ? String(AUTH_USER.email) : '';
-    if (logoutBtn) logoutBtn.classList.remove('hidden');
-
-    // автоподстановка имени (если пользователь ещё не правил поле)
-    const inferred = inferNameFromUser(AUTH_USER);
-    if (nameInput && inferred && !NAME_TOUCHED && !String(nameInput.value || '').trim()) {
-      nameInput.value = inferred;
-    }
+  if (!NAME_TOUCHED && nameInput && !String(nameInput.value || '').trim()) {
+    const nm = inferNameFromUser(AUTH_USER);
+    if (nm) nameInput.value = nm;
   }
 
-  updateGateUI();
-  await maybeShowExistingAttempt('auth');
-  maybeAutoStart('auth');
+  // можно оставить поле доступным, но старт всё равно требует AUTH_SESSION
+  if (nameInput) nameInput.disabled = false;
+
+  return session;
 }
 
 function updateGateUI() {

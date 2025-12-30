@@ -2,6 +2,18 @@
 // Страница выбора задач: аккордеон «раздел → тема» + сохранение выбора и переход к тренажёру.
 // Поддерживает режимы "Список задач"/"Тестирование" и флаг "Перемешать задачи".
 
+import { initHeader } from "../app/ui/header.js";
+
+function cleanRedirectUrl(href) {
+  try {
+    const u = new URL(href || location.href);
+    ["code", "state", "error", "error_description"].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch (_) {
+    return href || location.href;
+  }
+}
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -19,6 +31,9 @@ let LAST_SELECTION = null;
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
+  // Шапка (Google Auth)
+  initHeader({ showHome: false, redirectTo: cleanRedirectUrl() });
+
   initModeToggle();
   initShuffleToggle();
   initCreateHomeworkButton();

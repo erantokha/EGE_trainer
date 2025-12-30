@@ -3,9 +3,10 @@
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
+import { supabase, getSession } from '../app/providers/supabase.js';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
 import {
+import { initHeader } from "../app/ui/header.js";
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
@@ -223,95 +224,8 @@ function cleanRedirectUrl() {
 
 let AUTH_WIRED = false;
 function wireAuthControls() {
-  if (AUTH_WIRED) return;
-  AUTH_WIRED = true;
-
-  $('#loginGoogleBtn')?.addEventListener('click', async () => {
-    try {
-      setStatus('Открываем вход через Google...');
-      await signInWithGoogle(cleanRedirectUrl());
-    } catch (e) {
-      console.error(e);
-      flashStatus('Не удалось начать вход через Google.');
-    }
-  });
-
-  $('#logoutBtn')?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-
-    // Быстрый выход без ожидания сетевых запросов:
-    // - запускаем ревок refresh token в Supabase (best-effort)
-    // - синхронно чистим локальный storage, чтобы UI не «залипал» даже если сеть/расширения тормозят
-    // - через небольшой таймаут (или раньше, если успели) перезагружаем страницу без OAuth-параметров
-    const clean = cleanRedirectUrl();
-
-    let navigated = false;
-    const navigate = () => {
-      if (navigated) return;
-      navigated = true;
-      try {
-        if (clean === location.href) location.reload();
-        else location.replace(clean);
-      } catch (_) {
-        location.reload();
-      }
-    };
-
-    // Best-effort: попросим Supabase ревокнуть refresh token.
-    let revokePromise = null;
-    try {
-      revokePromise = supabase?.auth?.signOut?.({ scope: 'global' });
-    } catch (_) {}
-    if (!revokePromise) {
-      try { revokePromise = supabase?.auth?.signOut?.(); } catch (_) {}
-    }
-    if (revokePromise && typeof revokePromise.then === 'function') {
-      Promise.resolve(revokePromise).catch(() => {}).finally(() => navigate());
-    }
-
-    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
-    try {
-      localStorage?.setItem?.('auth_force_google_select_account', '1');
-    } catch (_) {}
-
-    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
-    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
-    try {
-      const host = String(CONFIG?.supabase?.url || '');
-      const ref = host ? new URL(host).hostname.split('.')[0] : '';
-      if (ref) {
-        const prefix = `sb-${ref}-`;
-        const wipe = (store) => {
-          if (!store) return;
-          const keys = [];
-          for (let i = 0; i < store.length; i++) {
-            const k = store.key(i);
-            if (k && k.startsWith(prefix)) keys.push(k);
-          }
-          keys.forEach((k) => {
-            try { store.removeItem(k); } catch (_) {}
-          });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
-
-    // На всякий случай мгновенно погасим UI «авторизован», пока перезагрузка не произошла.
-    try {
-      const loginBtn = $('#loginGoogleBtn');
-      const authMini = $('#authMini');
-      const logoutBtn = $('#logoutBtn');
-      const createBtn = $('#createBtn');
-      if (loginBtn) loginBtn.style.display = '';
-      if (authMini) authMini.classList.add('hidden');
-      if (logoutBtn) logoutBtn.style.display = 'none';
-      if (createBtn) createBtn.disabled = true;
-    } catch (_) {}
-
-    // Не ждём дольше ~350 мс — UX остаётся «мгновенным».
-    setTimeout(navigate, 350);
-  });
+  // auth-кнопки теперь в шапке (app/ui/header.js).
+  // Здесь оставляем только UX-обработчики, не связанные с авторизацией.
 
   // ссылка: клик = копировать
   $('#hwLink')?.addEventListener('click', async (e) => {
@@ -449,31 +363,13 @@ function showStudentLink(link, metaText = '') {
   if (meta) meta.textContent = metaText || '';
 }
 
-async function refreshAuthUI() {
-  ensureAuthBar();
-
+async function refreshAuthState() {
   const session = await getSession().catch(() => null);
 
-  const loginBtn = $('#loginGoogleBtn');
-  const authMini = $('#authMini');
-  const authEmail = $('#authEmail');
-  const logoutBtn = $('#logoutBtn');
+  // Единственная завязка на UI: без входа блокируем создание ДЗ.
   const createBtn = $('#createBtn');
+  if (createBtn) createBtn.disabled = !session;
 
-  if (!session) {
-    if (loginBtn) loginBtn.style.display = '';
-    if (authMini) authMini.classList.add('hidden');
-    if (logoutBtn) logoutBtn.style.display = 'none';
-    if (createBtn) createBtn.disabled = true;
-    return null;
-  }
-
-  const email = session.user?.email || '';
-  if (authEmail) authEmail.textContent = email ? `${email}` : '';
-  if (loginBtn) loginBtn.style.display = 'none';
-  if (logoutBtn) logoutBtn.style.display = '';
-  if (authMini) authMini.classList.remove('hidden');
-  if (createBtn) createBtn.disabled = false;
   return session;
 }
 
@@ -1321,13 +1217,16 @@ function ensureMathJaxLoaded() {
 
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  wireAuthControls();
+  // Шапка (Google Auth)
+  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+
   initEditableFields();
+  wireAuthControls();
 
   // auth
-  await refreshAuthUI();
+  await refreshAuthState();
   // обновление статуса при входе/выходе в другой вкладке
-  supabase.auth.onAuthStateChange(() => { refreshAuthUI(); });
+  supabase.auth.onAuthStateChange(() => { refreshAuthState(); });
   // список добавленных задач
   setFixedRefs([]);
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
@@ -1358,7 +1257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setStatus('');
 
     // защита: без входа не даём создавать
-    const session = await refreshAuthUI();
+    const session = await refreshAuthState();
     if (!session) {
       flashStatus('Нужно войти через Google (учитель), чтобы создавать ДЗ.');
       return;

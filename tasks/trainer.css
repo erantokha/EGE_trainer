@@ -1118,3 +1118,34 @@ input:focus{
 .hw-review-answers{
   margin-top:1.8em;
 }
+
+
+/* app header */
+#appHeader{width:100%;}
+#appHeader .app-header{
+  max-width:1080px;
+  margin:16px auto 0;
+  padding:0 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+#appHeader .app-header-left,
+#appHeader .app-header-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+#appHeader .hdr-user{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+#appHeader .hdr-user-name{
+  opacity:.9;
+  white-space:nowrap;
+}
+#appHeader a.btn{
+  text-decoration:none;
+}
