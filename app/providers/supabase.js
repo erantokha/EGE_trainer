@@ -61,7 +61,6 @@ function wipeSupabaseAuthStorage(ref) {
 }
 
 function withTimeout(promise, ms) {
-(promise, ms) {
   if (!ms || ms <= 0) return promise;
   return Promise.race([
     promise,
