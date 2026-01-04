@@ -12,10 +12,11 @@
 
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
 
+import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
+
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession } from '../app/providers/supabase.js';
-import { initHeader } from "../app/ui/header.js";
+import { supabase, getSession } from '../app/providers/supabase.js?v=2025-12-29-1';
 
 
 // build/version (cache-busting)
@@ -59,16 +60,15 @@ let EXISTING_ATTEMPT_ROW = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Шапка (Google Auth)
-  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+bootPage({
+  headerOptions: { showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() },
+  init: async () => {
+    const token = getToken();
+    const startBtn = $('#startHomework');
+    const msgEl = $('#hwGateMsg');
 
-  const token = getToken();
-  const startBtn = $('#startHomework');
-  const msgEl = $('#hwGateMsg');
-
-  // UI авторизации (Google)
-  initAuthState().catch((e) => console.error(e));
+    // UI авторизации (Google)
+    initAuthState().catch((e) => console.error(e));
 
   // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
   $('#studentName')?.addEventListener('input', () => {
@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   startBtn?.addEventListener('click', onStart);
+  },
 });
 
 async function onStart() {

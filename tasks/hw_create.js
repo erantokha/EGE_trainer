@@ -2,10 +2,11 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
+import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
+
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession } from '../app/providers/supabase.js';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2025-12-29-1';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
-import { initHeader } from '../app/ui/header.js';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
@@ -1216,44 +1217,43 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- init ----------
-document.addEventListener('DOMContentLoaded', async () => {
-  // Шапка (Google Auth)
-  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+bootPage({
+  headerOptions: { showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() },
+  init: async () => {
+    initEditableFields();
+    wireAuthControls();
 
-  initEditableFields();
-  wireAuthControls();
+    // auth
+    await refreshAuthState();
+    // обновление статуса при входе/выходе в другой вкладке
+    supabase.auth.onAuthStateChange(() => { refreshAuthState(); });
+    // список добавленных задач
+    setFixedRefs([]);
+    // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
+    await importSelectionIntoFixedTable();
+    updateFixedCountUI();
 
-  // auth
-  await refreshAuthState();
-  // обновление статуса при входе/выходе в другой вкладке
-  supabase.auth.onAuthStateChange(() => { refreshAuthState(); });
-  // список добавленных задач
-  setFixedRefs([]);
-  // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
-  await importSelectionIntoFixedTable();
-  updateFixedCountUI();
+    // показать/скрыть список добавленных задач
+    $('#toggleAdded')?.addEventListener('click', () => {
+      $('#addedBox')?.classList.toggle('hidden');
+    });
 
-  // показать/скрыть список добавленных задач
-  $('#toggleAdded')?.addEventListener('click', () => {
-    $('#addedBox')?.classList.toggle('hidden');
-  });
+    // Добавление задач через "пикер" (аккордеон → подтема → уникальные прототипы)
+    $('#addTaskPlus')?.addEventListener('click', () => {
+      openTaskPicker();
+    });
 
-  // Добавление задач через "пикер" (аккордеон → подтема → уникальные прототипы)
-  $('#addTaskPlus')?.addEventListener('click', () => {
-    openTaskPicker();
-  });
-
-  // модалка
-  $('#tpClose')?.addEventListener('click', () => closeTaskPicker());
-  $('#taskPickerModal .modal-backdrop')?.addEventListener('click', () => closeTaskPicker());
-  $('#tpAddSelected')?.addEventListener('click', () => addSelectedFromPicker());
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && TASK_PICKER_STATE.open) closeTaskPicker();
-  });
+    // модалка
+    $('#tpClose')?.addEventListener('click', () => closeTaskPicker());
+    $('#taskPickerModal .modal-backdrop')?.addEventListener('click', () => closeTaskPicker());
+    $('#tpAddSelected')?.addEventListener('click', () => addSelectedFromPicker());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && TASK_PICKER_STATE.open) closeTaskPicker();
+    });
 
 
-  // создание
-  $('#createBtn')?.addEventListener('click', async () => {
+    // создание
+    $('#createBtn')?.addEventListener('click', async () => {
     setStatus('');
 
     // защита: без входа не даём создавать
@@ -1357,5 +1357,6 @@ if (!hwRes.ok) {
     } finally {
       $('#createBtn').disabled = false;
     }
-  });
+    });
+  },
 });
