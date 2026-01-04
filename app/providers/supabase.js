@@ -153,6 +153,52 @@ if (!singleton.client) {
 
 export const supabase = singleton.client;
 
+// --- Auth bootstrap (once per tab) ---
+// Гарантирует, что:
+// 1) OAuth-редирект (если есть) финализируется ровно один раз,
+// 2) сессия кэшируется и не "теряется" между страницами,
+// 3) подписка onAuthStateChange поддерживает актуальное состояние.
+export async function initAuthOnce() {
+  if (singleton._initPromise) return singleton._initPromise;
+
+  singleton._initPromise = (async () => {
+    // Финализируем OAuth только один раз и только при необходимости.
+    try {
+      await finalizeOAuthRedirect({ clearUrl: true });
+    } catch (e) {
+      // Не валим страницу: ошибку сохраним и отдадим в getSession()
+      singleton._initError = e;
+    }
+
+    // Кэшируем сессию
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      singleton._cachedSession = data?.session || null;
+      singleton._initError = null;
+    } catch (e) {
+      singleton._cachedSession = null;
+      singleton._initError = e;
+    }
+
+    // Подписываемся один раз, чтобы кэш обновлялся
+    if (!singleton._authSubscribed) {
+      singleton._authSubscribed = true;
+      try {
+        const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+          singleton._cachedSession = session || null;
+          singleton._initError = null;
+        });
+        singleton._authSub = data?.subscription || null;
+      } catch (_) {}
+    }
+
+    return singleton._cachedSession || null;
+  })();
+
+  return singleton._initPromise;
+}
+
 /**
  * Финализирует OAuth-редирект (PKCE): меняет code -> session.
  * Делает это один раз (глобальный lock), и при желании чистит URL от code/state/error.
@@ -225,17 +271,11 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
 }
 
 export async function getSession() {
-  const fin = await finalizeOAuthRedirect({ clearUrl: true });
-
-  // Если это был возврат из OAuth — second fetch не нужен.
-  if (fin?.exchanged) {
-    return fin?.data?.session || null;
-  }
-
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data?.session || null;
+  await initAuthOnce();
+  if (singleton._initError) throw singleton._initError;
+  return singleton._cachedSession || null;
 }
+
 
 export async function requireSession() {
   const session = await getSession();
