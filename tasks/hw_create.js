@@ -5,7 +5,7 @@
 import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession, initAuthOnce } from '../app/providers/supabase.js?v=2025-12-29-1';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
 import {
   baseIdFromProtoId,
@@ -364,8 +364,27 @@ function showStudentLink(link, metaText = '') {
   if (meta) meta.textContent = metaText || '';
 }
 
+async function safeGetSession() {
+  try {
+    return await getSession();
+  } catch (e) {
+    console.warn('[hw_create] getSession error:', e);
+    const msg = (e && (e.message || e.name)) ? String(e.message || e.name) : String(e);
+    flashStatus(`Ошибка авторизации: ${msg}`);
+    return null;
+  }
+}
+
 async function refreshAuthState() {
-  const session = await getSession().catch(() => null);
+  // Гарантируем, что OAuth-редирект (если был) обработан ровно один раз,
+  // и что supabase-клиент подписан на изменения сессии.
+  try {
+    await initAuthOnce();
+  } catch (e) {
+    console.warn('[hw_create] initAuthOnce error:', e);
+  }
+
+  const session = await safeGetSession();
 
   // Единственная завязка на UI: без входа блокируем создание ДЗ.
   const createBtn = $('#createBtn');
@@ -373,6 +392,7 @@ async function refreshAuthState() {
 
   return session;
 }
+
 
 
 

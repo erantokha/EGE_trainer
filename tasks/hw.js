@@ -16,7 +16,7 @@ import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession, initAuthOnce } from '../app/providers/supabase.js?v=2025-12-29-1';
 
 
 // build/version (cache-busting)
@@ -346,7 +346,25 @@ function inferNameFromUser(user) {
 }
 
 async function refreshAuthUI() {
-  const session = await getSession().catch(() => null);
+  try {
+    await initAuthOnce();
+  } catch (e) {
+    console.warn('[hw] initAuthOnce error:', e);
+  }
+
+  let session = null;
+  try {
+    session = await getSession();
+  } catch (e) {
+    console.warn('[hw] getSession error:', e);
+    session = null;
+    // Важно: не ломаем страницу. Просто показываем, что входа нет.
+    const msgEl = $('#hwGateMsg');
+    if (msgEl && !RUN_STARTED) {
+      msgEl.textContent = 'Не удалось проверить авторизацию. Обновите страницу и попробуйте войти ещё раз.';
+    }
+  }
+
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
@@ -362,6 +380,7 @@ async function refreshAuthUI() {
 
   return session;
 }
+
 
 function updateGateUI() {
   const token = getToken();
