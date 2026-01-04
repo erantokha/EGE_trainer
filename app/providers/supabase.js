@@ -60,10 +60,12 @@ function wipeSupabaseAuthStorage(ref) {
   } catch (_) {}
 }
 
+// Чистим только «одноразовые» ключи OAuth/PKCE, не трогая сам auth-token.
+// Это нужно, чтобы случайный/повторный ?code= в URL не «разлогинивал» пользователя.
 function wipeSupabaseOAuthTransients(ref) {
   if (!ref) return;
   const prefix = `sb-${ref}-`;
-  const keepExact = `${prefix}auth-token`; // сам токен/сессия (persistSession)
+  const keepExact = `${prefix}auth-token`;
   const keysToRemove = [];
 
   const collect = (store) => {
@@ -116,7 +118,6 @@ function isOAuthInProgress(ref, maxAgeMs = 10 * 60 * 1000) {
   }
 }
 
-
 function withTimeout(promise, ms) {
   if (!ms || ms <= 0) return promise;
   return Promise.race([
@@ -141,6 +142,8 @@ if (!singleton.client) {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        // ВАЖНО: отключаем авто-обработку ?code=, чтобы не ловить PKCE ошибки на каждом refresh.
+        // Обмен code->session делаем вручную и только если OAuth стартовал в этой вкладке.
         detectSessionInUrl: false,
         flowType: 'pkce',
       },
@@ -155,13 +158,6 @@ export const supabase = singleton.client;
  * Делает это один раз (глобальный lock), и при желании чистит URL от code/state/error.
  */
 export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
-  // Важно: не обрабатываем ?code= автоматически на каждом refresh.
-  // Мы намеренно ставим detectSessionInUrl=false и выполняем обмен code->session вручную
-  // только если OAuth был начат в ЭТОЙ вкладке (marker в sessionStorage).
-  //
-  // Это защищает от ситуации, когда ?code= появляется "сам" (редирект/кэш/история),
-  // и Supabase падает с AuthPKCECodeVerifierMissingError, сбрасывая авторизацию.
-
   let urlObj;
   try {
     urlObj = new URL(location.href);
@@ -173,6 +169,8 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
   const hasState = !!urlObj.searchParams.get('state');
   const err = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
 
+  // считаем это OAuth-возвратом только если есть code
+  // или есть state + ошибка (иначе "error" в URL может быть не про OAuth)
   const looksLikeOAuth = !!code || (hasState && !!err);
   if (!looksLikeOAuth) return { ok: true, exchanged: false };
 
@@ -183,20 +181,21 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
     } catch (_) {}
   };
 
+  // Ошибка от провайдера
   if (err && !code) {
     setOAuthInProgress(singleton.ref, false);
     clean();
     return { ok: false, exchanged: false, error: err };
   }
 
-  // code есть, но OAuth не начинали в этой вкладке — игнорируем и просто чистим URL
+  // code есть, но OAuth НЕ начинали в этой вкладке — игнорируем и просто чистим URL.
   if (code && !isOAuthInProgress(singleton.ref)) {
     clean();
     return { ok: true, exchanged: false, ignored: true };
   }
 
-  // гарантируем, что обмен не запустится параллельно несколькими вызовами (шапка + страница)
   try {
+    // гарантируем, что exchange не запустится параллельно (шапка + страница)
     if (!singleton.exchangePromise) {
       singleton.exchangePromise = supabase.auth.exchangeCodeForSession(code);
     }
@@ -223,163 +222,14 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
     clean();
     return { ok: false, exchanged: true, error: e };
   }
-} = {}) {
-  // Важно: НЕ делаем exchange на каждый refresh без явного старта OAuth в этой вкладке.
-  // Иначе при случайном/повторном наличии ?code= можно получить PKCE missing и "разлогинить" пользователя.
-  //
-  // Правило:
-  // - если есть ?code=, но OAuth НЕ был начат в этой вкладке -> просто чистим URL и выходим (не обмениваем code).
-  // - если OAuth был начат -> делаем ровно один getSession(), он выполнит PKCE exchange (detectSessionInUrl=false).
-  // - при PKCE missing НЕ трогаем auth-token, чистим только transient-ключи и даём повторить вход.
-
-  let urlObj;
-  try {
-    urlObj = new URL(location.href);
-  } catch (_) {
-    return { ok: true, exchanged: false };
-  }
-
-  const hasCode = !!urlObj.searchParams.get('code');
-  const hasState = !!urlObj.searchParams.get('state');
-  const err = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
-
-  // считаем это OAuth-возвратом только если есть code
-  // или есть state + ошибка (иначе "error" в URL может быть не про OAuth)
-  const looksLikeOAuth = hasCode || (hasState && !!err);
-
-  if (!looksLikeOAuth) return { ok: true, exchanged: false };
-
-  const clean = () => {
-    if (!clearUrl) return;
-    try {
-      history.replaceState(null, '', stripOAuthParams(urlObj.toString()));
-    } catch (_) {}
-  };
-
-  // Если это ошибка от провайдера — просто чистим URL
-  if (err && !hasCode) {
-    setOAuthInProgress(singleton.ref, false);
-    clean();
-    return { ok: false, exchanged: false, error: err };
-  }
-
-  // Если code есть, но OAuth не начинали в этой вкладке — игнорируем code, чтобы не "убить" текущую сессию
-  if (hasCode && !isOAuthInProgress(singleton.ref)) {
-    clean();
-    return { ok: true, exchanged: false, ignored: true };
-  }
-
-  // гарантируем, что обмен не запустится параллельно несколькими вызовами (шапка + страница)
-  try {
-    if (!singleton.exchangePromise) {
-      singleton.exchangePromise = (async () => {
-        return await supabase.auth.getSession();
-      })();
-    }
-
-    const { data, error } = await singleton.exchangePromise;
-    singleton.exchangePromise = null;
-
-    setOAuthInProgress(singleton.ref, false);
-    clean();
-
-    if (error) return { ok: false, exchanged: true, error, data };
-    return { ok: true, exchanged: true, data };
-  } catch (e) {
-    singleton.exchangePromise = null;
-
-    // Потерян PKCE verifier: НЕ удаляем auth-token, только transient-и.
-    try {
-      if (String(e?.name || '').includes('AuthPKCECodeVerifierMissingError')) {
-        wipeSupabaseOAuthTransients(singleton.ref);
-      }
-    } catch (_) {}
-
-    setOAuthInProgress(singleton.ref, false);
-    clean();
-    return { ok: false, exchanged: true, error: e };
-  }
-} = {}) {
-  // Важно: НЕ вызываем exchangeCodeForSession вручную, чтобы не поймать ситуацию "обмен произошёл дважды".
-  // detectSessionInUrl=false в auth-js сам обменивает code→session при первом обращении к getSession()/getUser().
-  // Здесь мы делаем 3 вещи:
-  // 1) если в URL есть error — возвращаем его (и чистим URL),
-  // 2) если в URL есть code — делаем ровно один supabase.auth.getSession() (он триггерит обмен),
-  // 3) чистим URL от code/state/error, чтобы обмен не пытался повториться после перезагрузки.
-
-  let urlObj;
-  try {
-    urlObj = new URL(location.href);
-  } catch (_) {
-    return { ok: true, exchanged: false };
-  }
-
-  const hasCode = !!urlObj.searchParams.get('code');
-  const err = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
-
-  if (!hasCode && !err) return { ok: true, exchanged: false };
-
-  const clean = () => {
-    if (!clearUrl) return;
-    try {
-      history.replaceState(null, '', stripOAuthParams(urlObj.toString()));
-    } catch (_) {}
-  };
-
-  if (err) {
-    clean();
-    return { ok: false, exchanged: false, error: err };
-  }
-
-  // гарантируем, что обмен не запустится параллельно несколькими вызовами (шапка + страница)
-  try {
-    if (!singleton.exchangePromise) {
-      singleton.exchangePromise = (async () => {
-        try {
-          // Этот вызов в auth-js выполнит PKCE exchange, если code присутствует в URL.
-          return await supabase.auth.getSession();
-        } finally {
-          // promise обнулим ниже после await, чтобы второй вызов дождался первого
-        }
-      })();
-    }
-
-    const { data, error } = await singleton.exchangePromise;
-    singleton.exchangePromise = null;
-
-    // чистим URL в любом случае, чтобы не зациклиться на ?code=
-    clean();
-
-    if (error) return { ok: false, exchanged: true, error, data };
-
-    return { ok: true, exchanged: true, data };
-  } catch (e) {
-    singleton.exchangePromise = null;
-
-    // Типичная причина после редиректа — потерянный PKCE verifier.
-    // В этом случае лучше не падать "насмерть", а:
-    // - почистить supabase auth ключи,
-    // - убрать ?code из URL,
-    // - дать пользователю нажать "Войти" ещё раз.
-    try {
-      if (String(e?.name || '').includes('AuthPKCECodeVerifierMissingError')) {
-        wipeSupabaseAuthStorage(singleton.ref);
-      }
-    } catch (_) {}
-
-    clean();
-    return { ok: false, exchanged: true, error: e };
-  }
 }
 
 export async function getSession() {
   const fin = await finalizeOAuthRedirect({ clearUrl: true });
 
-  // Если это был возврат из OAuth (code/error) — getSession уже был вызван внутри finalize.
-  // Не дергаем второй раз, чтобы не провоцировать повторный exchange.
+  // Если это был возврат из OAuth — second fetch не нужен.
   if (fin?.exchanged) {
-    if (fin?.data?.session) return fin.data.session;
-    return null;
+    return fin?.data?.session || null;
   }
 
   const { data, error } = await supabase.auth.getSession();
@@ -399,11 +249,10 @@ export async function signInWithGoogle(redirectTo) {
     history.replaceState(null, '', stripOAuthParams(location.href));
   } catch (_) {}
 
-  // помечаем, что OAuth запущен именно в этой вкладке (важно для защиты от "ложного ?code=" на refresh)
+  // помечаем, что OAuth запущен именно в этой вкладке
   setOAuthInProgress(singleton.ref, true);
 
-  // Чистим только transient OAuth/PKCE ключи (НЕ трогаем auth-token).
-  // Иначе можно случайно "разлогинить" пользователя при повторной авторизации.
+  // чистим только transient OAuth/PKCE ключи (НЕ трогаем auth-token)
   wipeSupabaseOAuthTransients(singleton.ref);
 
   const forceSelect = (() => {
@@ -420,6 +269,7 @@ export async function signInWithGoogle(redirectTo) {
       queryParams,
     },
   });
+
   if (error) {
     setOAuthInProgress(singleton.ref, false);
     throw error;
@@ -431,7 +281,6 @@ export async function signInWithGoogle(redirectTo) {
 }
 
 export async function signOut({ timeoutMs = 3500 } = {}) {
-  // сбрасываем признак незавершенного OAuth
   setOAuthInProgress(singleton.ref, false);
 
   // На следующем логине просим Google показать выбор аккаунта.
@@ -451,7 +300,7 @@ export async function signOut({ timeoutMs = 3500 } = {}) {
 
   await withTimeout(attempt(), timeoutMs);
 
-  // Чистим ключи Supabase Auth (token + PKCE verifier/state и т.п.)
+  // Полный выход = чистим и токен, и PKCE/state.
   wipeSupabaseAuthStorage(singleton.ref);
 
   // На всякий случай чистим URL от code/error
@@ -477,4 +326,3 @@ export function getFirstNameFromUser(user) {
 export async function sendAttempt(attemptRow) {
   return await supabase.from('attempts').insert([attemptRow]);
 }
-
