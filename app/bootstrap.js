@@ -5,6 +5,7 @@
 // - безопасно инициализирует шапку (Google Auth)
 
 import { initHeader } from './ui/header.js?v=2025-12-29-1';
+import { finalizeOAuthRedirect } from './providers/supabase.js?v=2025-12-29-1';
 
 const BOOT_KEY = '__EGE_TRAINER_PAGE_BOOT__';
 
@@ -102,6 +103,18 @@ export function bootPage({ headerOptions = null, init = async () => {} } = {}) {
     // Инициализация страницы тоже должна выполниться один раз.
     if (alreadyBooted()) return;
     markBooted();
+
+    // Важно для PKCE (Google OAuth): после возврата мы получаем ?code=...
+    // Supabase-js должен обменять code -> session. На GitHub Pages это иногда "плавает",
+    // поэтому делаем финализацию явно (и чистим URL).
+    try {
+      const r = await finalizeOAuthRedirect({ clearUrl: true });
+      if (r && r.ok === false) {
+        reportFatal('oauth', r.error || new Error('OAUTH_FINALIZE_FAILED'));
+      }
+    } catch (e) {
+      reportFatal('oauth', e);
+    }
 
     // Шапка: не ломаем страницу, даже если что-то с ней не так.
     try {
