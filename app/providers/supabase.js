@@ -61,12 +61,14 @@ function wipeSupabaseAuthStorage(ref) {
 }
 
 function withTimeout(promise, ms) {
+(promise, ms) {
   if (!ms || ms <= 0) return promise;
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(resolve, ms)),
   ]);
 }
+
 const g = getGlobal();
 const singleton = (g[GLOBAL_KEY] ||= {});
 
@@ -97,6 +99,13 @@ export const supabase = singleton.client;
  * Делает это один раз (глобальный lock), и при желании чистит URL от code/state/error.
  */
 export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
+  // Важно: НЕ вызываем exchangeCodeForSession вручную, чтобы не поймать ситуацию "обмен произошёл дважды".
+  // detectSessionInUrl=true в auth-js сам обменивает code→session при первом обращении к getSession()/getUser().
+  // Здесь мы делаем 3 вещи:
+  // 1) если в URL есть error — возвращаем его (и чистим URL),
+  // 2) если в URL есть code — делаем ровно один supabase.auth.getSession() (он триггерит обмен),
+  // 3) чистим URL от code/state/error, чтобы обмен не пытался повториться после перезагрузки.
+
   let urlObj;
   try {
     urlObj = new URL(location.href);
@@ -104,10 +113,10 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
     return { ok: true, exchanged: false };
   }
 
-  const code = urlObj.searchParams.get('code');
+  const hasCode = !!urlObj.searchParams.get('code');
   const err = urlObj.searchParams.get('error') || urlObj.searchParams.get('error_description');
 
-  if (!code && !err) return { ok: true, exchanged: false };
+  if (!hasCode && !err) return { ok: true, exchanged: false };
 
   const clean = () => {
     if (!clearUrl) return;
@@ -121,25 +130,56 @@ export async function finalizeOAuthRedirect({ clearUrl = true } = {}) {
     return { ok: false, exchanged: false, error: err };
   }
 
+  // гарантируем, что обмен не запустится параллельно несколькими вызовами (шапка + страница)
   try {
     if (!singleton.exchangePromise) {
-      singleton.exchangePromise = supabase.auth.exchangeCodeForSession(code);
+      singleton.exchangePromise = (async () => {
+        try {
+          // Этот вызов в auth-js выполнит PKCE exchange, если code присутствует в URL.
+          return await supabase.auth.getSession();
+        } finally {
+          // promise обнулим ниже после await, чтобы второй вызов дождался первого
+        }
+      })();
     }
+
     const { data, error } = await singleton.exchangePromise;
     singleton.exchangePromise = null;
 
+    // чистим URL в любом случае, чтобы не зациклиться на ?code=
     clean();
-    if (error) return { ok: false, exchanged: true, error };
+
+    if (error) return { ok: false, exchanged: true, error, data };
+
     return { ok: true, exchanged: true, data };
   } catch (e) {
     singleton.exchangePromise = null;
+
+    // Типичная причина после редиректа — потерянный PKCE verifier.
+    // В этом случае лучше не падать "насмерть", а:
+    // - почистить supabase auth ключи,
+    // - убрать ?code из URL,
+    // - дать пользователю нажать "Войти" ещё раз.
+    try {
+      if (String(e?.name || '').includes('AuthPKCECodeVerifierMissingError')) {
+        wipeSupabaseAuthStorage(singleton.ref);
+      }
+    } catch (_) {}
+
     clean();
     return { ok: false, exchanged: true, error: e };
   }
 }
 
 export async function getSession() {
-  await finalizeOAuthRedirect({ clearUrl: true });
+  const fin = await finalizeOAuthRedirect({ clearUrl: true });
+
+  // Если это был возврат из OAuth (code/error) — getSession уже был вызван внутри finalize.
+  // Не дергаем второй раз, чтобы не провоцировать повторный exchange.
+  if (fin?.exchanged) {
+    if (fin?.data?.session) return fin.data.session;
+    return null;
+  }
 
   const { data, error } = await supabase.auth.getSession();
   if (error) throw error;
