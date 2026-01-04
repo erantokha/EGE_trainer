@@ -7,7 +7,7 @@
 // и «плавающим» багам (OAuth, signOut и т.д.).
 // Singleton через globalThis гарантирует ровно один createClient на вкладку.
 
-import { CONFIG } from '../config.js';
+import { CONFIG } from '../config.js?v=2025-12-29-1';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 const FORCE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
