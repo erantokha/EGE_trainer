@@ -52,6 +52,12 @@ function cleanRedirectUrl(href) {
     // hash тоже может использоваться некоторыми провайдерами
     if (u.hash) u.hash = '';
 
+    // GitHub Pages часто открывает директорию как /tasks/ (без index.html).
+    // Для OAuth redirectTo лучше отдавать конкретный файл, чтобы совпадать с белым списком в Supabase
+    // и не зависеть от поведения сервера.
+    if (u.pathname.endsWith('/')) {
+      u.pathname = u.pathname + 'index.html';
+    }
     return u.toString();
   } catch (e) {
     // Последний шанс: вернуть текущий URL без параметров
