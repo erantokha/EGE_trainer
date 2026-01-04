@@ -5,7 +5,9 @@
 // - не должна падать, даже если заголовок/селекторы отсутствуют;
 // - redirectTo для OAuth должен быть абсолютным URL текущей страницы (GitHub Pages).
 
-import { supabase, getSession, signInWithGoogle, signOut } from '../providers/supabase.js';
+import { supabase, getSession, signInWithGoogle, signOut } from '../providers/supabase.js?v=2025-12-29-1';
+
+const _INSTANCES = new WeakMap();
 
 function ensureMount(mount) {
   const el = typeof mount === 'string' ? document.getElementById(mount) : mount;
@@ -138,6 +140,13 @@ export function initHeader(options = {}) {
 
   const host = ensureMount(mount);
 
+  // Идемпотентность: если initHeader вызвали повторно на том же mount,
+  // аккуратно уничтожаем предыдущие подписки/обсерверы.
+  try {
+    const prev = _INSTANCES.get(host);
+    prev?.destroy?.();
+  } catch (_) {}
+
   const titleSrc = pickTitleSource(options);
   const initialTitle = readTitleFromSource(titleSrc);
 
@@ -251,7 +260,7 @@ export function initHeader(options = {}) {
   updateAuthUI();
   const { data } = supabase.auth.onAuthStateChange(() => updateAuthUI());
 
-  return {
+  const api = {
     update: updateAuthUI,
     setTitle,
     destroy() {
@@ -261,4 +270,7 @@ export function initHeader(options = {}) {
       } catch (_) {}
     },
   };
+
+  try { _INSTANCES.set(host, api); } catch (_) {}
+  return api;
 }
