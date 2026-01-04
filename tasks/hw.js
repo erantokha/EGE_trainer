@@ -12,11 +12,10 @@
 
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
 
-import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
-
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession, initAuthOnce } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-04-1';
+import { initHeader } from "../app/ui/header.js?v=2026-01-04-1";
 
 
 // build/version (cache-busting)
@@ -60,15 +59,16 @@ let EXISTING_ATTEMPT_ROW = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 
-bootPage({
-  headerOptions: { showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() },
-  init: async () => {
-    const token = getToken();
-    const startBtn = $('#startHomework');
-    const msgEl = $('#hwGateMsg');
+document.addEventListener('DOMContentLoaded', () => {
+  // Шапка (Google Auth)
+  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
 
-    // UI авторизации (Google)
-    initAuthState().catch((e) => console.error(e));
+  const token = getToken();
+  const startBtn = $('#startHomework');
+  const msgEl = $('#hwGateMsg');
+
+  // UI авторизации (Google)
+  initAuthState().catch((e) => console.error(e));
 
   // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
   $('#studentName')?.addEventListener('input', () => {
@@ -132,7 +132,6 @@ bootPage({
   });
 
   startBtn?.addEventListener('click', onStart);
-  },
 });
 
 async function onStart() {
@@ -346,25 +345,7 @@ function inferNameFromUser(user) {
 }
 
 async function refreshAuthUI() {
-  try {
-    await initAuthOnce();
-  } catch (e) {
-    console.warn('[hw] initAuthOnce error:', e);
-  }
-
-  let session = null;
-  try {
-    session = await getSession();
-  } catch (e) {
-    console.warn('[hw] getSession error:', e);
-    session = null;
-    // Важно: не ломаем страницу. Просто показываем, что входа нет.
-    const msgEl = $('#hwGateMsg');
-    if (msgEl && !RUN_STARTED) {
-      msgEl.textContent = 'Не удалось проверить авторизацию. Обновите страницу и попробуйте войти ещё раз.';
-    }
-  }
-
+  const session = await getSession().catch(() => null);
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
@@ -380,7 +361,6 @@ async function refreshAuthUI() {
 
   return session;
 }
-
 
 function updateGateUI() {
   const token = getToken();

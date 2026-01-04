@@ -2,24 +2,7 @@
 // Страница выбора задач: аккордеон «раздел → тема» + сохранение выбора и переход к тренажёру.
 // Поддерживает режимы "Список задач"/"Тестирование" и флаг "Перемешать задачи".
 
-import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
-
-// build/version (cache-busting)
-const BUILD = '2025-12-29-1';
-const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
-if (HTML_BUILD && HTML_BUILD !== BUILD) {
-  const k = 'picker:build_reload_attempted';
-  if (!sessionStorage.getItem(k)) {
-    sessionStorage.setItem(k, '1');
-    const u = new URL(location.href);
-    u.searchParams.set('_v', HTML_BUILD);
-    u.searchParams.set('_r', String(Date.now()));
-    location.replace(u.toString());
-  } else {
-    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
-  }
-}
-window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+import { initHeader } from "../app/ui/header.js?v=2026-01-04-1";
 
 function cleanRedirectUrl(href) {
   try {
@@ -47,30 +30,30 @@ let SHUFFLE_TASKS = false;
 let LAST_SELECTION = null;
 
 // ---------- Инициализация ----------
-bootPage({
-  headerOptions: { showHome: false, redirectTo: cleanRedirectUrl() },
-  init: async () => {
-    initModeToggle();
-    initShuffleToggle();
-    initCreateHomeworkButton();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Шапка (Google Auth)
+  initHeader({ showHome: false, redirectTo: cleanRedirectUrl() });
 
-    try {
-      await loadCatalog();
-      renderAccordion();
-      initBulkControls();
-    } catch (e) {
-      console.error(e);
-      const host = $('#accordion');
-      if (host) {
-        host.innerHTML =
-          '<div style="opacity:.8">Не найден ../content/tasks/index.json или JSON невалиден.</div>';
-      }
+  initModeToggle();
+  initShuffleToggle();
+  initCreateHomeworkButton();
+
+  try {
+    await loadCatalog();
+    renderAccordion();
+    initBulkControls();
+  } catch (e) {
+    console.error(e);
+    const host = $('#accordion');
+    if (host) {
+      host.innerHTML =
+        '<div style="opacity:.8">Не найден ../content/tasks/index.json или JSON невалиден.</div>';
     }
+  }
 
-    $('#start')?.addEventListener('click', () => {
-      saveSelectionAndGo();
-    });
-  },
+  $('#start')?.addEventListener('click', () => {
+    saveSelectionAndGo();
+  });
 });
 
 // ---------- Чтение предыдущего выбора ----------

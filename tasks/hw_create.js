@@ -2,11 +2,10 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
-
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession, initAuthOnce } from '../app/providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-04-1';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
+import { initHeader } from '../app/ui/header.js?v=2026-01-04-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
@@ -364,27 +363,8 @@ function showStudentLink(link, metaText = '') {
   if (meta) meta.textContent = metaText || '';
 }
 
-async function safeGetSession() {
-  try {
-    return await getSession();
-  } catch (e) {
-    console.warn('[hw_create] getSession error:', e);
-    const msg = (e && (e.message || e.name)) ? String(e.message || e.name) : String(e);
-    flashStatus(`Ошибка авторизации: ${msg}`);
-    return null;
-  }
-}
-
 async function refreshAuthState() {
-  // Гарантируем, что OAuth-редирект (если был) обработан ровно один раз,
-  // и что supabase-клиент подписан на изменения сессии.
-  try {
-    await initAuthOnce();
-  } catch (e) {
-    console.warn('[hw_create] initAuthOnce error:', e);
-  }
-
-  const session = await safeGetSession();
+  const session = await getSession().catch(() => null);
 
   // Единственная завязка на UI: без входа блокируем создание ДЗ.
   const createBtn = $('#createBtn');
@@ -392,7 +372,6 @@ async function refreshAuthState() {
 
   return session;
 }
-
 
 
 
@@ -1237,43 +1216,44 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- init ----------
-bootPage({
-  headerOptions: { showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() },
-  init: async () => {
-    initEditableFields();
-    wireAuthControls();
+document.addEventListener('DOMContentLoaded', async () => {
+  // Шапка (Google Auth)
+  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
 
-    // auth
-    await refreshAuthState();
-    // обновление статуса при входе/выходе в другой вкладке
-    supabase.auth.onAuthStateChange(() => { refreshAuthState(); });
-    // список добавленных задач
-    setFixedRefs([]);
-    // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
-    await importSelectionIntoFixedTable();
-    updateFixedCountUI();
+  initEditableFields();
+  wireAuthControls();
 
-    // показать/скрыть список добавленных задач
-    $('#toggleAdded')?.addEventListener('click', () => {
-      $('#addedBox')?.classList.toggle('hidden');
-    });
+  // auth
+  await refreshAuthState();
+  // обновление статуса при входе/выходе в другой вкладке
+  supabase.auth.onAuthStateChange(() => { refreshAuthState(); });
+  // список добавленных задач
+  setFixedRefs([]);
+  // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
+  await importSelectionIntoFixedTable();
+  updateFixedCountUI();
 
-    // Добавление задач через "пикер" (аккордеон → подтема → уникальные прототипы)
-    $('#addTaskPlus')?.addEventListener('click', () => {
-      openTaskPicker();
-    });
+  // показать/скрыть список добавленных задач
+  $('#toggleAdded')?.addEventListener('click', () => {
+    $('#addedBox')?.classList.toggle('hidden');
+  });
 
-    // модалка
-    $('#tpClose')?.addEventListener('click', () => closeTaskPicker());
-    $('#taskPickerModal .modal-backdrop')?.addEventListener('click', () => closeTaskPicker());
-    $('#tpAddSelected')?.addEventListener('click', () => addSelectedFromPicker());
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && TASK_PICKER_STATE.open) closeTaskPicker();
-    });
+  // Добавление задач через "пикер" (аккордеон → подтема → уникальные прототипы)
+  $('#addTaskPlus')?.addEventListener('click', () => {
+    openTaskPicker();
+  });
+
+  // модалка
+  $('#tpClose')?.addEventListener('click', () => closeTaskPicker());
+  $('#taskPickerModal .modal-backdrop')?.addEventListener('click', () => closeTaskPicker());
+  $('#tpAddSelected')?.addEventListener('click', () => addSelectedFromPicker());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && TASK_PICKER_STATE.open) closeTaskPicker();
+  });
 
 
-    // создание
-    $('#createBtn')?.addEventListener('click', async () => {
+  // создание
+  $('#createBtn')?.addEventListener('click', async () => {
     setStatus('');
 
     // защита: без входа не даём создавать
@@ -1377,6 +1357,5 @@ if (!hwRes.ok) {
     } finally {
       $('#createBtn').disabled = false;
     }
-    });
-  },
+  });
 });
