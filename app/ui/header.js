@@ -5,7 +5,7 @@
 // - не должна падать, даже если заголовок/селекторы отсутствуют;
 // - redirectTo для OAuth должен быть абсолютным URL текущей страницы (GitHub Pages).
 
-import { supabase, getSession, signInWithGoogle, signOut } from '../providers/supabase.js?v=2025-12-29-1';
+import { supabase, getSession, initAuthOnce, signInWithGoogle, signOut } from '../providers/supabase.js?v=2025-12-29-1';
 
 const _INSTANCES = new WeakMap();
 
@@ -203,6 +203,7 @@ export function initHeader(options = {}) {
 
   async function updateAuthUI() {
     try {
+      await initAuthOnce();
       const session = await getSession();
       const user = session?.user || null;
 
