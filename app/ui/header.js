@@ -8,6 +8,12 @@
 
 import { supabase, getSession, initAuthOnce, signInWithGoogle, signOut } from '../providers/supabase.js?v=2026-01-04-1';
 
+// Запускаем auth-инициализацию как можно раньше (в том числе для страниц,
+// где шапка монтируется позже, но URL уже содержит ?code=...).
+try {
+  Promise.resolve().then(() => initAuthOnce()).catch(() => {});
+} catch (_) {}
+
 const _INSTANCES = new WeakMap();
 
 function ensureMount(mount) {
