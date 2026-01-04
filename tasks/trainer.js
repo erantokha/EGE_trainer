@@ -1,8 +1,9 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2025-12-29-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
+import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -118,7 +119,7 @@ let SESSION = null;
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
 // ---------- Инициализация ----------
-document.addEventListener('DOMContentLoaded', async () => {
+bootPage({ init: async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
   $('#restart')?.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
@@ -189,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // с «вечной» заставкой
     $('#loadingOverlay')?.classList.add('hidden');
   }
-});
+} });
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
