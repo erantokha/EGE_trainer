@@ -3,9 +3,9 @@
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-04-1';
+// Тестовый auth (изоляция входа на этой странице)
+import { supabase, getSessionSafe } from './auth_google_test.js?v=2026-01-05-1';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
-import { initHeader } from '../app/ui/header.js?v=2026-01-04-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
@@ -364,7 +364,7 @@ function showStudentLink(link, metaText = '') {
 }
 
 async function refreshAuthState() {
-  const session = await getSession().catch(() => null);
+  const session = await getSessionSafe().catch(() => null);
 
   // Единственная завязка на UI: без входа блокируем создание ДЗ.
   const createBtn = $('#createBtn');
