@@ -153,6 +153,16 @@ export async function getSession() {
   return data?.session || null;
 }
 
+// Безопасный вариант для страниц, где удобно получать null вместо исключения.
+export async function getSessionSafe() {
+  try {
+    return await getSession();
+  } catch (e) {
+    console.warn('[auth_test] getSessionSafe -> null:', e);
+    return null;
+  }
+}
+
 export async function signInWithGoogleTest() {
   // На всякий случай убираем старые ?code/?state перед новым входом
   safeReplaceUrlClean();
