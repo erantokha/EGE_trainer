@@ -38,11 +38,28 @@ function wipeSupabaseAuthStorage(ref) {
   if (!ref) return;
   const prefix = `sb-${ref}-`;
   const keysToRemove = [];
+
+  const collect = (store) => {
+    try {
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        if (k && k.startsWith(prefix)) keysToRemove.push(k);
+      }
+    } catch (_) {}
+  };
+
+  // В разных версиях/сценариях Supabase хранит PKCE/state и токены и в localStorage, и в sessionStorage.
+  collect(localStorage);
+  collect(sessionStorage);
+
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(prefix)) keysToRemove.push(k);
+    for (const k of keysToRemove) {
+      try { localStorage.removeItem(k); } catch (_) {}
+      try { sessionStorage.removeItem(k); } catch (_) {}
     }
+  } catch (_) {}
+}
+
   } catch (_) {}
 
   try {
@@ -149,7 +166,11 @@ export async function signInWithGoogle(redirectTo) {
     history.replaceState(null, '', stripOAuthParams(location.href));
   } catch (_) {}
 
-  const forceSelect = (() => {
+    // Если в хранилищах остались хвосты от предыдущего OAuth/PKCE (часто после неудачного входа),
+  // они могут мешать новой попытке. Чистим supabase auth-ключи перед стартом OAuth.
+  wipeSupabaseAuthStorage(singleton.ref);
+
+const forceSelect = (() => {
     try { return localStorage.getItem(FORCE_SELECT_ACCOUNT_KEY) === '1'; } catch (_) { return false; }
   })();
 
