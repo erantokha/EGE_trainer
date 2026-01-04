@@ -4,7 +4,7 @@
 
 import { CONFIG } from '../app/config.js?v=2025-12-29-1';
 // Тестовый auth (изоляция входа на этой странице)
-import { supabase, getSessionSafe } from './auth_google_test.js?v=2026-01-05-2';
+import { supabase, getSessionSafe } from './auth_google_test.js?v=2026-01-05-3';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
 import {
   baseIdFromProtoId,
@@ -15,7 +15,7 @@ import {
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-05-2';
+const BUILD = '2026-01-05-3';
 const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
 if (HTML_BUILD && HTML_BUILD !== BUILD) {
   const k = 'hw_create:build_reload_attempted';
@@ -1218,7 +1218,11 @@ function ensureMathJaxLoaded() {
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
   // Шапка (Google Auth)
-  initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+  // В тестовом режиме (tasks/auth_google_test.js) шапка уже рендерится сама.
+  // На всякий случай оставляем совместимость: если initHeader есть (старый режим) — вызовем.
+  if (typeof initHeader === 'function') {
+    initHeader({ showHome: true, homeHref: './index.html', redirectTo: cleanRedirectUrl() });
+  }
 
   initEditableFields();
   wireAuthControls();
