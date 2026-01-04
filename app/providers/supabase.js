@@ -61,14 +61,12 @@ function wipeSupabaseAuthStorage(ref) {
 }
 
 function withTimeout(promise, ms) {
-(promise, ms) {
   if (!ms || ms <= 0) return promise;
   return Promise.race([
     promise,
     new Promise((resolve) => setTimeout(resolve, ms)),
   ]);
 }
-
 const g = getGlobal();
 const singleton = (g[GLOBAL_KEY] ||= {});
 
