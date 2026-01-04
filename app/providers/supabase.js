@@ -60,14 +60,8 @@ function wipeSupabaseAuthStorage(ref) {
   } catch (_) {}
 }
 
-  } catch (_) {}
-
-  try {
-    for (const k of keysToRemove) localStorage.removeItem(k);
-  } catch (_) {}
-}
-
 function withTimeout(promise, ms) {
+(promise, ms) {
   if (!ms || ms <= 0) return promise;
   return Promise.race([
     promise,
@@ -166,11 +160,11 @@ export async function signInWithGoogle(redirectTo) {
     history.replaceState(null, '', stripOAuthParams(location.href));
   } catch (_) {}
 
-    // Если в хранилищах остались хвосты от предыдущего OAuth/PKCE (часто после неудачного входа),
+  // Если в хранилищах остались хвосты от предыдущего OAuth/PKCE (часто после неудачного входа),
   // они могут мешать новой попытке. Чистим supabase auth-ключи перед стартом OAuth.
   wipeSupabaseAuthStorage(singleton.ref);
 
-const forceSelect = (() => {
+  const forceSelect = (() => {
     try { return localStorage.getItem(FORCE_SELECT_ACCOUNT_KEY) === '1'; } catch (_) { return false; }
   })();
 
@@ -235,3 +229,4 @@ export function getFirstNameFromUser(user) {
 export async function sendAttempt(attemptRow) {
   return await supabase.from('attempts').insert([attemptRow]);
 }
+
