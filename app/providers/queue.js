@@ -1,5 +1,5 @@
 // app/providers/queue.js
-import { CONFIG } from '../config.js?v=2025-12-29-1';
+import { CONFIG } from '../config.js';
 
 function _load(){
   try{ return JSON.parse(localStorage.getItem(CONFIG.app.queueKey)||'[]'); }catch(e){ return []; }

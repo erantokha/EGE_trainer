@@ -1,5 +1,5 @@
 // app/providers/index.js
-import { CONFIG } from '../config.js?v=2025-12-29-1';
+import { CONFIG } from '../config.js';
 import * as queue from './queue.js';
 import { sendAttempt } from './supabase.js';
 

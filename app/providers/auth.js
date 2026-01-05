@@ -1,5 +1,5 @@
 // app/providers/auth.js
-import { CONFIG } from '../config.js?v=2025-12-29-1';
+import { CONFIG } from '../config.js';
 const { createClient } = window.supabase;
 
 let client = null;
