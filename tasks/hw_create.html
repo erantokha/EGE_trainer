@@ -2,49 +2,24 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-05-3">
+  <meta name="app-build" content="2025-12-29-1">
   <title>Создание ДЗ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="./trainer.css?v=2025-12-29-1">
-<style>
-    /* app/ui/header.js */
-    #appHeader .app-header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-    }
-    #appHeader .app-header-left{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    #appHeader .app-header-right{
-      display:inline-flex;
-      align-items:center;
-      justify-content:flex-end;
-      gap:8px;
-      flex-wrap:wrap;
-      margin-left:auto;
-    }
-    #appHeader .hdr-user{
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
-      flex-wrap:wrap;
-    }
-    #appHeader .hdr-user-name{ opacity:.9; }
-  </style>
 </head>
 <body>
   <main class="container">
-    <header id="appHeader" class="panel" style="margin-bottom:12px"></header>
     <section>
       <div class="panel">
         <header class="page-head">
           <h1 id="pageTitle">Создание ДЗ</h1>
+          <div class="page-head-right">
+            <button id="loginGoogleBtn" class="btn" type="button">Войти через Google</button>
+            <span id="authMini" class="auth-mini hidden">
+              <span id="authEmail" class="auth-email"></span>
+              <button id="logoutBtn" class="btn small" type="button">Выйти</button>
+            </span>
+          </div>
         </header>
 
         <div class="controls" style="gap:10px;flex-wrap:wrap;margin-top:8px">
@@ -126,8 +101,6 @@
   </div>
 
   <script src="./theme.js?v=2025-12-29-1" defer></script>
-  <!-- Тестовый auth (подключён только на странице создания ДЗ) -->
-  <script type="module" src="./auth_google_test.js?v=2026-01-05-3"></script>
-  <script type="module" src="./hw_create.js?v=2026-01-05-3"></script>
+  <script type="module" src="./hw_create.js?v=2025-12-29-1"></script>
 </body>
 </html>
