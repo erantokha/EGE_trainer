@@ -3,8 +3,6 @@
 // Версия с безопасным вызовом MathJax: если tex-svg порождает NaN-размеры,
 // мы откатываемся к исходному TeX-тексту, чтобы не ломать верстку.
 
-import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
-
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
@@ -44,7 +42,7 @@ function mapLimit(items, limit, fn) {
   return Promise.all(workers);
 }
 
-bootPage({ init });
+document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   const params = new URLSearchParams(location.search);

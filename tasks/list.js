@@ -5,8 +5,7 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
-import { bootPage } from '../app/bootstrap.js?v=2025-12-29-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -21,7 +20,7 @@ let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из ses
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
 // ---------- Инициализация ----------
-bootPage({ init: async () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
   $('#restart')?.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
@@ -109,7 +108,7 @@ bootPage({ init: async () => {
   } finally {
     $('#loadingOverlay')?.classList.add('hidden');
   }
-} });
+});
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
