@@ -201,18 +201,41 @@ function mountHomeButton(right, isHome) {
 }
 
 function setupMenuInteractions(userBtn, menu) {
+  // Чтобы не было рассинхрона между menu.hidden и CSS-классом .hidden,
+  // всегда меняем их синхронно.
+  const WIRED_KEY = 'menuWired';
+
+  const normalize = () => {
+    const classHidden = menu.classList.contains('hidden');
+    if (classHidden && !menu.hidden) menu.hidden = true;
+    if (!classHidden && menu.hidden) menu.classList.add('hidden');
+  };
+
   const open = () => {
+    menu.hidden = false;
     menu.classList.remove('hidden');
     userBtn.setAttribute('aria-expanded', 'true');
   };
+
   const close = () => {
+    menu.hidden = true;
     menu.classList.add('hidden');
     userBtn.setAttribute('aria-expanded', 'false');
   };
+
+  const isOpen = () => !(menu.hidden || menu.classList.contains('hidden'));
   const toggle = () => {
-    if (menu.classList.contains('hidden')) open();
-    else close();
+    if (isOpen()) close();
+    else open();
   };
+
+  normalize();
+
+  // Защита от повторного навешивания обработчиков (на главной было 2 click listeners).
+  if (userBtn.dataset[WIRED_KEY] === '1') {
+    return { open, close };
+  }
+  userBtn.dataset[WIRED_KEY] = '1';
 
   userBtn.addEventListener('click', (e) => {
     e.preventDefault();
@@ -220,13 +243,33 @@ function setupMenuInteractions(userBtn, menu) {
     toggle();
   });
 
-  document.addEventListener('click', (e) => {
-    if (!menu.contains(e.target) && e.target !== userBtn) close();
-  });
+  // Глобальные обработчики (клик вне / Escape) ставим 1 раз на страницу,
+  // но каждый раз берём актуальные элементы по id.
+  const DOC_WIRED = '__egeUserMenuDocWired';
+  if (!window[DOC_WIRED]) {
+    window[DOC_WIRED] = true;
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') close();
-  });
+    document.addEventListener('click', (e) => {
+      const b = document.getElementById('userMenuBtn');
+      const m = document.getElementById('userMenu');
+      if (!b || !m) return;
+      if (m.contains(e.target) || b.contains(e.target)) return;
+      // idempotent close
+      m.hidden = true;
+      m.classList.add('hidden');
+      b.setAttribute('aria-expanded', 'false');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const b = document.getElementById('userMenuBtn');
+      const m = document.getElementById('userMenu');
+      if (!b || !m) return;
+      m.hidden = true;
+      m.classList.add('hidden');
+      b.setAttribute('aria-expanded', 'false');
+    });
+  }
 
   return { open, close };
 }
