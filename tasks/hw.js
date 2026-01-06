@@ -10,15 +10,15 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-06-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-07-1';
 
-import { CONFIG } from '../app/config.js?v=2026-01-06-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-06-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2026-01-06-1';
+import { CONFIG } from '../app/config.js?v=2026-01-07-1';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-07-1';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-07-1';
 
 
 // build/version (cache-busting)
-const BUILD = '2025-12-29-1';
+const BUILD = '2026-01-07-1';
 const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
 if (HTML_BUILD && HTML_BUILD !== BUILD) {
   const k = 'hw:build_reload_attempted';
@@ -148,7 +148,7 @@ async function onStart() {
     const studentKey = normalizeStudentKey(studentName);
 
     if (!AUTH_SESSION) {
-      if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
+      if (msgEl) msgEl.textContent = 'Войдите, чтобы начать выполнение.';
       if (startBtn) startBtn.disabled = true;
       return;
     }
@@ -388,7 +388,7 @@ function updateGateUI() {
   // обязательная авторизация для записи результата (RPC использует auth.uid())
   if (!AUTH_SESSION) {
     if (startBtn) startBtn.disabled = true;
-    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы начать выполнение.';
+    if (msgEl) msgEl.textContent = 'Войдите, чтобы начать выполнение.';
     return;
   }
 
@@ -580,7 +580,7 @@ async function showExistingAttemptSummary({ token, attemptId } = {}) {
   if (startBtn) startBtn.disabled = true;
 
   if (!AUTH_SESSION) {
-    if (msgEl) msgEl.textContent = 'Войдите через Google, чтобы увидеть результаты.';
+    if (msgEl) msgEl.textContent = 'Войдите, чтобы увидеть результаты.';
     return;
   }
 
