@@ -1,22 +1,18 @@
 // tasks/auth_callback.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-1';
-import { finalizeAuthRedirect, getSession } from '../app/providers/supabase.js?v=2026-01-07-1';
+import { CONFIG } from '../app/config.js?v=2026-01-07-2';
+import { finalizeAuthRedirect, getSession } from '../app/providers/supabase.js?v=2026-01-07-2';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-function basePath() {
-  return String(CONFIG?.site?.base || '').replace(/\/+$/g, '');
-}
 
-function appUrl(routeLike) {
-  const r = String(routeLike || '').trim();
-  const path = r.startsWith('/') ? r : '/' + r;
-  return new URL(basePath() + path, location.origin).toString();
+function homeUrl() {
+  // Эта страница лежит в /tasks/, поэтому корень приложения — на уровень выше.
+  try { return new URL('../', location.href).toString(); } catch (_) { return location.origin + '/'; }
 }
 
 function sanitizeNext(raw) {
-  const base = basePath() || '';
-  const safeDefault = new URL((base || '') + '/', location.origin).toString();
+  const safeDefault = homeUrl();
+  const home = new URL(safeDefault);
   if (!raw) return safeDefault;
   try {
     let u = null;
@@ -25,7 +21,7 @@ function sanitizeNext(raw) {
     else u = new URL('/' + raw, location.origin);
 
     if (u.origin !== location.origin) return safeDefault;
-    if (base && !u.pathname.startsWith(base + '/') && u.pathname !== base) return safeDefault;
+    if (!u.pathname.startsWith(home.pathname)) return safeDefault;
     return u.toString();
   } catch (_) {
     return safeDefault;
