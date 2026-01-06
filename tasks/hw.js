@@ -530,9 +530,8 @@ async function showAttemptSummaryFromRow(row) {
 
   renderStats({ total, correct, duration_ms, avg_ms });
 
-  $('#restart').onclick = () => {
-    location.href = HOME_URL;
-  };
+  const restartBtn = $('#restart');
+  if (restartBtn) restartBtn.onclick = () => { location.href = HOME_URL; };
 
   renderReviewCards();
 }
@@ -966,7 +965,6 @@ function mountRunnerUI() {
     <div class="panel">
       <div class="hw-summary-head">
         <h2>Отчет и статистика</h2>
-        <button id="restart" type="button">На главную</button>
       </div>
       <div id="stats" class="stats"></div>
       <div class="task-list hw-review-list" id="reviewList"></div>
@@ -994,9 +992,8 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 
 function wireRunner() {
   $('#finishHomework').onclick = finishSession;
-  $('#restart').onclick = () => {
-    location.href = HOME_URL;
-  };
+  const restartBtn = $('#restart');
+  if (restartBtn) restartBtn.onclick = () => { location.href = HOME_URL; };
 }
 
 
