@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2025-12-29-1';
+import { CONFIG } from '../app/config.js?v=2026-01-06-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2026-01-06-1';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-06-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2025-12-29-1';
+} from '../app/core/pick.js?v=2026-01-06-1';
 
 
 // build/version (cache-busting)
@@ -70,7 +70,7 @@ async function loadCatalog() {
   CATALOG = await res.json();
 
   const sections = (CATALOG || []).filter(x => x.type === 'group');
-  const topics = (CATALOG || []).filter(x => !!x.parent && x.enabled !== false);
+  const topics = (CATALOG || []).filter(x => !!x.parent && x.enabled !== false && x.hidden !== true);
 
   const byId = (a, b) => compareId(a.id, b.id);
 

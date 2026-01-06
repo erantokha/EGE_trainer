@@ -6,6 +6,8 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+import { withBuild } from '../app/build.js?v=2026-01-06-1';
+
 const INDEX_URL = '../content/tasks/index.json';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
@@ -17,7 +19,7 @@ async function ensureManifest(topic) {
 
   const url = new URL('../' + topic.path, location.href);
   topic._manifestPromise = (async () => {
-    const resp = await fetch(url.href, { cache: 'force-cache' });
+    const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
     if (!resp.ok) return null;
     const man = await resp.json();
     topic._manifest = man;
@@ -149,7 +151,7 @@ async function init() {
 
 // ---------- загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(INDEX_URL, { cache: 'force-cache' });
+  const resp = await fetch(withBuild(INDEX_URL), { cache: 'force-cache' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
   return resp.json();
 }

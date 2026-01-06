@@ -8,6 +8,8 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
+import { withBuild } from '../app/build.js?v=2026-01-06-1';
+
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
 const INDEX_URL = new URL(
@@ -247,7 +249,7 @@ function refreshCountsUI() {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(INDEX_URL, { cache: 'no-store' });
+  const resp = await fetch(withBuild(INDEX_URL), { cache: 'no-store' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
   CATALOG = await resp.json();
 

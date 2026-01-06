@@ -1,9 +1,11 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-06-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-06-1';
 
+
+import { withBuild } from '../app/build.js?v=2026-01-06-1';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -193,7 +195,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const { resp, fetch_ms } = await fetchTimed(INDEX_URL, { cache: 'force-cache' });
+  const { resp, fetch_ms } = await fetchTimed(withBuild(INDEX_URL), { cache: 'force-cache' });
   if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
 
   if (!PERF) {
@@ -215,7 +217,7 @@ async function loadCatalog() {
   }
 
   const sections = CATALOG.filter(x => x.type === 'group');
-  const topics   = CATALOG.filter(x => !!x.parent && x.enabled !== false);
+  const topics   = CATALOG.filter(x => !!x.parent && x.enabled !== false && x.hidden !== true);
 
   const byId = (a, b) => compareId(a.id, b.id);
 
@@ -235,7 +237,7 @@ async function ensureManifest(topic) {
   const url = new URL('../' + topic.path, location.href);
 
   topic._manifestPromise = (async () => {
-    const { resp, fetch_ms } = await fetchTimed(url.href, { cache: 'force-cache' });
+    const { resp, fetch_ms } = await fetchTimed(withBuild(url.href), { cache: 'force-cache' });
     if (!resp.ok) return null;
 
     if (!PERF) {

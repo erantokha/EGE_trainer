@@ -10,11 +10,11 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2025-12-29-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-06-1';
 
-import { CONFIG } from '../app/config.js?v=2025-12-29-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2025-12-29-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js';
+import { CONFIG } from '../app/config.js?v=2026-01-06-1';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-06-1';
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2026-01-06-1';
 
 
 // build/version (cache-busting)
@@ -719,7 +719,7 @@ async function loadCatalog() {
   CATALOG = await resp.json();
 
   const sections = CATALOG.filter(x => x.type === 'group');
-  const topics = CATALOG.filter(x => !!x.parent && x.enabled !== false);
+  const topics = CATALOG.filter(x => !!x.parent && x.enabled !== false && x.hidden !== true);
 
   const byId = (a, b) => compareId(a.id, b.id);
 
