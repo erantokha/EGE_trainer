@@ -3,7 +3,7 @@
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
 import { CONFIG } from '../app/config.js?v=2026-01-06-1';
-import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2026-01-06-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-06-1';
 import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-06-1';
 import {
   baseIdFromProtoId,
@@ -11,6 +11,10 @@ import {
   sampleKByBase,
   interleaveBatches,
 } from '../app/core/pick.js?v=2026-01-06-1';
+
+
+// finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
+finalizeOAuthRedirect().catch(() => {});
 
 
 // build/version (cache-busting)
@@ -239,10 +243,6 @@ function wireAuthControls() {
   $('#logoutBtn')?.addEventListener('click', (e) => {
     e?.preventDefault?.();
 
-    // Быстрый выход без ожидания сетевых запросов:
-    // - запускаем ревок refresh token в Supabase (best-effort)
-    // - синхронно чистим локальный storage, чтобы UI не «залипал» даже если сеть/расширения тормозят
-    // - через небольшой таймаут (или раньше, если успели) перезагружаем страницу без OAuth-параметров
     const clean = cleanRedirectUrl();
 
     let navigated = false;
@@ -257,40 +257,24 @@ function wireAuthControls() {
       }
     };
 
-    // Best-effort: попросим Supabase ревокнуть refresh token.
-    let revokePromise = null;
+    // Мгновенно гасим UI «авторизован», пока перезагрузка не произошла.
     try {
-      revokePromise = supabase?.auth?.signOut?.({ scope: 'global' });
-    } catch (_) {}
-    if (!revokePromise) {
-      try { revokePromise = supabase?.auth?.signOut?.(); } catch (_) {}
-    }
-    if (revokePromise && typeof revokePromise.then === 'function') {
-      Promise.resolve(revokePromise).catch(() => {}).finally(() => navigate());
-    }
-
-    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
-    try {
-      localStorage?.setItem?.('auth_force_google_select_account', '1');
+      const loginBtn = $('#loginGoogleBtn');
+      const authMini = $('#authMini');
+      const logoutBtn = $('#logoutBtn');
+      const createBtn = $('#createBtn');
+      if (loginBtn) loginBtn.style.display = '';
+      if (authMini) authMini.classList.add('hidden');
+      if (logoutBtn) logoutBtn.style.display = 'none';
+      if (createBtn) createBtn.disabled = true;
     } catch (_) {}
 
-    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
-    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
-    try {
-      const host = String(CONFIG?.supabase?.url || '');
-      const ref = host ? new URL(host).hostname.split('.')[0] : '';
-      if (ref) {
-        const prefix = `sb-${ref}-`;
-        const wipe = (store) => {
-          if (!store) return;
-          const keys = [];
-          for (let i = 0; i < store.length; i++) {
-            const k = store.key(i);
-            if (k && k.startsWith(prefix)) keys.push(k);
-          }
-          keys.forEach((k) => {
-            try { store.removeItem(k); } catch (_) {}
-          });
+    // Единый выход: логика ревока/очистки storage внутри app/providers/supabase.js
+    Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
+
+    // UX: не ждём дольше ~450 мс
+    setTimeout(navigate, 450);
+  });
         };
         wipe(typeof localStorage !== 'undefined' ? localStorage : null);
         wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
