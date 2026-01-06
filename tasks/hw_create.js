@@ -1261,6 +1261,11 @@ function addSelectedFromPicker() {
   // обнулим счётчики выбранных прототипов
   for (const [groupId] of wantByGroup.entries()) TASK_PICKER_STATE.counts.set(groupId, 0);
   renderPickerList();
+
+  // После перерендера список содержит новую разметку с TeX-формулами.
+  // Без повторного typeset MathJax они будут показываться как сырые \( ... \).
+  const listEl = $('#tpList');
+  if (listEl) typesetMathIfNeeded(listEl).catch(() => {});
 }
 
 function buildStemPreview(manifest, type, proto) {
