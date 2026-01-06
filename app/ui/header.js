@@ -287,10 +287,10 @@ export async function initHeader(opts = {}) {
   } catch (_) {}
 
   const buildAuthLoginUrl = (nextUrl) => {
-    const basePath = String(CONFIG?.site?.base || '').replace(/\/+$/g, '');
-    const loginRoute = String(CONFIG?.auth?.routes?.login || '/tasks/auth.html');
-    const path = loginRoute.startsWith('/') ? loginRoute : '/' + loginRoute;
-    const url = new URL(basePath + path, location.origin);
+    const home = computeHomeUrl();
+    const loginRoute = String(CONFIG?.auth?.routes?.login || 'tasks/auth.html');
+    const rel = loginRoute.replace(/^\/+/, '');
+    const url = new URL(rel, home);
     if (nextUrl) url.searchParams.set('next', nextUrl);
     return url.toString();
   };
