@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { CONFIG } from '../config.js?v=2026-01-06-1';
 
 /** Insert attempt into public.attempts via Supabase REST (schema you shared).
  *  Returns { ok: boolean, data?: any, error?: any }
