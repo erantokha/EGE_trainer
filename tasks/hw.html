@@ -20,16 +20,17 @@
   <main class="container">
     <section id="hw">
       <div class="panel">
-        <header class="page-head">
+        <header id="appHeader" class="page-head">
           <h1 id="hwTitle">Домашнее задание</h1>
-          <div class="page-head-right">
-            <button id="authLogin" class="btn" type="button">Войти через Google</button>
-            <span id="authMini" class="auth-mini hidden">
-              <span id="authEmail" class="auth-email"></span>
-              <button id="authLogout" class="btn small" type="button">Выйти</button>
-            </span>
-          </div>
         </header>
+        <script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
 
         <div id="hwDesc" class="muted hidden" style="margin-top:6px"></div>
 

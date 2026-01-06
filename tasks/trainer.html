@@ -20,7 +20,7 @@
   <main class="container">
     <section id="runner">
       <div class="panel">
-        <header class="run-head">
+        <header id="appHeader" class="page-head">
           <div class="crumb">
             <span id="topicTitle"></span>
           </div>
@@ -30,7 +30,7 @@
           <div class="timer">
             <span id="tmin">00</span>:<span id="tsec">00</span>
           </div>
-          <div class="theme-toggle">
+          <div class="theme-toggle" data-header-extra="1">
             <input
               type="checkbox"
               id="themeToggle"
@@ -42,7 +42,16 @@
               <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
             </label>
           </div>
+        
         </header>
+        <script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
 
         <div class="run-body">
           <article class="task-card q-card">

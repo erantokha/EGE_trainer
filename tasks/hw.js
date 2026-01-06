@@ -14,11 +14,7 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 
 import { CONFIG } from '../app/config.js?v=2026-01-06-1';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-06-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-06-1';
-
-
-// finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
-finalizeOAuthRedirect().catch(() => {});
+import { supabase, getSession, signInWithGoogle, signOut } from '../app/providers/supabase.js?v=2026-01-06-1';
 
 
 // build/version (cache-busting)
@@ -315,56 +311,56 @@ function cleanRedirectUrl() {
 
 // ---------- Авторизация (Google) ----------
 async function initAuthUI() {
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
+  // Вся авторизация и меню пользователя теперь живут в общем хедере (app/ui/header.js).
+  // Здесь подписываемся на изменения сессии, чтобы:
+  // - автоподставлять имя ученика (если поле ещё не трогали)
+  // - корректно включать/выключать «ворота» (gate) для начала работы
+  await refreshAuthUI();
 
-  loginBtn?.addEventListener('click', async () => {
+  try {
+    supabase.auth.onAuthStateChange(async () => {
+      await refreshAuthUI();
+    });
+  } catch (e) {
+    // ignore
+  }
+}
+
+    AUTH_SESSION = null;
+    AUTH_USER = null;
+
+    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
     try {
-      await signInWithGoogle(cleanRedirectUrl());
-    } catch (e) {
-      console.error(e);
-      const m = $('#hwGateMsg');
-      if (m) m.textContent = 'Не удалось запустить вход. Проверьте настройки Google OAuth в Supabase.';
-    }
-  });
-
-  logoutBtn?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-
-    const clean = cleanRedirectUrl();
-
-    let navigated = false;
-    const navigate = () => {
-      if (navigated) return;
-      navigated = true;
-      try {
-        if (clean === location.href) location.reload();
-        else location.replace(clean);
-      } catch (_) {
-        location.reload();
-      }
-    };
-
-    // На всякий случай мгновенно погасим UI «авторизован», пока перезагрузка не произошла.
-    try {
-      AUTH_SESSION = null;
-      AUTH_USER = null;
-      const loginBtn = $('#authLogin');
-      const mini = $('#authMini');
-      const logoutBtn = $('#authLogout');
-      const emailEl = $('#authEmail');
-      if (loginBtn) loginBtn.classList.remove('hidden');
-      if (mini) mini.classList.add('hidden');
-      if (emailEl) emailEl.textContent = '';
-      if (logoutBtn) logoutBtn.classList.add('hidden');
+      localStorage?.setItem?.('auth_force_google_select_account', '1');
     } catch (_) {}
 
-    // Единый выход: логика ревока/очистки storage внутри app/providers/supabase.js
-    Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
+    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
+    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
+    try {
+      const host = String(CONFIG?.supabase?.url || '');
+      const ref = host ? new URL(host).hostname.split('.')[0] : '';
+      if (ref) {
+        const prefix = `sb-${ref}-`;
+        const wipe = (store) => {
+          if (!store) return;
+          const keys = [];
+          for (let i = 0; i < store.length; i++) {
+            const k = store.key(i);
+            if (k && k.startsWith(prefix)) keys.push(k);
+          }
+          keys.forEach((k) => {
+            try { store.removeItem(k); } catch (_) {}
+          });
+        };
+        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+      }
+    } catch (_) {}
 
-    // UX: не ждём дольше ~450 мс
+    // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
     setTimeout(navigate, 350);
   });
+
 
   await refreshAuthUI();
 
@@ -401,26 +397,9 @@ async function refreshAuthUI() {
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
-  const loginBtn = $('#authLogin');
-  const logoutBtn = $('#authLogout');
-  const mini = $('#authMini');
-  const emailEl = $('#authEmail');
+  // Автоподстановка имени (если пользователь ещё не трогал поле)
   const nameInput = $('#studentName');
-
-  if (nameInput) nameInput.disabled = !AUTH_SESSION;
-
-  if (!AUTH_USER) {
-    if (loginBtn) loginBtn.classList.remove('hidden');
-    if (mini) mini.classList.add('hidden');
-    if (emailEl) emailEl.textContent = '';
-    if (logoutBtn) logoutBtn.classList.add('hidden');
-  } else {
-    if (loginBtn) loginBtn.classList.add('hidden');
-    if (mini) mini.classList.remove('hidden');
-    if (emailEl) emailEl.textContent = AUTH_USER.email ? String(AUTH_USER.email) : '';
-    if (logoutBtn) logoutBtn.classList.remove('hidden');
-
-    // автоподстановка имени (если пользователь ещё не правил поле)
+  if (AUTH_USER) {
     const inferred = inferNameFromUser(AUTH_USER);
     if (nameInput && inferred && !NAME_TOUCHED && !String(nameInput.value || '').trim()) {
       nameInput.value = inferred;
@@ -428,6 +407,8 @@ async function refreshAuthUI() {
   }
 
   updateGateUI();
+
+  // При смене сессии может появиться доступ к уже начатой попытке
   await maybeShowExistingAttempt('auth');
   maybeAutoStart('auth');
 }

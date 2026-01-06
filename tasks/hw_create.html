@@ -11,26 +11,21 @@
   <main class="container">
     <section>
       <div class="panel">
-        <header class="page-head">
+        <header id="appHeader" class="page-head">
           <h1 id="pageTitle">Создание ДЗ</h1>
-          <div class="page-head-right">
-            <button id="loginGoogleBtn" class="btn" type="button">Войти через Google</button>
-            <span id="authMini" class="auth-mini hidden">
-              <button id="userMenuBtn" class="btn small user-menu-btn" type="button" aria-haspopup="menu" aria-expanded="false"></button>
-              <div id="userMenu" class="user-menu hidden" role="menu" aria-label="Меню аккаунта">
-                <button id="menuProfile" class="user-menu-item" type="button" role="menuitem">Профиль</button>
-                <button id="menuStats" class="user-menu-item" type="button" role="menuitem">Статистика</button>
-                <div class="user-menu-sep" role="separator"></div>
-                <button id="menuLogout" class="user-menu-item danger" type="button" role="menuitem">Выйти</button>
-              </div>
-            </span>
-          </div>
         </header>
+        <script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
 
         <div class="controls" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px">
           <button id="createBtn" class="btn primary" type="button">Создать ссылку</button>
-          <button id="homeBtn" class="btn primary" type="button" style="margin-left:auto">На главную</button>
-        </div>
+                  </div>
 
         <div id="status" style="margin-top:10px;opacity:.85"></div>
 

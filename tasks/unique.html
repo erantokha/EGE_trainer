@@ -19,8 +19,9 @@
   <main class="container">
     <section>
       <div class="panel">
-        <h1 id="uniqTitle">Уникальные прототипы</h1>
-        <div class="theme-toggle">
+        <header id="appHeader" class="page-head">
+<h1 id="uniqTitle">Уникальные прототипы</h1>
+        <div class="theme-toggle" data-header-extra="1">
           <input
             type="checkbox"
             id="themeToggle"
@@ -32,6 +33,15 @@
             <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
           </label>
         </div>
+</header>
+<script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
         <p id="uniqSubtitle"></p>
 
         <div class="uniq-controls">
