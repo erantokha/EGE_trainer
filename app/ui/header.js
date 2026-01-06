@@ -190,10 +190,12 @@ function mountHomeButton(right, isHome) {
   }
 
   if (!homeBtn) {
-    homeBtn = document.createElement('a');
+    homeBtn = document.createElement('button');
     homeBtn.id = 'homeBtn';
     homeBtn.className = 'btn';
+    homeBtn.type = 'button';
     homeBtn.textContent = 'На главную';
+    homeBtn.addEventListener('click', () => { location.href = computeHomeUrl(); });
     right.appendChild(homeBtn);
   }
   homeBtn.href = computeHomeUrl();
