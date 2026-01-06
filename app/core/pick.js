@@ -10,7 +10,7 @@
 export function baseIdFromProtoId(id) {
   const s = String(id || '');
   const parts = s.split('.');
-  if (parts.length >= 5) {
+  if (parts.length >= 4) {
     const last = parts[parts.length - 1];
     if (/^\d+$/.test(last)) {
       return parts.slice(0, -1).join('.');
