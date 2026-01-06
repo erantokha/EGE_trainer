@@ -1,6 +1,6 @@
 // tasks/auth_reset.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-2';
-import { finalizeAuthRedirect, updatePassword, getSession } from '../app/providers/supabase.js?v=2026-01-07-2';
+import { CONFIG } from '../app/config.js?v=2026-01-07-3';
+import { finalizeAuthRedirect, updatePassword, getSession } from '../app/providers/supabase.js?v=2026-01-07-3';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 

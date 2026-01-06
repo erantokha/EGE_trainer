@@ -1,5 +1,5 @@
 // tasks/auth.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-2';
+import { CONFIG } from '../app/config.js?v=2026-01-07-3';
 import {
   getSession,
   signInWithGoogle,
@@ -7,7 +7,7 @@ import {
   signUpWithPassword,
   resendSignupEmail,
   sendPasswordReset,
-} from '../app/providers/supabase.js?v=2026-01-07-2';
+} from '../app/providers/supabase.js?v=2026-01-07-3';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -15,6 +15,15 @@ const $ = (sel, root = document) => root.querySelector(sel);
 function homeUrl() {
   // Эта страница лежит в /tasks/, поэтому корень приложения — на уровень выше.
   try { return new URL('../', location.href).toString(); } catch (_) { return location.origin + '/'; }
+}
+
+function appUrl(path) {
+  const base = homeUrl();
+  if (!path) return base;
+  const p = String(path);
+  if (/^https?:\/\//i.test(p)) return p;
+  if (p.startsWith('/')) return new URL(p.replace(/^\/+/, ''), base).toString();
+  return new URL(p, base).toString();
 }
 
 function sanitizeNext(raw) {
