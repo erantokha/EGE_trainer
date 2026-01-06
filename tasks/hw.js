@@ -34,6 +34,7 @@ if (HTML_BUILD && HTML_BUILD !== BUILD) {
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
+const HOME_URL = new URL('../', location.href).href;
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -623,7 +624,7 @@ async function showAttemptSummaryFromRow(row) {
   renderStats({ total, correct, duration_ms, avg_ms });
 
   $('#restart').onclick = () => {
-    location.href = './index.html';
+    location.href = HOME_URL;
   };
 
   renderReviewCards();
@@ -1087,7 +1088,7 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 function wireRunner() {
   $('#finishHomework').onclick = finishSession;
   $('#restart').onclick = () => {
-    location.href = './index.html';
+    location.href = HOME_URL;
   };
 }
 

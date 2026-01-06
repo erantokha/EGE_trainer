@@ -7,6 +7,7 @@ import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches 
 
 import { withBuild } from '../app/build.js?v=2026-01-06-1';
 const $ = (sel, root = document) => root.querySelector(sel);
+const HOME_URL = new URL('../', location.href).href;
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
 const INDEX_URL = '../content/tasks/index.json';
@@ -124,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
   $('#restart')?.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
-    location.href = './index.html';
+    location.href = HOME_URL;
   });
 
   // Прячем интерфейс тренажёра и показываем оверлей загрузки,
@@ -147,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const rawSel = sessionStorage.getItem('tasks_selection_v1');
   if (!rawSel) {
     // если выбор не найден – отправляем обратно на picker
-    location.href = './index.html';
+    location.href = HOME_URL;
     return;
   }
 
@@ -156,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sel = JSON.parse(rawSel);
   } catch (e) {
     console.error('Некорректный формат selection в sessionStorage', e);
-    location.href = './index.html';
+    location.href = HOME_URL;
     return;
   }
 
