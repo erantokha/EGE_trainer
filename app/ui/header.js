@@ -184,41 +184,19 @@ function mountAuthUI(right) {
 
 function mountHomeButton(right, isHome) {
   let homeBtn = $('#homeBtn', right);
-
   if (isHome) {
     if (homeBtn) homeBtn.remove();
     return null;
   }
 
-  // Если в DOM осталась старая <a>, заменим на <button>
-  if (homeBtn && homeBtn.tagName === 'A') {
-    const repl = document.createElement('button');
-    repl.id = 'homeBtn';
-    repl.className = homeBtn.className || 'btn';
-    repl.type = 'button';
-    repl.textContent = homeBtn.textContent || 'На главную';
-    homeBtn.replaceWith(repl);
-    homeBtn = repl;
-  }
-
   if (!homeBtn) {
-    homeBtn = document.createElement('button');
+    homeBtn = document.createElement('a');
     homeBtn.id = 'homeBtn';
     homeBtn.className = 'btn';
-    homeBtn.type = 'button';
     homeBtn.textContent = 'На главную';
     right.appendChild(homeBtn);
   }
-
-  // Без href: это кнопка
-  if (homeBtn.dataset.homeWired !== '1') {
-    homeBtn.dataset.homeWired = '1';
-    homeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      location.href = computeHomeUrl();
-    });
-  }
-
+  homeBtn.href = computeHomeUrl();
   return homeBtn;
 }
 
@@ -333,18 +311,31 @@ export async function initHeader(opts = {}) {
   const signInWithGoogle = supabaseMod?.signInWithGoogle;
   const signOut = supabaseMod?.signOut;
 
+  let isSigningOut = false;
+
   const applySessionToUI = (session) => {
-    if (!session) {
-      ui.loginBtn.classList.remove('hidden');
-      ui.userMenuWrap.classList.add('hidden');
-      return;
+    // Всегда закрываем меню при смене состояния (в том числе на logout),
+    // чтобы не оставалось визуальных хвостов.
+    try { closeMenu(); } catch (_) {}
+
+    const authed = Boolean(session);
+
+    // Показ/скрытие
+    ui.loginBtn.classList.toggle('hidden', authed);
+    ui.userMenuWrap.classList.toggle('hidden', !authed);
+
+    if (authed) {
+      const user = session.user || null;
+      ui.userBtn.textContent = inferFirstName(user);
+    } else {
+      // сбрасываем подпись, чтобы не было "залипания" имени
+      ui.userBtn.textContent = 'Аккаунт';
     }
 
-    ui.loginBtn.classList.add('hidden');
-    ui.userMenuWrap.classList.remove('hidden');
-
-    const user = session.user || null;
-    ui.userBtn.textContent = inferFirstName(user);
+    // Сообщаем странице (если ей нужно отключить кнопки и т.п.)
+    try {
+      window.dispatchEvent(new CustomEvent('app-auth-changed', { detail: { session: session || null } }));
+    } catch (_) {}
   };
 
   // login
@@ -357,18 +348,38 @@ export async function initHeader(opts = {}) {
   });
 
   // logout
-  ui.menuLogout?.addEventListener('click', async () => {
-    closeMenu();
-    if (!signOut) return;
-    await signOut();
-    // UI обновится через onAuthStateChange, но подстрахуемся
-    try {
-      const s = getSession ? await getSession().catch(() => null) : null;
-      applySessionToUI(s);
-    } catch (_) {}
-  });
+  ui.menuLogout?.addEventListener('click', async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
 
-  // начальная отрисовка
+    // Мгновенная визуальная реакция
+    if (isSigningOut) return;
+    isSigningOut = true;
+
+    // Сразу переключаем UI в "вышел", не дожидаясь внутренних событий Supabase.
+    applySessionToUI(null);
+
+    // На всякий случай закрываем меню
+    closeMenu();
+
+    try {
+      if (signOut) {
+        await signOut();
+      }
+    } catch (err) {
+      console.warn('Header: signOut failed', err);
+    } finally {
+      // Вернём интерактивность
+      isSigningOut = false;
+
+      // Финальная синхронизация (на случай, если signOut завершился не сразу)
+      try {
+        const s = getSession ? await getSession().catch(() => null) : null;
+        applySessionToUI(s);
+      } catch (_) {}
+    }
+  });
+// начальная отрисовка
   let initial = null;
   try {
     initial = getSession ? await getSession().catch(() => null) : null;
@@ -393,8 +404,12 @@ export async function initHeader(opts = {}) {
   // подписка на изменения
   try {
     supabase?.auth?.onAuthStateChange(async () => {
+      if (isSigningOut) return;
       const s = getSession ? await getSession().catch(() => null) : null;
       applySessionToUI(s);
+
+      // home может быть нужен даже на /tasks/index.html
+      if (homeBtn) homeBtn.href = computeHomeUrl();
     });
   } catch (e) {
     // ignore
