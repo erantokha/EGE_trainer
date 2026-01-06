@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-06-1';
+import { CONFIG } from '../config.js?v=2026-01-07-3';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -60,6 +60,44 @@ export async function signInWithGoogle(redirectTo = null) {
   });
   if (error) throw error;
 }
+export async function signInWithPassword({ email, password } = {}) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+  return data;
+}
+
+export async function signUpWithPassword({ email, password, emailRedirectTo } = {}) {
+  const options = {};
+  if (emailRedirectTo) options.emailRedirectTo = emailRedirectTo;
+
+  const { data, error } = await supabase.auth.signUp({ email, password, options });
+  if (error) throw error;
+  return data;
+}
+
+export async function resendSignupEmail({ email, emailRedirectTo } = {}) {
+  const options = {};
+  if (emailRedirectTo) options.emailRedirectTo = emailRedirectTo;
+
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options,
+  });
+  if (error) throw error;
+}
+
+export async function sendPasswordReset({ email, redirectTo } = {}) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}
+
+export async function updatePassword(newPassword) {
+  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+  return data;
+}
+
 
 export async function signOut(opts = {}) {
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
@@ -135,23 +173,50 @@ function hasOAuthParams(urlStr) {
   }
 }
 
-// Очищаем ?code=&state= из URL один раз после успешного обмена (Supabase PKCE OAuth).
-// Важно: не трогаем URL, пока exchange не завершился (ждём SIGNED_IN или появление session).
-export async function finalizeOAuthRedirect(opts = {}) {
-  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
+function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
+  const u = new URL(urlStr);
+  const preserve = new Set(preserveParams || []);
+  const kept = new Map();
+  for (const [k, v] of u.searchParams.entries()) {
+    if (preserve.has(k)) kept.set(k, v);
+  }
 
-  if (!hasOAuthParams(location.href)) return { ok: false, reason: 'no_oauth_params' };
+  ['code', 'state', 'error', 'error_description', 'token', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
+
+  for (const [k, v] of kept.entries()) {
+    u.searchParams.set(k, v);
+  }
+  return u;
+}
+
+function hasAuthParams(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    return ['code', 'state', 'error', 'error_description', 'token', 'token_hash', 'type'].some((k) => u.searchParams.has(k));
+  } catch (_) {
+    return false;
+  }
+}
+
+// Универсальный финалайзер редиректов Auth:
+// - OAuth PKCE: ?code=...
+// - email confirm / recovery: ?token_hash=...&type=...
+export async function finalizeAuthRedirect(opts = {}) {
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
+  const preserveParams = Array.isArray(opts?.preserveParams) ? opts.preserveParams : [];
+
+  if (!hasAuthParams(location.href)) return { ok: false, reason: 'no_auth_params' };
 
   // guard: один раз на вкладку/страницу
   try {
-    const k = `${OAUTH_FINALIZE_KEY_PREFIX}${location.pathname}`;
+    const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}`;
     if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
     sessionStorage.setItem(k, '1');
   } catch (_) {}
 
   const doReplace = () => {
     try {
-      const cleaned = stripOAuthParamsFromUrl(location.href);
+      const cleaned = stripAuthParamsFromUrl(location.href, preserveParams);
       history.replaceState(null, document.title, cleaned.toString());
       return true;
     } catch (_) {
@@ -159,12 +224,38 @@ export async function finalizeOAuthRedirect(opts = {}) {
     }
   };
 
-  // Если вернулась ошибка OAuth — чистим сразу (чтобы не застрять в цикле).
+  // Если вернулась ошибка — чистим сразу.
   try {
     const u = new URL(location.href);
     if (u.searchParams.has('error') || u.searchParams.has('error_description')) {
       doReplace();
-      return { ok: true, reason: 'oauth_error' };
+      return { ok: true, reason: 'auth_error' };
+    }
+  } catch (_) {}
+
+  // Пытаемся явно завершить flow (помогает в PKCE)
+  try {
+    const u = new URL(location.href);
+
+    const code = u.searchParams.get('code');
+    if (code) {
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+      } catch (e) {
+        console.warn('exchangeCodeForSession failed', e);
+      }
+    }
+
+    const tokenHash = u.searchParams.get('token_hash') || u.searchParams.get('token');
+    const type = u.searchParams.get('type');
+    if (tokenHash && type) {
+      try {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+        if (error) throw error;
+      } catch (e) {
+        console.warn('verifyOtp failed', e);
+      }
     }
   } catch (_) {}
 
@@ -177,15 +268,20 @@ export async function finalizeOAuthRedirect(opts = {}) {
     }
   } catch (_) {}
 
-  // 2) Ждём событие SIGNED_IN (обмен ещё идёт).
+  // 2) Ждём события auth или появления session (поллинг)
   return await new Promise((resolve) => {
-    let done = false;
+    let settled = false;
 
     const finish = (ok, reason) => {
-      if (done) return;
-      done = true;
+      if (settled) return;
+      settled = true;
       try { unsub?.unsubscribe?.(); } catch (_) {}
+      try { clearInterval(pollId); } catch (_) {}
       if (ok) doReplace();
+      else {
+        // Даже при таймауте лучше убрать одноразовые параметры, чтобы не застрять.
+        doReplace();
+      }
       resolve({ ok, reason });
     };
 
@@ -194,31 +290,36 @@ export async function finalizeOAuthRedirect(opts = {}) {
     let unsub = null;
     try {
       const sub = supabase.auth.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' && session) {
+        if (session) {
           clearTimeout(timer);
-          finish(true, 'signed_in');
+          finish(true, `event:${event || 'unknown'}`);
         }
       });
       unsub = sub?.data?.subscription || sub?.subscription || null;
     } catch (_) {}
 
-    // Доп. страховка: быстрое поллинг-ожидание сессии (если onAuthStateChange не сработал).
-    (async () => {
-      const stepMs = 250;
-      const steps = Math.ceil(timeoutMs / stepMs);
-      for (let i = 0; i < steps && !done; i++) {
-        try {
-          const { data } = await supabase.auth.getSession();
-          if (data?.session) {
-            clearTimeout(timer);
-            finish(true, 'session_polled');
-            return;
-          }
-        } catch (_) {}
-        await new Promise((r) => setTimeout(r, stepMs));
+    let tries = 0;
+    const pollId = setInterval(async () => {
+      tries += 1;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          clearTimeout(timer);
+          finish(true, 'poll_session_ready');
+        }
+      } catch (_) {}
+      if (tries >= 20) {
+        // ~4s при 200ms
       }
-    })().catch(() => {});
+    }, 200);
   });
+}
+
+// Очищаем ?code=&state= из URL один раз после успешного обмена (Supabase PKCE OAuth).
+// Важно: не трогаем URL, пока exchange не завершился (ждём SIGNED_IN или появление session).
+export async function finalizeOAuthRedirect(opts = {}) {
+  // legacy alias
+  return finalizeAuthRedirect(opts);
 }
 
 // auto-run: если пришли с OAuth redirect (?code=&state=), подчистим URL после поднятия сессии
