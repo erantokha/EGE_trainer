@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-07-3';
+import { CONFIG } from '../config.js?v=2026-01-07-1';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -181,7 +181,10 @@ function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
     if (preserve.has(k)) kept.set(k, v);
   }
 
-  ['code', 'state', 'error', 'error_description', 'token', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
+  ['code', 'state', 'error', 'error_description', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
+  // Важно: ?token=... используется в ссылках на ДЗ (/tasks/hw.html?token=...).
+  // Старый auth-параметр token удаляем только если рядом есть type.
+  if (u.searchParams.has('type')) u.searchParams.delete('token');
 
   for (const [k, v] of kept.entries()) {
     u.searchParams.set(k, v);
@@ -192,12 +195,21 @@ function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
 function hasAuthParams(urlStr) {
   try {
     const u = new URL(urlStr);
-    return ['code', 'state', 'error', 'error_description', 'token', 'token_hash', 'type'].some((k) => u.searchParams.has(k));
+
+    // OAuth PKCE / ошибки
+    if (['code', 'state', 'error', 'error_description'].some((k) => u.searchParams.has(k))) return true;
+
+    // Email confirm / recovery / magic link (современный формат Supabase)
+    if (u.searchParams.has('token_hash')) return true;
+
+    // Legacy: token + type. Не путать с ДЗ-токеном (?token=...), который без type.
+    if (u.searchParams.has('type') && u.searchParams.has('token')) return true;
+
+    return false;
   } catch (_) {
     return false;
   }
 }
-
 // Универсальный финалайзер редиректов Auth:
 // - OAuth PKCE: ?code=...
 // - email confirm / recovery: ?token_hash=...&type=...
@@ -247,8 +259,8 @@ export async function finalizeAuthRedirect(opts = {}) {
       }
     }
 
-    const tokenHash = u.searchParams.get('token_hash') || u.searchParams.get('token');
     const type = u.searchParams.get('type');
+    const tokenHash = u.searchParams.get('token_hash') || (type ? u.searchParams.get('token') : null);
     if (tokenHash && type) {
       try {
         const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
