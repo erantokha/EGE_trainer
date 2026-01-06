@@ -300,6 +300,44 @@ function wireAuthControls() {
 
 }
 
+
+let LINK_WIRED = false;
+function wireLinkControls() {
+  if (LINK_WIRED) return;
+  LINK_WIRED = true;
+
+  const a = $('#hwLink');
+  const openBtn = $('#openLinkBtn');
+
+  if (a && a.dataset.wiredLink === '1') return;
+  if (a) a.dataset.wiredLink = '1';
+  if (openBtn) openBtn.dataset.wiredLink = '1';
+
+  // Клик по ссылке = копирование
+  a?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const url = String(a?.dataset?.url || a?.textContent || '').trim();
+    if (!url) return;
+
+    const ok = await copyToClipboard(url);
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+  });
+
+  // Иконка справа = открыть ДЗ
+  openBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const url = String(openBtn?.dataset?.url || a?.dataset?.url || '').trim();
+    if (!url) return;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+}
+
+
 function pad2(n) {
   return String(n).padStart(2, '0');
 }
@@ -858,10 +896,34 @@ function buildStudentLink(token) {
 }
 
 async function copyToClipboard(text) {
+  const s = String(text ?? '');
+  if (!s) return false;
+
+  // Modern API (works on HTTPS, including GitHub Pages)
   try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch (e) {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(s);
+      return true;
+    }
+  } catch (_) {
+    // fallthrough to legacy
+  }
+
+  // Legacy fallback (some browsers / permissions)
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = s;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch (_) {
     return false;
   }
 }
@@ -1274,6 +1336,7 @@ function ensureMathJaxLoaded() {
 document.addEventListener('DOMContentLoaded', async () => {
   // wireAuthControls(); // перенесено в общий хедер
   initEditableFields();
+  wireLinkControls();
 
   // auth
   await refreshAuthUI();
