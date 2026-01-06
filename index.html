@@ -1,92 +1,83 @@
 <!doctype html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Вход — Тренажёр</title>
-<style>
-  :root{--bg:#0f1115;--panel:#171a21;--text:#eaeff7;--muted:#a6b0c3;--accent:#5ea1ff;--accent-2:#4ade80;--danger:#f87171;}
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial}
-  .wrap{max-width:880px;margin:0 auto;padding:36px 20px}
-  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
-  h1{font-size:28px;margin:0 0 8px}
-  h2{font-size:20px;margin:0 0 8px;color:var(--muted)}
-  .card{background:var(--panel);border-radius:14px;padding:18px 18px;box-shadow:0 10px 30px rgba(0,0,0,.25);}
-  .row{display:flex;gap:16px;flex-wrap:wrap}
-  .col{flex:1 1 280px}
-  label{display:block;margin:10px 0 6px;color:var(--muted)}
-  input[type="text"],input[type="email"]{width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2a3140;background:#0c0f14;color:var(--text);outline:none}
-  input:focus{border-color:var(--accent)}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:12px;border:1px solid #2a3140;background:#19202b;color:var(--text);cursor:pointer;text-decoration:none;min-width:140px}
-  .btn:hover{border-color:#334155}
-  .btn.primary{background:linear-gradient(180deg,#2a7bff,#1554cf);border-color:#1d4ed8}
-  .btn.green{background:linear-gradient(180deg,#22c55e,#16a34a);border-color:#15803d}
-  .btn.ghost{background:transparent}
-  .muted{color:var(--muted)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-  .tile{border:1px solid #2a3140;border-radius:12px;padding:14px;background:#12161d;cursor:pointer}
-  .tile input{margin-right:10px;transform:translateY(1px)}
-  footer{margin-top:26px;color:var(--muted);font-size:13px}
-  .warn{background:#241317;border:1px solid #7f1d1d;color:#fecaca;padding:12px;border-radius:10px}
-</style>
+  <meta charset="utf-8">
+  <title>Тренажер по задачам из банка ФИПИ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css">
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div>
-      <h1>Вход в тренажёр</h1>
-      <div class="muted">Пожалуйста, укажите имя и фамилию. E-mail — по желанию.</div>
-    </div>
-  </header>
+  <main class="container">
+    <section id="picker">
+      <div class="panel">
+        <h1>Тренажер по задачам из банка ФИПИ</h1>
 
-  <div class="card">
-    <div class="row">
-      <div class="col">
-        <label>Имя и фамилия*</label>
-        <input id="fio" type="text" placeholder="Например, Иван Петров">
+        <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
+        <div class="controls">
+          <div class="controls-left">
+            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+              <button
+                type="button"
+                class="mode-btn active"
+                id="modeList"
+                data-mode="list"
+                aria-selected="true"
+              >
+                Список задач
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                id="modeTest"
+                data-mode="test"
+                aria-selected="false"
+              >
+                Тестирование
+              </button>
+            </div>
+
+            <label class="shuffle">
+              <input type="checkbox" id="shuffleToggle">
+              Перемешать задачи
+            </label>
+          </div>
+
+          <div class="controls-actions-right">
+            <button id="start" disabled>Начать</button>
+            <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
+          </div>
+
+          <div class="theme-toggle">
+            <input
+              type="checkbox"
+              id="themeToggle"
+              class="theme-toggle-input"
+              aria-label="Переключить тему"
+            >
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
+        <div class="sub-controls">
+          <div class="bulk-controls" id="bulkControls">
+            <button id="bulkPickAll" type="button">Выбрать все</button>
+            <button id="bulkResetAll" type="button">Сбросить все</button>
+          </div>
+
+          <div class="sum">Итого: <span id="sum">0</span></div>
+        </div>
+
+        <!-- Ряд 3: аккордеон -->
+        <div id="accordion" class="accordion"></div>
       </div>
-      <div class="col">
-        <label>E-mail (необязательно)</label>
-        <input id="email" type="email" placeholder="name@example.com">
-      </div>
-    </div>
-    <div style="margin-top:16px;display:flex;gap:12px;">
-      <button id="go" class="btn primary">Дальше</button>
-      <button id="reset" class="btn ghost">Сбросить</button>
-    </div>
-    <div id="msg" class="muted" style="margin-top:10px;"></div>
-  </div>
+    </section>
+  </main>
 
-  <footer>
-    <div class="muted">Данные сохраняются локально, чтобы не вводить их каждый раз.</div>
-  </footer>
-</div>
-
-<script type="module">
-  import { setStudent, getStudent, uuidv4 } from './app/core/student-id.js';
-  const fio = document.getElementById('fio');
-  const email = document.getElementById('email');
-  const msg = document.getElementById('msg');
-
-  const s = getStudent();
-  if(s){ fio.value = s.name || ''; email.value = s.email || ''; }
-
-  document.getElementById('go').onclick = () => { 
-    const name = fio.value.trim();
-    if(!name || name.split(/\s+/).length < 2){ msg.textContent = 'Укажите имя и фамилию.'; return; }
-    const student = s || { id: uuidv4(), createdAt: new Date().toISOString() };
-    student.name = name;
-    student.email = email.value.trim() || null;
-    localStorage.setItem('student_v1', JSON.stringify(student));
-    location.href = './menu/';
-  };
-
-  document.getElementById('reset').onclick = () => {
-    localStorage.removeItem('student_v1');
-    fio.value=''; email.value=''; msg.textContent='Хранилище очищено.';
-  };
-</script>
+  <script src="./theme.js" defer></script>
+  <script type="module" src="./picker.js"></script>
 </body>
 </html>
