@@ -76,6 +76,7 @@ async function refreshAuthHeaderUI() {
     loginBtn.hidden = false;
     userBtn.hidden = true;
     menu.hidden = true;
+    menu.classList.add('hidden');
     userBtn.textContent = '';
     userBtn.setAttribute('aria-expanded', 'false');
     return;
@@ -84,6 +85,11 @@ async function refreshAuthHeaderUI() {
   loginBtn.hidden = true;
   userBtn.hidden = false;
   userBtn.textContent = firstNameFromUser(session.user);
+
+  // keep menu closed after refresh
+  menu.hidden = true;
+  menu.classList.add('hidden');
+  userBtn.setAttribute('aria-expanded', 'false');
 }
 
 function initAuthHeader() {
@@ -105,18 +111,25 @@ function initAuthHeader() {
 
   const homeUrl = new URL(IN_TASKS_DIR ? '../' : './', location.href).toString();
 
-  const closeMenu = () => {
+  const syncMenuHidden = (isHidden) => {
+    const h = Boolean(isHidden);
+    menu.hidden = h;
+    menu.classList.toggle('hidden', h);
+    userBtn.setAttribute('aria-expanded', h ? 'false' : 'true');
+  };
+
+  // normalize initial state: some pages hide menu via .hidden class only
+  if (menu.classList.contains('hidden') && menu.hidden === false) {
     menu.hidden = true;
-    userBtn.setAttribute('aria-expanded', 'false');
-  };
-  const openMenu = () => {
-    menu.hidden = false;
-    userBtn.setAttribute('aria-expanded', 'true');
-  };
+  }
+
+  const closeMenu = () => syncMenuHidden(true);
+  const openMenu = () => syncMenuHidden(false);
   const toggleMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (menu.hidden) openMenu();
+    const isHidden = menu.hidden || menu.classList.contains('hidden');
+    if (isHidden) openMenu();
     else closeMenu();
   };
 
@@ -132,7 +145,7 @@ function initAuthHeader() {
   userBtn.addEventListener('click', toggleMenu);
 
   document.addEventListener('click', (e) => {
-    if (menu.hidden) return;
+    if (menu.hidden || menu.classList.contains('hidden')) return;
     if (menu.contains(e.target) || userBtn.contains(e.target)) return;
     closeMenu();
   });
