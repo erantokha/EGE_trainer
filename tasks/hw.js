@@ -326,53 +326,6 @@ async function initAuthUI() {
   }
 }
 
-    AUTH_SESSION = null;
-    AUTH_USER = null;
-
-    // При следующем входе хотим увидеть окно выбора аккаунта (prompt=select_account).
-    try {
-      localStorage?.setItem?.('auth_force_google_select_account', '1');
-    } catch (_) {}
-
-    // Жёстко удаляем sb-<projectRef>-* ключи из localStorage/sessionStorage,
-    // чтобы гарантированно сбросить «залипшую» сессию в браузере.
-    try {
-      const host = String(CONFIG?.supabase?.url || '');
-      const ref = host ? new URL(host).hostname.split('.')[0] : '';
-      if (ref) {
-        const prefix = `sb-${ref}-`;
-        const wipe = (store) => {
-          if (!store) return;
-          const keys = [];
-          for (let i = 0; i < store.length; i++) {
-            const k = store.key(i);
-            if (k && k.startsWith(prefix)) keys.push(k);
-          }
-          keys.forEach((k) => {
-            try { store.removeItem(k); } catch (_) {}
-          });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
-
-    // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
-    setTimeout(navigate, 350);
-  });
-
-
-  await refreshAuthUI();
-
-  // реагируем на редирект после Google OAuth и любые изменения сессии
-  try {
-    supabase.auth.onAuthStateChange(async () => {
-      await refreshAuthUI();
-    });
-  } catch (e) {
-    console.warn('onAuthStateChange not available', e);
-  }
-}
 
 function inferNameFromUser(user) {
   const md = user?.user_metadata || {};
