@@ -85,8 +85,7 @@ async function refreshAuthHeaderUI() {
   loginBtn.hidden = true;
   userBtn.hidden = false;
   userBtn.textContent = firstNameFromUser(session.user);
-
-  // keep menu closed after refresh
+  // при обновлении сессии меню должно быть закрыто
   menu.hidden = true;
   menu.classList.add('hidden');
   userBtn.setAttribute('aria-expanded', 'false');
@@ -94,6 +93,10 @@ async function refreshAuthHeaderUI() {
 
 function initAuthHeader() {
   if (_AUTH_READY) return;
+
+  // На страницах с единым хедером (appHeader) авторизация/меню управляется header.js.
+  // На главной иначе появлялись 2 обработчика клика на userMenuBtn.
+  if (document.getElementById('appHeader')) return;
 
   const loginBtn = $('#loginGoogleBtn');
   const userBtn = $('#userMenuBtn');
@@ -111,26 +114,22 @@ function initAuthHeader() {
 
   const homeUrl = new URL(IN_TASKS_DIR ? '../' : './', location.href).toString();
 
-  const syncMenuHidden = (isHidden) => {
-    const h = Boolean(isHidden);
-    menu.hidden = h;
-    menu.classList.toggle('hidden', h);
-    userBtn.setAttribute('aria-expanded', h ? 'false' : 'true');
-  };
-
-  // normalize initial state: some pages hide menu via .hidden class only
-  if (menu.classList.contains('hidden') && menu.hidden === false) {
+  const closeMenu = () => {
     menu.hidden = true;
-  }
-
-  const closeMenu = () => syncMenuHidden(true);
-  const openMenu = () => syncMenuHidden(false);
+    menu.classList.add('hidden');
+    userBtn.setAttribute('aria-expanded', 'false');
+  };
+  const openMenu = () => {
+    menu.hidden = false;
+    menu.classList.remove('hidden');
+    userBtn.setAttribute('aria-expanded', 'true');
+  };
+  const isOpen = () => !(menu.hidden || menu.classList.contains('hidden'));
   const toggleMenu = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const isHidden = menu.hidden || menu.classList.contains('hidden');
-    if (isHidden) openMenu();
-    else closeMenu();
+    if (isOpen()) closeMenu();
+    else openMenu();
   };
 
   loginBtn.addEventListener('click', async () => {
@@ -142,10 +141,13 @@ function initAuthHeader() {
     }
   });
 
-  userBtn.addEventListener('click', toggleMenu);
+  if (userBtn.dataset.menuWired !== '1') {
+    userBtn.dataset.menuWired = '1';
+    userBtn.addEventListener('click', toggleMenu);
+  }
 
   document.addEventListener('click', (e) => {
-    if (menu.hidden || menu.classList.contains('hidden')) return;
+    if (menu.hidden) return;
     if (menu.contains(e.target) || userBtn.contains(e.target)) return;
     closeMenu();
   });
