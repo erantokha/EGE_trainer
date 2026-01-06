@@ -189,14 +189,34 @@ function mountHomeButton(right, isHome) {
     return null;
   }
 
-  if (!homeBtn) {
-    homeBtn = document.createElement('a');
-    homeBtn.id = 'homeBtn';
+  // Делать "На главную" кнопкой (а не ссылкой), но в тех же стилях (.btn).
+  // Если старые версии оставили <a id="homeBtn">, заменяем на <button>.
+  if (!homeBtn || String(homeBtn.tagName || '').toLowerCase() !== 'button') {
+    const btn = document.createElement('button');
+    btn.id = 'homeBtn';
+    btn.className = 'btn';
+    btn.type = 'button';
+    btn.textContent = 'На главную';
+
+    if (homeBtn) homeBtn.replaceWith(btn);
+    else right.appendChild(btn);
+    homeBtn = btn;
+  } else {
     homeBtn.className = 'btn';
+    homeBtn.type = 'button';
     homeBtn.textContent = 'На главную';
-    right.appendChild(homeBtn);
   }
-  homeBtn.href = computeHomeUrl();
+
+  // Навешиваем обработчик 1 раз
+  if (homeBtn.dataset.wired !== '1') {
+    homeBtn.dataset.wired = '1';
+    homeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      location.href = computeHomeUrl();
+    });
+  }
+
   return homeBtn;
 }
 
@@ -409,7 +429,7 @@ export async function initHeader(opts = {}) {
       applySessionToUI(s);
 
       // home может быть нужен даже на /tasks/index.html
-      if (homeBtn) homeBtn.href = computeHomeUrl();
+      if (homeBtn) homeBtn.dataset.homeUrl = computeHomeUrl();
     });
   } catch (e) {
     // ignore
