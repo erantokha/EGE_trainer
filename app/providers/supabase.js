@@ -61,7 +61,9 @@ export async function signInWithGoogle(redirectTo = null) {
   if (error) throw error;
 }
 
-export async function signOut() {
+export async function signOut(opts = {}) {
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
+
   // Запоминаем намерение пользователя «сменить аккаунт».
   // При следующем signInWithGoogle покажем chooser.
   try {
@@ -70,40 +72,158 @@ export async function signOut() {
     }
   } catch (_) {}
 
-  // В некоторых браузерных профилях (расширения/кэш/несколько вкладок)
-  // бывает «залипание» сессии: signOut вроде вызван, но токен остаётся в storage
-  // или его тут же возвращает другой экземпляр GoTrueClient.
-  // Поэтому делаем два шага:
-  // 1) пытаемся ревокнуть refresh token (scope: 'global')
-  // 2) жёстко очищаем все ключи sb-<project>-* из localStorage/sessionStorage.
-  try {
-    await supabase.auth.signOut({ scope: 'global' });
-  } catch (_) {
-    // фолбэк: хотя бы локально
-    try { await supabase.auth.signOut(); } catch (_) {}
-  }
-
+  // Подготовим префикс ключей Supabase в storage (sb-<projectRef>-*).
+  let prefix = null;
   try {
     const host = String(CONFIG?.supabase?.url || '');
     const ref = host ? new URL(host).hostname.split('.')[0] : '';
-    if (ref) {
-      const prefix = `sb-${ref}-`;
-      const wipe = (store) => {
-        if (!store) return;
-        const keys = [];
-        for (let i = 0; i < store.length; i++) {
-          const k = store.key(i);
-          if (k && k.startsWith(prefix)) keys.push(k);
-        }
-        keys.forEach((k) => {
-          try { store.removeItem(k); } catch (_) {}
-        });
-      };
-      wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-      wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-    }
+    if (ref) prefix = `sb-${ref}-`;
+  } catch (_) {}
+
+  const wipe = (store) => {
+    if (!store || !prefix) return;
+    const keys = [];
+    try {
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        if (k && k.startsWith(prefix)) keys.push(k);
+      }
+      keys.forEach((k) => {
+        try { store.removeItem(k); } catch (_) {}
+      });
+    } catch (_) {}
+  };
+
+  // Best-effort: попросим Supabase ревокнуть refresh token (global), но UX не блокируем надолго.
+  const revokePromise = (async () => {
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+      return;
+    } catch (_) {}
+    try { await supabase.auth.signOut(); } catch (_) {}
+  })();
+
+  // Сразу чистим локальные токены, чтобы UI не «залипал», даже если сеть/расширения тормозят.
+  try {
+    wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+    wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+  } catch (_) {}
+
+  // Не ждём бесконечно: максимум timeoutMs (по умолчанию ~450 мс).
+  try {
+    await Promise.race([
+      Promise.resolve(revokePromise).catch(() => {}),
+      new Promise((r) => setTimeout(r, timeoutMs)),
+    ]);
   } catch (_) {}
 }
+
+const OAUTH_FINALIZE_KEY_PREFIX = 'oauth_redirect_finalized_v1:';
+
+function stripOAuthParamsFromUrl(urlStr) {
+  const u = new URL(urlStr);
+  ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+  return u;
+}
+
+function hasOAuthParams(urlStr) {
+  try {
+    const u = new URL(urlStr);
+    return ['code', 'state', 'error', 'error_description'].some((k) => u.searchParams.has(k));
+  } catch (_) {
+    return false;
+  }
+}
+
+// Очищаем ?code=&state= из URL один раз после успешного обмена (Supabase PKCE OAuth).
+// Важно: не трогаем URL, пока exchange не завершился (ждём SIGNED_IN или появление session).
+export async function finalizeOAuthRedirect(opts = {}) {
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
+
+  if (!hasOAuthParams(location.href)) return { ok: false, reason: 'no_oauth_params' };
+
+  // guard: один раз на вкладку/страницу
+  try {
+    const k = `${OAUTH_FINALIZE_KEY_PREFIX}${location.pathname}`;
+    if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
+    sessionStorage.setItem(k, '1');
+  } catch (_) {}
+
+  const doReplace = () => {
+    try {
+      const cleaned = stripOAuthParamsFromUrl(location.href);
+      history.replaceState(null, document.title, cleaned.toString());
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  // Если вернулась ошибка OAuth — чистим сразу (чтобы не застрять в цикле).
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.has('error') || u.searchParams.has('error_description')) {
+      doReplace();
+      return { ok: true, reason: 'oauth_error' };
+    }
+  } catch (_) {}
+
+  // 1) Быстрый путь: если сессия уже поднялась — чистим URL.
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session) {
+      doReplace();
+      return { ok: true, reason: 'session_ready' };
+    }
+  } catch (_) {}
+
+  // 2) Ждём событие SIGNED_IN (обмен ещё идёт).
+  return await new Promise((resolve) => {
+    let done = false;
+
+    const finish = (ok, reason) => {
+      if (done) return;
+      done = true;
+      try { unsub?.unsubscribe?.(); } catch (_) {}
+      if (ok) doReplace();
+      resolve({ ok, reason });
+    };
+
+    const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
+
+    let unsub = null;
+    try {
+      const sub = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          clearTimeout(timer);
+          finish(true, 'signed_in');
+        }
+      });
+      unsub = sub?.data?.subscription || sub?.subscription || null;
+    } catch (_) {}
+
+    // Доп. страховка: быстрое поллинг-ожидание сессии (если onAuthStateChange не сработал).
+    (async () => {
+      const stepMs = 250;
+      const steps = Math.ceil(timeoutMs / stepMs);
+      for (let i = 0; i < steps && !done; i++) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session) {
+            clearTimeout(timer);
+            finish(true, 'session_polled');
+            return;
+          }
+        } catch (_) {}
+        await new Promise((r) => setTimeout(r, stepMs));
+      }
+    })().catch(() => {});
+  });
+}
+
+// auto-run: если пришли с OAuth redirect (?code=&state=), подчистим URL после поднятия сессии
+finalizeOAuthRedirect().catch(() => {});
+
 
 // Примечание:
 // Отправка попыток тренажёра задач и ДЗ реализована в отдельных модулях
