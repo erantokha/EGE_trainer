@@ -9,6 +9,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
 import { withBuild } from '../app/build.js?v=2026-01-06-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-06-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -27,8 +28,151 @@ let SHUFFLE_TASKS = false;
 
 let LAST_SELECTION = null;
 
+
+// ---------- Авторизация (Google через Supabase) для главной страницы ----------
+// На /index.html показываем "Войти через Google" или имя + меню.
+// На /tasks/index.html (если элементов нет) этот блок тихо выключается.
+
+let _AUTH_READY = false;
+
+function cleanRedirectUrl() {
+  const u = new URL(location.href);
+  u.searchParams.delete('code');
+  u.searchParams.delete('state');
+  u.searchParams.delete('error');
+  u.searchParams.delete('error_description');
+  return u.toString();
+}
+
+function firstNameFromUser(user) {
+  const md = user?.user_metadata || {};
+  const given = String(md.given_name || '').trim();
+  if (given) return given;
+
+  const full = String(md.full_name || md.name || '').trim();
+  if (full) return full.split(/\s+/)[0];
+
+  const email = String(user?.email || '').trim();
+  if (email) return email.split('@')[0];
+
+  return 'Аккаунт';
+}
+
+async function refreshAuthHeaderUI() {
+  const loginBtn = $('#loginGoogleBtn');
+  const userBtn = $('#userMenuBtn');
+  const menu = $('#userMenu');
+  if (!loginBtn || !userBtn || !menu) return;
+
+  let session = null;
+  try {
+    session = await getSession();
+  } catch (e) {
+    console.warn('getSession failed', e);
+    session = null;
+  }
+
+  if (!session) {
+    loginBtn.hidden = false;
+    userBtn.hidden = true;
+    menu.hidden = true;
+    userBtn.textContent = '';
+    userBtn.setAttribute('aria-expanded', 'false');
+    return;
+  }
+
+  loginBtn.hidden = true;
+  userBtn.hidden = false;
+  userBtn.textContent = firstNameFromUser(session.user);
+}
+
+function initAuthHeader() {
+  if (_AUTH_READY) return;
+
+  const loginBtn = $('#loginGoogleBtn');
+  const userBtn = $('#userMenuBtn');
+  const menu = $('#userMenu');
+  if (!loginBtn || !userBtn || !menu) return;
+
+  _AUTH_READY = true;
+
+  // На случай, если OAuth-редирект вернул code/state в URL
+  try {
+    finalizeOAuthRedirect();
+  } catch (e) {
+    console.warn('finalizeOAuthRedirect failed', e);
+  }
+
+  const homeUrl = new URL(IN_TASKS_DIR ? '../' : './', location.href).toString();
+
+  const closeMenu = () => {
+    menu.hidden = true;
+    userBtn.setAttribute('aria-expanded', 'false');
+  };
+  const openMenu = () => {
+    menu.hidden = false;
+    userBtn.setAttribute('aria-expanded', 'true');
+  };
+  const toggleMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (menu.hidden) openMenu();
+    else closeMenu();
+  };
+
+  loginBtn.addEventListener('click', async () => {
+    try {
+      await signInWithGoogle(cleanRedirectUrl());
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось начать вход через Google. Смотри Console.');
+    }
+  });
+
+  userBtn.addEventListener('click', toggleMenu);
+
+  document.addEventListener('click', (e) => {
+    if (menu.hidden) return;
+    if (menu.contains(e.target) || userBtn.contains(e.target)) return;
+    closeMenu();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeMenu();
+  });
+
+  $('#menuProfile')?.addEventListener('click', () => {
+    closeMenu();
+    alert('Профиль — скоро');
+  });
+  $('#menuStats')?.addEventListener('click', () => {
+    closeMenu();
+    alert('Статистика — скоро');
+  });
+  $('#menuLogout')?.addEventListener('click', async () => {
+    closeMenu();
+    try {
+      await signOut();
+    } catch (e) {
+      console.warn('signOut failed', e);
+    }
+    location.replace(homeUrl);
+  });
+
+  try {
+    supabase.auth.onAuthStateChange(() => {
+      refreshAuthHeaderUI();
+    });
+  } catch (e) {
+    console.warn('onAuthStateChange failed', e);
+  }
+
+  refreshAuthHeaderUI();
+}
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
+  initAuthHeader();
   initModeToggle();
   initShuffleToggle();
   initCreateHomeworkButton();
