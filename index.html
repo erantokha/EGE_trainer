@@ -16,7 +16,21 @@
   <main class="container">
     <section id="picker">
       <div class="panel">
-        <h1>Тренажер по задачам из банка ФИПИ</h1>
+        <div class="page-head">
+        <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
+        <div class="page-head-right auth-mini" id="authMini">
+          <button id="loginGoogleBtn" type="button" class="btn-compact">Войти через Google</button>
+
+          <button id="userMenuBtn" type="button" class="btn-compact user-menu-btn" hidden aria-expanded="false"></button>
+
+          <div id="userMenu" class="user-menu" hidden>
+            <button id="menuProfile" type="button" class="user-menu-item">Профиль</button>
+            <button id="menuStats" type="button" class="user-menu-item">Статистика</button>
+            <div class="user-menu-sep"></div>
+            <button id="menuLogout" type="button" class="user-menu-item danger">Выйти</button>
+          </div>
+        </div>
+      </div>
 
         <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
         <div class="controls">
