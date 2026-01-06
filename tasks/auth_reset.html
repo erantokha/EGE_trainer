@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-01-07-1">
+  <title>Сброс пароля</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-07-1">
+  <script src="./theme.js?v=2026-01-07-1" defer></script>
+  <style>
+    input[type="password"]{
+      background:var(--muted);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      outline:none;
+      width:100%;
+      box-sizing:border-box;
+    }
+    .status{margin-top:10px;opacity:.85}
+    .status.error{opacity:1;color:#b00}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <div class="crumb">Сброс пароля</div>
+          <div class="theme-toggle" data-header-extra="1">
+            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </header>
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false }));
+        </script>
+
+        <form id="resetForm" style="max-width:520px;margin:12px auto 0">
+          <div class="muted" style="margin-bottom:10px">Введите новый пароль.</div>
+          <input id="newPass" type="password" autocomplete="new-password" required>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button type="submit">Сохранить пароль</button>
+          </div>
+          <div id="status" class="status"></div>
+        </form>
+
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./auth_reset.js?v=2026-01-07-1"></script>
+</body>
+</html>
