@@ -14,7 +14,7 @@ import {
 
 
 // build/version (cache-busting)
-const BUILD = '2025-12-29-1';
+const BUILD = '2026-01-06-1';
 const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
 if (HTML_BUILD && HTML_BUILD !== BUILD) {
   const k = 'hw_create:build_reload_attempted';
@@ -328,6 +328,13 @@ function wireAuthControls() {
     if (!url) return;
     window.open(url, '_blank', 'noopener');
   });
+
+  // кнопка "На главную"
+  $('#homeBtn')?.addEventListener('click', () => {
+    const u = new URL('../', location.href);
+    location.href = u.href;
+  });
+
 }
 
 function pad2(n) {
