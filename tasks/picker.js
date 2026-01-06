@@ -5,7 +5,15 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-const INDEX_URL = '../content/tasks/index.json';
+// picker.js используется как со страницы /tasks/index.html,
+// так и с корневой /index.html (которая является "копией" страницы выбора).
+// Поэтому пути строим динамически, исходя из текущего URL страницы.
+const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
+const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
+const INDEX_URL = new URL(
+  IN_TASKS_DIR ? '../content/tasks/index.json' : './content/tasks/index.json',
+  location.href,
+).toString();
 
 let CATALOG = null;
 let SECTIONS = [];
@@ -32,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const host = $('#accordion');
     if (host) {
       host.innerHTML =
-        '<div style="opacity:.8">Не найден ../content/tasks/index.json или JSON невалиден.</div>';
+        '<div style="opacity:.8">Не найден content/tasks/index.json или JSON невалиден.</div>';
     }
   }
 
@@ -183,7 +191,7 @@ function initCreateHomeworkButton() {
       console.warn('Не удалось сохранить выбор для ДЗ в sessionStorage', e);
     }
 
-    location.href = './hw_create.html';
+    location.href = new URL(PAGES_BASE + 'hw_create.html', location.href).toString();
   });
 }
 
@@ -310,7 +318,7 @@ function renderSectionNode(sec) {
 
   const uniqBtn = $('.unique-btn', node);
   uniqBtn.addEventListener('click', () => {
-    const url = new URL('./unique.html', location.href);
+    const url = new URL(PAGES_BASE + 'unique.html', location.href);
     url.searchParams.set('section', sec.id);
     // для unique.html можно использовать noopener, там sessionStorage не нужен
     window.open(url.toString(), '_blank', 'noopener');
@@ -406,7 +414,7 @@ function renderTopicRow(topic) {
   const allBtn = $('.all-btn', row);
   if (allBtn) {
     allBtn.addEventListener('click', () => {
-      const url = new URL('./list.html', location.href);
+      const url = new URL(PAGES_BASE + 'list.html', location.href);
       url.searchParams.set('topic', topic.id);
       url.searchParams.set('view', 'all');
       // оставляем без noopener, чтобы при желании можно было использовать sessionStorage
@@ -479,12 +487,11 @@ function saveSelectionAndGo() {
 
   if (mode === 'test') {
     // режим "Тестирование" открываем в этой же вкладке
-    const targetPage = './trainer.html';
-    location.href = targetPage;
+    location.href = new URL(PAGES_BASE + 'trainer.html', location.href).toString();
   } else {
     // режим "Список задач" открываем в новой вкладке
     // важно не указывать "noopener", чтобы новая вкладка получила копию sessionStorage
-    const url = new URL('./list.html', location.href);
+    const url = new URL(PAGES_BASE + 'list.html', location.href);
     window.open(url.toString(), '_blank');
   }
 }
