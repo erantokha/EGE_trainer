@@ -240,8 +240,64 @@ function wireAuthControls() {
     }
   });
 
-  $('#logoutBtn')?.addEventListener('click', (e) => {
+    const closeUserMenu = () => {
+    const menu = $('#userMenu');
+    const btn = $('#userMenuBtn');
+    if (menu) menu.classList.add('hidden');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  };
+
+  const openUserMenu = () => {
+    const menu = $('#userMenu');
+    const btn = $('#userMenuBtn');
+    if (!menu || !btn) return;
+    menu.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  };
+
+  const toggleUserMenu = () => {
+    const menu = $('#userMenu');
+    if (!menu) return;
+    if (menu.classList.contains('hidden')) openUserMenu();
+    else closeUserMenu();
+  };
+
+  $('#userMenuBtn')?.addEventListener('click', (e) => {
     e?.preventDefault?.();
+    e?.stopPropagation?.();
+    toggleUserMenu();
+  });
+
+  // закрыть меню по клику вне его
+  document.addEventListener('click', (e) => {
+    const menu = $('#userMenu');
+    const btn = $('#userMenuBtn');
+    if (!menu || !btn) return;
+    if (menu.classList.contains('hidden')) return;
+    const t = e?.target;
+    if (menu.contains(t) || btn.contains(t)) return;
+    closeUserMenu();
+  }, true);
+
+  // закрыть меню по Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeUserMenu();
+  });
+
+  // пункты меню
+  $('#menuProfile')?.addEventListener('click', () => {
+    closeUserMenu();
+    flashStatus('Профиль — заглушка (позже).');
+  });
+
+  $('#menuStats')?.addEventListener('click', () => {
+    closeUserMenu();
+    flashStatus('Статистика — заглушка (позже).');
+  });
+
+  $('#menuLogout')?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+    closeUserMenu();
 
     const clean = cleanRedirectUrl();
 
@@ -261,11 +317,9 @@ function wireAuthControls() {
     try {
       const loginBtn = $('#loginGoogleBtn');
       const authMini = $('#authMini');
-      const logoutBtn = $('#logoutBtn');
       const createBtn = $('#createBtn');
       if (loginBtn) loginBtn.style.display = '';
       if (authMini) authMini.classList.add('hidden');
-      if (logoutBtn) logoutBtn.style.display = 'none';
       if (createBtn) createBtn.disabled = true;
     } catch (_) {}
 
@@ -419,6 +473,17 @@ function showStudentLink(link, metaText = '') {
   if (meta) meta.textContent = metaText || '';
 }
 
+function getFirstNameFromUser(user) {
+  const md = user?.user_metadata || {};
+  const given = String(md.given_name || '').trim();
+  if (given) return given;
+  const full = String(md.full_name || md.name || '').trim();
+  if (full) return full.split(/\s+/)[0];
+  const email = String(user?.email || '').trim();
+  if (email) return email.split('@')[0];
+  return 'Аккаунт';
+}
+
 async function refreshAuthUI() {
   ensureAuthBar();
 
@@ -426,24 +491,33 @@ async function refreshAuthUI() {
 
   const loginBtn = $('#loginGoogleBtn');
   const authMini = $('#authMini');
-  const authEmail = $('#authEmail');
-  const logoutBtn = $('#logoutBtn');
+  const userMenuBtn = $('#userMenuBtn');
+  const userMenu = $('#userMenu');
   const createBtn = $('#createBtn');
 
+  const closeMenu = () => {
+    try {
+      if (userMenu) userMenu.classList.add('hidden');
+      if (userMenuBtn) userMenuBtn.setAttribute('aria-expanded', 'false');
+    } catch (_) {}
+  };
+
   if (!session) {
+    closeMenu();
     if (loginBtn) loginBtn.style.display = '';
     if (authMini) authMini.classList.add('hidden');
-    if (logoutBtn) logoutBtn.style.display = 'none';
     if (createBtn) createBtn.disabled = true;
     return null;
   }
 
-  const email = session.user?.email || '';
-  if (authEmail) authEmail.textContent = email ? `${email}` : '';
+  const firstName = getFirstNameFromUser(session.user);
+  if (userMenuBtn) userMenuBtn.textContent = firstName;
+
   if (loginBtn) loginBtn.style.display = 'none';
-  if (logoutBtn) logoutBtn.style.display = '';
   if (authMini) authMini.classList.remove('hidden');
   if (createBtn) createBtn.disabled = false;
+
+  closeMenu();
   return session;
 }
 

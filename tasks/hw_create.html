@@ -16,8 +16,13 @@
           <div class="page-head-right">
             <button id="loginGoogleBtn" class="btn" type="button">Войти через Google</button>
             <span id="authMini" class="auth-mini hidden">
-              <span id="authEmail" class="auth-email"></span>
-              <button id="logoutBtn" class="btn small" type="button">Выйти</button>
+              <button id="userMenuBtn" class="btn small user-menu-btn" type="button" aria-haspopup="menu" aria-expanded="false"></button>
+              <div id="userMenu" class="user-menu hidden" role="menu" aria-label="Меню аккаунта">
+                <button id="menuProfile" class="user-menu-item" type="button" role="menuitem">Профиль</button>
+                <button id="menuStats" class="user-menu-item" type="button" role="menuitem">Статистика</button>
+                <div class="user-menu-sep" role="separator"></div>
+                <button id="menuLogout" class="user-menu-item danger" type="button" role="menuitem">Выйти</button>
+              </div>
             </span>
           </div>
         </header>

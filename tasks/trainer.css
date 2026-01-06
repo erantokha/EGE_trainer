@@ -871,7 +871,7 @@ input:focus{
 .icon-btn:hover { background:rgba(0,0,0,.03); }
 
 
-.auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; position:relative; }
 .auth-email { opacity:.85; }
 
 .editable-wrap { display:flex; flex-direction:column; gap:6px; }
@@ -1118,3 +1118,50 @@ input:focus{
 .hw-review-answers{
   margin-top:1.8em;
 }
+
+/* hw_create: меню аккаунта */
+.user-menu-btn { white-space: nowrap; }
+
+.user-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 210px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 2500;
+}
+
+.user-menu-item {
+  width: 100%;
+  display: block;
+  text-align: left;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: rgba(148,163,184,.12);
+}
+
+.user-menu-item:active {
+  background: rgba(148,163,184,.18);
+}
+
+.user-menu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 4px;
+}
+
+.user-menu-item.danger {
+  color: var(--danger);
+}
+
