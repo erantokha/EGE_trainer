@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css">
+  <!--
+    Главная страница сайта (/): это "вход" в тренажёр.
+    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
+    подключаем стили и скрипты с корректными путями.
+  -->
+  <link rel="stylesheet" href="./tasks/trainer.css">
 </head>
 <body>
   <main class="container">
@@ -77,7 +82,7 @@
     </section>
   </main>
 
-  <script src="./theme.js" defer></script>
-  <script type="module" src="./picker.js"></script>
+  <script src="./tasks/theme.js" defer></script>
+  <script type="module" src="./tasks/picker.js"></script>
 </body>
 </html>
