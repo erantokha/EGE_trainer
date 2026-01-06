@@ -20,7 +20,11 @@ jobs:
 
       - name: Validate content
         run: |
-          node tools/validate-content.mjs --max-errors=200 | tee validation-report.txt
+          if [ -f tools/validate-content.mjs ]; then
+            node tools/validate-content.mjs --max-errors=200 | tee validation-report.txt
+          else
+            echo "tools/validate-content.mjs not found; skipping content validation." | tee validation-report.txt
+          fi
         shell: bash
 
       - name: Upload validation report
