@@ -273,27 +273,6 @@ function wireAuthControls() {
     Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
 
     // UX: не ждём дольше ~450 мс
-    setTimeout(navigate, 450);
-  });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
-
-    // На всякий случай мгновенно погасим UI «авторизован», пока перезагрузка не произошла.
-    try {
-      const loginBtn = $('#loginGoogleBtn');
-      const authMini = $('#authMini');
-      const logoutBtn = $('#logoutBtn');
-      const createBtn = $('#createBtn');
-      if (loginBtn) loginBtn.style.display = '';
-      if (authMini) authMini.classList.add('hidden');
-      if (logoutBtn) logoutBtn.style.display = 'none';
-      if (createBtn) createBtn.disabled = true;
-    } catch (_) {}
-
-    // Не ждём дольше ~350 мс — UX остаётся «мгновенным».
     setTimeout(navigate, 350);
   });
 

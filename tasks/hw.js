@@ -363,18 +363,8 @@ async function initAuthUI() {
     Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
 
     // UX: не ждём дольше ~450 мс
-    setTimeout(navigate, 450);
-  });
-        };
-        wipe(typeof localStorage !== 'undefined' ? localStorage : null);
-        wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
-      }
-    } catch (_) {}
-
-    // Не ждём дольше ~350 мс — UX остаётся «мгновенным», как на hw_create.
     setTimeout(navigate, 350);
   });
-
 
   await refreshAuthUI();
 
