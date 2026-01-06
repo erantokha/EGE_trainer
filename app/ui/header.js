@@ -1,11 +1,9 @@
 // app/ui/header.js
-// Единый хедер: заголовок страницы (слева), авторизация/меню (справа) + кнопка "На главную" на всех страницах кроме корня.
+// Единый хедер: слева контент страницы (заголовок/крошки), справа: вход/аккаунт + кнопка "На главную".
 //
-// Как использовать:
-// 1) В HTML добавьте <header id="appHeader" class="page-head">...</header>
-// 2) Подключите initHeader() (можно через динамический import с meta app-build)
-//
-// initHeader({ isHome: true/false })
+// Использование:
+// 1) В HTML: <header id="appHeader" class="page-head">...</header>
+// 2) Вызвать initHeader({ isHome: true/false })
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -21,7 +19,6 @@ function buildWithV(path) {
 
 function computeHomeUrl() {
   try {
-    // Если мы внутри /tasks/, то ../ ведёт к /EGE_trainer/
     if (/\/tasks(\/|$)/.test(location.pathname)) return new URL('../', location.href).toString();
     return new URL('./', location.href).toString();
   } catch (_) {
@@ -41,25 +38,13 @@ function cleanOauthParams(urlLike) {
       'provider_refresh_token',
       'refresh_token',
       'type',
+      'token',
+      'token_hash',
     ];
     for (const k of keys) u.searchParams.delete(k);
     return u.toString();
   } catch (_) {
     return String(urlLike || location.href);
-  }
-}
-
-function hasOauthParams() {
-  try {
-    const u = new URL(location.href);
-    return (
-      u.searchParams.has('code') ||
-      u.searchParams.has('state') ||
-      u.searchParams.has('error') ||
-      u.searchParams.has('error_description')
-    );
-  } catch (_) {
-    return false;
   }
 }
 
@@ -80,7 +65,6 @@ function inferFirstName(user) {
 function ensureHeaderSkeleton(headerEl) {
   headerEl.classList.add('page-head');
 
-  // Создаём две колонки: left / right
   let left = headerEl.querySelector('.page-head-left');
   let right = headerEl.querySelector('.page-head-right');
 
@@ -88,18 +72,14 @@ function ensureHeaderSkeleton(headerEl) {
     left = document.createElement('div');
     left.className = 'page-head-left';
 
-    // переносим все существующие узлы в left, кроме уже существующего right
     const nodes = Array.from(headerEl.childNodes);
     for (const n of nodes) {
       if (n.nodeType === 1 && n.classList.contains('page-head-right')) continue;
       left.appendChild(n);
     }
 
-    // очищаем header и добавляем left
     headerEl.textContent = '';
     headerEl.appendChild(left);
-
-    // если right был, добавим его обратно
     if (right) headerEl.appendChild(right);
   }
 
@@ -109,7 +89,6 @@ function ensureHeaderSkeleton(headerEl) {
     headerEl.appendChild(right);
   }
 
-  // перенести "доп. элементы" (например, theme-toggle / кнопки) в правую часть
   const extras = Array.from(headerEl.querySelectorAll('[data-header-extra="1"]'));
   for (const el of extras) {
     right.appendChild(el);
@@ -119,7 +98,6 @@ function ensureHeaderSkeleton(headerEl) {
 }
 
 function mountAuthUI(right) {
-  // auth container
   let auth = right.querySelector('.auth-mini');
   if (!auth) {
     auth = document.createElement('div');
@@ -127,18 +105,16 @@ function mountAuthUI(right) {
     right.appendChild(auth);
   }
 
-  // login button
   let loginBtn = $('#loginGoogleBtn', auth);
   if (!loginBtn) {
     loginBtn = document.createElement('button');
     loginBtn.id = 'loginGoogleBtn';
     loginBtn.className = 'btn';
     loginBtn.type = 'button';
-    loginBtn.textContent = 'Войти через Google';
+    loginBtn.textContent = 'Войти';
     auth.appendChild(loginBtn);
   }
 
-  // user menu wrapper
   let userMenuWrap = $('#userMenuWrap', auth);
   if (!userMenuWrap) {
     userMenuWrap = document.createElement('div');
@@ -156,6 +132,7 @@ function mountAuthUI(right) {
     const menu = document.createElement('div');
     menu.id = 'userMenu';
     menu.className = 'user-menu hidden';
+    menu.hidden = true;
     menu.setAttribute('role', 'menu');
 
     menu.innerHTML = `
@@ -195,16 +172,15 @@ function mountHomeButton(right, isHome) {
     homeBtn.className = 'btn';
     homeBtn.type = 'button';
     homeBtn.textContent = 'На главную';
-    homeBtn.addEventListener('click', () => { location.href = computeHomeUrl(); });
+    homeBtn.addEventListener('click', () => {
+      location.href = computeHomeUrl();
+    });
     right.appendChild(homeBtn);
   }
-  homeBtn.href = computeHomeUrl();
   return homeBtn;
 }
 
 function setupMenuInteractions(userBtn, menu) {
-  // Чтобы не было рассинхрона между menu.hidden и CSS-классом .hidden,
-  // всегда меняем их синхронно.
   const WIRED_KEY = 'menuWired';
 
   const normalize = () => {
@@ -233,7 +209,6 @@ function setupMenuInteractions(userBtn, menu) {
 
   normalize();
 
-  // Защита от повторного навешивания обработчиков (на главной было 2 click listeners).
   if (userBtn.dataset[WIRED_KEY] === '1') {
     return { open, close };
   }
@@ -245,8 +220,6 @@ function setupMenuInteractions(userBtn, menu) {
     toggle();
   });
 
-  // Глобальные обработчики (клик вне / Escape) ставим 1 раз на страницу,
-  // но каждый раз берём актуальные элементы по id.
   const DOC_WIRED = '__egeUserMenuDocWired';
   if (!window[DOC_WIRED]) {
     window[DOC_WIRED] = true;
@@ -256,7 +229,6 @@ function setupMenuInteractions(userBtn, menu) {
       const m = document.getElementById('userMenu');
       if (!b || !m) return;
       if (m.contains(e.target) || b.contains(e.target)) return;
-      // idempotent close
       m.hidden = true;
       m.classList.add('hidden');
       b.setAttribute('aria-expanded', 'false');
@@ -281,16 +253,13 @@ export async function initHeader(opts = {}) {
   if (!headerEl) return;
 
   const { right } = ensureHeaderSkeleton(headerEl);
-
   const ui = mountAuthUI(right);
 
   const isHome = Boolean(opts.isHome);
-  const homeBtn = mountHomeButton(right, isHome);
+  mountHomeButton(right, isHome);
 
-  // menu
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
 
-  // placeholders пока заглушки
   ui.menuProfile?.addEventListener('click', () => {
     closeMenu();
     alert('Профиль — скоро будет');
@@ -300,7 +269,6 @@ export async function initHeader(opts = {}) {
     alert('Статистика — скоро будет');
   });
 
-  // Подключаем Supabase и вешаем авторизацию
   let supabaseMod = null;
   try {
     supabaseMod = await import(buildWithV('../providers/supabase.js'));
@@ -310,110 +278,84 @@ export async function initHeader(opts = {}) {
 
   const supabase = supabaseMod?.supabase;
   const getSession = supabaseMod?.getSession;
-  const signInWithGoogle = supabaseMod?.signInWithGoogle;
   const signOut = supabaseMod?.signOut;
+
+  let CONFIG = null;
+  try {
+    const cfgMod = await import(buildWithV('../config.js'));
+    CONFIG = cfgMod?.CONFIG || null;
+  } catch (_) {}
+
+  const buildAuthLoginUrl = (nextUrl) => {
+    const basePath = String(CONFIG?.site?.base || '').replace(/\/+$/g, '');
+    const loginRoute = String(CONFIG?.auth?.routes?.login || '/tasks/auth.html');
+    const path = loginRoute.startsWith('/') ? loginRoute : '/' + loginRoute;
+    const url = new URL(basePath + path, location.origin);
+    if (nextUrl) url.searchParams.set('next', nextUrl);
+    return url.toString();
+  };
 
   let isSigningOut = false;
 
   const applySessionToUI = (session) => {
-    // Всегда закрываем меню при смене состояния (в том числе на logout),
-    // чтобы не оставалось визуальных хвостов.
     try { closeMenu(); } catch (_) {}
 
     const authed = Boolean(session);
-
-    // Показ/скрытие
     ui.loginBtn.classList.toggle('hidden', authed);
     ui.userMenuWrap.classList.toggle('hidden', !authed);
 
     if (authed) {
-      const user = session.user || null;
-      ui.userBtn.textContent = inferFirstName(user);
+      ui.userBtn.textContent = inferFirstName(session.user || null);
     } else {
-      // сбрасываем подпись, чтобы не было "залипания" имени
       ui.userBtn.textContent = 'Аккаунт';
     }
 
-    // Сообщаем странице (если ей нужно отключить кнопки и т.п.)
     try {
       window.dispatchEvent(new CustomEvent('app-auth-changed', { detail: { session: session || null } }));
     } catch (_) {}
   };
 
-  // login
-  ui.loginBtn.addEventListener('click', async () => {
-    if (!signInWithGoogle) return;
-
-    // redirect_to без OAuth-мусора
-    const redirectTo = cleanOauthParams(location.href);
-    await signInWithGoogle(redirectTo);
+  ui.loginBtn.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    const nextUrl = cleanOauthParams(location.href);
+    location.href = buildAuthLoginUrl(nextUrl);
   });
 
-  // logout
   ui.menuLogout?.addEventListener('click', async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
+    closeMenu();
 
-    // Мгновенная визуальная реакция
     if (isSigningOut) return;
     isSigningOut = true;
 
-    // Сразу переключаем UI в "вышел", не дожидаясь внутренних событий Supabase.
     applySessionToUI(null);
 
-    // На всякий случай закрываем меню
-    closeMenu();
-
     try {
-      if (signOut) {
-        await signOut();
-      }
+      if (signOut) await signOut();
     } catch (err) {
       console.warn('Header: signOut failed', err);
     } finally {
-      // Вернём интерактивность
       isSigningOut = false;
-
-      // Финальная синхронизация (на случай, если signOut завершился не сразу)
       try {
         const s = getSession ? await getSession().catch(() => null) : null;
         applySessionToUI(s);
       } catch (_) {}
     }
   });
-// начальная отрисовка
+
   let initial = null;
   try {
     initial = getSession ? await getSession().catch(() => null) : null;
   } catch (_) {}
   applySessionToUI(initial);
 
-  // чистим URL после OAuth, но только когда сессия уже поднялась (чтобы не сломать обмен)
-  if (hasOauthParams()) {
-    const startedAt = Date.now();
-    const tryClean = async () => {
-      const s = getSession ? await getSession().catch(() => null) : null;
-      if (s || Date.now() - startedAt > 4000) {
-        const cleaned = cleanOauthParams(location.href);
-        if (cleaned !== location.href) history.replaceState({}, '', cleaned);
-        return;
-      }
-      setTimeout(tryClean, 150);
-    };
-    setTimeout(tryClean, 0);
-  }
-
-  // подписка на изменения
   try {
     supabase?.auth?.onAuthStateChange(async () => {
       if (isSigningOut) return;
       const s = getSession ? await getSession().catch(() => null) : null;
       applySessionToUI(s);
-
-      // home может быть нужен даже на /tasks/index.html
-      if (homeBtn) homeBtn.href = computeHomeUrl();
     });
-  } catch (e) {
-    // ignore
-  }
+  } catch (_) {}
 }
