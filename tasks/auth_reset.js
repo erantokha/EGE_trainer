@@ -1,8 +1,34 @@
 // tasks/auth_reset.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-4';
-import { finalizeAuthRedirect, updatePassword, getSession } from '../app/providers/supabase.js?v=2026-01-07-4';
+// Важно: используем один и тот же URL модулей (?v из meta app-build), чтобы не создавать несколько Supabase клиентов.
+let CONFIG = null;
+let finalizeAuthRedirect = null;
+let updatePassword = null;
+let getSession = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
+
+function buildWithV(path) {
+  const build = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  try {
+    const u = new URL(path, import.meta.url);
+    if (build) u.searchParams.set('v', build);
+    return u.toString();
+  } catch (_) {
+    return path;
+  }
+}
+
+async function loadDeps() {
+  const cfgMod = await import(buildWithV('../app/config.js'));
+  const sbMod = await import(buildWithV('../app/providers/supabase.js'));
+  CONFIG = cfgMod?.CONFIG || null;
+  finalizeAuthRedirect = sbMod?.finalizeAuthRedirect || null;
+  updatePassword = sbMod?.updatePassword || null;
+  getSession = sbMod?.getSession || null;
+  if (!finalizeAuthRedirect || !updatePassword || !getSession) {
+    throw new Error('AUTH_DEPS_NOT_LOADED');
+  }
+}
 
 
 function homeUrl() {
@@ -36,12 +62,20 @@ function setStatus(msg, isError) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await loadDeps();
+  } catch (e) {
+    console.error(e);
+    const st = document.querySelector('#status');
+    if (st) st.textContent = 'Ошибка загрузки авторизации. Обновите страницу (Ctrl+F5).';
+    return;
+  }
   const url = new URL(location.href);
-  const next = sanitizeNext(url.searchParams.get('next') || url.searchParams.get('redirect_to'));
+  const next = sanitizeNext(url.searchParams.get('next'));
 
   setStatus('Проверяем ссылку...', false);
   try {
-    await finalizeAuthRedirect({ preserveParams: ['next','redirect_to'], timeoutMs: 8000 }).catch(() => null);
+    await finalizeAuthRedirect({ preserveParams: ['next'], timeoutMs: 8000 }).catch(() => null);
   } catch (_) {}
 
   const s = await getSession().catch(() => null);

@@ -1,8 +1,30 @@
 // tasks/auth_callback.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-3';
-import { finalizeAuthRedirect, getSession } from '../app/providers/supabase.js?v=2026-01-07-3';
+// Важно: используем один и тот же URL модулей (?v из meta app-build), чтобы не создавать несколько Supabase клиентов.
+let CONFIG = null;
+let finalizeAuthRedirect = null;
+let getSession = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
+
+function buildWithV(path) {
+  const build = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  try {
+    const u = new URL(path, import.meta.url);
+    if (build) u.searchParams.set('v', build);
+    return u.toString();
+  } catch (_) {
+    return path;
+  }
+}
+
+async function loadDeps() {
+  const cfgMod = await import(buildWithV('../app/config.js'));
+  const sbMod = await import(buildWithV('../app/providers/supabase.js'));
+  CONFIG = cfgMod?.CONFIG || null;
+  finalizeAuthRedirect = sbMod?.finalizeAuthRedirect || null;
+  getSession = sbMod?.getSession || null;
+  if (!finalizeAuthRedirect || !getSession) throw new Error('AUTH_DEPS_NOT_LOADED');
+}
 
 
 function homeUrl() {
@@ -48,6 +70,12 @@ function showHint(html) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  try { await loadDeps(); } catch (e) {
+    console.error(e);
+    const st = document.querySelector('#status');
+    if (st) st.textContent = 'Ошибка загрузки авторизации. Обновите страницу (Ctrl+F5).';
+    return;
+  }
   const url = new URL(location.href);
   const next = sanitizeNext(url.searchParams.get('next'));
 

@@ -1,16 +1,40 @@
 // tasks/auth.js
-import { CONFIG } from '../app/config.js?v=2026-01-07-3';
-import {
-  getSession,
-  signInWithGoogle,
-  signInWithPassword,
-  signUpWithPassword,
-  resendSignupEmail,
-  sendPasswordReset,
-  authEmailExists,
-} from '../app/providers/supabase.js?v=2026-01-07-3';
+// Важно: используем один и тот же URL модулей (?v из meta app-build), чтобы не создавать несколько Supabase клиентов.
+let CONFIG = null;
+let getSession = null;
+let signInWithGoogle = null;
+let signInWithPassword = null;
+let signUpWithPassword = null;
+let resendSignupEmail = null;
+let sendPasswordReset = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
+
+function buildWithV(path) {
+  const build = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  try {
+    const u = new URL(path, import.meta.url);
+    if (build) u.searchParams.set('v', build);
+    return u.toString();
+  } catch (_) {
+    return path;
+  }
+}
+
+async function loadDeps() {
+  const cfgMod = await import(buildWithV('../app/config.js'));
+  const sbMod = await import(buildWithV('../app/providers/supabase.js'));
+  CONFIG = cfgMod?.CONFIG || null;
+  getSession = sbMod?.getSession || null;
+  signInWithGoogle = sbMod?.signInWithGoogle || null;
+  signInWithPassword = sbMod?.signInWithPassword || null;
+  signUpWithPassword = sbMod?.signUpWithPassword || null;
+  resendSignupEmail = sbMod?.resendSignupEmail || null;
+  sendPasswordReset = sbMod?.sendPasswordReset || null;
+  if (!getSession || !signInWithGoogle || !signInWithPassword || !signUpWithPassword || !resendSignupEmail || !sendPasswordReset) {
+    throw new Error('AUTH_DEPS_NOT_LOADED');
+  }
+}
 
 
 function homeUrl() {
@@ -56,16 +80,6 @@ function setStatus(el, msg, isError) {
   el.classList.toggle('error', Boolean(isError));
 }
 
-async function checkEmailExists(email, statusEl) {
-  try {
-    return await authEmailExists(email);
-  } catch (e) {
-    console.error(e);
-    setStatus(statusEl, 'Не удалось проверить email в базе. Проверьте функцию auth_email_exists и права execute в Supabase.', true);
-    return null;
-  }
-}
-
 function showPanel(name) {
   const tabs = {
     login: $('#tabLogin'),
@@ -85,6 +99,12 @@ function showPanel(name) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  try { await loadDeps(); } catch (e) {
+    console.error(e);
+    const st = document.querySelector('#msg');
+    if (st) st.textContent = 'Ошибка загрузки авторизации. Обновите страницу (Ctrl+F5).';
+    return;
+  }
   const next = sanitizeNext(new URL(location.href).searchParams.get('next'));
 
   // Если уже вошли — сразу возвращаем.
@@ -130,24 +150,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    setStatus($('#loginStatus'), 'Проверяем email...', false);
-    const exists = await checkEmailExists(email, $('#loginStatus'));
-    if (exists === null) return;
-    if (!exists) {
-      setStatus($('#loginStatus'), 'Аккаунт с таким email не найден. Нужно зарегистрироваться.', true);
-      return;
-    }
-
     setStatus($('#loginStatus'), 'Входим...', false);
     try {
       await signInWithPassword({ email, password });
       location.replace(next);
     } catch (err) {
       console.error(err);
-      const raw = String(err?.message || '');
-      const msg = (/invalid login credentials/i.test(raw))
-        ? 'Неверный пароль.'
-        : (raw || 'Не удалось войти.');
+      const msg = String(err?.message || 'Не удалось войти.');
       setStatus($('#loginStatus'), msg, true);
     }
   });
@@ -164,15 +173,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!email || !password) {
       setStatus($('#signupStatus'), 'Заполните email и пароль.', true);
-      return;
-    }
-
-    setStatus($('#signupStatus'), 'Проверяем email...', false);
-    const exists = await checkEmailExists(email, $('#signupStatus'));
-    if (exists === null) return;
-    if (exists) {
-      setStatus($('#signupStatus'), 'Аккаунт с таким email уже существует. Войдите или используйте «Сброс пароля».', true);
-      resendBtn?.classList.remove('hidden');
       return;
     }
 
@@ -219,14 +219,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const email = String($('#resetEmail')?.value || '').trim();
     if (!email) {
       setStatus($('#resetStatus'), 'Укажите email.', true);
-      return;
-    }
-
-    setStatus($('#resetStatus'), 'Проверяем email...', false);
-    const exists = await checkEmailExists(email, $('#resetStatus'));
-    if (exists === null) return;
-    if (!exists) {
-      setStatus($('#resetStatus'), 'Аккаунт с таким email не найден.', true);
       return;
     }
 
