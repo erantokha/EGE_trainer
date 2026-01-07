@@ -61,6 +61,19 @@ function setStatus(msg, isError) {
   el.classList.toggle('error', Boolean(isError));
 }
 
+function withTimeout(promise, ms, timeoutMessage = 'TIMEOUT') {
+  const t = Math.max(0, Number(ms) || 0);
+  if (!t) return promise;
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage)), t);
+  });
+  return Promise.race([
+    Promise.resolve(promise).finally(() => { try { clearTimeout(timer); } catch (_) {} }),
+    timeout,
+  ]);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadDeps();
@@ -71,11 +84,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
   const url = new URL(location.href);
-  const next = sanitizeNext(url.searchParams.get('next'));
+  const rawNext = url.searchParams.get('next') || url.searchParams.get('redirect_to');
+  const next = sanitizeNext(rawNext);
 
   setStatus('Проверяем ссылку...', false);
   try {
-    await finalizeAuthRedirect({ preserveParams: ['next'], timeoutMs: 8000 }).catch(() => null);
+    await finalizeAuthRedirect({ preserveParams: ['next', 'redirect_to'], timeoutMs: 8000 }).catch(() => null);
   } catch (_) {}
 
   const s = await getSession().catch(() => null);
@@ -87,20 +101,56 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   $('#resetForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = $('#resetSubmit') || $('#resetForm button[type="submit"]') || $('#resetForm button');
+    if (btn) btn.disabled = true;
     const pass = String($('#newPass')?.value || '');
     if (!pass || pass.length < 6) {
       setStatus('Пароль слишком короткий (минимум 6 символов).', true);
+      if (btn) btn.disabled = false;
+      return;
+    }
+
+    // На всякий случай: если recovery-сессии нет, менять пароль нельзя.
+    const sessionNow = await getSession().catch(() => null);
+    if (!sessionNow) {
+      setStatus('Сессия для сброса пароля не найдена. Откройте письмо ещё раз.', true);
+      if (btn) btn.disabled = false;
       return;
     }
 
     setStatus('Сохраняем...', false);
     try {
-      await updatePassword(pass);
-      setStatus('Пароль обновлён. Возвращаем...', false);
-      location.replace(next);
+      // Иногда сеть/клиент могут «подвиснуть», хотя пароль реально обновился.
+      // Поэтому ставим таймаут и в любом случае корректно завершаем UI.
+      await withTimeout(updatePassword(pass), 12000, 'UPDATE_TIMEOUT');
+
+      setStatus('Пароль обновлён. Переходим...', false);
+      // 1) основной переход
+      try { location.replace(next); } catch (_) {}
+      // 2) fallback, если replace не сработал
+      setTimeout(() => {
+        try {
+          if (String(location.pathname || '').endsWith('/tasks/auth_reset.html')) {
+            location.href = next;
+          }
+        } catch (_) {}
+      }, 800);
     } catch (err) {
       console.error(err);
-      setStatus(String(err?.message || 'Не удалось обновить пароль.'), true);
+      const msg = String(err?.message || 'Не удалось обновить пароль.');
+      if (msg === 'UPDATE_TIMEOUT') {
+        // Мы не можем 100% проверить смену пароля без повторного входа,
+        // но в практике Supabase запрос часто проходит, а клиент «висит».
+        setStatus('Пароль, вероятно, обновлён. Попробуйте перейти на главную и войти с новым паролем.', true);
+      } else if (/different from the old/i.test(msg)) {
+        setStatus('Новый пароль должен отличаться от старого.', true);
+      } else if (/expired|invalid/i.test(msg)) {
+        setStatus('Ссылка для сброса недействительна или устарела. Запросите сброс ещё раз.', true);
+      } else {
+        setStatus(msg, true);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
     }
   });
 });
