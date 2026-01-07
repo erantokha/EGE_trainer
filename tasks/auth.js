@@ -7,6 +7,7 @@ let signInWithPassword = null;
 let signUpWithPassword = null;
 let resendSignupEmail = null;
 let sendPasswordReset = null;
+let authEmailExists = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -31,7 +32,8 @@ async function loadDeps() {
   signUpWithPassword = sbMod?.signUpWithPassword || null;
   resendSignupEmail = sbMod?.resendSignupEmail || null;
   sendPasswordReset = sbMod?.sendPasswordReset || null;
-  if (!getSession || !signInWithGoogle || !signInWithPassword || !signUpWithPassword || !resendSignupEmail || !sendPasswordReset) {
+  authEmailExists = sbMod?.authEmailExists || null;
+  if (!getSession || !signInWithGoogle || !signInWithPassword || !signUpWithPassword || !resendSignupEmail || !sendPasswordReset || !authEmailExists) {
     throw new Error('AUTH_DEPS_NOT_LOADED');
   }
 }
@@ -151,12 +153,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     setStatus($('#loginStatus'), 'Входим...', false);
+    // Проверка существования email (раскрывает существование аккаунта).
+    try {
+      const exists = await authEmailExists(email);
+      if (!exists) {
+        setStatus($('#loginStatus'), 'Пользователь с таким email не найден. Зарегистрируйтесь.', true);
+        try { $('#signupEmail').value = email; } catch (_) {}
+        showPanel('signup');
+        return;
+      }
+    } catch (checkErr) {
+      console.warn('authEmailExists check failed (login):', checkErr);
+      // Если проверка недоступна — продолжаем обычный вход.
+    }
+
     try {
       await signInWithPassword({ email, password });
       location.replace(next);
     } catch (err) {
       console.error(err);
-      const msg = String(err?.message || 'Не удалось войти.');
+      const raw = String(err?.message || 'Не удалось войти.');
+      const lower = raw.toLowerCase();
+      let msg = raw;
+      if (lower.includes('invalid login credentials') || (lower.includes('invalid') && lower.includes('credentials'))) {
+        msg = 'Неверный пароль (или email).';
+      } else if (lower.includes('email not confirmed') || lower.includes('not confirmed')) {
+        msg = 'Почта не подтверждена. Перейдите во вкладку «Регистрация» и нажмите «Отправить письмо ещё раз».';
+      }
       setStatus($('#loginStatus'), msg, true);
     }
   });
@@ -176,6 +199,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    // Проверка: если email уже зарегистрирован — показываем сообщение (раскрывает существование аккаунта).
+    try {
+      const exists = await authEmailExists(email);
+      if (exists) {
+        setStatus($('#signupStatus'), 'Пользователь уже зарегистрирован. Перейдите во «Вход» или используйте «Сброс пароля».', true);
+        try { $('#loginEmail').value = email; } catch (_) {}
+        showPanel('login');
+        return;
+      }
+    } catch (checkErr) {
+      console.warn('authEmailExists check failed (signup):', checkErr);
+      // Если проверка недоступна — продолжим регистрацию; при гонке поймаем ошибку Supabase.
+    }
+
     setStatus($('#signupStatus'), 'Отправляем письмо...', false);
     try {
       const data = await signUpWithPassword({ email, password, emailRedirectTo: callback.toString() });
@@ -191,7 +228,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       resendBtn?.classList.remove('hidden');
     } catch (err) {
       console.error(err);
-      const msg = String(err?.message || 'Не удалось зарегистрироваться.');
+      const raw = String(err?.message || 'Не удалось зарегистрироваться.');
+      const lower = raw.toLowerCase();
+      const msg =
+        (lower.includes('already registered') || lower.includes('user already') || lower.includes('email address is already'))
+          ? 'Пользователь уже зарегистрирован. Перейдите во «Вход» или используйте «Сброс пароля».'
+          : raw;
       setStatus($('#signupStatus'), msg, true);
       resendBtn?.classList.remove('hidden');
     }
@@ -220,6 +262,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!email) {
       setStatus($('#resetStatus'), 'Укажите email.', true);
       return;
+    }
+
+    // Проверка: если email отсутствует — пишем об этом, не отправляя reset (раскрывает существование аккаунта).
+    try {
+      const exists = await authEmailExists(email);
+      if (!exists) {
+        setStatus($('#resetStatus'), 'Пользователь с таким email не найден.', true);
+        return;
+      }
+    } catch (checkErr) {
+      console.warn('authEmailExists check failed (reset):', checkErr);
+      // Если проверка недоступна — продолжаем стандартный сброс.
     }
 
     setStatus($('#resetStatus'), 'Отправляем письмо...', false);
