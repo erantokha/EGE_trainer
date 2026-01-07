@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-01-07-1';
-import { supabase, getSession, finalizeAuthRedirect } from '../app/providers/supabase.js?v=2026-01-07-1';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-07-1';
+import { CONFIG } from '../app/config.js?v=2026-01-07-3';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-07-3';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-07-3';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-01-07-1';
+} from '../app/core/pick.js?v=2026-01-07-3';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
-finalizeAuthRedirect().catch(() => {});
+finalizeOAuthRedirect().catch(() => {});
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-07-1';
+const BUILD = '2026-01-07-3';
 const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
 if (HTML_BUILD && HTML_BUILD !== BUILD) {
   const k = 'hw_create:build_reload_attempted';
@@ -214,7 +214,91 @@ function ensureAuthBar() {
 }
 
 
+function cleanRedirectUrl() {
+  try {
+    const u = new URL(location.href);
+    // Supabase OAuth может возвращать эти параметры. Убираем их, чтобы не мешали повторному входу.
+    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch (_) {
+    return location.href;
+  }
+}
 
+let AUTH_WIRED = false;
+function wireAuthControls() {
+  if (AUTH_WIRED) return;
+  AUTH_WIRED = true;
+
+  $('#loginGoogleBtn')?.addEventListener('click', async () => {
+    try {
+      setStatus('Открываем вход через Google...');
+      await signInWithGoogle(cleanRedirectUrl());
+    } catch (e) {
+      console.error(e);
+      flashStatus('Не удалось начать вход через Google.');
+    }
+  });
+
+  $('#logoutBtn')?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+
+    const clean = cleanRedirectUrl();
+
+    let navigated = false;
+    const navigate = () => {
+      if (navigated) return;
+      navigated = true;
+      try {
+        if (clean === location.href) location.reload();
+        else location.replace(clean);
+      } catch (_) {
+        location.reload();
+      }
+    };
+
+    // Мгновенно гасим UI «авторизован», пока перезагрузка не произошла.
+    try {
+      const loginBtn = $('#loginGoogleBtn');
+      const authMini = $('#authMini');
+      const logoutBtn = $('#logoutBtn');
+      const createBtn = $('#createBtn');
+      if (loginBtn) loginBtn.style.display = '';
+      if (authMini) authMini.classList.add('hidden');
+      if (logoutBtn) logoutBtn.style.display = 'none';
+      if (createBtn) createBtn.disabled = true;
+    } catch (_) {}
+
+    // Единый выход: логика ревока/очистки storage внутри app/providers/supabase.js
+    Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
+
+    // UX: не ждём дольше ~450 мс
+    setTimeout(navigate, 350);
+  });
+
+  // ссылка: клик = копировать
+  $('#hwLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const url = String($('#hwLink')?.dataset?.url || '');
+    if (!url) return;
+    const ok = await copyToClipboard(url);
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+  });
+
+  // маленькая кнопка открыть
+  $('#openLinkBtn')?.addEventListener('click', () => {
+    const url = String($('#openLinkBtn')?.dataset?.url || '');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  });
+
+  // кнопка "На главную"
+  $('#homeBtn')?.addEventListener('click', () => {
+    const u = new URL('../', location.href);
+    location.href = u.href;
+  });
+
+}
 
 
 let LINK_WIRED = false;
@@ -1255,9 +1339,6 @@ function ensureMathJaxLoaded() {
 
 // ---------- init ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  // финализируем возможные auth-редиректы (OAuth / email)
-  await finalizeAuthRedirect({ preserveParams: ['next'] }).catch(() => {});
-
   // wireAuthControls(); // перенесено в общий хедер
   initEditableFields();
   wireLinkControls();
@@ -1298,7 +1379,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // защита: без входа не даём создавать
     const session = await refreshAuthUI();
     if (!session) {
-      flashStatus('Нужно войти, чтобы создавать ДЗ.');
+      flashStatus('Нужно войти через Google (учитель), чтобы создавать ДЗ.');
       return;
     }
 
@@ -1385,7 +1466,16 @@ if (!hwRes.ok) {
       const linkRes = await createHomeworkLink({ homework_id, token, is_active: true });
       if (!linkRes.ok) {
         console.error(linkRes.error);
-        setStatus('ДЗ создано, но не удалось создать ссылку. Проверь таблицу homework_links и RLS.');
+        const err = linkRes.error || {};
+        const status = err.status ?? '—';
+        const msg =
+          err?.data?.message ||
+          err?.data?.hint ||
+          err?.data?.details ||
+          err?.message ||
+          JSON.stringify(err);
+
+        setStatus(`Не удалось создать ссылку (HTTP ${status}): ${msg}`);
         return;
       }
 
