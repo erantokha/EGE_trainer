@@ -38,6 +38,37 @@ const HOME_URL = new URL('../', location.href).href;
 
 const INDEX_URL = '../content/tasks/index.json';
 
+const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
+const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
+
+function getStoredStudentName(user) {
+  try {
+    const uid = user?.id ? String(user.id) : '';
+    if (uid) {
+      const v = localStorage.getItem(`${STUDENT_NAME_STORAGE_PREFIX}uid:${uid}`);
+      if (v) return String(v).trim();
+    }
+
+    const email = String(user?.email || '').trim().toLowerCase();
+    if (email) {
+      const v = localStorage.getItem(`${STUDENT_NAME_STORAGE_PREFIX}email:${email}`);
+      if (v) return String(v).trim();
+    }
+  } catch (_) {}
+  return '';
+}
+
+function saveStudentNameForUser(user, name) {
+  const nm = String(name || '').trim();
+  if (!nm) return;
+  try {
+    const uid = user?.id ? String(user.id) : '';
+    if (uid) localStorage.setItem(`${STUDENT_NAME_STORAGE_PREFIX}uid:${uid}`, nm);
+
+    const email = String(user?.email || '').trim().toLowerCase();
+    if (email) localStorage.setItem(`${STUDENT_NAME_STORAGE_PREFIX}email:${email}`, nm);
+  } catch (_) {}
+}
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
 let LINK = null;       // строка homework_links (если вернётся)
 let CATALOG = null;    // массив index.json
@@ -153,6 +184,9 @@ async function onStart() {
       return;
     }
 
+    // Запомним имя для этого аккаунта (email/password часто не содержит user_metadata)
+    saveStudentNameForUser(AUTH_USER || AUTH_SESSION?.user, studentName);
+
     if (!HOMEWORK) {
       if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
       return;
@@ -264,8 +298,38 @@ async function onStart() {
 }
 
 function getToken() {
-  const p = new URLSearchParams(location.search);
-  return p.get('token');
+  // 1) сначала читаем токен из URL (чтобы поддержать прямую ссылку)
+  // 2) затем сохраняем его в sessionStorage (чтобы токен не терялся при логине/редиректах)
+  // 3) если в URL токена нет — восстанавливаем из sessionStorage и возвращаем обратно в адресную строку
+  try {
+    const u = new URL(location.href);
+
+    // Если в URL есть auth-параметры Supabase (type/token_hash), не считаем их токеном ДЗ.
+    const hasAuthType = u.searchParams.has('type') || u.searchParams.has('token_hash');
+
+    const tokenInUrl = u.searchParams.get('token');
+    if (tokenInUrl && !hasAuthType) {
+      try { sessionStorage.setItem(HW_TOKEN_STORAGE_KEY, tokenInUrl); } catch (_) {}
+      return tokenInUrl;
+    }
+
+    let stored = null;
+    try { stored = sessionStorage.getItem(HW_TOKEN_STORAGE_KEY); } catch (_) {}
+
+    if (stored && !hasAuthType) {
+      // Вернём токен в URL без добавления записи в историю
+      if (!u.searchParams.get('token')) {
+        u.searchParams.set('token', stored);
+        try { history.replaceState(null, '', u.toString()); } catch (_) {}
+      }
+      return stored;
+    }
+
+    return tokenInUrl;
+  } catch (_) {
+    const p = new URLSearchParams(location.search);
+    return p.get('token');
+  }
 }
 
 function inferTopicIdFromQuestionId(questionId) {
@@ -336,7 +400,17 @@ function inferNameFromUser(user) {
     md.preferred_username ||
     md.given_name ||
     '';
-  return String(name || '').trim();
+
+  const direct = String(name || '').trim();
+  if (direct) return direct;
+
+  const stored = getStoredStudentName(user);
+  if (stored) return stored;
+
+  const email = String(user?.email || '').trim();
+  if (email) return (email.split('@')[0] || '').trim();
+
+  return '';
 }
 
 async function refreshAuthUI() {
