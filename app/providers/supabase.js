@@ -14,7 +14,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 // даже если supabase-сессия уже очищена.)
 const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
 
-export const supabase = createClient(
+// IMPORTANT: этот модуль может быть импортирован несколько раз с разными ?v=...
+// (из разных страниц/модулей). Чтобы не плодить несколько GoTrueClient, делаем singleton через globalThis.
+const __SB_GLOBAL_KEY = '__EGE_TRAINER_SUPABASE_CLIENT__';
+const __g = (typeof globalThis !== 'undefined') ? globalThis : window;
+export const supabase = __g[__SB_GLOBAL_KEY] || (__g[__SB_GLOBAL_KEY] = createClient(
   String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
   CONFIG.supabase.anonKey,
   {
@@ -25,7 +29,7 @@ export const supabase = createClient(
       flowType: 'pkce',
     },
   },
-);
+));
 
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
@@ -193,27 +197,10 @@ function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
     if (preserve.has(k)) kept.set(k, v);
   }
 
-  // Удаляем только auth-параметры Supabase, не трогая бизнес-параметры.
+  ['code', 'state', 'error', 'error_description', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
   // Важно: ?token=... используется в ссылках на ДЗ (/tasks/hw.html?token=...).
-  const hasType = u.searchParams.has('type');
-
-  const keys = [
-    'code',
-    'state',
-    'error',
-    'error_description',
-    'provider_token',
-    'provider_refresh_token',
-    'access_token',
-    'refresh_token',
-    'token_hash',
-    'type',
-    'redirect_to',
-  ];
-  for (const k of keys) u.searchParams.delete(k);
-
-  // Legacy auth-параметр token удаляем только если рядом был type.
-  if (hasType) u.searchParams.delete('token');
+  // Старый auth-параметр token удаляем только если рядом есть type.
+  if (u.searchParams.has('type')) u.searchParams.delete('token');
 
   for (const [k, v] of kept.entries()) {
     u.searchParams.set(k, v);
@@ -250,7 +237,12 @@ export async function finalizeAuthRedirect(opts = {}) {
 
   // guard: один раз на вкладку/страницу
   try {
-    const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}`;
+    let __guardSuffix = '';
+  try {
+    const __u0 = new URL(location.href);
+    __guardSuffix = __u0.searchParams.get('token_hash') || __u0.searchParams.get('code') || '';
+  } catch (_) {}
+  const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}:${__guardSuffix}`;
     if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
     sessionStorage.setItem(k, '1');
   } catch (_) {}
@@ -288,7 +280,10 @@ export async function finalizeAuthRedirect(opts = {}) {
       }
     }
 
-    const type = u.searchParams.get('type');
+    const rawType = u.searchParams.get('type');
+    // В некоторых шаблонах писем ошибочно ставят type=email; на API это невалидно.
+    // Поддержим совместимость: email -> signup.
+    const type = (rawType === 'email') ? 'signup' : rawType;
     const tokenHash = u.searchParams.get('token_hash') || (type ? u.searchParams.get('token') : null);
     if (tokenHash && type) {
       try {
@@ -364,7 +359,15 @@ export async function finalizeOAuthRedirect(opts = {}) {
 }
 
 // auto-run: если пришли с OAuth redirect (?code=&state=), подчистим URL после поднятия сессии
-finalizeOAuthRedirect().catch(() => {});
+// На страницах /tasks/auth_reset.html и /tasks/auth_callback.html финализацию делает код страницы,
+// чтобы не было двойного verify и преждевременного удаления параметров.
+(function __autoFinalize() {
+  try {
+    const p = String(location.pathname || '');
+    if (p.endsWith('/tasks/auth_reset.html') || p.endsWith('/tasks/auth_callback.html')) return;
+  } catch (_) {}
+  finalizeOAuthRedirect().catch(() => {});
+})();
 
 
 // Примечание:
