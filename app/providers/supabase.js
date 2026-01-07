@@ -14,11 +14,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 // даже если supabase-сессия уже очищена.)
 const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
 
-const SUPABASE_SINGLETON_KEY = '__ege_supabase_client_v1';
-
-function createSupabaseClient() {
-  return createClient(
-String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
+export const supabase = createClient(
+  String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
   CONFIG.supabase.anonKey,
   {
     auth: {
@@ -28,20 +25,7 @@ String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
       flowType: 'pkce',
     },
   },
-  );
-}
-
-export const supabase = (() => {
-  try {
-    const g = globalThis;
-    if (g && g[SUPABASE_SINGLETON_KEY]) return g[SUPABASE_SINGLETON_KEY];
-    const c = createSupabaseClient();
-    if (g) g[SUPABASE_SINGLETON_KEY] = c;
-    return c;
-  } catch (_) {
-    return createSupabaseClient();
-  }
-})();
+);
 
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
@@ -209,10 +193,27 @@ function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
     if (preserve.has(k)) kept.set(k, v);
   }
 
-  ['code', 'state', 'error', 'error_description', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
+  // Удаляем только auth-параметры Supabase, не трогая бизнес-параметры.
   // Важно: ?token=... используется в ссылках на ДЗ (/tasks/hw.html?token=...).
-  // Старый auth-параметр token удаляем только если рядом есть type.
-  if (u.searchParams.has('type')) u.searchParams.delete('token');
+  const hasType = u.searchParams.has('type');
+
+  const keys = [
+    'code',
+    'state',
+    'error',
+    'error_description',
+    'provider_token',
+    'provider_refresh_token',
+    'access_token',
+    'refresh_token',
+    'token_hash',
+    'type',
+    'redirect_to',
+  ];
+  for (const k of keys) u.searchParams.delete(k);
+
+  // Legacy auth-параметр token удаляем только если рядом был type.
+  if (hasType) u.searchParams.delete('token');
 
   for (const [k, v] of kept.entries()) {
     u.searchParams.set(k, v);
@@ -244,22 +245,12 @@ function hasAuthParams(urlStr) {
 export async function finalizeAuthRedirect(opts = {}) {
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
   const preserveParams = Array.isArray(opts?.preserveParams) ? opts.preserveParams : [];
-  const path = String(location.pathname || '');
-  const isSpecialAuthPage = path.endsWith('/tasks/auth_reset.html') || path.endsWith('/tasks/auth_callback.html');
-  const cleanOnFailure = (typeof opts?.cleanOnFailure === 'boolean') ? opts.cleanOnFailure : !isSpecialAuthPage;
 
   if (!hasAuthParams(location.href)) return { ok: false, reason: 'no_auth_params' };
 
-  // guard: один раз на конкретную ссылку (token_hash/code), чтобы новые письма работали в той же вкладке
+  // guard: один раз на вкладку/страницу
   try {
-    const u0 = new URL(location.href);
-    const keyPart = (
-      u0.searchParams.get('token_hash') ||
-      u0.searchParams.get('code') ||
-      ((u0.searchParams.get('type') && u0.searchParams.get('token')) ? u0.searchParams.get('token') : '') ||
-      ''
-    );
-    const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}:${keyPart}`;
+    const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}`;
     if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
     sessionStorage.setItem(k, '1');
   } catch (_) {}
@@ -284,7 +275,6 @@ export async function finalizeAuthRedirect(opts = {}) {
   } catch (_) {}
 
   // Пытаемся явно завершить flow (помогает в PKCE)
-  let pkceMissing = false;
   try {
     const u = new URL(location.href);
 
@@ -294,8 +284,6 @@ export async function finalizeAuthRedirect(opts = {}) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) throw error;
       } catch (e) {
-        const msg = String(e?.name || e?.message || e || '');
-        if (msg.includes('AuthPKCECodeVerifierMissingError')) pkceMissing = true;
         console.warn('exchangeCodeForSession failed', e);
       }
     }
@@ -321,12 +309,7 @@ export async function finalizeAuthRedirect(opts = {}) {
     }
   } catch (_) {}
 
-    if (pkceMissing) {
-    if (cleanOnFailure) doReplace();
-    return { ok: false, reason: 'pkce_verifier_missing' };
-  }
-
-// 2) Ждём события auth или появления session (поллинг)
+  // 2) Ждём события auth или появления session (поллинг)
   return await new Promise((resolve) => {
     let settled = false;
 
@@ -336,7 +319,10 @@ export async function finalizeAuthRedirect(opts = {}) {
       try { unsub?.unsubscribe?.(); } catch (_) {}
       try { clearInterval(pollId); } catch (_) {}
       if (ok) doReplace();
-      else if (cleanOnFailure) doReplace();
+      else {
+        // Даже при таймауте лучше убрать одноразовые параметры, чтобы не застрять.
+        doReplace();
+      }
       resolve({ ok, reason });
     };
 
@@ -378,13 +364,7 @@ export async function finalizeOAuthRedirect(opts = {}) {
 }
 
 // auto-run: если пришли с OAuth redirect (?code=&state=), подчистим URL после поднятия сессии
-try {
-  const pn = String(location.pathname || '');
-  const skip = pn.endsWith('/tasks/auth_reset.html') || pn.endsWith('/tasks/auth_callback.html');
-  if (!skip) finalizeOAuthRedirect().catch(() => {});
-} catch (_) {
-  finalizeOAuthRedirect().catch(() => {});
-}
+finalizeOAuthRedirect().catch(() => {});
 
 
 // Примечание:
