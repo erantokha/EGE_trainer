@@ -14,7 +14,19 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 // даже если supabase-сессия уже очищена.)
 const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
 
-export const supabase = createClient(
+const SUPABASE_SINGLETON_KEY = '__EGE_SUPABASE_CLIENT__';
+
+let __existingSupabase = null;
+try {
+  __existingSupabase = globalThis[SUPABASE_SINGLETON_KEY] || null;
+} catch (_) {
+  __existingSupabase = null;
+}
+
+// Важно: на GitHub Pages иногда одновременно грузятся разные версии модулей (из-за кэша),
+// что создаёт несколько GoTrueClient и ломает PKCE-обмен.
+// Делаем единый singleton на вкладку.
+export const supabase = __existingSupabase || createClient(
   String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
   CONFIG.supabase.anonKey,
   {
@@ -26,6 +38,11 @@ export const supabase = createClient(
     },
   },
 );
+
+try {
+  if (!__existingSupabase) globalThis[SUPABASE_SINGLETON_KEY] = supabase;
+} catch (_) {}
+
 
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
