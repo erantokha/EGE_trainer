@@ -109,8 +109,38 @@ export async function authEmailExists(email) {
 }
 
 export async function updatePassword(newPassword) {
-  const { data, error } = await supabase.auth.updateUser({ password: newPassword });
-  if (error) throw error;
+  // Прямой вызов Auth API, чтобы не зависеть от внутренних storage-locks supabase-js,
+  // которые иногда «подвисают» (особенно при нескольких вкладках/расширениях).
+  // На практике пароль обновляется (200 OK), но промис supabase.auth.updateUser()
+  // может не резолвиться вовремя из-за синхронизации сессии в storage.
+
+  const session = await getSession();
+  if (!session?.access_token) throw new Error('AUTH_REQUIRED');
+
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/auth/v1/user`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      apikey: CONFIG.supabase.anonKey,
+      authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ password: String(newPassword || '') }),
+  });
+
+  const text = await res.text().catch(() => '');
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+  if (!res.ok) {
+    const msg =
+      (data && (data?.msg || data?.message || data?.error_description || data?.error)) ||
+      `HTTP_${res.status}`;
+    throw new Error(String(msg));
+  }
+
   return data;
 }
 
