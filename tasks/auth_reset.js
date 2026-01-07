@@ -141,7 +141,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (msg === 'UPDATE_TIMEOUT') {
         // Мы не можем 100% проверить смену пароля без повторного входа,
         // но в практике Supabase запрос часто проходит, а клиент «висит».
-        setStatus('Пароль, вероятно, обновлён. Попробуйте перейти на главную и войти с новым паролем.', true);
+        setStatus('Пароль, вероятно, обновлён. Сейчас перейдём на главную — войдите с новым паролем.', true);
+        // UX: не оставляем пользователя «в тупике».
+        setTimeout(() => {
+          try { location.replace(next); } catch (_) { try { location.href = next; } catch (_) {} }
+        }, 350);
       } else if (/different from the old/i.test(msg)) {
         setStatus('Новый пароль должен отличаться от старого.', true);
       } else if (/expired|invalid/i.test(msg)) {
