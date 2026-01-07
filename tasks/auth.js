@@ -7,6 +7,7 @@ import {
   signUpWithPassword,
   resendSignupEmail,
   sendPasswordReset,
+  authEmailExists,
 } from '../app/providers/supabase.js?v=2026-01-07-3';
 
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -53,6 +54,16 @@ function setStatus(el, msg, isError) {
   if (!el) return;
   el.textContent = String(msg || '');
   el.classList.toggle('error', Boolean(isError));
+}
+
+async function checkEmailExists(email, statusEl) {
+  try {
+    return await authEmailExists(email);
+  } catch (e) {
+    console.error(e);
+    setStatus(statusEl, 'Не удалось проверить email в базе. Проверьте функцию auth_email_exists и права execute в Supabase.', true);
+    return null;
+  }
 }
 
 function showPanel(name) {
@@ -119,13 +130,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    setStatus($('#loginStatus'), 'Проверяем email...', false);
+    const exists = await checkEmailExists(email, $('#loginStatus'));
+    if (exists === null) return;
+    if (!exists) {
+      setStatus($('#loginStatus'), 'Аккаунт с таким email не найден. Нужно зарегистрироваться.', true);
+      return;
+    }
+
     setStatus($('#loginStatus'), 'Входим...', false);
     try {
       await signInWithPassword({ email, password });
       location.replace(next);
     } catch (err) {
       console.error(err);
-      const msg = String(err?.message || 'Не удалось войти.');
+      const raw = String(err?.message || '');
+      const msg = (/invalid login credentials/i.test(raw))
+        ? 'Неверный пароль.'
+        : (raw || 'Не удалось войти.');
       setStatus($('#loginStatus'), msg, true);
     }
   });
@@ -142,6 +164,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!email || !password) {
       setStatus($('#signupStatus'), 'Заполните email и пароль.', true);
+      return;
+    }
+
+    setStatus($('#signupStatus'), 'Проверяем email...', false);
+    const exists = await checkEmailExists(email, $('#signupStatus'));
+    if (exists === null) return;
+    if (exists) {
+      setStatus($('#signupStatus'), 'Аккаунт с таким email уже существует. Войдите или используйте «Сброс пароля».', true);
+      resendBtn?.classList.remove('hidden');
       return;
     }
 
@@ -188,6 +219,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const email = String($('#resetEmail')?.value || '').trim();
     if (!email) {
       setStatus($('#resetStatus'), 'Укажите email.', true);
+      return;
+    }
+
+    setStatus($('#resetStatus'), 'Проверяем email...', false);
+    const exists = await checkEmailExists(email, $('#resetStatus'));
+    if (exists === null) return;
+    if (!exists) {
+      setStatus($('#resetStatus'), 'Аккаунт с таким email не найден.', true);
       return;
     }
 
