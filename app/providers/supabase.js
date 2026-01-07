@@ -14,19 +14,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
 // даже если supabase-сессия уже очищена.)
 const FORCE_GOOGLE_SELECT_ACCOUNT_KEY = 'auth_force_google_select_account';
 
-const SUPABASE_SINGLETON_KEY = '__EGE_SUPABASE_CLIENT__';
-
-let __existingSupabase = null;
-try {
-  __existingSupabase = globalThis[SUPABASE_SINGLETON_KEY] || null;
-} catch (_) {
-  __existingSupabase = null;
-}
-
-// Важно: на GitHub Pages иногда одновременно грузятся разные версии модулей (из-за кэша),
-// что создаёт несколько GoTrueClient и ломает PKCE-обмен.
-// Делаем единый singleton на вкладку.
-export const supabase = __existingSupabase || createClient(
+export const supabase = createClient(
   String(CONFIG.supabase.url || '').replace(/\/+$/g, ''),
   CONFIG.supabase.anonKey,
   {
@@ -38,11 +26,6 @@ export const supabase = __existingSupabase || createClient(
     },
   },
 );
-
-try {
-  if (!__existingSupabase) globalThis[SUPABASE_SINGLETON_KEY] = supabase;
-} catch (_) {}
-
 
 export async function getSession() {
   const { data, error } = await supabase.auth.getSession();
@@ -107,6 +90,18 @@ export async function resendSignupEmail({ email, emailRedirectTo } = {}) {
 export async function sendPasswordReset({ email, redirectTo } = {}) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw error;
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export async function authEmailExists(email) {
+  const e = normalizeEmail(email);
+  if (!e) return false;
+  const { data, error } = await supabase.rpc('auth_email_exists', { p_email: e });
+  if (error) throw error;
+  return Boolean(data);
 }
 
 export async function updatePassword(newPassword) {
