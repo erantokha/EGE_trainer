@@ -29,6 +29,12 @@ function computeHomeUrl() {
 function cleanOauthParams(urlLike) {
   try {
     const u = new URL(String(urlLike || location.href));
+
+    // Удаляем только auth-параметры Supabase, не трогая бизнес-параметры.
+    // Важно: /tasks/hw.html использует ?token=... как токен ДЗ.
+    // Legacy auth-параметр token удаляем только если рядом есть type.
+    const hasType = u.searchParams.has('type');
+
     const keys = [
       'code',
       'state',
@@ -37,11 +43,13 @@ function cleanOauthParams(urlLike) {
       'provider_token',
       'provider_refresh_token',
       'refresh_token',
-      'type',
-      'token',
       'token_hash',
+      'type',
+      'redirect_to',
     ];
     for (const k of keys) u.searchParams.delete(k);
+    if (hasType) u.searchParams.delete('token');
+
     return u.toString();
   } catch (_) {
     return String(urlLike || location.href);
