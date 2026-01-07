@@ -1,8 +1,8 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-01-06-1';
-import { supabase } from './supabase.js?v=2026-01-06-1';
+import { CONFIG } from '../config.js?v=2026-01-07-3';
+import { supabase } from './supabase.js?v=2026-01-07-3';
 
 // supabase-js v2: getUser() возвращает { data: { user }, error }
 async function getAuth() {
@@ -173,7 +173,9 @@ export async function createHomeworkLink({
     if (authError) return { ok: false, row: null, error: authError };
     if (!user) return { ok: false, row: null, error: new Error('Not authenticated') };
 
+    // Явно пишем owner_id: так стабильнее при RLS и устраняет зависимость от DEFAULT auth.uid().
     const payload = {
+      owner_id: user.id,
       homework_id,
       token,
       expires_at,
