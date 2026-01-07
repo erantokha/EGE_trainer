@@ -30,6 +30,13 @@ function cleanOauthParams(urlLike) {
   try {
     const u = new URL(String(urlLike || location.href));
 
+    const pn = String(u.pathname || '');
+    // На страницах подтверждения/сброса пароля не трогаем параметры вовсе,
+    // иначе token_hash/code могут пропасть до обработки.
+    if (pn.endsWith('/tasks/auth_reset.html') || pn.endsWith('/tasks/auth_callback.html')) {
+      return u.toString();
+    }
+
     // Удаляем только auth-параметры Supabase, не трогая бизнес-параметры.
     // Важно: /tasks/hw.html использует ?token=... как токен ДЗ.
     // Legacy auth-параметр token удаляем только если рядом есть type.
