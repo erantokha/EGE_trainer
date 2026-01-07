@@ -6,7 +6,7 @@
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
 import { CONFIG } from '../config.js?v=2026-01-07-1';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.89.0';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
 // хотим принудительно показать окно выбора Google-аккаунта.
