@@ -3,6 +3,7 @@
 let CONFIG = null;
 let finalizeAuthRedirect = null;
 let getSession = null;
+let supabase = null;
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -23,7 +24,59 @@ async function loadDeps() {
   CONFIG = cfgMod?.CONFIG || null;
   finalizeAuthRedirect = sbMod?.finalizeAuthRedirect || null;
   getSession = sbMod?.getSession || null;
-  if (!finalizeAuthRedirect || !getSession) throw new Error('AUTH_DEPS_NOT_LOADED');
+  supabase = sbMod?.supabase || null;
+  if (!finalizeAuthRedirect || !getSession || !supabase) throw new Error('AUTH_DEPS_NOT_LOADED');
+}
+
+function isProfileComplete(p) {
+  if (!p) return false;
+
+  const role = String(p?.role || '').trim() || 'student';
+  const first = String(p?.first_name || '').trim();
+  const last = String(p?.last_name || '').trim();
+  if (!first || !last) return false;
+
+  if (role === 'teacher') {
+    const tt = String(p?.teacher_type || '').trim();
+    if (!['school', 'tutor'].includes(tt)) return false;
+    return true;
+  }
+
+  const g = Number(p?.student_grade);
+  if (!Number.isFinite(g) || g < 1 || g > 11) return false;
+  return true;
+}
+
+async function needGoogleComplete(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role, first_name, last_name, teacher_type, student_grade, profile_completed')
+      .eq('id', userId)
+      .limit(1);
+    if (error) return false;
+    const p = Array.isArray(data) ? data[0] : null;
+    // Если профиль не найден или не заполнен — нужно завершить регистрацию.
+    if (!p) return true;
+    if (p?.profile_completed === true && isProfileComplete(p)) return false;
+    return !isProfileComplete(p);
+  } catch (_) {
+    return false;
+  }
+}
+
+function isGoogleSession(session) {
+  const u = session?.user || null;
+  if (!u) return false;
+  const am = u.app_metadata || {};
+  const provider = String(am?.provider || '').toLowerCase();
+  if (provider === 'google') return true;
+  const providers = Array.isArray(am?.providers) ? am.providers.map((x) => String(x || '').toLowerCase()) : [];
+  if (providers.includes('google')) return true;
+  const identities = Array.isArray(u?.identities) ? u.identities : [];
+  if (identities.some((i) => String(i?.provider || '').toLowerCase() === 'google')) return true;
+  return false;
 }
 
 
@@ -91,6 +144,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const s = await getSession().catch(() => null);
   if (s) {
+    // Ветвление ТОЛЬКО для Google: если профиль не заполнен — отправляем на страницу завершения регистрации.
+    if (isGoogleSession(s)) {
+      const needs = await needGoogleComplete(s?.user?.id);
+      if (needs) {
+        const completeUrl = new URL(appUrl('/tasks/google_complete.html'));
+        completeUrl.searchParams.set('next', next);
+        showStatus('Нужно заполнить профиль. Открываем регистрацию...');
+        location.replace(completeUrl.toString());
+        return;
+      }
+    }
+
     showStatus('Готово. Возвращаем...');
     location.replace(next);
     return;

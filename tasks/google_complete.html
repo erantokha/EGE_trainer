@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-01-08-1">
+  <title>Регистрация</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-08-1">
+  <script src="./theme.js?v=2026-01-08-1" defer></script>
+  <style>
+    input[type="email"],
+    input[type="text"],
+    select{
+      background:var(--muted);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      outline:none;
+      width:100%;
+      box-sizing:border-box;
+    }
+
+    .small{font-size:12px;opacity:.8}
+    .status{margin-top:10px;opacity:.85}
+    .status.error{opacity:1;color:#b00}
+
+    .form-wrap{max-width:420px}
+    .form-row{margin:10px 0}
+    .radio-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+    .radio-row label{display:flex;gap:6px;align-items:center}
+    .form-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <h1>Регистрация</h1>
+          <div class="theme-toggle" data-header-extra="1">
+            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </header>
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false, hideLogin: true }));
+        </script>
+
+        <div class="muted" style="margin-top:10px">Вы вошли через Google. Заполните данные профиля.</div>
+
+        <div class="form-wrap" style="margin-top:12px">
+          <form id="completeForm">
+            <div class="form-row">
+              <div class="small" style="margin-bottom:6px">Кто вы?</div>
+              <div class="radio-row" role="radiogroup" aria-label="Роль">
+                <label><input type="radio" name="role" value="student" checked> Ученик</label>
+                <label><input type="radio" name="role" value="teacher"> Учитель</label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="small" style="margin-bottom:6px">Фамилия</div>
+              <input id="lastName" type="text" autocomplete="family-name" required>
+            </div>
+            <div class="form-row">
+              <div class="small" style="margin-bottom:6px">Имя</div>
+              <input id="firstName" type="text" autocomplete="given-name" required>
+            </div>
+
+            <div id="studentFields">
+              <div class="form-row">
+                <div class="small" style="margin-bottom:6px">Класс</div>
+                <select id="studentGrade" required>
+                  <option value="" selected disabled>Выберите класс</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="teacherFields" class="hidden">
+              <div class="form-row">
+                <div class="small" style="margin-bottom:6px">Вы</div>
+                <select id="teacherType">
+                  <option value="" selected disabled>Выберите вариант</option>
+                  <option value="school">Школьный учитель</option>
+                  <option value="tutor">Репетитор</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="small" style="margin-bottom:6px">Email</div>
+              <input id="email" type="email" autocomplete="email" disabled>
+            </div>
+
+            <div class="form-actions">
+              <button id="saveBtn" type="submit">Сохранить</button>
+            </div>
+            <div id="status" class="status"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./google_complete.js?v=2026-01-08-1"></script>
+</body>
+</html>
