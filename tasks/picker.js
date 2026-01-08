@@ -34,6 +34,8 @@ let LAST_SELECTION = null;
 // На /tasks/index.html (если элементов нет) этот блок тихо выключается.
 
 let _AUTH_READY = false;
+let _NAME_SEQ = 0;
+
 
 function cleanRedirectUrl() {
   const u = new URL(location.href);
@@ -46,6 +48,10 @@ function cleanRedirectUrl() {
 
 function firstNameFromUser(user) {
   const md = user?.user_metadata || {};
+
+  const f = String(md.first_name || '').trim();
+  if (f) return f;
+
   const given = String(md.given_name || '').trim();
   if (given) return given;
 
@@ -56,6 +62,28 @@ function firstNameFromUser(user) {
   if (email) return email.split('@')[0];
 
   return 'Аккаунт';
+}
+
+async function fetchProfileFirstName(userId) {
+  if (!userId) return '';
+  const key = `ege_profile_first_name:${userId}`;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return cached;
+  } catch (_) {}
+
+  try {
+    let q = supabase.from('profiles').select('first_name').eq('id', userId);
+    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
+    const { data, error } = res || {};
+    if (error) return '';
+    const name = String(data?.first_name || '').trim();
+    if (!name) return '';
+    try { sessionStorage.setItem(key, name); } catch (_) {}
+    return name;
+  } catch (_) {
+    return '';
+  }
 }
 
 async function refreshAuthHeaderUI() {
@@ -79,12 +107,22 @@ async function refreshAuthHeaderUI() {
     menu.classList.add('hidden');
     userBtn.textContent = '';
     userBtn.setAttribute('aria-expanded', 'false');
+    _NAME_SEQ++;
     return;
   }
 
   loginBtn.hidden = true;
   userBtn.hidden = false;
   userBtn.textContent = firstNameFromUser(session.user);
+  const uid = session?.user?.id || null;
+  const seq = ++_NAME_SEQ;
+  if (uid) {
+    fetchProfileFirstName(uid).then((nm) => {
+      if (seq !== _NAME_SEQ) return;
+      const name = String(nm || '').trim();
+      if (name) userBtn.textContent = name;
+    });
+  }
   // при обновлении сессии меню должно быть закрыто
   menu.hidden = true;
   menu.classList.add('hidden');
@@ -158,7 +196,7 @@ function initAuthHeader() {
 
   $('#menuProfile')?.addEventListener('click', () => {
     closeMenu();
-    alert('Профиль — скоро');
+    location.href = PAGES_BASE + 'profile.html';
   });
   $('#menuStats')?.addEventListener('click', () => {
     closeMenu();
