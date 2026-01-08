@@ -271,6 +271,8 @@ export async function initHeader(opts = {}) {
   const ui = mountAuthUI(right);
 
   const isHome = Boolean(opts.isHome);
+  const hideLogin = Boolean(opts.hideLogin);
+
   mountHomeButton(right, isHome);
 
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
@@ -316,7 +318,7 @@ export async function initHeader(opts = {}) {
     try { closeMenu(); } catch (_) {}
 
     const authed = Boolean(session);
-    ui.loginBtn.classList.toggle('hidden', authed);
+    if (ui.loginBtn) ui.loginBtn.classList.toggle('hidden', hideLogin || authed);
     ui.userMenuWrap.classList.toggle('hidden', !authed);
 
     if (authed) {
