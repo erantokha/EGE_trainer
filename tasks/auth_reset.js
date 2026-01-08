@@ -30,6 +30,29 @@ async function loadDeps() {
   }
 }
 
+function initPasswordToggles() {
+  document.querySelectorAll('.pw-toggle[data-toggle-for]').forEach((btn) => {
+    const id = btn.getAttribute('data-toggle-for');
+    const input = id ? document.getElementById(id) : null;
+    if (!input) return;
+
+    const setState = (isShown) => {
+      input.type = isShown ? 'text' : 'password';
+      btn.textContent = isShown ? '🙈' : '👁';
+      const label = isShown ? 'Скрыть пароль' : 'Показать пароль';
+      btn.setAttribute('aria-label', label);
+      btn.setAttribute('title', label);
+    };
+
+    setState(false);
+
+    btn.addEventListener('click', () => {
+      const isShown = input.type !== 'password';
+      setState(!isShown);
+      input.focus();
+    });
+  });
+}
 
 function homeUrl() {
   // Эта страница лежит в /tasks/, поэтому корень приложения — на уровень выше.
@@ -83,6 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (st) st.textContent = 'Ошибка загрузки авторизации. Обновите страницу (Ctrl+F5).';
     return;
   }
+
+  initPasswordToggles();
+
   const url = new URL(location.href);
   const rawNext = url.searchParams.get('next') || url.searchParams.get('redirect_to');
   const next = sanitizeNext(rawNext);

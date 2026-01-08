@@ -9,7 +9,9 @@
   <script src="./theme.js?v=2026-01-07-3" defer></script>
   <style>
     input[type="email"],
-    input[type="password"]{
+    input[type="password"],
+    input[type="text"],
+    select{
       background:var(--muted);
       color:var(--text);
       border:1px solid var(--border);
@@ -60,6 +62,25 @@
     .status.error{opacity:1;color:#b00}
     .small{font-size:12px;opacity:.8}
 
+    .radio-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+    .radio-row label{display:flex;gap:6px;align-items:center}
+
+    .pw-wrap{position:relative}
+    .pw-wrap input{padding-right:38px}
+    .pw-toggle{
+      position:absolute;
+      right:8px;
+      top:50%;
+      transform:translateY(-50%);
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      opacity:.75;
+      padding:2px 4px;
+      line-height:1;
+    }
+    .pw-toggle:hover{opacity:1}
+
     /* На auth странице скрываем кнопку "Войти" из header.js (на всякий случай) */
     #loginGoogleBtn{display:none !important}
   </style>
@@ -108,7 +129,10 @@
                     </div>
                     <div class="form-row">
                       <div class="small" style="margin-bottom:6px">Пароль</div>
-                      <input id="loginPass" type="password" autocomplete="current-password" required>
+                      <div class="pw-wrap">
+                        <input id="loginPass" type="password" autocomplete="current-password" required>
+                        <button type="button" class="pw-toggle" data-toggle-for="loginPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
+                      </div>
                     </div>
                     <div class="form-actions">
                       <button id="loginSubmit" type="submit">Войти</button>
@@ -120,18 +144,67 @@
                 <section id="panelSignup" class="hidden">
                   <form id="signupForm">
                     <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Кто вы?</div>
+                      <div class="radio-row" role="radiogroup" aria-label="Роль">
+                        <label><input type="radio" name="signupRole" value="student" checked> Ученик</label>
+                        <label><input type="radio" name="signupRole" value="teacher"> Учитель</label>
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Фамилия</div>
+                      <input id="signupLastName" type="text" autocomplete="family-name" required>
+                    </div>
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Имя</div>
+                      <input id="signupFirstName" type="text" autocomplete="given-name" required>
+                    </div>
+
+                    <div id="studentFields">
+                      <div class="form-row">
+                        <div class="small" style="margin-bottom:6px">Класс</div>
+                        <select id="signupGrade" required>
+                          <option value="" selected disabled>Выберите класс</option>
+                          <option value="5">5</option>
+                          <option value="6">6</option>
+                          <option value="7">7</option>
+                          <option value="8">8</option>
+                          <option value="9">9</option>
+                          <option value="10">10</option>
+                          <option value="11">11</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div id="teacherFields" class="hidden">
+                      <div class="form-row">
+                        <div class="small" style="margin-bottom:6px">Вы</div>
+                        <select id="signupTeacherType">
+                          <option value="" selected disabled>Выберите вариант</option>
+                          <option value="school">Школьный учитель</option>
+                          <option value="tutor">Репетитор</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="form-row">
                       <div class="small" style="margin-bottom:6px">Email</div>
                       <input id="signupEmail" type="email" autocomplete="email" required>
                     </div>
                     <div class="form-row">
                       <div class="small" style="margin-bottom:6px">Пароль</div>
-                      <input id="signupPass" type="password" autocomplete="new-password" required>
+                      <div class="pw-wrap">
+                        <input id="signupPass" type="password" autocomplete="new-password" required>
+                        <button type="button" class="pw-toggle" data-toggle-for="signupPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
+                      </div>
                     </div>
+
                     <div class="form-actions">
                       <button id="signupSubmit" type="submit">Зарегистрироваться</button>
                       <button id="resendBtn" type="button" class="hidden">Отправить письмо ещё раз</button>
                     </div>
                     <div id="signupStatus" class="status"></div>
+                    <div class="small" style="margin-top:8px">После регистрации нужно подтвердить почту по ссылке из письма.</div>
                   </form>
                 </section>
 
@@ -156,7 +229,6 @@
               </div>
             </div>
           </div>
-        </div>
         </div>
       </div>
     </section>
