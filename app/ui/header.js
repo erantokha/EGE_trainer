@@ -106,6 +106,33 @@ async function fetchProfileFirstName(supabase, userId) {
   }
 }
 
+
+async function fetchProfileRole(supabase, userId) {
+  if (!supabase || !userId) return '';
+
+  const key = `ege_profile_role:${userId}`;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return cached;
+  } catch (_) {}
+
+  try {
+    let q = supabase.from('profiles').select('role').eq('id', userId);
+    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
+    const { data, error } = res || {};
+    if (error) return '';
+
+    const role = String(data?.role || '').trim();
+    if (!role) return '';
+
+    try { sessionStorage.setItem(key, role); } catch (_) {}
+    return role;
+  } catch (_) {
+    return '';
+  }
+}
+
+
 function ensureHeaderSkeleton(headerEl) {
   headerEl.classList.add('page-head');
 
@@ -306,6 +333,9 @@ export async function initHeader(opts = {}) {
 
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
 
+  // Текущая роль пользователя (из profiles.role) для ветвления меню.
+  var currentRole = 'student';
+
   ui.menuProfile?.addEventListener('click', () => {
     closeMenu();
     try {
@@ -317,6 +347,15 @@ export async function initHeader(opts = {}) {
   });
   ui.menuStats?.addEventListener('click', () => {
     closeMenu();
+    if (currentRole === 'teacher') {
+      try {
+        const home = computeHomeUrl();
+        location.href = new URL('tasks/my_students.html', home).toString();
+      } catch (_) {
+        location.href = computeHomeUrl() + 'tasks/my_students.html';
+      }
+      return;
+    }
     alert('Статистика — скоро будет');
   });
 
@@ -350,6 +389,13 @@ export async function initHeader(opts = {}) {
 
   let nameFetchSeq = 0;
 
+  const applyRoleToMenu = (roleRaw) => {
+    const r = String(roleRaw || '').trim().toLowerCase();
+    currentRole = (r === 'teacher') ? 'teacher' : 'student';
+    if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
+  };
+
+
   const applySessionToUI = (session) => {
     try { closeMenu(); } catch (_) {}
 
@@ -362,6 +408,15 @@ export async function initHeader(opts = {}) {
       const uid = session?.user?.id || null;
       ui.userBtn.textContent = inferFirstName(session.user || null);
 
+      // Роль (учитель/ученик) — из profiles.role (кэшируем).
+      try {
+        const cachedRole = sessionStorage.getItem(`ege_profile_role:${uid}`);
+        if (cachedRole) applyRoleToMenu(cachedRole);
+        else applyRoleToMenu('student');
+      } catch (_) {
+        applyRoleToMenu('student');
+      }
+
       const seq = ++nameFetchSeq;
       if (uid && supabase) {
         fetchProfileFirstName(supabase, uid).then((nm) => {
@@ -369,10 +424,16 @@ export async function initHeader(opts = {}) {
           const name = String(nm || '').trim();
           if (name) ui.userBtn.textContent = name;
         });
+
+        fetchProfileRole(supabase, uid).then((r) => {
+          if (seq !== nameFetchSeq) return;
+          if (r) applyRoleToMenu(r);
+        });
       }
     } else {
       nameFetchSeq++;
       ui.userBtn.textContent = 'Аккаунт';
+      applyRoleToMenu('student');
     }
 
     try {
