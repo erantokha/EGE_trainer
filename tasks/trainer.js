@@ -1,7 +1,8 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-06-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-09-1';
+import { getSession } from '../app/providers/supabase.js?v=2026-01-09-1';
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-06-1';
 
 
@@ -872,12 +873,31 @@ async function finishSession() {
     created_at: new Date().toISOString(),
   };
 
+  // Сохраняем статистику только если пользователь вошёл в аккаунт.
+  // (После ужесточения RLS запись anon-пользователя запрещена.)
   let ok = true;
   let error = null;
+  let skipped = false;
+
   try {
-    const res = await insertAttempt(attemptRow);
-    ok = res.ok;
-    error = res.error;
+    const session = await getSession().catch(() => null);
+    if (session?.user?.id) {
+      attemptRow.student_id = session.user.id;
+      attemptRow.student_email = session.user.email || null;
+      const um = session.user.user_metadata || {};
+      attemptRow.student_name =
+        um.full_name ||
+        um.name ||
+        [um.given_name, um.family_name].filter(Boolean).join(' ') ||
+        null;
+
+      const res = await insertAttempt(attemptRow);
+      ok = res.ok;
+      error = res.error;
+      skipped = !!res.skipped;
+    } else {
+      skipped = true;
+    }
   } catch (e) {
     ok = false;
     error = e;
@@ -898,7 +918,16 @@ async function finishSession() {
     download('tasks_session.csv', csv);
   };
 
-  if (!ok) {
+  if (skipped) {
+    const summaryPanel = $('#summary .panel') || $('#summary');
+    if (summaryPanel) {
+      const note = document.createElement('div');
+      note.style.color = '#9aa0a6';
+      note.style.marginTop = '8px';
+      note.textContent = 'Статистика не сохранена: войдите в аккаунт, чтобы сохранять результаты.';
+      summaryPanel.appendChild(note);
+    }
+  } else if (!ok) {
     console.warn('Supabase insert error', error);
     const summaryPanel = $('#summary .panel') || $('#summary');
     if (summaryPanel) {
@@ -906,10 +935,11 @@ async function finishSession() {
       warn.style.color = '#ff6b6b';
       warn.style.marginTop = '8px';
       warn.textContent =
-        'Внимание: запись в Supabase не выполнена. Проверьте RLS и ключи в app/config.js.';
+        'Внимание: запись в Supabase не выполнена. Проверьте RLS (policies) для таблицы attempts.';
       summaryPanel.appendChild(warn);
     }
   }
+
 }
 
 // ---------- утилиты ----------
