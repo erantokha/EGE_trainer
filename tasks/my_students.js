@@ -6,245 +6,235 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
-function buildLoginUrl(nextUrl) {
-  try {
-    const u = new URL('./auth.html', location.href);
-    if (nextUrl) u.searchParams.set('next', nextUrl);
-    return u.toString();
-  } catch (_) {
-    return './auth.html';
+// Служебные подсказки: показываем 5 секунд и скрываем (если не указано sticky).
+const __statusTimers = new Map();
+function setStatus(el, text, { sticky = false } = {}) {
+  if (!el) return;
+  const msg = String(text || '');
+  el.textContent = msg;
+
+  const prev = __statusTimers.get(el);
+  if (prev) {
+    clearTimeout(prev);
+    __statusTimers.delete(el);
+  }
+
+  if (msg && !sticky) {
+    const t = setTimeout(() => {
+      el.textContent = '';
+      __statusTimers.delete(el);
+    }, 5000);
+    __statusTimers.set(el, t);
   }
 }
 
 function isMissingRpcFunction(err) {
-  const code = String(err?.code || '').toUpperCase();
   const msg = String(err?.message || err?.details || err || '').toLowerCase();
-  // PGRST202: Could not find the function ... in the schema cache
-  return code === 'PGRST202'
-    || msg.includes('pgrst202')
-    || msg.includes('could not find the function')
-    || (msg.includes('function') && msg.includes('not found'));
+  return msg.includes('could not find the function') || msg.includes('function') && msg.includes('not found') || msg.includes('pgrst202');
 }
 
 function fmtName(s) {
   return String(s || '').trim();
 }
 
+function emailLocalPart(email) {
+  const s = String(email || '').trim();
+  if (!s) return '';
+  const at = s.indexOf('@');
+  if (at <= 0) return s;
+  return s.slice(0, at);
+}
+
 function studentLabel(st) {
   const fn = fmtName(st.first_name);
   const ln = fmtName(st.last_name);
   const nm = `${fn} ${ln}`.trim();
-  return nm || fmtName(st.email || st.student_email || st.student_id) || 'Ученик';
+  if (nm) return nm;
+
+  const email = String(st.email || st.student_email || '').trim();
+  const local = emailLocalPart(email);
+  return local || String(st.student_id || st.id || '').trim() || 'Ученик';
 }
 
-function fmtGrade(st) {
-  const g = st.student_grade;
-  if (g === null || typeof g === 'undefined' || String(g).trim() === '') return '';
-  const n = Number(g);
-  if (!Number.isFinite(n)) return '';
-  return `${n} класс`;
-}
-
-function showStatus(el, text, isError = false) {
-  if (!el) return;
-  el.textContent = text || '';
-  el.style.color = isError ? 'var(--danger, #b00020)' : '';
-}
-
-function cacheStudentForCard(student) {
-  try {
-    if (!student) return;
-    const id = student.student_id || student.id;
-    if (!id) return;
-    const key = `student_card_${id}`;
-    const payload = {
-      student_id: String(id),
-      email: student.email || student.student_email || '',
-      first_name: student.first_name || '',
-      last_name: student.last_name || '',
-      student_grade: student.student_grade ?? null,
-      cached_at: new Date().toISOString(),
-    };
-    sessionStorage.setItem(key, JSON.stringify(payload));
-  } catch (_) {}
-}
-
-function makeStudentItem(st) {
-  const id = st.student_id || st.id;
-  const wrap = document.createElement('div');
-  wrap.className = 'panel';
-  wrap.style.padding = '10px';
-  wrap.style.marginTop = '10px';
-
-  const top = document.createElement('div');
-  top.style.display = 'flex';
-  top.style.justifyContent = 'space-between';
-  top.style.gap = '10px';
-  top.style.alignItems = 'center';
-
-  const left = document.createElement('div');
-  const title = document.createElement('div');
-  title.textContent = studentLabel(st);
-  title.style.fontSize = '16px';
-
-  const meta = document.createElement('div');
-  meta.className = 'muted';
-  meta.style.fontSize = '13px';
-  const grade = fmtGrade(st);
-  const email = fmtName(st.email || st.student_email);
-  const parts = [];
-  if (grade) parts.push(grade);
-  if (email) parts.push(email);
-  if (parts.length === 0 && id) parts.push(`ID: ${id}`);
-  meta.textContent = parts.join(' • ');
-
-  left.appendChild(title);
-  left.appendChild(meta);
-
-  const btn = document.createElement('button');
-  btn.className = 'btn';
-  btn.type = 'button';
-  btn.textContent = 'Открыть';
-  btn.addEventListener('click', () => {
-    cacheStudentForCard(st);
-    const u = new URL(withV('./student.html'), location.href);
-    u.searchParams.set('student_id', String(id));
-    location.href = u.toString();
+function el(tag, attrs = {}, children = []) {
+  const e = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => {
+    if (k === 'class') e.className = String(v);
+    else if (k === 'text') e.textContent = String(v);
+    else e.setAttribute(k, String(v));
   });
-
-  top.appendChild(left);
-  top.appendChild(btn);
-  wrap.appendChild(top);
-
-  return wrap;
+  for (const ch of children) e.appendChild(ch);
+  return e;
 }
 
-async function loadTeacherProfile(supabase, userId) {
-  const q = supabase.from('profiles').select('role').eq('id', userId);
-  const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
-  if (res?.error) throw res.error;
-  return res?.data || null;
+async function getSupabase() {
+  const mod = await import(withV('../app/providers/supabase.js'));
+  return { supabase: mod.supabase, getSession: mod.getSession };
+}
+
+async function getMyRole(supabase, uid) {
+  const { data, error } = await supabase.from('profiles').select('role').eq('id', uid).maybeSingle();
+  if (error) throw error;
+  return String(data?.role || '').trim().toLowerCase();
+}
+
+function renderStudents(list) {
+  const wrap = $('#studentsList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  if (!Array.isArray(list) || list.length === 0) {
+    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников. Добавьте ученика по email выше.' }));
+    return;
+  }
+
+  const grid = el('div', { });
+  grid.style.display = 'grid';
+  grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(260px, 1fr))';
+  grid.style.gap = '10px';
+
+  for (const st of list) {
+    const card = el('div', { class: 'panel' });
+    card.style.cursor = 'pointer';
+    card.style.padding = '12px';
+
+    const title = el('div', { text: studentLabel(st) });
+    title.style.fontSize = '18px';
+    title.style.marginBottom = '6px';
+
+    const meta = [];
+    const email = String(st.email || st.student_email || '').trim();
+    if (email) meta.push(email);
+    const grade = String(st.student_grade || st.grade || '').trim();
+    if (grade) meta.push(`Класс: ${grade}`);
+    const teacherStatus = String(st.teacher_status || '').trim();
+    if (teacherStatus) meta.push(`Статус: ${teacherStatus}`);
+
+    const sub = el('div', { class: 'muted', text: meta.join(' • ') || 'Открыть статистику и работы' });
+
+    card.appendChild(title);
+    card.appendChild(sub);
+
+    const sid = String(st.student_id || st.id || '').trim();
+    card.addEventListener('click', () => {
+      if (!sid) return;
+      const url = new URL('./student.html', location.href);
+      url.searchParams.set('student_id', sid);
+      // Чтобы на следующей странице можно было быстро отрисовать имя, сохраним в sessionStorage.
+      try {
+        sessionStorage.setItem(`teacher:last_student:${sid}`, JSON.stringify({
+          student_id: sid,
+          first_name: st.first_name || '',
+          last_name: st.last_name || '',
+          email: email || '',
+          student_grade: grade || ''
+        }));
+      } catch (_) {}
+      location.href = url.toString();
+    });
+
+    grid.appendChild(card);
+  }
+
+  wrap.appendChild(grid);
 }
 
 async function loadStudents(supabase) {
+  const status = $('#pageStatus');
+  setStatus(status, 'Загружаем список...', { sticky: true });
+
   const { data, error } = await supabase.rpc('list_my_students');
-  if (error) throw error;
-  return Array.isArray(data) ? data : [];
+  if (error) {
+    console.warn('list_my_students error', error);
+    if (isMissingRpcFunction(error)) {
+      setStatus(status, 'На стороне Supabase ещё не добавлена функция list_my_students().', { sticky: true });
+    } else {
+      setStatus(status, 'Не удалось загрузить список учеников.');
+    }
+    renderStudents([]);
+    return;
+  }
+
+  setStatus(status, '');
+  renderStudents(Array.isArray(data) ? data : []);
 }
 
 async function addStudent(supabase, email) {
+  const addStatus = $('#addStatus');
+  setStatus(addStatus, 'Добавляем...', { sticky: true });
+
   const { data, error } = await supabase.rpc('add_student_by_email', { p_email: email });
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.warn('add_student_by_email error', error);
+    if (isMissingRpcFunction(error)) {
+      setStatus(addStatus, 'На стороне Supabase ещё не добавлена функция add_student_by_email(p_email).', { sticky: true });
+    } else {
+      // Текст ошибки отдаём пользователю мягко
+      const msg = String(error?.message || 'Не удалось добавить ученика.');
+      setStatus(addStatus, msg);
+    }
+    return false;
+  }
+
+  setStatus(addStatus, 'Готово');
+  return true;
 }
 
 async function main() {
   const pageStatus = $('#pageStatus');
-  const listEl = $('#studentsList');
-  const addEmail = $('#addStudentEmail');
   const addBtn = $('#addStudentBtn');
-  const addStatus = $('#addStatus');
+  const emailInput = $('#addStudentEmail');
 
-  showStatus(pageStatus, 'Загрузка...');
-
-  const { supabase, getSession } = await import(withV('../app/providers/supabase.js'));
-
-  const session = await getSession().catch(() => null);
-  if (!session) {
-    location.href = buildLoginUrl(location.href);
-    return;
-  }
-
-  const userId = session?.user?.id || null;
-  if (!userId) {
-    showStatus(pageStatus, 'Не удалось определить пользователя.', true);
-    return;
-  }
-
-  // Проверяем, что пользователь — учитель (по профилю).
-  // Фактические права всё равно должен проверять Supabase (внутри RPC).
-  let role = '';
   try {
-    const prof = await loadTeacherProfile(supabase, userId);
-    role = String(prof?.role || '');
+    const { supabase, getSession } = await getSupabase();
+
+    const session = await getSession().catch(() => null);
+    if (!session) {
+      setStatus(pageStatus, 'Войдите, чтобы открыть список учеников.', { sticky: true });
+      if (addBtn) addBtn.disabled = true;
+      return;
+    }
+
+    const role = await getMyRole(supabase, session.user.id).catch(() => '');
+    if (role !== 'teacher') {
+      setStatus(pageStatus, 'Доступно только для учителя.', { sticky: true });
+      if (addBtn) addBtn.disabled = true;
+      return;
+    }
+
+    await loadStudents(supabase);
+
+    addBtn?.addEventListener('click', async () => {
+      if (addBtn) addBtn.disabled = true;
+      try {
+        const email = String(emailInput?.value || '').trim().toLowerCase();
+      if (!email) {
+        const addStatus = $('#addStatus');
+        setStatus(addStatus, 'Введите email.');
+        return;
+      }
+      const ok = await addStudent(supabase, email);
+      if (ok) {
+        try { emailInput.value = ''; } catch (_) {}
+        await loadStudents(supabase);
+      }
+      } finally {
+        if (addBtn) addBtn.disabled = false;
+      }
+    });
+
+    // Enter в поле email
+    emailInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addBtn?.click();
+      }
+    });
   } catch (e) {
-    console.warn('loadTeacherProfile failed', e);
-  }
-  if (role !== 'teacher') {
-    showStatus(pageStatus, 'Доступно только для учителя.', true);
+    console.error(e);
+    setStatus(pageStatus, 'Ошибка инициализации страницы.', { sticky: true });
     if (addBtn) addBtn.disabled = true;
-    if (addEmail) addEmail.disabled = true;
-    return;
   }
-
-  async function refreshList() {
-    showStatus(pageStatus, 'Загружаем список...');
-    try {
-      const rows = await loadStudents(supabase);
-      showStatus(pageStatus, rows.length ? '' : 'Пока нет привязанных учеников.');
-      const items = rows.map(makeStudentItem);
-      listEl?.replaceChildren(...items);
-    } catch (e) {
-      console.warn('list_my_students error', e);
-      if (isMissingRpcFunction(e)) {
-        showStatus(pageStatus, 'На Supabase не настроена функция list_my_students или нет прав EXECUTE.', true);
-      } else {
-        const msg = String(e?.message || e?.details || e || 'Ошибка').trim();
-        showStatus(pageStatus, `Ошибка загрузки списка: ${msg}`, true);
-      }
-    }
-  }
-
-  await refreshList();
-
-  let addInFlight = false;
-
-  async function onAdd() {
-    if (addInFlight) return;
-    const email = String(addEmail?.value || '').trim().toLowerCase();
-    if (!email) {
-      showStatus(addStatus, 'Введите email ученика.', true);
-      return;
-    }
-    if (!email.includes('@')) {
-      showStatus(addStatus, 'Похоже, email некорректный.', true);
-      return;
-    }
-
-    addInFlight = true;
-    if (addBtn) addBtn.disabled = true;
-    showStatus(addStatus, 'Добавляем...');
-
-    try {
-      await addStudent(supabase, email);
-      showStatus(addStatus, 'Готово.');
-      if (addEmail) addEmail.value = '';
-      await refreshList();
-    } catch (e) {
-      console.warn('add_student_by_email error', e);
-      if (isMissingRpcFunction(e)) {
-        showStatus(addStatus, 'Функция add_student_by_email не найдена или нет прав EXECUTE (часто выглядит как 404/PGRST202).', true);
-      } else {
-        const msg = String(e?.message || e?.details || e || 'Ошибка').trim();
-        showStatus(addStatus, `Ошибка: ${msg}`, true);
-      }
-    } finally {
-      addInFlight = false;
-      if (addBtn) addBtn.disabled = false;
-    }
-  }
-
-  addBtn?.addEventListener('click', onAdd);
-  addEmail?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      onAdd();
-    }
-  });
 }
 
-main().catch((e) => {
-  console.error(e);
-  const pageStatus = document.getElementById('pageStatus');
-  if (pageStatus) pageStatus.textContent = 'Ошибка инициализации страницы.';
-});
+main();
