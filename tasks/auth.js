@@ -129,6 +129,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('#tabSignup')?.addEventListener('click', () => showPanel('signup'));
   $('#tabReset')?.addEventListener('click', () => showPanel('reset'));
 
+
+  // Переключение режимов (ссылки)
+  $('#tabLogin')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPanel('login');
+  });
+  $('#tabSignup')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPanel('signup');
+  });
+  $('#tabReset')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    showPanel('reset');
+  });
+
   // Google
   $('#googleBtn')?.addEventListener('click', async () => {
     setStatus($('#loginStatus'), '', false);
