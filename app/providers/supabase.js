@@ -70,13 +70,14 @@ export async function signInWithPassword({ email, password } = {}) {
   return data;
 }
 
-export async function signUpWithPassword({ email, password, emailRedirectTo } = {}) {
+export async function signUpWithPassword({ email, password, emailRedirectTo, data } = {}) {
   const options = {};
   if (emailRedirectTo) options.emailRedirectTo = emailRedirectTo;
+  if (data && typeof data === "object") options.data = data;
 
-  const { data, error } = await supabase.auth.signUp({ email, password, options });
+  const { data: resData, error } = await supabase.auth.signUp({ email, password, options });
   if (error) throw error;
-  return data;
+  return resData;
 }
 
 export async function resendSignupEmail({ email, emailRedirectTo } = {}) {
