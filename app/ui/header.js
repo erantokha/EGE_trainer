@@ -65,6 +65,10 @@ function cleanOauthParams(urlLike) {
 
 function inferFirstName(user) {
   const md = (user && user.user_metadata) || {};
+
+  const f = String(md.first_name || '').trim();
+  if (f) return f;
+
   const g = String(md.given_name || '').trim();
   if (g) return g;
 
@@ -75,6 +79,31 @@ function inferFirstName(user) {
   if (email) return email.split('@')[0] || email;
 
   return 'Аккаунт';
+}
+
+async function fetchProfileFirstName(supabase, userId) {
+  if (!supabase || !userId) return '';
+
+  const key = `ege_profile_first_name:${userId}`;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return cached;
+  } catch (_) {}
+
+  try {
+    let q = supabase.from('profiles').select('first_name').eq('id', userId);
+    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
+    const { data, error } = res || {};
+    if (error) return '';
+
+    const name = String(data?.first_name || '').trim();
+    if (!name) return '';
+
+    try { sessionStorage.setItem(key, name); } catch (_) {}
+    return name;
+  } catch (_) {
+    return '';
+  }
 }
 
 function ensureHeaderSkeleton(headerEl) {
@@ -279,7 +308,12 @@ export async function initHeader(opts = {}) {
 
   ui.menuProfile?.addEventListener('click', () => {
     closeMenu();
-    alert('Профиль — скоро будет');
+    try {
+      const home = computeHomeUrl();
+      location.href = new URL('tasks/profile.html', home).toString();
+    } catch (_) {
+      location.href = computeHomeUrl() + 'tasks/profile.html';
+    }
   });
   ui.menuStats?.addEventListener('click', () => {
     closeMenu();
@@ -314,6 +348,8 @@ export async function initHeader(opts = {}) {
 
   let isSigningOut = false;
 
+  let nameFetchSeq = 0;
+
   const applySessionToUI = (session) => {
     try { closeMenu(); } catch (_) {}
 
@@ -321,9 +357,21 @@ export async function initHeader(opts = {}) {
     if (ui.loginBtn) ui.loginBtn.classList.toggle('hidden', hideLogin || authed);
     ui.userMenuWrap.classList.toggle('hidden', !authed);
 
+    // Имя в шапке: приоритет — first_name из анкеты (profiles), затем user_metadata, затем email.
     if (authed) {
+      const uid = session?.user?.id || null;
       ui.userBtn.textContent = inferFirstName(session.user || null);
+
+      const seq = ++nameFetchSeq;
+      if (uid && supabase) {
+        fetchProfileFirstName(supabase, uid).then((nm) => {
+          if (seq !== nameFetchSeq) return;
+          const name = String(nm || '').trim();
+          if (name) ui.userBtn.textContent = name;
+        });
+      }
     } else {
+      nameFetchSeq++;
       ui.userBtn.textContent = 'Аккаунт';
     }
 
