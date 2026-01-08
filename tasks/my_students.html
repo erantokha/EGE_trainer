@@ -12,7 +12,10 @@
     <section>
       <div class="panel">
         <header id="appHeader" class="page-head">
-          <h1 id="pageTitle">Мои ученики</h1>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
+            <h1 id="pageTitle" style="margin:0">Мои ученики</h1>
+            <button id="toggleAddStudentFormBtn" class="btn" type="button">Новый ученик</button>
+          </div>
         </header>
         <script type="module">
           const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
@@ -22,7 +25,7 @@
           import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
         </script>
 
-        <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-top:14px">
+        <div id="addStudentForm" style="display:none; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-top:14px">
           <label style="display:block">
             <div style="opacity:.8; margin-bottom:6px">Email ученика</div>
             <input id="addStudentEmail" type="email" placeholder="student@example.com" style="width:320px; max-width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">

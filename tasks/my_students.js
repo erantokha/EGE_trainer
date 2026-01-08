@@ -12,6 +12,8 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
+let __cfgGlobal = null;
+
 // Служебные подсказки: показываем 5 секунд и скрываем (если не указано sticky).
 const __statusTimers = new Map();
 function setStatus(el, text, { sticky = false } = {}) {
@@ -74,7 +76,7 @@ function renderStudents(list) {
   wrap.innerHTML = '';
 
   if (!Array.isArray(list) || list.length === 0) {
-    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников. Добавьте ученика по email выше.' }));
+    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников. Нажмите «Новый ученик» и добавьте по email.' }));
     return;
   }
 
@@ -103,8 +105,25 @@ function renderStudents(list) {
     card.appendChild(title);
     card.appendChild(sub);
 
+    const actions = el('div', {});
+    actions.style.display = 'flex';
+    actions.style.gap = '8px';
+    actions.style.justifyContent = 'flex-end';
+    actions.style.marginTop = '10px';
+
+    const openBtn = el('button', { class: 'btn', text: 'Открыть' });
+    openBtn.type = 'button';
+
+    const delBtn = el('button', { class: 'btn', text: 'Удалить' });
+    delBtn.type = 'button';
+
+    actions.appendChild(openBtn);
+    actions.appendChild(delBtn);
+    card.appendChild(actions);
+
     const sid = String(st.student_id || st.id || '').trim();
-    card.addEventListener('click', () => {
+
+    function goOpen() {
       if (!sid) return;
       const url = new URL('./student.html', location.href);
       url.searchParams.set('student_id', sid);
@@ -121,6 +140,38 @@ function renderStudents(list) {
       } catch (_) {}
 
       location.href = url.toString();
+    }
+
+    // Клик по карточке и кнопке "Открыть"
+    card.addEventListener('click', () => goOpen());
+    openBtn.addEventListener('click', (e) => { e.stopPropagation(); goOpen(); });
+
+    // Удаление: удаляем только связь teacher-student (ученик исчезает из списка)
+    delBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!sid) return;
+
+      const name = studentLabel(st) || email || 'ученика';
+      if (!confirm(`Удалить ${name} из списка учеников?`)) return;
+
+      delBtn.disabled = true;
+      try {
+        const cfg = __cfgGlobal || await getConfig();
+        __cfgGlobal = cfg;
+
+        const a2 = await ensureAuth(cfg);
+        if (!a2?.access_token) {
+          setStatus($('#pageStatus'), 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
+          return;
+        }
+
+        const ok = await removeStudent(cfg, a2.access_token, sid);
+        if (ok) {
+          await loadStudents(cfg, a2.access_token);
+        }
+      } finally {
+        delBtn.disabled = false;
+      }
     });
 
     grid.appendChild(card);
@@ -339,9 +390,28 @@ async function addStudent(cfg, accessToken, email) {
   }
 }
 
+
+async function removeStudent(cfg, accessToken, studentId) {
+  const status = $('#pageStatus');
+  setStatus(status, 'Удаляем...', { sticky: true });
+
+  try {
+    await rpc(cfg, accessToken, 'remove_student', { p_student_id: studentId });
+    setStatus(status, 'Ученик удалён');
+    return true;
+  } catch (e) {
+    console.warn('remove_student error', e);
+    const msg = String(e?.message || 'Не удалось удалить ученика.');
+    setStatus(status, msg, { sticky: false });
+    return false;
+  }
+}
+
 async function main() {
   const pageStatus = $('#pageStatus');
   const addBtn = $('#addStudentBtn');
+  const toggleBtn = $('#toggleAddStudentFormBtn');
+  const addForm = $('#addStudentForm');
   const emailInput = $('#addStudentEmail');
 
   try {
@@ -361,7 +431,20 @@ async function main() {
       return;
     }
 
-    await loadStudents(cfg, auth.access_token);
+    
+    // Форма добавления ученика разворачивается по кнопке "Новый ученик"
+    if (addForm) addForm.style.display = 'none';
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        if (!addForm) return;
+        const isOpen = addForm.style.display !== 'none';
+        addForm.style.display = isOpen ? 'none' : 'flex';
+        if (!isOpen) {
+          try { $('#addStudentEmail')?.focus(); } catch (_) {}
+        }
+      });
+    }
+await loadStudents(cfg, auth.access_token);
 
     addBtn?.addEventListener('click', async () => {
       if (addBtn) addBtn.disabled = true;
