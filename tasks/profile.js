@@ -139,10 +139,19 @@ async function main() {
   showBox(true);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+
+const run = () => {
   main().catch((e) => {
     console.error(e);
     setStatus('Ошибка загрузки профиля. Откройте Console.', true);
     showBox(false);
   });
-});
+};
+
+// profile.js подключается через dynamic import, который не блокирует DOMContentLoaded.
+// Поэтому если вешать слушатель DOMContentLoaded внутри этого файла, он может не сработать.
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', run);
+} else {
+  run();
+}
