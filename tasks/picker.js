@@ -35,6 +35,8 @@ let LAST_SELECTION = null;
 
 let _AUTH_READY = false;
 let _NAME_SEQ = 0;
+let _ROLE_SEQ = 0;
+let CURRENT_ROLE = '';
 
 
 function cleanRedirectUrl() {
@@ -86,10 +88,33 @@ async function fetchProfileFirstName(userId) {
   }
 }
 
+async function fetchProfileRole(userId) {
+  if (!userId) return '';
+  const key = `app:profile:role:${userId}`;
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return String(cached).trim();
+  } catch (_) {}
+
+  try {
+    let q = supabase.from('profiles').select('role').eq('id', userId);
+    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
+    const { data, error } = res || {};
+    if (error) return '';
+    const role = String(data?.role || '').trim();
+    if (!role) return '';
+    try { sessionStorage.setItem(key, role); } catch (_) {}
+    return role;
+  } catch (_) {
+    return '';
+  }
+}
+
 async function refreshAuthHeaderUI() {
   const loginBtn = $('#loginGoogleBtn');
   const userBtn = $('#userMenuBtn');
   const menu = $('#userMenu');
+  const statsBtn = $('#menuStats');
   if (!loginBtn || !userBtn || !menu) return;
 
   let session = null;
@@ -108,6 +133,9 @@ async function refreshAuthHeaderUI() {
     userBtn.textContent = '';
     userBtn.setAttribute('aria-expanded', 'false');
     _NAME_SEQ++;
+    _ROLE_SEQ++;
+    CURRENT_ROLE = '';
+    if (statsBtn) statsBtn.textContent = 'Статистика';
     return;
   }
 
@@ -121,6 +149,19 @@ async function refreshAuthHeaderUI() {
       if (seq !== _NAME_SEQ) return;
       const name = String(nm || '').trim();
       if (name) userBtn.textContent = name;
+    });
+  }
+
+  // роль: меняем текст пункта меню «Статистика» -> «Мои ученики» для учителя
+  CURRENT_ROLE = '';
+  if (statsBtn) statsBtn.textContent = 'Статистика';
+  const rseq = ++_ROLE_SEQ;
+  if (uid) {
+    fetchProfileRole(uid).then((rl) => {
+      if (rseq !== _ROLE_SEQ) return;
+      const role = String(rl || '').trim().toLowerCase();
+      CURRENT_ROLE = role;
+      if (statsBtn) statsBtn.textContent = (role === 'teacher') ? 'Мои ученики' : 'Статистика';
     });
   }
   // при обновлении сессии меню должно быть закрыто
@@ -200,7 +241,11 @@ function initAuthHeader() {
   });
   $('#menuStats')?.addEventListener('click', () => {
     closeMenu();
-    alert('Статистика — скоро');
+    if (String(CURRENT_ROLE || '').toLowerCase() === 'teacher') {
+      location.href = PAGES_BASE + 'my_students.html';
+    } else {
+      alert('Статистика — скоро');
+    }
   });
   $('#menuLogout')?.addEventListener('click', async () => {
     closeMenu();

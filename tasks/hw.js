@@ -41,6 +41,102 @@ const INDEX_URL = '../content/tasks/index.json';
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
 
+function getTeacherAttemptId() {
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.get('as_teacher') !== '1') return '';
+    return String(u.searchParams.get('attempt_id') || '').trim();
+  } catch (_) {
+    const p = new URLSearchParams(location.search);
+    return p.get('as_teacher') === '1' ? String(p.get('attempt_id') || '').trim() : '';
+  }
+}
+
+function isTeacherReportView() {
+  return !!getTeacherAttemptId();
+}
+
+function isMissingRpcFunction(err) {
+  const msg = String(err?.message || err?.details || err || '').toLowerCase();
+  return msg.includes('could not find the function') || (msg.includes('function') && msg.includes('not found')) || msg.includes('pgrst202');
+}
+
+function normalizeAttemptRowFromRpc(data, attemptId) {
+  // RPC может вернуть строку (объект) или массив из 1 строки.
+  const row = Array.isArray(data) ? (data[0] || null) : (data || null);
+  if (!row || typeof row !== 'object') return null;
+
+  const out = { ...row };
+  if (!out.attempt_id && attemptId) out.attempt_id = attemptId;
+  if (out.p_payload && !out.payload) out.payload = out.p_payload;
+  return out;
+}
+
+async function showTeacherReport(attemptId) {
+  const msgEl = $('#hwGateMsg');
+  const startBtn = $('#startHomework');
+  const nameInput = $('#studentName');
+
+  if (nameInput) nameInput.disabled = true;
+  if (startBtn) startBtn.disabled = true;
+  if (msgEl) msgEl.textContent = 'Загружаем отчёт...';
+
+  if (!AUTH_SESSION) {
+    if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
+    return;
+  }
+
+  // Каталог нужен, чтобы восстановить «условия» задач по id из payload.
+  try {
+    await loadCatalog();
+    CATALOG_READY = true;
+  } catch (e) {
+    console.warn('loadCatalog failed', e);
+    if (msgEl) msgEl.textContent = 'Не удалось загрузить контент задач (content/tasks/index.json).';
+    return;
+  }
+
+  const { data, error } = await supabase.rpc('get_homework_attempt_for_teacher', { p_attempt_id: attemptId });
+  if (error) {
+    console.warn('get_homework_attempt_for_teacher error', error);
+    if (isMissingRpcFunction(error)) {
+      if (msgEl) msgEl.textContent = 'На стороне Supabase ещё не настроена функция get_homework_attempt_for_teacher(p_attempt_id).';
+    } else {
+      if (msgEl) msgEl.textContent = 'Не удалось загрузить отчёт.';
+    }
+    return;
+  }
+
+  const row = normalizeAttemptRowFromRpc(data, attemptId);
+  if (!row) {
+    if (msgEl) msgEl.textContent = 'Отчёт не найден.';
+    return;
+  }
+
+  const title = String(row.homework_title || row.title || '').trim();
+  if (title) {
+    const t = $('#hwTitle');
+    if (t) t.textContent = title;
+  }
+
+  // В teacher-режиме HOMEWORK может быть не загружен по token — берём минимум из row/payload.
+  if (!HOMEWORK) {
+    const pl = parseAttemptPayload(row?.payload ?? row?.p_payload ?? null);
+    HOMEWORK = {
+      id: row?.homework_id ?? pl?.homework_id ?? null,
+      title: title || pl?.title || 'Домашнее задание',
+      description: '',
+      spec_json: null,
+      settings_json: null,
+      frozen_questions: null,
+    };
+    HOMEWORK_READY = true;
+  }
+
+  RUN_STARTED = true;
+  await showAttemptSummaryFromRow(row);
+}
+
 function getStoredStudentName(user) {
   try {
     const uid = user?.id ? String(user.id) : '';
@@ -89,14 +185,24 @@ let EXISTING_ATTEMPT_SHOWN = false;
 let EXISTING_ATTEMPT_ROW = null;
 let HOMEWORK_READY = false;
 let CATALOG_READY = false;
+let TEACHER_REPORT_DONE = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  const teacherAttemptId = getTeacherAttemptId();
   const token = getToken();
   const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
 
   // UI авторизации (Google)
   initAuthUI().catch((e) => console.error(e));
+
+  // Режим учителя: открытие отчёта по attempt_id
+  if (teacherAttemptId) {
+    TEACHER_REPORT_DONE = false;
+    if (startBtn) startBtn.disabled = true;
+    if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
+    return;
+  }
 
   // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
   $('#studentName')?.addEventListener('input', () => {
@@ -304,6 +410,12 @@ function getToken() {
   try {
     const u = new URL(location.href);
 
+    // Отчёт учителя: не подмешиваем token из sessionStorage в URL.
+    // Иначе при открытии отчёта можно случайно «прицепить» token от другого ДЗ.
+    if (u.searchParams.get('as_teacher') === '1' && u.searchParams.get('attempt_id')) {
+      return null;
+    }
+
     // Если в URL есть auth-параметры Supabase (type/token_hash), не считаем их токеном ДЗ.
     const hasAuthType = u.searchParams.has('type') || u.searchParams.has('token_hash');
 
@@ -435,12 +547,28 @@ async function refreshAuthUI() {
 
   updateGateUI();
 
+  // Учительский режим: после входа сразу пробуем открыть отчёт по attempt_id.
+  if (isTeacherReportView()) {
+    const attemptId = getTeacherAttemptId();
+    if (attemptId && AUTH_SESSION && !TEACHER_REPORT_DONE && !RUN_STARTED && !STARTING) {
+      TEACHER_REPORT_DONE = true;
+      try {
+        await showTeacherReport(attemptId);
+      } catch (e) {
+        console.error(e);
+        const m = $('#hwGateMsg');
+        if (m) m.textContent = 'Не удалось загрузить отчёт.';
+      }
+    }
+  }
+
   // При смене сессии может появиться доступ к уже начатой попытке
   await maybeShowExistingAttempt('auth');
   maybeAutoStart('auth');
 }
 
 function updateGateUI() {
+  if (isTeacherReportView()) return;
   const token = getToken();
   const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
