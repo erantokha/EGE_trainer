@@ -397,6 +397,8 @@ async function main() {
     } catch (_) {}
   }
 
+  let catalog = null;
+
   // ----- stats -----
   const statsUi = buildStatsUI($('#statsRoot'));
   statsUi.daysSel.value = '30';
@@ -404,34 +406,43 @@ async function main() {
   // в учительском просмотре пока убираем кнопку тренировки (чтобы не путать, она будет в "умной ДЗ")
   if (statsUi.trainBtn) statsUi.trainBtn.style.display = 'none';
 
-  // ----- smart homework (teacher) -----
+    // ----- smart homework (teacher): рекомендации -> план -> создание -----
   const smartBlock = $('#smartHwBlock');
   if (smartBlock) smartBlock.style.display = '';
 
   const smartToggle = $('#smartHwToggle');
   const smartPanel = $('#smartHwPanel');
   const smartClose = $('#smartHwClose');
-  const smartCreate = $('#smartHwCreate');
+
   const smartStatus = $('#smartHwStatus');
-  const smartPreview = $('#smartHwPreview');
-  const smartResult = $('#smartHwResult');
-  const smartLink = $('#smartHwLink');
-  const smartCopy = $('#smartHwCopy');
-  const smartOpen = $('#smartHwOpen');
 
-  const smartDays = $('#smartHwDays');
-  const smartSource = $('#smartHwSource');
-  const smartMetric = $('#smartHwMetric');
-  const smartTotal = $('#smartHwTotal');
-  const smartMaxTopics = $('#smartHwMaxTopics');
-  const smartMinTotal = $('#smartHwMinTotal');
-  const smartTitle = $('#smartHwTitle');
-  const smartPreferUncovered = $('#smartHwPreferUncovered');
+  const recDaysEl = $('#smartRecDays');
+  const recSourceEl = $('#smartRecSource');
+  const recModeEl = $('#smartRecMode');
+  const recMinEl = $('#smartRecMinAttempts');
+  const recLimitEl = $('#smartRecLimit');
+  const recDefaultCountEl = $('#smartRecDefaultCount');
+  const recIncludeUncoveredEl = $('#smartRecIncludeUncovered');
 
-  // дефолты берём из фильтров статистики
-  if (smartDays) smartDays.value = String(statsUi.daysSel.value || '30');
-  if (smartSource) smartSource.value = String(statsUi.sourceSel.value || 'all');
-  if (smartTitle) smartTitle.value = `Умная ДЗ (${todayISO()})`;
+  const recLoadBtn = $('#smartRecLoad');
+  const planClearBtn = $('#smartPlanClear');
+
+  const recListEl = $('#smartRecList');
+  const planListEl = $('#smartPlanList');
+  const planTotalEl = $('#smartPlanTotal');
+
+  const titleEl = $('#smartHwTitle');
+  const createBtn = $('#smartHwCreate');
+
+  const resultBox = $('#smartHwResult');
+  const linkEl = $('#smartHwLink');
+  const copyBtn = $('#smartHwCopy');
+  const openBtn = $('#smartHwOpen');
+
+  // дефолты — из фильтров статистики
+  if (recDaysEl) recDaysEl.value = String(statsUi.daysSel.value || '30');
+  if (recSourceEl) recSourceEl.value = String(statsUi.sourceSel.value || 'all');
+  if (titleEl) titleEl.value = `Умное ДЗ (${todayISO()})`;
 
   function smartSetStatus(text, kind = '') {
     if (!smartStatus) return;
@@ -439,88 +450,237 @@ async function main() {
     smartStatus.className = kind === 'err' ? 'err' : 'muted';
   }
 
-  function openSmartPanel() {
-    setHidden(smartPanel, false);
-    setHidden(smartResult, true);
-    if (smartPreview) smartPreview.textContent = '';
-    smartSetStatus('');
+  function settingsKey() {
+    return JSON.stringify({
+      days: String(recDaysEl?.value || '30'),
+      source: String(recSourceEl?.value || 'all'),
+      mode: String(recModeEl?.value || 'mixed'),
+      min: Number(recMinEl?.value || 3) || 3,
+      limit: Number(recLimitEl?.value || 15) || 15,
+      def: Number(recDefaultCountEl?.value || 2) || 2,
+      unc: !!recIncludeUncoveredEl?.checked,
+    });
   }
-  function closeSmartPanel() {
-    setHidden(smartPanel, true);
-    smartSetStatus('');
+
+  function safeInt(x, def = 0) {
+    const n = Number(x);
+    return Number.isFinite(n) ? Math.trunc(n) : def;
   }
 
-  if (smartToggle) smartToggle.addEventListener('click', openSmartPanel);
-  if (smartClose) smartClose.addEventListener('click', closeSmartPanel);
+  const plan = new Map(); // topic_id -> count
+  let lastRecs = [];
+  let lastDash = null;
+  let lastKey = '';
 
-  if (smartCopy) smartCopy.addEventListener('click', async () => {
-    const ok = await copyToClipboard(smartLink?.value || '');
-    smartSetStatus(ok ? 'Скопировано.' : 'Не удалось скопировать.', ok ? '' : 'err');
-  });
-  if (smartOpen) smartOpen.addEventListener('click', () => {
-    const url = String(smartLink?.value || '');
-    if (!url) return;
-    window.open(url, '_blank', 'noopener');
-  });
+  function computePlanTotal() {
+    let sum = 0;
+    for (const v of plan.values()) sum += safeInt(v, 0);
+    return sum;
+  }
 
-  let catalog = null;
+  function updateCreateState() {
+    const total = computePlanTotal();
+    if (planTotalEl) planTotalEl.textContent = String(total);
+    if (createBtn) createBtn.disabled = total <= 0;
+  }
 
-  async function createSmartHomework() {
-    if (!smartCreate) return;
-    smartCreate.disabled = true;
-    smartSetStatus('Собираем темы и создаём домашку...');
-    if (smartPreview) smartPreview.textContent = '';
-    setHidden(smartResult, true);
+  function topicName(topicId) {
+    const id = String(topicId || '').trim();
+    const title = catalog?.topicTitle?.get?.(id);
+    return title ? `${id}. ${title}` : id;
+  }
+
+  function renderPlan() {
+    if (!planListEl) return;
+    planListEl.innerHTML = '';
+
+    const ids = Array.from(plan.keys()).sort((a, b) => String(a).localeCompare(String(b), 'ru'));
+    if (!ids.length) {
+      planListEl.appendChild(el('div', { class:'muted', text:'План пуст. Добавьте темы из рекомендаций слева.' }));
+      updateCreateState();
+      return;
+    }
+
+    for (const tid of ids) {
+      const cnt = safeInt(plan.get(tid), 0);
+
+      const num = el('input', {
+        type: 'number',
+        min: '0',
+        max: '50',
+        value: String(cnt),
+      });
+      num.addEventListener('change', () => {
+        const v = safeInt(num.value, 0);
+        if (v <= 0) plan.delete(tid);
+        else plan.set(tid, v);
+        renderPlan();
+      });
+
+      const removeBtn = el('button', { type:'button', class:'btn btn-danger btn-compact', text:'Убрать' });
+      removeBtn.addEventListener('click', () => {
+        plan.delete(tid);
+        renderPlan();
+      });
+
+      const row = el('div', { class:'smart-topic smart-plan-row' }, [
+        el('div', { class:'row' }, [
+          el('div', { class:'name', text: topicName(tid) }),
+          el('div', { class:'actions' }, [
+            el('div', { class:'muted', text:'задач:' }),
+            num,
+            removeBtn,
+          ]),
+        ]),
+      ]);
+
+      planListEl.appendChild(row);
+    }
+
+    updateCreateState();
+  }
+
+  function addToPlan(topicId, count) {
+    const tid = String(topicId || '').trim();
+    if (!tid) return;
+    const c = safeInt(count, 0);
+    if (c <= 0) return;
+
+    const prev = safeInt(plan.get(tid), 0);
+    plan.set(tid, prev + c);
+    renderPlan();
+  }
+
+  function renderRecs(recs) {
+    if (!recListEl) return;
+    recListEl.innerHTML = '';
+
+    if (!Array.isArray(recs) || recs.length === 0) {
+      recListEl.appendChild(el('div', { class:'muted', text:'Рекомендаций нет. Попробуйте увеличить период или включить непокрытые темы.' }));
+      return;
+    }
+
+    const defCount = safeInt(recDefaultCountEl?.value, 2);
+
+    for (const r of recs) {
+      const tid = String(r.topic_id || '').trim();
+      const reason = String(r.reason || '').trim();
+      const badgeCls = reason === 'weak' ? 'red' : (reason === 'low' ? 'yellow' : (reason === 'uncovered' ? 'gray' : 'gray'));
+      const reasonText = reason === 'weak' ? 'плохая точность' : (reason === 'low' ? 'мало решено' : (reason === 'uncovered' ? 'не решал' : reason));
+
+      const cntInput = el('input', { type:'number', min:'1', max:'20', value: String(defCount) });
+      const addBtn = el('button', { type:'button', class:'btn btn-compact', text:'Добавить' });
+      addBtn.addEventListener('click', () => addToPlan(tid, cntInput.value));
+
+      const metaLine = [
+        (r.period_pct == null) ? '—' : `${r.period_pct}%`,
+        (r.period_total != null) ? `(${r.period_correct}/${r.period_total})` : '',
+      ].filter(Boolean).join(' ');
+
+      const card = el('div', { class:'smart-topic smart-rec-row' }, [
+        el('div', { class:'row' }, [
+          el('div', { class:'name', text: topicName(tid) }),
+          el('span', { class:`badge ${badgeCls}`, text: reasonText }),
+        ]),
+        el('div', { class:'meta' }, [
+          el('span', { class:'small', text:`Период: ${metaLine}` }),
+          (r.last_seen_at ? el('span', { class:'small', text:`последняя: ${fmtDateTime(r.last_seen_at)}` }) : null),
+        ].filter(Boolean)),
+        el('div', { class:'actions' }, [
+          el('span', { class:'muted', text:'добавить:' }),
+          cntInput,
+          addBtn,
+        ]),
+      ]);
+
+      // клик по карточке тоже добавляет
+      card.addEventListener('dblclick', () => addToPlan(tid, cntInput.value));
+
+      recListEl.appendChild(card);
+    }
+  }
+
+  async function loadRecommendations(force = false) {
+    const k = settingsKey();
+    if (!force && lastKey === k && Array.isArray(lastRecs) && lastRecs.length) return;
+
+    smartSetStatus('Подбираем темы…');
+    if (recLoadBtn) recLoadBtn.disabled = true;
 
     try {
-      const days = Number(smartDays?.value || statsUi.daysSel.value) || 30;
-      const source = String(smartSource?.value || statsUi.sourceSel.value || 'all');
-      const metric = String(smartMetric?.value || 'period');
-      const targetTotal = Number(smartTotal?.value || 12) || 12;
-      const maxTopics = Number(smartMaxTopics?.value || 5) || 5;
-      const minTotal = Number(smartMinTotal?.value || 3) || 3;
-      const preferUncoveredIfEmpty = !!smartPreferUncovered?.checked;
+      if (!catalog) {
+        try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
+      }
 
-      const dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
+      const days = safeInt(recDaysEl?.value, 30) || 30;
+      const source = String(recSourceEl?.value || 'all');
+      const mode = String(recModeEl?.value || 'mixed');
+      const minAttempts = safeInt(recMinEl?.value, 3) || 3;
+      const limit = safeInt(recLimitEl?.value, 15) || 15;
+      const includeUncovered = !!recIncludeUncoveredEl?.checked;
+
+      lastDash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
         p_student_id: studentId,
         p_days: days,
         p_source: source,
       });
 
-      const smartMod = await import(withV('./smart_hw.js'));
-      const pack = await smartMod.buildSmartHomeworkPackage(dash, {
-        metric,
-        minTotal,
-        maxTopics,
-        targetTotal,
-        preferUncoveredIfEmpty,
-        shuffle: false,
+      const recMod = await import(withV('./recommendations.js'));
+      lastRecs = recMod.buildRecommendations(lastDash, catalog, {
+        mode,
+        minAttempts,
+        limit,
+        includeUncovered,
       });
 
-      const topics = pack?.topics || {};
-      const frozen = Array.isArray(pack?.frozen_questions) ? pack.frozen_questions : [];
-      const topicIds = Array.isArray(pack?.topic_ids) ? pack.topic_ids : Object.keys(topics);
-
-      if (smartPreview) {
-        const counts = topicIds.map((tid) => `${tid}×${Number(topics[tid] || 0)}`).join(', ');
-        smartPreview.textContent = topicIds.length ? `Темы: ${counts}` : 'Не удалось подобрать темы по статистике.';
+      lastKey = k;
+      renderRecs(lastRecs);
+      smartSetStatus(lastRecs.length ? 'Темы подобраны.' : 'Нет рекомендаций.');
+    } catch (e) {
+      if (isAccessDenied(e)) {
+        smartSetStatus('Нет доступа (ACCESS_DENIED). Проверьте привязку ученика и права учителя.', 'err');
+      } else {
+        smartSetStatus(`Ошибка: ${String(e?.message || e || 'Ошибка')}`, 'err');
       }
+    } finally {
+      if (recLoadBtn) recLoadBtn.disabled = false;
+    }
+  }
 
-      if (!frozen.length) {
-        smartSetStatus('Не удалось собрать задания: нет данных/манифестов по выбранным темам.', 'err');
+  async function createHomeworkFromPlan() {
+    if (!createBtn) return;
+    createBtn.disabled = true;
+    smartSetStatus('Создаём ДЗ…');
+    setHidden(resultBox, true);
+
+    try {
+      const topics = {};
+      for (const [tid, cnt] of plan.entries()) {
+        const c = safeInt(cnt, 0);
+        if (c > 0) topics[String(tid)] = c;
+      }
+      const totalWanted = Object.values(topics).reduce((a, b) => a + safeInt(b, 0), 0);
+      if (totalWanted <= 0) {
+        smartSetStatus('План пуст. Добавьте темы слева.', 'err');
         return;
       }
 
-      const title = String(smartTitle?.value || '').trim() || `Умная ДЗ (${todayISO()})`;
+      const title = String(titleEl?.value || '').trim() || `Умное ДЗ (${todayISO()})`;
+
+      const builder = await import(withV('./smart_hw_builder.js'));
+      const built = await builder.buildFrozenQuestionsForTopics(topics, { shuffle: true });
+
+      if (!built?.frozen_questions || built.frozen_questions.length !== totalWanted) {
+        const got = built?.frozen_questions ? built.frozen_questions.length : 0;
+        smartSetStatus(`Не удалось собрать задания: нужно ${totalWanted}, получилось ${got}.`, 'err');
+        return;
+      }
 
       const spec_json = {
         v: 1,
         fixed: [],
         shuffle: false,
-        generated: {
-          by: 'topics',
-          topics,
-        },
+        generated: { by: 'topics', topics },
         content_version: (cfg?.content?.version || BUILD || ''),
       };
 
@@ -531,29 +691,63 @@ async function main() {
         userId: auth.user_id,
         title,
         spec_json,
-        frozen_questions: frozen,
+        frozen_questions: built.frozen_questions,
         attempts_per_student: 1,
         is_active: true,
       });
 
       const url = buildHwUrlFromToken(created.token);
-      if (smartLink) smartLink.value = url;
-      setHidden(smartResult, false);
+      if (linkEl) linkEl.value = url;
+      setHidden(resultBox, false);
       smartSetStatus('Готово. Ссылка создана.');
     } catch (e) {
       if (isAccessDenied(e)) {
-        smartSetStatus('Нет доступа (ACCESS_DENIED). Проверьте привязку ученика и права учителя.', 'err');
+        smartSetStatus('Нет доступа (ACCESS_DENIED).', 'err');
       } else {
         smartSetStatus(`Ошибка: ${String(e?.message || e || 'Ошибка')}`, 'err');
       }
     } finally {
-      smartCreate.disabled = false;
+      updateCreateState();
     }
   }
 
-  if (smartCreate) smartCreate.addEventListener('click', createSmartHomework);
+  function openSmartPanel() {
+    setHidden(smartPanel, false);
+    smartSetStatus('');
+    // по требованию: при открытии сразу подгружаем рекомендации
+    loadRecommendations(false);
+  }
 
-  async function loadDashboard() {
+  function closeSmartPanel() {
+    setHidden(smartPanel, true);
+    smartSetStatus('');
+  }
+
+  if (smartToggle) smartToggle.addEventListener('click', openSmartPanel);
+  if (smartClose) smartClose.addEventListener('click', closeSmartPanel);
+  if (recLoadBtn) recLoadBtn.addEventListener('click', () => loadRecommendations(true));
+
+  if (planClearBtn) planClearBtn.addEventListener('click', () => {
+    plan.clear();
+    renderPlan();
+    smartSetStatus('План очищен.');
+  });
+
+  if (createBtn) createBtn.addEventListener('click', createHomeworkFromPlan);
+
+  if (copyBtn) copyBtn.addEventListener('click', async () => {
+    const ok = await copyToClipboard(linkEl?.value || '');
+    smartSetStatus(ok ? 'Скопировано.' : 'Не удалось скопировать.', ok ? '' : 'err');
+  });
+  if (openBtn) openBtn.addEventListener('click', () => {
+    const url = String(linkEl?.value || '');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  });
+
+  // первичный рендер
+  renderPlan();
+async function loadDashboard() {
     setStatus('');
     statsUi.statusEl.innerHTML = '';
     statsUi.overallEl.innerHTML = '';
