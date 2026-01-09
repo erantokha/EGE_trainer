@@ -279,6 +279,46 @@ function initBackButton() {
   });
 }
 
+function setHidden(node, hidden = true) {
+  if (!node) return;
+  node.classList.toggle('hidden', !!hidden);
+}
+
+async function copyToClipboard(text) {
+  const t = String(text || '');
+  if (!t) return false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(t);
+      return true;
+    }
+  } catch (_) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch (_) {
+    return false;
+  }
+}
+
+function buildHwUrlFromToken(token) {
+  const u = new URL('./hw.html', location.href);
+  u.searchParams.set('token', String(token || ''));
+  return u.toString();
+}
+
+function todayISO() {
+  try { return new Date().toISOString().slice(0, 10); } catch (_) { return ''; }
+}
+
 function setStatus(text, kind = '') {
   const statusEl = $('#pageStatus');
   if (!statusEl) return;
@@ -364,7 +404,154 @@ async function main() {
   // в учительском просмотре пока убираем кнопку тренировки (чтобы не путать, она будет в "умной ДЗ")
   if (statsUi.trainBtn) statsUi.trainBtn.style.display = 'none';
 
+  // ----- smart homework (teacher) -----
+  const smartBlock = $('#smartHwBlock');
+  if (smartBlock) smartBlock.style.display = '';
+
+  const smartToggle = $('#smartHwToggle');
+  const smartPanel = $('#smartHwPanel');
+  const smartClose = $('#smartHwClose');
+  const smartCreate = $('#smartHwCreate');
+  const smartStatus = $('#smartHwStatus');
+  const smartPreview = $('#smartHwPreview');
+  const smartResult = $('#smartHwResult');
+  const smartLink = $('#smartHwLink');
+  const smartCopy = $('#smartHwCopy');
+  const smartOpen = $('#smartHwOpen');
+
+  const smartDays = $('#smartHwDays');
+  const smartSource = $('#smartHwSource');
+  const smartMetric = $('#smartHwMetric');
+  const smartTotal = $('#smartHwTotal');
+  const smartMaxTopics = $('#smartHwMaxTopics');
+  const smartMinTotal = $('#smartHwMinTotal');
+  const smartTitle = $('#smartHwTitle');
+  const smartPreferUncovered = $('#smartHwPreferUncovered');
+
+  // дефолты берём из фильтров статистики
+  if (smartDays) smartDays.value = String(statsUi.daysSel.value || '30');
+  if (smartSource) smartSource.value = String(statsUi.sourceSel.value || 'all');
+  if (smartTitle) smartTitle.value = `Умная ДЗ (${todayISO()})`;
+
+  function smartSetStatus(text, kind = '') {
+    if (!smartStatus) return;
+    smartStatus.textContent = String(text || '');
+    smartStatus.className = kind === 'err' ? 'err' : 'muted';
+  }
+
+  function openSmartPanel() {
+    setHidden(smartPanel, false);
+    setHidden(smartResult, true);
+    if (smartPreview) smartPreview.textContent = '';
+    smartSetStatus('');
+  }
+  function closeSmartPanel() {
+    setHidden(smartPanel, true);
+    smartSetStatus('');
+  }
+
+  if (smartToggle) smartToggle.addEventListener('click', openSmartPanel);
+  if (smartClose) smartClose.addEventListener('click', closeSmartPanel);
+
+  if (smartCopy) smartCopy.addEventListener('click', async () => {
+    const ok = await copyToClipboard(smartLink?.value || '');
+    smartSetStatus(ok ? 'Скопировано.' : 'Не удалось скопировать.', ok ? '' : 'err');
+  });
+  if (smartOpen) smartOpen.addEventListener('click', () => {
+    const url = String(smartLink?.value || '');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  });
+
   let catalog = null;
+
+  async function createSmartHomework() {
+    if (!smartCreate) return;
+    smartCreate.disabled = true;
+    smartSetStatus('Собираем темы и создаём домашку...');
+    if (smartPreview) smartPreview.textContent = '';
+    setHidden(smartResult, true);
+
+    try {
+      const days = Number(smartDays?.value || statsUi.daysSel.value) || 30;
+      const source = String(smartSource?.value || statsUi.sourceSel.value || 'all');
+      const metric = String(smartMetric?.value || 'period');
+      const targetTotal = Number(smartTotal?.value || 12) || 12;
+      const maxTopics = Number(smartMaxTopics?.value || 5) || 5;
+      const minTotal = Number(smartMinTotal?.value || 3) || 3;
+      const preferUncoveredIfEmpty = !!smartPreferUncovered?.checked;
+
+      const dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
+        p_student_id: studentId,
+        p_days: days,
+        p_source: source,
+      });
+
+      const smartMod = await import(withV('./smart_hw.js'));
+      const pack = await smartMod.buildSmartHomeworkPackage(dash, {
+        metric,
+        minTotal,
+        maxTopics,
+        targetTotal,
+        preferUncoveredIfEmpty,
+        shuffle: false,
+      });
+
+      const topics = pack?.topics || {};
+      const frozen = Array.isArray(pack?.frozen_questions) ? pack.frozen_questions : [];
+      const topicIds = Array.isArray(pack?.topic_ids) ? pack.topic_ids : Object.keys(topics);
+
+      if (smartPreview) {
+        const counts = topicIds.map((tid) => `${tid}×${Number(topics[tid] || 0)}`).join(', ');
+        smartPreview.textContent = topicIds.length ? `Темы: ${counts}` : 'Не удалось подобрать темы по статистике.';
+      }
+
+      if (!frozen.length) {
+        smartSetStatus('Не удалось собрать задания: нет данных/манифестов по выбранным темам.', 'err');
+        return;
+      }
+
+      const title = String(smartTitle?.value || '').trim() || `Умная ДЗ (${todayISO()})`;
+
+      const spec_json = {
+        v: 1,
+        fixed: [],
+        shuffle: false,
+        generated: {
+          by: 'topics',
+          topics,
+        },
+        content_version: (cfg?.content?.version || BUILD || ''),
+      };
+
+      const hwApi = await import(withV('./homework_api.js'));
+      const created = await hwApi.createHomeworkAndLink({
+        cfg,
+        accessToken: auth.access_token,
+        userId: auth.user_id,
+        title,
+        spec_json,
+        frozen_questions: frozen,
+        attempts_per_student: 1,
+        is_active: true,
+      });
+
+      const url = buildHwUrlFromToken(created.token);
+      if (smartLink) smartLink.value = url;
+      setHidden(smartResult, false);
+      smartSetStatus('Готово. Ссылка создана.');
+    } catch (e) {
+      if (isAccessDenied(e)) {
+        smartSetStatus('Нет доступа (ACCESS_DENIED). Проверьте привязку ученика и права учителя.', 'err');
+      } else {
+        smartSetStatus(`Ошибка: ${String(e?.message || e || 'Ошибка')}`, 'err');
+      }
+    } finally {
+      smartCreate.disabled = false;
+    }
+  }
+
+  if (smartCreate) smartCreate.addEventListener('click', createSmartHomework);
 
   async function loadDashboard() {
     setStatus('');

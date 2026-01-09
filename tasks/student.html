@@ -34,6 +34,96 @@
           <div id="statsRoot"></div>
         </div>
 
+        <div id="smartHwBlock" style="margin-top:14px; display:none">
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+          <div style="font-size:18px; margin:10px 0 6px">Умная домашка</div>
+
+          <div class="stats-actions">
+            <button id="smartHwToggle" class="btn" type="button">Собрать ДЗ по слабым местам</button>
+          </div>
+
+          <div id="smartHwPanel" class="hidden" style="margin-top:10px; border:1px solid var(--border); border-radius:14px; padding:12px; background: rgba(148,163,184,.05)">
+            <div class="stats-controls">
+              <div class="ctrl">
+                <label>Период</label>
+                <select id="smartHwDays">
+                  <option value="7">7 дней</option>
+                  <option value="14">14 дней</option>
+                  <option value="30" selected>30 дней</option>
+                  <option value="90">90 дней</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Источник</label>
+                <select id="smartHwSource">
+                  <option value="all" selected>всё</option>
+                  <option value="self">самостоятельно</option>
+                  <option value="homework">ДЗ</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Метрика</label>
+                <select id="smartHwMetric">
+                  <option value="period" selected>за период</option>
+                  <option value="last10">последние 10</option>
+                  <option value="all_time">всё время</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Задач всего</label>
+                <input id="smartHwTotal" type="number" min="1" max="50" value="12" style="width:120px">
+              </div>
+
+              <div class="ctrl">
+                <label>Макс. тем</label>
+                <input id="smartHwMaxTopics" type="number" min="1" max="20" value="5" style="width:120px">
+              </div>
+
+              <div class="ctrl">
+                <label>Мин. попыток</label>
+                <input id="smartHwMinTotal" type="number" min="0" max="50" value="3" style="width:120px">
+              </div>
+
+              <div class="ctrl" style="min-width:260px;flex:1">
+                <label>Заголовок</label>
+                <input id="smartHwTitle" type="text" placeholder="Умная ДЗ" style="width:100%">
+              </div>
+
+              <div class="ctrl" style="min-width:260px">
+                <label style="display:flex; gap:8px; align-items:center">
+                  <input id="smartHwPreferUncovered" type="checkbox">
+                  Добрать непокрытые, если нет данных
+                </label>
+              </div>
+            </div>
+
+            <div class="stats-actions" style="margin-top:10px">
+              <button id="smartHwCreate" class="btn" type="button">Создать</button>
+              <button id="smartHwClose" class="btn" type="button">Скрыть</button>
+              <span id="smartHwStatus" class="muted"></span>
+            </div>
+
+            <div id="smartHwPreview" class="muted" style="margin-top:8px"></div>
+
+            <div id="smartHwResult" class="hidden" style="margin-top:12px">
+              <div class="stats-controls">
+                <div class="ctrl" style="flex:1">
+                  <label>Ссылка для ученика</label>
+                  <input id="smartHwLink" type="text" readonly style="width:100%">
+                </div>
+                <div class="stats-actions">
+                  <button id="smartHwCopy" class="btn" type="button">Скопировать</button>
+                  <button id="smartHwOpen" class="btn" type="button">Открыть</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
         <div>
