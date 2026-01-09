@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-01-09-2">
+  <title>Статистика</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-09-2">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-09-2">
+  <script src="./theme.js?v=2026-01-09-2" defer></script>
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <div class="crumb">
+            <span>Статистика</span>
+          </div>
+
+          <script>
+            (function() {
+              const BUILD = document.querySelector('meta[name="app-build"]')?.content || '';
+              const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+              const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+              const rel = inTasks ? '../' : './';
+              import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+            })();
+          </script>
+        </header>
+
+        <div id="statsRoot"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./stats.js?v=2026-01-09-2"></script>
+</body>
+</html>
