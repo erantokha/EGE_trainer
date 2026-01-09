@@ -11,7 +11,7 @@
 // - фильтры период/источник
 // - кнопка "Тренировать слабые места" (создаёт выбор topics и открывает trainer.html)
 
-import { buildStatsUI, renderDashboard, loadCatalog, pickWeakTopics } from './stats_view.js';
+let buildStatsUI, renderDashboard, loadCatalog, pickWeakTopics;
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -209,6 +209,18 @@ function openTrainerWithTopics(topics) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const mod = await import(withV('./stats_view.js'));
+    buildStatsUI = mod.buildStatsUI;
+    renderDashboard = mod.renderDashboard;
+    loadCatalog = mod.loadCatalog;
+    pickWeakTopics = mod.pickWeakTopics;
+  } catch (e) {
+    console.error(e);
+    const root = document.getElementById('statsRoot');
+    if (root) root.textContent = 'Ошибка загрузки интерфейса статистики.';
+    return;
+  }
   const root = $('#statsRoot');
   const ui = buildStatsUI(root);
 

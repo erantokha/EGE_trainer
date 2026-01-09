@@ -244,7 +244,7 @@ function initAuthHeader() {
     if (String(CURRENT_ROLE || '').toLowerCase() === 'teacher') {
       location.href = PAGES_BASE + 'my_students.html';
     } else {
-      alert('Статистика — скоро');
+      location.href = PAGES_BASE + 'stats.html';
     }
   });
   $('#menuLogout')?.addEventListener('click', async () => {

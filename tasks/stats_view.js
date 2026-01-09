@@ -140,7 +140,7 @@ function renderOverall(root, dash) {
   const cards = el('div', { class: 'stat-cards' }, [
     card('Последние 10 (по последней попытке на задачу)', overall?.last10),
     card('Период (по последней попытке на задачу)', overall?.period),
-    card('Всё время (по последней попытке на задачу)', overall?.all_time),
+    card('Всё время (по первой попытке на задачу)', overall?.all_time),
   ]);
 
   const lastSeen = overall?.last_seen_at ? new Date(overall.last_seen_at) : null;
@@ -195,7 +195,7 @@ function renderSections(root, dash, catalog) {
           el('th', { class:'topic', text:'Подтема' }),
           el('th', { class:'cell', text:'Последние 10' }),
           el('th', { class:'cell', text:'Период' }),
-          el('th', { class:'cell', text:'Всё время' }),
+          el('th', { class:'cell', text:'Всё время (перв.)' }),
         ])
       ]),
       el('tbody')
