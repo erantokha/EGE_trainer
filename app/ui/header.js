@@ -345,18 +345,18 @@ export async function initHeader(opts = {}) {
       location.href = computeHomeUrl() + 'tasks/profile.html';
     }
   });
-  ui.menuStats?.addEventListener('click', () => {
+  menuStats?.addEventListener('click', () => {
     closeMenu();
-    if (currentRole === 'teacher') {
-      try {
-        const home = computeHomeUrl();
+    try {
+      const home = computeHomeUrl();
+      if (currentRole === 'teacher') {
         location.href = new URL('tasks/my_students.html', home).toString();
-      } catch (_) {
-        location.href = computeHomeUrl() + 'tasks/my_students.html';
+      } else {
+        location.href = new URL('tasks/stats.html', home).toString();
       }
-      return;
+    } catch (_) {
+      location.href = computeHomeUrl() + (currentRole === 'teacher' ? 'tasks/my_students.html' : 'tasks/stats.html');
     }
-    alert('Статистика — скоро будет');
   });
 
   let supabaseMod = null;
