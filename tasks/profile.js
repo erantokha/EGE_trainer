@@ -110,10 +110,11 @@ function updateHeaderName(firstName) {
   if (btn) btn.textContent = name;
 }
 
-function mountActions({ onEdit, onSave, onCancel }) {
+function mountActions({ onEdit, onSave, onCancel, onDelete }) {
   const editBtn = $('#editProfileBtn');
   const saveBtn = $('#saveProfileBtn');
   const cancelBtn = $('#cancelProfileBtn');
+  const deleteBtn = $('#deleteProfileBtn');
 
   if (editBtn && !editBtn.dataset.wired) {
     editBtn.dataset.wired = '1';
@@ -137,18 +138,73 @@ function mountActions({ onEdit, onSave, onCancel }) {
     });
   }
 
-  return { editBtn, saveBtn, cancelBtn };
+  if (deleteBtn && !deleteBtn.dataset.wired) {
+    deleteBtn.dataset.wired = '1';
+    deleteBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      onDelete?.();
+    });
+  }
+
+  return { editBtn, saveBtn, cancelBtn, deleteBtn };
 }
 
 function setActionsMode(mode) {
   const editBtn = $('#editProfileBtn');
   const saveBtn = $('#saveProfileBtn');
   const cancelBtn = $('#cancelProfileBtn');
+  const deleteBtn = $('#deleteProfileBtn');
 
   const isEdit = mode === 'edit';
   if (editBtn) editBtn.classList.toggle('hidden', isEdit);
   if (saveBtn) saveBtn.classList.toggle('hidden', !isEdit);
   if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEdit);
+  if (deleteBtn) deleteBtn.classList.toggle('hidden', isEdit);
+}
+
+async function deleteMyAccountRest(accessToken) {
+  if (!accessToken) throw new Error('AUTH_REQUIRED');
+  const { CONFIG } = await import(withV('../app/config.js'));
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  if (!base) throw new Error('SUPABASE_URL_MISSING');
+
+  const url = `${base}/rest/v1/rpc/delete_my_account`;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 15000);
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        apikey: CONFIG.supabase.anonKey,
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({}),
+      signal: ctrl.signal,
+    });
+
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+    if (!res.ok) {
+      const msg =
+        (data && (data?.message || data?.msg || data?.error_description || data?.error || data?.hint)) ||
+        (text && text.slice(0, 300)) ||
+        `HTTP_${res.status}`;
+      const err = new Error(String(msg));
+      err.status = res.status;
+      throw err;
+    }
+
+    return data;
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('TIMEOUT');
+    throw e;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 function makeInput(id, value) {
@@ -230,7 +286,7 @@ async function saveProfile(supabase, payload) {
 }
 
 async function main() {
-  const { supabase, getSession } = await import(withV('../app/providers/supabase.js'));
+  const { supabase, getSession, signOut } = await import(withV('../app/providers/supabase.js'));
 
   const session = await getSession().catch(() => null);
   if (!session) {
@@ -336,6 +392,45 @@ async function main() {
       } catch (e) {
         console.warn('Profile save error', e);
         setStatus(String(e?.message || 'Не удалось сохранить.'), true);
+      }
+    },
+    onDelete: async () => {
+      if (!confirm('Удалить профиль? Все данные будут потеряны.')) return;
+      if (!confirm('Подтвердите удаление профиля. Это действие необратимо.')) return;
+
+      setStatus('Удаляем профиль...');
+      try {
+        if (actions?.editBtn) actions.editBtn.disabled = true;
+        if (actions?.saveBtn) actions.saveBtn.disabled = true;
+        if (actions?.cancelBtn) actions.cancelBtn.disabled = true;
+        if (actions?.deleteBtn) actions.deleteBtn.disabled = true;
+
+        await deleteMyAccountRest(session?.access_token);
+
+        // Лучшее усилие: локально выйти и почистить токены.
+        await signOut({ timeoutMs: 700 });
+
+        // После удаления учётки отправляем на страницу входа.
+        location.href = buildLoginUrl(computeHomeUrl());
+      } catch (e) {
+        console.warn('Delete account error', e);
+        const msg = String(e?.message || 'Не удалось удалить профиль.');
+
+        // Частый кейс на этом шаге: RPC ещё не создана в Supabase.
+        if (String(e?.status || '') === '404' || /function .*delete_my_account/i.test(msg)) {
+          setStatus('Функция удаления ещё не настроена в Supabase (RPC delete_my_account).', true);
+        } else if (msg === 'TIMEOUT') {
+          setStatus('Превышено время ожидания. Попробуйте ещё раз или обновите страницу.', true);
+        } else if (msg === 'AUTH_REQUIRED') {
+          setStatus('Сессия не найдена. Перезайдите в аккаунт.', true);
+        } else {
+          setStatus(msg, true);
+        }
+      } finally {
+        if (actions?.editBtn) actions.editBtn.disabled = false;
+        if (actions?.saveBtn) actions.saveBtn.disabled = false;
+        if (actions?.cancelBtn) actions.cancelBtn.disabled = false;
+        if (actions?.deleteBtn) actions.deleteBtn.disabled = false;
       }
     },
   });

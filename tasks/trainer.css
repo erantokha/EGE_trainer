@@ -109,6 +109,15 @@ button{
 button:hover{filter:brightness(1.06)}
 button:disabled{opacity:.55;cursor:not-allowed}
 
+/* опасные действия */
+.btn-danger{
+  background:var(--danger);
+  border-color:var(--danger);
+  color:#fff;
+}
+.btn-danger:hover{filter:brightness(1.06)}
+.btn-danger:disabled{opacity:.6;cursor:not-allowed}
+
 /* поля */
 input[type="text"],input[type="number"]{
   background:var(--muted);
