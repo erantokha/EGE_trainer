@@ -1174,3 +1174,52 @@ input:focus{
   color: var(--danger);
 }
 
+
+/* ===== Patch2: students/stats UI ===== */
+
+.muted { color: var(--text-dim); }
+
+.students-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  gap:10px;
+}
+
+.student-card{ cursor:pointer; padding:12px; }
+.student-title{ font-size:18px; margin-bottom:6px; }
+
+.student-metrics{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+.student-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:10px;
+}
+
+.student-problem{
+  border-color: rgba(220,38,38,.55);
+  box-shadow: 0 0 0 2px rgba(220,38,38,.08);
+}
+
+.stat-mini{
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:8px 10px;
+  min-width:150px;
+  background: rgba(148,163,184,.08);
+}
+
+.stat-mini-label{ font-size:11px; color: var(--text-dim); margin-bottom:2px; }
+.stat-mini-value{ font-size:13px; }
+
+.stat-gray   { background: rgba(148,163,184,.10); }
+.stat-green  { background: rgba(5,150,105,.12); border-color: rgba(5,150,105,.35); }
+.stat-lime   { background: rgba(132,204,22,.14); border-color: rgba(132,204,22,.35); }
+.stat-yellow { background: rgba(234,179,8,.14); border-color: rgba(234,179,8,.35); }
+.stat-red    { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.35); }
