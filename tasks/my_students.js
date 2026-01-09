@@ -70,29 +70,153 @@ function el(tag, attrs = {}, children = []) {
   return e;
 }
 
+/* ===== Patch2: расширенная сводка по ученикам (teacher_students_summary) ===== */
+
+function safeInt(x, def = 0) {
+  const n = Number(x);
+  return Number.isFinite(n) ? Math.trunc(n) : def;
+}
+
+function pct(total, correct) {
+  const t = safeInt(total, 0);
+  const c = safeInt(correct, 0);
+  if (t <= 0) return null;
+  return Math.round((c / t) * 100);
+}
+
+function clsByPct(p) {
+  if (p === null) return 'stat-gray';
+  if (p >= 90) return 'stat-green';
+  if (p >= 70) return 'stat-lime';
+  if (p >= 50) return 'stat-yellow';
+  return 'stat-red';
+}
+
+function fmtDateTime(ts) {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    if (!isFinite(d.getTime())) return '—';
+    return d.toLocaleString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch (_) {
+    return '—';
+  }
+}
+
+function miniBadge(label, valueText, p) {
+  const b = el('div', { class: `stat-mini ${clsByPct(p)}` });
+  b.appendChild(el('div', { class: 'stat-mini-label', text: label }));
+  b.appendChild(el('div', { class: 'stat-mini-value', text: valueText }));
+  return b;
+}
+
+function normSource(v) {
+  const s = String(v || 'all').trim().toLowerCase();
+  if (s === 'all') return 'all';
+  if (s === 'hw' || s === 'homework') return 'hw'; // на случай старых значений в html
+  if (s === 'test') return 'test';
+  return 'all';
+}
+
+async function getTotalTopicsCount() {
+  try {
+    const url = new URL('../content/tasks/index.json', location.href);
+    const res = await fetch(url.toString(), { cache: 'no-cache' });
+    if (!res.ok) return 0;
+    const items = await res.json();
+    if (!Array.isArray(items)) return 0;
+
+    let total = 0;
+    for (const it of items) {
+      const id = String(it?.id || '').trim();
+      const title = String(it?.title || '').trim();
+      const type = String(it?.type || '').trim();
+      const hidden = !!it?.hidden;
+      const enabled = (it?.enabled === undefined) ? true : !!it?.enabled;
+
+      if (!id || !title) continue;
+      if (type === 'group') continue;
+      if (hidden || !enabled) continue;
+      if (/^\d+\.\d+/.test(id)) total += 1;
+    }
+    return total;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function isProblemStudent(st) {
+  const sum = st?.__summary || null;
+  if (!sum) return false;
+
+  const lastSeenAt = sum?.last_seen_at ? new Date(sum.last_seen_at) : null;
+  const now = Date.now();
+  const lastSeenDays = (lastSeenAt && isFinite(lastSeenAt.getTime()))
+    ? Math.floor((now - lastSeenAt.getTime()) / 86400000)
+    : 9999;
+
+  if (lastSeenDays > 7) return true;
+
+  const l10t = safeInt(sum?.last10_total, 0);
+  const l10c = safeInt(sum?.last10_correct, 0);
+  if (l10t >= 5) {
+    const p = pct(l10t, l10c);
+    if (p !== null && p < 70) return true;
+  }
+
+  return false;
+}
+
+let __studentsRaw = [];
+let __totalTopics = 0;
+let __currentDays = 7;
+let __currentSource = 'all';
+
+function applyFiltersAndRender() {
+  const term = String($('#searchStudents')?.value || '').trim().toLowerCase();
+  const onlyProblems = !!$('#filterProblems')?.checked;
+
+  let list = Array.isArray(__studentsRaw) ? [...__studentsRaw] : [];
+
+  if (term) {
+    list = list.filter((st) => {
+      const name = studentLabel(st).toLowerCase();
+      const email = String(st.email || st.student_email || '').trim().toLowerCase();
+      return name.includes(term) || email.includes(term);
+    });
+  }
+
+  if (onlyProblems) {
+    list = list.filter((st) => isProblemStudent(st));
+  }
+
+  list.sort((a, b) => {
+    const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
+    const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
+    const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
+    const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
+    return bt - at;
+  });
+
+  renderStudents(list);
+}
+
 function renderStudents(list) {
   const wrap = $('#studentsList');
   if (!wrap) return;
   wrap.innerHTML = '';
 
   if (!Array.isArray(list) || list.length === 0) {
-    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников. Нажмите «Новый ученик» и добавьте по email.' }));
+    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников.' }));
     return;
   }
 
-  const grid = el('div', {});
-  grid.style.display = 'grid';
-  grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(260px, 1fr))';
-  grid.style.gap = '10px';
+  const grid = el('div', { class: 'students-grid' });
 
   for (const st of list) {
-    const card = el('div', { class: 'panel' });
-    card.style.cursor = 'pointer';
-    card.style.padding = '12px';
+    const card = el('div', { class: 'panel student-card' });
 
-    const title = el('div', { text: studentLabel(st) });
-    title.style.fontSize = '18px';
-    title.style.marginBottom = '6px';
+    const title = el('div', { class: 'student-title', text: studentLabel(st) });
 
     const meta = [];
     const email = String(st.email || st.student_email || '').trim();
@@ -100,16 +224,28 @@ function renderStudents(list) {
     const grade = String(st.student_grade || st.grade || '').trim();
     if (grade) meta.push(`Класс: ${grade}`);
 
-    const sub = el('div', { class: 'muted', text: meta.join(' • ') || 'Открыть статистику и работы' });
+    const sum = st.__summary || null;
+    const lastSeen = sum?.last_seen_at ? fmtDateTime(sum.last_seen_at) : '—';
+    const sub = el('div', { class: 'muted', text: (meta.join(' • ') || '') + (meta.length ? ' • ' : '') + `Последняя активность: ${lastSeen}` });
 
-    card.appendChild(title);
-    card.appendChild(sub);
+    const metrics = el('div', { class: 'student-metrics' });
 
-    const actions = el('div', {});
-    actions.style.display = 'flex';
-    actions.style.gap = '8px';
-    actions.style.justifyContent = 'flex-end';
-    actions.style.marginTop = '10px';
+    const activity = safeInt(sum?.activity_total, 0);
+    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
+
+    const l10t = safeInt(sum?.last10_total, 0);
+    const l10c = safeInt(sum?.last10_correct, 0);
+    const pForm = pct(l10t, l10c);
+    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
+    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
+
+    const covered = safeInt(sum?.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
+    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
+    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
+
+    const actions = el('div', { class: 'student-actions' });
 
     const openBtn = el('button', { class: 'btn', text: 'Открыть' });
     openBtn.type = 'button';
@@ -119,6 +255,10 @@ function renderStudents(list) {
 
     actions.appendChild(openBtn);
     actions.appendChild(delBtn);
+
+    card.appendChild(title);
+    card.appendChild(sub);
+    card.appendChild(metrics);
     card.appendChild(actions);
 
     const sid = String(st.student_id || st.id || '').trim();
@@ -128,7 +268,6 @@ function renderStudents(list) {
       const url = new URL('./student.html', location.href);
       url.searchParams.set('student_id', sid);
 
-      // Чтобы на следующей странице можно было быстро отрисовать имя, сохраним в sessionStorage.
       try {
         sessionStorage.setItem(`teacher:last_student:${sid}`, JSON.stringify({
           student_id: sid,
@@ -142,11 +281,9 @@ function renderStudents(list) {
       location.href = url.toString();
     }
 
-    // Клик по карточке и кнопке "Открыть"
     card.addEventListener('click', () => goOpen());
     openBtn.addEventListener('click', (e) => { e.stopPropagation(); goOpen(); });
 
-    // Удаление: удаляем только связь teacher-student (ученик исчезает из списка)
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!sid) return;
@@ -166,13 +303,15 @@ function renderStudents(list) {
         }
 
         const ok = await removeStudent(cfg, a2.access_token, sid);
-        if (ok) {
-          await loadStudents(cfg, a2.access_token);
-        }
+        if (ok) await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
       } finally {
         delBtn.disabled = false;
       }
     });
+
+    if (isProblemStudent(st)) {
+      card.classList.add('student-problem');
+    }
 
     grid.appendChild(card);
   }
@@ -359,18 +498,48 @@ async function getMyRoleViaRest(cfg, accessToken, uid) {
   return role.trim().toLowerCase();
 }
 
-async function loadStudents(cfg, accessToken) {
+async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {}) {
   const status = $('#pageStatus');
+  __currentDays = safeInt(days, 7);
+  __currentSource = normSource(source);
+
   setStatus(status, 'Загружаем список...', { sticky: true });
 
   try {
-    const data = await rpc(cfg, accessToken, 'list_my_students', {});
+    const [students, summary] = await Promise.all([
+      rpc(cfg, accessToken, 'list_my_students', {}),
+      rpc(cfg, accessToken, 'teacher_students_summary', { p_days: __currentDays, p_source: __currentSource })
+        .catch((e) => {
+          console.warn('teacher_students_summary error', e);
+          return [];
+        }),
+    ]);
+
+    const sumMap = new Map();
+    if (Array.isArray(summary)) {
+      for (const r of summary) {
+        const sid = String(r?.student_id || '').trim();
+        if (!sid) continue;
+        sumMap.set(sid, r);
+      }
+    }
+
+    __studentsRaw = (Array.isArray(students) ? students : []).map((st) => {
+      const sid = String(st?.student_id || st?.id || '').trim();
+      return { ...st, __summary: sid ? (sumMap.get(sid) || null) : null };
+    });
+
+    if (!__totalTopics) {
+      __totalTopics = await getTotalTopicsCount();
+    }
+
     setStatus(status, '');
-    renderStudents(Array.isArray(data) ? data : []);
+    applyFiltersAndRender();
   } catch (e) {
-    console.warn('list_my_students error', e);
+    console.warn('loadStudents error', e);
     setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
-    renderStudents([]);
+    __studentsRaw = [];
+    applyFiltersAndRender();
   }
 }
 
@@ -414,6 +583,12 @@ async function main() {
   const addForm = $('#addStudentForm');
   const emailInput = $('#addStudentEmail');
 
+  const searchInput = $('#searchStudents');
+  const problemsChk = $('#filterProblems');
+  const daysSel = $('#summaryDays');
+  const sourceSel = $('#summarySource');
+  const refreshBtn = $('#refreshStudentsBtn');
+
   try {
     const cfg = await getConfig();
 
@@ -431,7 +606,32 @@ async function main() {
       return;
     }
 
-    
+    __cfgGlobal = cfg;
+
+    const days = daysSel ? safeInt(daysSel.value, 7) : 7;
+    const source = sourceSel ? normSource(sourceSel.value) : 'all';
+    __currentDays = days;
+    __currentSource = source;
+
+    await loadStudents(cfg, auth.access_token, { days, source });
+
+    searchInput?.addEventListener('input', () => applyFiltersAndRender());
+    problemsChk?.addEventListener('change', () => applyFiltersAndRender());
+
+    refreshBtn?.addEventListener('click', async () => {
+      const a2 = await ensureAuth(cfg);
+      if (!a2?.access_token) {
+        setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
+        return;
+      }
+      const d = daysSel ? safeInt(daysSel.value, 7) : __currentDays;
+      const s = sourceSel ? normSource(sourceSel.value) : __currentSource;
+      await loadStudents(cfg, a2.access_token, { days: d, source: s });
+    });
+
+    daysSel?.addEventListener('change', async () => refreshBtn?.click());
+    sourceSel?.addEventListener('change', async () => refreshBtn?.click());
+
     // Форма добавления ученика разворачивается по кнопке "Новый ученик"
     if (addForm) addForm.style.display = 'none';
     if (toggleBtn) {
@@ -444,15 +644,13 @@ async function main() {
         }
       });
     }
-await loadStudents(cfg, auth.access_token);
 
     addBtn?.addEventListener('click', async () => {
       if (addBtn) addBtn.disabled = true;
       try {
         const email = String(emailInput?.value || '').trim().toLowerCase();
         if (!email) {
-          const addStatus = $('#addStatus');
-          setStatus(addStatus, 'Введите email.');
+          setStatus($('#addStatus'), 'Введите email.');
           return;
         }
 
@@ -465,14 +663,13 @@ await loadStudents(cfg, auth.access_token);
         const ok = await addStudent(cfg, a2.access_token, email);
         if (ok) {
           try { emailInput.value = ''; } catch (_) {}
-          await loadStudents(cfg, a2.access_token);
+          await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
         }
       } finally {
         if (addBtn) addBtn.disabled = false;
       }
     });
 
-    // Enter в поле email
     emailInput?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
