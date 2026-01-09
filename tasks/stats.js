@@ -11,7 +11,8 @@
 // - фильтры период/источник
 // - кнопка "Тренировать слабые места" (создаёт выбор topics и открывает trainer.html)
 
-let buildStatsUI, renderDashboard, loadCatalog, pickWeakTopics;
+let buildStatsUI, renderDashboard, loadCatalog;
+let buildSmartPlan, saveSmartMode, clearSmartMode;
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -196,15 +197,46 @@ function computeHomeUrl() {
   return location.origin + (base.endsWith('/') ? base : (base + '/'));
 }
 
-function openTrainerWithTopics(topics) {
+function openTrainerSmartPlan(plan, meta = {}) {
+  // 1) чистим старые данные «умного режима»
+  try { clearSmartMode?.(); } catch (_) {}
+
+  // 2) сохраняем smart_mode (для устойчивости к обновлению страницы)
+  const smart = {
+    v: 1,
+    created_at: new Date().toISOString(),
+    entry: 'stats',
+    meta: {
+      days: meta.days,
+      source: meta.source,
+      metric: plan.metric,
+      min_total: plan.min_total,
+    },
+    plan: {
+      topics: plan.topics || {}, // topic_id -> count
+      target_total: plan.target_total || 0,
+    },
+    questions: [],
+    progress: {
+      total_target: plan.target_total || 0,
+      total_done: 0,
+      total_correct: 0,
+      per_topic: {},
+    },
+  };
+  try { saveSmartMode?.(smart); } catch (_) {}
+
+  // 3) для совместимости со старым trainer: кладём topics в tasks_selection_v1
   const selection = {
-    topics,
-    sections: {}, // не используем
+    topics: plan.topics || {},
+    sections: {},
     mode: 'test',
     shuffle: true,
+    smart: true,
   };
   try { sessionStorage.setItem('tasks_selection_v1', JSON.stringify(selection)); } catch (_) {}
-  const url = new URL('./trainer.html', location.href).toString();
+
+  const url = new URL('./trainer.html?smart=1', location.href).toString();
   location.href = url;
 }
 
@@ -214,7 +246,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     buildStatsUI = mod.buildStatsUI;
     renderDashboard = mod.renderDashboard;
     loadCatalog = mod.loadCatalog;
-    pickWeakTopics = mod.pickWeakTopics;
+  } catch (e) {
+    console.error(e);
+    const root = document.getElementById('statsRoot');
+    if (root) root.textContent = 'Ошибка загрузки интерфейса статистики.';
+    return;
+  }
+
+  try {
+    const mod = await import(withV('./smart_select.js'));
+    buildSmartPlan = mod.buildSmartPlan;
+  } catch (e) {
+    console.error(e);
+    const root = document.getElementById('statsRoot');
+    if (root) root.textContent = 'Ошибка загрузки умной тренировки.';
+    return;
+  }
+
+  try {
+    const mod = await import(withV('./smart_mode.js'));
+    saveSmartMode = mod.saveSmartMode;
+    clearSmartMode = mod.clearSmartMode;
   } catch (e) {
     console.error(e);
     const root = document.getElementById('statsRoot');
@@ -291,12 +343,34 @@ document.addEventListener('DOMContentLoaded', async () => {
       setStatus(ui.statusEl, 'Сначала загрузите статистику.', 'err');
       return;
     }
-    const topics = pickWeakTopics(dash, { metric: 'period', minTotal: 3, limit: 6 });
-    if (!topics.length) {
-      setStatus(ui.statusEl, 'Слабые места не найдены (в периоде мало данных или всё зелёное).', 'ok');
+
+    // Список всех доступных topic_id (для fallback на «непокрытые»)
+    const allTopicIds = (() => {
+      const m = catalog?.topicsBySection;
+      if (!m || typeof m.forEach !== 'function') return [];
+      const out = [];
+      m.forEach(arr => {
+        for (const x of (arr || [])) out.push(String(x?.id || '').trim());
+      });
+      return out.filter(Boolean);
+    })();
+
+    const plan = buildSmartPlan(dash, {
+      metric: 'period',
+      minTotal: 3,
+      maxTopics: 5,
+      targetTotal: 10,
+      perTopicCap: 4,
+      preferUncoveredIfEmpty: true,
+      allTopicIds,
+    });
+
+    if (!plan || !plan.topic_ids || !plan.topic_ids.length) {
+      setStatus(ui.statusEl, 'Не удалось подобрать темы для тренировки (мало данных).', 'err');
       return;
     }
-    openTrainerWithTopics(topics);
+
+    openTrainerSmartPlan(plan, { days: ui._lastDays, source: ui._lastSource });
   });
 
   // стартовая загрузка

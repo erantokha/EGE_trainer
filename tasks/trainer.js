@@ -1,9 +1,10 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-09-1';
-import { getSession } from '../app/providers/supabase.js?v=2026-01-09-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-06-1';
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-06-1';
+
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-09-3A';
 
 
 import { withBuild } from '../app/build.js?v=2026-01-06-1';
@@ -113,6 +114,7 @@ window.tasksPerfReport = tasksPerfReport;
 
 let CATALOG = null;
 let SECTIONS = [];
+let TOPIC_BY_ID = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessionStorage)
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
@@ -120,12 +122,21 @@ let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из ses
 let SESSION = null;
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
+let SMART = null;
+let SMART_ACTIVE = false;
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
   $('#restart')?.addEventListener('click', () => {
+    let smart = false;
+    try {
+      const raw = sessionStorage.getItem('tasks_selection_v1');
+      smart = !!JSON.parse(raw || '{}')?.smart;
+    } catch (_) {}
     sessionStorage.removeItem('tasks_selection_v1');
-    location.href = new URL('../', location.href).toString();
+    try { clearSmartMode(); } catch (_) {}
+    location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
 
   // Прячем интерфейс тренажёра и показываем оверлей загрузки,
@@ -145,10 +156,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     overlay.classList.remove('hidden');
   }
 
-  const rawSel = sessionStorage.getItem('tasks_selection_v1');
+  // smart_mode (если запуск из статистики)
+  SMART = loadSmartMode();
+  const urlSmart = new URLSearchParams(location.search).get('smart') === '1';
+
+  let rawSel = sessionStorage.getItem('tasks_selection_v1');
+  if (!rawSel && urlSmart && isSmartModeActive(SMART)) {
+    // Если selection отсутствует, но есть smart_mode — создаём минимальный selection.
+    const s = ensureSmartDefaults(SMART);
+    const selection = {
+      topics: s.plan.topics || {},
+      sections: {},
+      mode: 'test',
+      shuffle: true,
+      smart: true,
+    };
+    try {
+      sessionStorage.setItem('tasks_selection_v1', JSON.stringify(selection));
+      rawSel = JSON.stringify(selection);
+    } catch (_) {
+      rawSel = null;
+    }
+  }
+
   if (!rawSel) {
     // если выбор не найден – отправляем обратно на picker
-    location.href = new URL('../', location.href).toString();
+    location.href = new URL(urlSmart ? './stats.html' : '../', location.href).toString();
     return;
   }
 
@@ -167,17 +200,35 @@ document.addEventListener('DOMContentLoaded', async () => {
   // флаг «перемешать задачи» (по умолчанию false, если поле отсутствует)
   SHUFFLE_TASKS = !!sel.shuffle;
 
+  // Активируем smart-режим только если:
+  // - selection помечен как smart
+  // - в sessionStorage есть корректный smart_mode
+  SMART_ACTIVE = !!sel.smart && urlSmart && isSmartModeActive(SMART);
+  if (SMART_ACTIVE) SMART = ensureSmartDefaults(SMART);
+
   try {
     perfMark('loadCatalog:start');
     await loadCatalog();
     perfMark('loadCatalog:done');
 
-    perfMark('pickPrototypes:start');
-    const questions = await pickPrototypes();
-    perfMark('pickPrototypes:done');
+    let questions;
+    if (SMART_ACTIVE) {
+      perfMark('pickSmart:start');
+      questions = await getOrCreateSmartQuestions();
+      perfMark('pickSmart:done');
+    } else {
+      perfMark('pickPrototypes:start');
+      questions = await pickPrototypes();
+      perfMark('pickPrototypes:done');
+    }
 
     perfMark('startTestSession:start');
     await startTestSession(questions);
+    if (SMART_ACTIVE) {
+      // прогресс/панель после создания SESSION
+      smartSyncProgress();
+      renderSmartPanel();
+    }
     perfMark('startTestSession:done');
   } catch (e) {
     console.error(e);
@@ -227,6 +278,14 @@ async function loadCatalog() {
   }
   sections.sort(byId);
   SECTIONS = sections;
+
+  // быстрый поиск topic по id
+  TOPIC_BY_ID = new Map();
+  for (const s of SECTIONS) {
+    for (const t of (s.topics || [])) {
+      TOPIC_BY_ID.set(String(t.id), t);
+    }
+  }
 }
 
 // ---------- выбор задач ----------
@@ -315,6 +374,180 @@ function distributeNonNegative(buckets, total) {
     i++;
   }
   return out;
+}
+
+// ---------- Patch 3A: smart questions (устойчивость к обновлению) ----------
+function normalizeSmartRef(x) {
+  const topic_id = String(x?.topic_id || x?.topicId || '').trim();
+  const question_id = String(x?.question_id || x?.questionId || '').trim();
+  if (!topic_id || !question_id) return null;
+  return { topic_id, question_id };
+}
+
+function findProtoById(man, qid) {
+  for (const t of (man?.types || [])) {
+    for (const p of (t?.prototypes || [])) {
+      if (String(p?.id) === qid) {
+        return { type: t, proto: p };
+      }
+    }
+  }
+  return null;
+}
+
+async function buildQuestionsFromSmartRefs(refs) {
+  const out = [];
+  for (const r0 of refs || []) {
+    const r = normalizeSmartRef(r0);
+    if (!r) continue;
+    const topic = TOPIC_BY_ID.get(r.topic_id) || SECTIONS.flatMap(s => (s.topics || [])).find(t => String(t.id) === r.topic_id);
+    if (!topic) continue;
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+    const found = findProtoById(man, r.question_id);
+    if (!found) continue;
+    out.push(buildQuestion(man, found.type, found.proto));
+  }
+  return out;
+}
+
+async function getOrCreateSmartQuestions() {
+  SMART = ensureSmartDefaults(SMART);
+
+  // если ранее уже выбирали набор вопросов — восстанавливаем его
+  const refs = Array.isArray(SMART.questions) ? SMART.questions.map(normalizeSmartRef).filter(Boolean) : [];
+  if (refs.length) {
+    const restored = await buildQuestionsFromSmartRefs(refs);
+    if (restored.length === refs.length) {
+      return restored;
+    }
+    // если часть задач пропала (обновился контент) — сбрасываем список и выбираем заново
+    SMART.questions = [];
+  }
+
+  // первичный выбор через существующую логику pickPrototypes
+  // (CHOICE_TOPICS уже заполнен из selection)
+  const questions = await pickPrototypes();
+  SMART.questions = questions.map(q => ({ topic_id: q.topic_id, question_id: q.question_id }));
+
+  // инициализируем цель
+  SMART.progress = SMART.progress || {};
+  SMART.progress.total_target = questions.length;
+  SMART.progress.total_done = 0;
+  SMART.progress.total_correct = 0;
+  SMART.progress.per_topic = {};
+
+  saveSmartMode(SMART);
+  return questions;
+}
+
+function smartSyncProgress() {
+  if (!SMART_ACTIVE || !SMART) return;
+  SMART = ensureSmartDefaults(SMART);
+  if (!SESSION || !Array.isArray(SESSION.questions)) return;
+
+  const per = {};
+  let done = 0;
+  let correct = 0;
+
+  // целевые значения (target) берём по фактическому набору вопросов, чтобы не расходиться
+  const targetPerTopic = {};
+  for (const q of SESSION.questions) {
+    const tid = String(q.topic_id || '').trim();
+    if (!tid) continue;
+    targetPerTopic[tid] = (targetPerTopic[tid] || 0) + 1;
+  }
+
+  for (const q of SESSION.questions) {
+    const tid = String(q.topic_id || '').trim();
+    if (!tid) continue;
+    if (!per[tid]) per[tid] = { done: 0, correct: 0, target: targetPerTopic[tid] || 0 };
+    if (q.correct !== null && q.correct !== undefined) {
+      per[tid].done += 1;
+      done += 1;
+      if (q.correct === true) {
+        per[tid].correct += 1;
+        correct += 1;
+      }
+    }
+  }
+
+  SMART.progress.total_target = SESSION.questions.length;
+  SMART.progress.total_done = done;
+  SMART.progress.total_correct = correct;
+  SMART.progress.per_topic = per;
+  saveSmartMode(SMART);
+}
+
+function renderSmartPanel() {
+  const el = $('#smartPanel');
+  if (!el) return;
+  if (!SMART_ACTIVE || !SMART) {
+    el.classList.add('hidden');
+    el.innerHTML = '';
+    return;
+  }
+
+  SMART = ensureSmartDefaults(SMART);
+  const prog = SMART.progress || {};
+  const total = Number(prog.total_target) || 0;
+  const done = Number(prog.total_done) || 0;
+  const ok = Number(prog.total_correct) || 0;
+
+  el.classList.remove('hidden');
+  el.innerHTML = '';
+
+  const row = document.createElement('div');
+  row.className = 'smart-row';
+
+  const left = document.createElement('div');
+  const title = document.createElement('div');
+  title.className = 'smart-title';
+  title.textContent = 'Умная тренировка: слабые места';
+  const sub = document.createElement('div');
+  sub.className = 'smart-sub';
+  sub.textContent = `Прогресс: ${done}/${total} · верно: ${ok}`;
+  left.appendChild(title);
+  left.appendChild(sub);
+
+  const actions = document.createElement('div');
+  actions.className = 'smart-actions';
+
+  const btnStats = document.createElement('button');
+  btnStats.type = 'button';
+  btnStats.textContent = 'К статистике';
+  btnStats.addEventListener('click', () => {
+    location.href = new URL('./stats.html', location.href).toString();
+  });
+
+  const btnReset = document.createElement('button');
+  btnReset.type = 'button';
+  btnReset.textContent = 'Сбросить';
+  btnReset.addEventListener('click', () => {
+    sessionStorage.removeItem('tasks_selection_v1');
+    clearSmartMode();
+    location.href = new URL('./stats.html', location.href).toString();
+  });
+
+  actions.appendChild(btnStats);
+  actions.appendChild(btnReset);
+
+  row.appendChild(left);
+  row.appendChild(actions);
+  el.appendChild(row);
+
+  const tags = document.createElement('div');
+  tags.className = 'smart-tags';
+  const per = prog.per_topic || {};
+  const ids = Object.keys(per).sort(compareId);
+  for (const tid of ids) {
+    const t = per[tid] || {};
+    const chip = document.createElement('span');
+    chip.className = 'smart-tag';
+    chip.textContent = `${tid} ${Number(t.done)||0}/${Number(t.target)||0}`;
+    tags.appendChild(chip);
+  }
+  if (ids.length) el.appendChild(tags);
 }
 function totalUniqueCap(man) {
   return (man.types || []).reduce(
@@ -666,6 +899,10 @@ function skipCurrent() {
     else if ('value' in q.answer) correct_text = String(q.answer.value);
   }
   q.correct_text = correct_text;
+  if (SMART_ACTIVE) {
+    smartSyncProgress();
+    renderSmartPanel();
+  }
   goto(+1);
 }
 
@@ -699,6 +936,11 @@ function onCheck() {
   } else {
     r.textContent = `Неверно ✖. Правильный ответ: ${correct_text}`;
     r.className = 'result bad';
+  }
+
+  if (SMART_ACTIVE) {
+    smartSyncProgress();
+    renderSmartPanel();
   }
 }
 
@@ -836,6 +1078,11 @@ async function finishSession() {
   stopTick();
   saveTimeForCurrent();
 
+  if (SMART_ACTIVE) {
+    smartSyncProgress();
+    renderSmartPanel();
+  }
+
   const total = SESSION.questions.length;
   const correct = SESSION.questions.reduce(
     (s, q) => s + (q.correct ? 1 : 0),
@@ -873,31 +1120,12 @@ async function finishSession() {
     created_at: new Date().toISOString(),
   };
 
-  // Сохраняем статистику только если пользователь вошёл в аккаунт.
-  // (После ужесточения RLS запись anon-пользователя запрещена.)
   let ok = true;
   let error = null;
-  let skipped = false;
-
   try {
-    const session = await getSession().catch(() => null);
-    if (session?.user?.id) {
-      attemptRow.student_id = session.user.id;
-      attemptRow.student_email = session.user.email || null;
-      const um = session.user.user_metadata || {};
-      attemptRow.student_name =
-        um.full_name ||
-        um.name ||
-        [um.given_name, um.family_name].filter(Boolean).join(' ') ||
-        null;
-
-      const res = await insertAttempt(attemptRow);
-      ok = res.ok;
-      error = res.error;
-      skipped = !!res.skipped;
-    } else {
-      skipped = true;
-    }
+    const res = await insertAttempt(attemptRow);
+    ok = res.ok;
+    error = res.error;
   } catch (e) {
     ok = false;
     error = e;
@@ -918,16 +1146,7 @@ async function finishSession() {
     download('tasks_session.csv', csv);
   };
 
-  if (skipped) {
-    const summaryPanel = $('#summary .panel') || $('#summary');
-    if (summaryPanel) {
-      const note = document.createElement('div');
-      note.style.color = '#9aa0a6';
-      note.style.marginTop = '8px';
-      note.textContent = 'Статистика не сохранена: войдите в аккаунт, чтобы сохранять результаты.';
-      summaryPanel.appendChild(note);
-    }
-  } else if (!ok) {
+  if (!ok) {
     console.warn('Supabase insert error', error);
     const summaryPanel = $('#summary .panel') || $('#summary');
     if (summaryPanel) {
@@ -935,11 +1154,10 @@ async function finishSession() {
       warn.style.color = '#ff6b6b';
       warn.style.marginTop = '8px';
       warn.textContent =
-        'Внимание: запись в Supabase не выполнена. Проверьте RLS (policies) для таблицы attempts.';
+        'Внимание: запись в Supabase не выполнена. Проверьте RLS и ключи в app/config.js.';
       summaryPanel.appendChild(warn);
     }
   }
-
 }
 
 // ---------- утилиты ----------
