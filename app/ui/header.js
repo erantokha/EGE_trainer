@@ -345,7 +345,7 @@ export async function initHeader(opts = {}) {
       location.href = computeHomeUrl() + 'tasks/profile.html';
     }
   });
-  menuStats?.addEventListener('click', () => {
+  ui.menuStats?.addEventListener('click', () => {
     closeMenu();
     try {
       const home = computeHomeUrl();
