@@ -1,116 +1,135 @@
-
 # Supabase: контракт и данные
 
 Оглавление
-- Общая модель доступа
-- Таблицы и смысл
+- Общая модель доступа (RLS и роли)
+- Таблицы public и смысл
 - Связи (ER диаграмма)
-- RPC функции и кто вызывает
+- Триггеры и answer_events
+- RPC функции: каталог и кто вызывает
 - Auth и хранение сессии на фронте
 - Типовые ошибки (PKCE, redirect, RLS)
 - Матрица: экран → таблицы/RPC
 
-Источник схемы: supabase_schema_overview.md (в корне репозитория).
+Источник схемы: [supabase_schema_overview.md](../../supabase_schema_overview.md).
 
-## Общая модель доступа
+## Общая модель доступа (RLS и роли)
 
-- Гость: может открыть контент и UI, но не может писать результаты/начинать ДЗ.
-- Ученик: решает тренажёр и ДЗ, видит свою статистику.
-- Учитель: создаёт ДЗ, управляет связью с учениками, видит статистику учеников.
+Роли приложения (логические, как они используются в коде и схемах):
+- student: решает задачи, сдаёт ДЗ, видит только свои данные
+- teacher: создаёт ДЗ, видит сдачи своих ДЗ, смотрит статистику учеников из `teacher_students`
+- admin: роль фигурирует в схемах (в `profiles.role`), но отдельный набор политик здесь не описан
 
-RLS включён на ключевых таблицах (homeworks, homework_links, homework_attempts, attempts, answer_events, profiles, teachers, teacher_students). Критичные операции сделаны через RPC, чтобы не давать фронту “сырые” права.
+Ключевые привязки:
+- всё, что принадлежит учителю: `owner_id = auth.uid()` (например, `homeworks`, `homework_links`)
+- всё, что принадлежит ученику: `student_id = auth.uid()` (например, `homework_attempts`, `answer_events`)
+- доступ учителя к данным ученика: через `teacher_students` и проверку `is_teacher_for_student(p_student_id)`
 
-## Таблицы и смысл
+## Таблицы public и смысл
 
-- profiles: профиль пользователя (роль, имя, признаки завершённости профиля)
-- teachers: whitelist учителей (и/или служебные флаги)
-- teacher_students: связь учитель–ученик
-- homeworks: задание, созданное учителем (спека, параметры)
-- homework_links: токенизированная ссылка на ДЗ
-- homework_attempts: попытки выполнения ДЗ
-- attempts: попытки решения задач вне ДЗ (тренажёр)
-- answer_events: лента событий ответа для статистики (может наполняться триггерами)
+| таблица | смысл |
+| - | - |
+| `profiles` | профиль и роль пользователя (id = auth.users.id) |
+| `teachers` | белый список учителей (email, approved) |
+| `teacher_students` | связь учитель ↔ ученик |
+| `homeworks` | домашки учителя (owner_id = auth.uid()) |
+| `homework_links` | токены/ссылки на домашки |
+| `homework_attempts` | сдачи домашек учениками |
+| `attempts` | попытки решения задач вне ДЗ |
+| `answer_events` | единый журнал ответов для статистики (и ДЗ, и тренажёр) |
 
 ## Связи (ER диаграмма)
 
 ```mermaid
 erDiagram
-  profiles ||--o{ teacher_students : "teacher_id"
-  profiles ||--o{ teacher_students : "student_id"
-  profiles ||--o{ homeworks : "owner_id"
-  profiles ||--o{ homework_links : "owner_id"
-  homeworks ||--o{ homework_links : "homework_id"
-  profiles ||--o{ homework_attempts : "student_id"
-  homeworks ||--o{ homework_attempts : "homework_id"
-  profiles ||--o{ attempts : "user_id"
+  profiles ||--o{{ homeworks : "owner_id"
+  homeworks ||--o{{ homework_links : "homework_id"
+  homework_links ||--o{{ homework_attempts : "token_used"
+  profiles ||--o{{ homework_attempts : "student_id"
+  profiles ||--o{{ attempts : "user_id"
+  attempts ||--o{{ answer_events : "attempt_id"
+  homework_attempts ||--o{{ answer_events : "homework_attempt_id"
+  teachers ||--o{{ teacher_students : "teacher_email"
+  profiles ||--o{{ teacher_students : "student_id"
 ```
 
-## RPC функции и кто вызывает
+## Триггеры и answer_events
 
-- update_my_profile
-  - вызывает: ../../../tasks/google_complete.js, ../../../tasks/profile.js
+Смысл `answer_events`: это единый журнал событий ответа, из которого строится статистика.
 
-- delete_my_account
-  - вызывает: ../../../tasks/profile.js
+Автоматизация (см. [supabase_schema_overview.md](../../supabase_schema_overview.md) раздел про триггеры):
+- `attempts` AFTER INSERT → `trg_attempts_to_answer_events()`
+- `homework_attempts` AFTER INSERT/UPDATE (когда payload появился впервые) → `trg_homework_attempts_to_answer_events()`
+- `homework_links` BEFORE INSERT → `homework_links_fill_defaults()` (например, дефолты/нормализация)
+- `homeworks`, `profiles` BEFORE UPDATE → `set_updated_at()`
 
-- get_homework_by_token
-  - вызывает: ../../../app/providers/homework.js (используется в ../../../tasks/hw.js)
+Практический вывод для фронта:
+- чтобы статистика обновлялась, достаточно корректно писать `attempts` (для тренажёра) и `homework_attempts` (для ДЗ)
+- прямой записи в `answer_events` с фронта нет
 
-- start_homework_attempt, has_homework_attempt, submit_homework_attempt
-  - вызывает: ../../../app/providers/homework.js (используется в ../../../tasks/hw.js)
+## RPC функции: каталог и кто вызывает
 
-- student_dashboard_self
-  - вызывает: ../../../tasks/stats.js
+Примечания:
+- `security_definer=true` означает, что функция выполняется с правами владельца и часто используется как “контролируемый шлюз” поверх RLS
+- returns в некоторых функциях — таблица (TABLE(...)) или jsonb, это удобно для “дашбордов” статистики
 
-- teacher_students_summary, list_my_students, add_student_by_email, remove_student
-  - вызывает: ../../../tasks/my_students.js
-
-- student_dashboard_for_teacher (и родственные)
-  - вызывает: ../../../tasks/student.js
-
-Полные сигнатуры и параметры смотреть в supabase_schema_overview.md.
+| функция | сигнатура | returns | security_definer | кто вызывает |
+| - | - | - | - | - |
+| update_my_profile | `update_my_profile(p_first_name text, p_last_name text, p_role text, p_teacher_type text, p_student_grade integer)` | void | true | [tasks/google_complete.js](../../tasks/google_complete.js), [tasks/profile.js](../../tasks/profile.js) |
+| delete_my_account | `delete_my_account()` | void | true | [tasks/profile.js](../../tasks/profile.js) |
+| add_student_by_email | `add_student_by_email(p_email text)` | TABLE(student_id uuid, email text, first_name text, last_name text, student_grade integer, created_at timestamp with time zone) | true | [tasks/my_students.js](../../tasks/my_students.js) |
+| list_my_students | `list_my_students()` | TABLE(student_id uuid, email text, first_name text, last_name text, student_grade integer, linked_at timestamp with time zone) | true | [tasks/my_students.js](../../tasks/my_students.js), [tasks/student.js](../../tasks/student.js) |
+| remove_student | `remove_student(p_student_id uuid)` | void | true | [tasks/my_students.js](../../tasks/my_students.js) |
+| teacher_students_summary | `teacher_students_summary(p_days integer, p_source text)` | TABLE(student_id uuid, last_seen_at timestamp with time zone, activity_total integer, last10_total integer, last10_correct integer, covered_topics_all_time integer) | true | [tasks/my_students.js](../../tasks/my_students.js) |
+| student_dashboard_for_teacher | `student_dashboard_for_teacher(p_student_id uuid, p_days integer, p_source text)` | jsonb | true | [tasks/student.js](../../tasks/student.js) |
+| list_student_attempts | `list_student_attempts(p_student_id uuid)` | TABLE(attempt_id uuid, homework_id uuid, homework_title text, total integer, correct integer, started_at timestamp with time zone, finished_at timestamp with time zone, duration_ms integer) | true | [tasks/student.js](../../tasks/student.js) |
+| get_homework_by_token | `get_homework_by_token(p_token text)` | TABLE(homework_id uuid, title text, description text, spec_json jsonb, settings_json jsonb, frozen_questions jsonb, seed text, attempts_per_student integer, is_active boolean) | true | [app/providers/homework.js](../../app/providers/homework.js) |
+| start_homework_attempt | `start_homework_attempt(p_token text, p_student_name text)` | TABLE(attempt_id uuid, already_exists boolean) | true | [app/providers/homework.js](../../app/providers/homework.js), [tasks/hw.js](../../tasks/hw.js) |
+| has_homework_attempt | `has_homework_attempt(p_token text, p_student_name text)` | boolean | true | [app/providers/homework.js](../../app/providers/homework.js) |
+| get_homework_attempt_by_token | `get_homework_attempt_by_token(p_token text)` | SETOF homework_attempts | true | [app/providers/homework.js](../../app/providers/homework.js) |
+| get_homework_attempt_for_teacher | `get_homework_attempt_for_teacher(p_attempt_id uuid)` | TABLE(attempt_id uuid, homework_id uuid, link_id uuid, homework_title text, student_id uuid, finished_at timestamp with time zone, correct integer, total integer, duration_ms integer, payload jsonb) | true | [tasks/hw.js](../../tasks/hw.js) |
+| submit_homework_attempt | `submit_homework_attempt(p_attempt_id uuid, p_payload jsonb, p_total integer, p_correct integer, p_duration_ms integer)` | void | true | [app/providers/homework.js](../../app/providers/homework.js), [tasks/hw.js](../../tasks/hw.js) |
+| student_dashboard_self | `student_dashboard_self(p_days integer, p_source text)` | jsonb | false | [tasks/stats.js](../../tasks/stats.js) |
+| auth_email_exists | `auth_email_exists(p_email text)` | boolean | true | [app/providers/supabase.js](../../app/providers/supabase.js) |
+| is_teacher | `is_teacher(p_uid uuid)` | boolean | true | не вызывается напрямую с фронта |
+| is_teacher_email | `is_teacher_email(p_email text)` | boolean | true | не вызывается напрямую с фронта |
+| is_allowed_teacher | `is_allowed_teacher()` | boolean | true | не вызывается напрямую с фронта |
+| is_teacher_for_student | `is_teacher_for_student(p_student_id uuid)` | boolean | true | не вызывается напрямую с фронта |
+| is_email_confirmed | `is_email_confirmed(p_uid uuid)` | boolean | true | не вызывается напрямую с фронта |
+| normalize_student_key | `normalize_student_key(p_name text)` | text | false | не вызывается напрямую с фронта |
 
 ## Auth и хранение сессии на фронте
 
-Используется supabase-js v2 с PKCE.
-Сессия хранится в localStorage ключами вида sb-<project-ref>-auth-token (формат Supabase).
+Базовый слой: [app/providers/supabase.js](../../app/providers/supabase.js) создаёт supabase client (supabase-js v2) и реализует:
+- вход через Google (`signInWithGoogle`)
+- вход по email/password (`signInWithPassword`)
+- выход (`signOut`)
+- обработку редиректа после OAuth/email (`finalizeAuthRedirect`)
 
-Где чинить:
-- OAuth/PKCE: ../../../app/providers/supabase.js (finalizeAuthRedirect, signInWithGoogle)
-- страницы: ../../../tasks/auth.js, ../../../tasks/auth_callback.js, ../../../tasks/auth_reset.js
+Где лежит сессия:
+- supabase-js хранит токены в localStorage в ключе вида `sb-<project_ref>-auth-token`
+- несколько страниц (например, [tasks/stats.js](../../tasks/stats.js), [tasks/my_students.js](../../tasks/my_students.js), [tasks/student.js](../../tasks/student.js)) читают этот ключ напрямую, чтобы делать REST-запросы к PostgREST
+  - если сменился `project_ref` или формат хранения, эти места нужно обновить
 
-## Типовые ошибки и где искать
+Учительские запросы:
+- для учительских операций важно использовать `access_token` из сессии (а не anon key)
+- см. комментарии в [app/providers/supabase.js](../../app/providers/supabase.js) и реализацию REST-вызовов в teacher-страницах
 
-- PKCE “code verifier” / повторная обработка redirect
-  - симптомы: вход “иногда работает”, потом выкидывает, ошибки exchangeCodeForSession
-  - чинить: finalizeAuthRedirect должен вызываться один раз на странице callback и как можно раньше
+## Типовые ошибки (PKCE, redirect, RLS)
 
-- redirectTo и next
-  - симптомы: после входа попадаем не туда
-  - чинить: tasks/auth.js и tasks/auth_callback.js
+PKCE / “не логинится после редиректа”
+- симптом: в callback-странице долго “ничего не происходит”, затем ошибки exchangeCodeForSession / invalid_grant
+- где смотреть: console + Network на [tasks/auth_callback.js](../../tasks/auth_callback.js) и [app/providers/supabase.js](../../app/providers/supabase.js)
+- частая причина: поздний вызов `finalizeAuthRedirect()` (после того как уже пошли другие запросы/рендер)
 
-- RLS 401/403 на RPC
-  - смотреть Network: /rest/v1/rpc/...
-  - проверять: включён ли Authorization: Bearer <access_token>
-  - сверять политики по таблицам из supabase_schema_overview.md
+Redirect-параметры “залипли в URL”
+- если после успешного входа URL остаётся с `code=...&state=...`, возможны повторные попытки finalize при перезагрузках
+- где чинить: `finalizeAuthRedirect()` и логика “cleanup URL” в [app/providers/supabase.js](../../app/providers/supabase.js)
+
+RLS / 401/403 на teacher-страницах
+- симптом: list_my_students / dashboard возвращает 401/403
+- проверять: есть ли актуальный `access_token`, корректен ли Bearer заголовок, и что пользователь реально teacher
+- где чинить: [tasks/my_students.js](../../tasks/my_students.js), [tasks/student.js](../../tasks/student.js), а на стороне БД — политики и SECURITY DEFINER функций
 
 ## Матрица: экран → таблицы/RPC
 
-- Главный тренажёр (tasks/trainer.js)
-  - insert: attempts
-  - косвенно влияет на статистику через answer_events
-
-- Создание ДЗ (tasks/hw_create.js)
-  - insert: homeworks, homework_links
-
-- Выполнение ДЗ (tasks/hw.js)
-  - rpc: get_homework_by_token, start_homework_attempt, submit_homework_attempt
-  - writes: homework_attempts (через RPC)
-
-- Статистика ученика (tasks/stats.js)
-  - rpc: student_dashboard_self
-  - читает агрегаты из answer_events (на стороне БД)
-
-- Кабинет учителя (tasks/my_students.js, tasks/student.js)
-  - rpc: list_my_students, teacher_students_summary, add_student_by_email, remove_student
-  - rpc: student_dashboard_for_teacher
+Сводная матрица вынесена в отдельный файл: [supabase_matrix.md](supabase_matrix.md).
