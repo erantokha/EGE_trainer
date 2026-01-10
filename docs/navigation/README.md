@@ -1,142 +1,64 @@
-# Навигация по проекту ЕГЭ‑тренажёр
+
+# Навигация по проекту EGE_trainer
 
 Дата обновления: 2026-01-10
 
+Этот набор документов помогает быстро разобраться в проекте: структура, основные сценарии, контракт с Supabase, точки расширения.
 
-Карта модулей и папок (L1)
+Оглавление
+- Быстрый старт: что открыть за 60–120 минут
+- Архитектура (L0): architecture.md
+- Supabase (контракт и данные): supabase.md
+- Карта модулей (L1): modules/README.md
+- Навигация по файлам (L2): files/README.md
+- Сценарии end-to-end: scenarios/README.md
+- Глоссарий: glossary.md
+- История изменений документации: changelog.md
 
-- [docs/navigation/modules/README.md](./modules/README.md)
+## Быстрый старт (60–120 минут)
 
-Зачем этот раздел
+1) Открыть архитектуру:
+- architecture.md
 
-Этот набор документов нужен, чтобы новый разработчик за 1–2 часа понял:
+2) Открыть Supabase-контракт:
+- supabase.md
 
-- как устроен проект в целом
-- где находится код конкретного экрана/фичи
-- как проходят ключевые сценарии (тренажёр, ДЗ, статистика, авторизация)
-- как устроен контракт с Supabase (таблицы, RPC, RLS, события)
-- где тонкие места и куда безопасно добавлять новую функциональность
+3) Найти нужный экран по карте modules:
+- modules/README.md
+- modules/tasks_auth.md, modules/tasks_homework.md, modules/tasks_stats.md, modules/tasks_trainer.md, modules/tasks_teacher.md
 
-Быстрый старт локально
+4) Если нужно быстро понять конкретный файл (точка входа, API, зависимости, storage, запросы):
+- files/README.md
 
-Проект — статический фронтенд без сборки. Для корректной работы fetch() нужен локальный сервер (file:// обычно блокирует запросы).
+5) Если нужно понять путь “пользователь → данные”:
+- scenarios/README.md
 
-Вариант 1 (python)
+## Частые задачи и где искать
 
-- из корня репозитория:
-  - python -m http.server 8000
-- открыть:
-  - http://localhost:8000/
+- поменять логику входа через Google
+  - ../../../app/providers/supabase.js
+  - ../../../tasks/auth.js
+  - ../../../tasks/auth_callback.js
+  - сценарий: scenarios/login_google.md
 
-Вариант 2 (любая статика)
+- поменять вход по email/password и reset
+  - ../../../tasks/auth.js
+  - ../../../tasks/auth_reset.js
+  - сценарий: scenarios/login_email.md
 
-- можно открыть репозиторий через VS Code Live Server или любой статический сервер
+- изменить генерацию/прохождение ДЗ
+  - ../../../tasks/hw_create.js, ../../../tasks/hw.js
+  - ../../../app/providers/homework.js
+  - сценарии: scenarios/homework_create.md, scenarios/homework_start.md, scenarios/homework_submit.md
 
-Точки входа (страницы)
+- добавить метрику в статистику
+  - ../../../tasks/stats.js, ../../../tasks/stats_view.js
+  - supabase.md (разделы RPC и answer_events)
 
-- [index.html](../../index.html) — главная страница: выбор тем, режим (список/тест), старт
-- [tasks/trainer.html](../../tasks/trainer.html) — прохождение теста (тренажёр)
-- [tasks/list.html](../../tasks/list.html) — список выбранных задач
-- [tasks/hw_create.html](../../tasks/hw_create.html) — создание ДЗ (учитель)
-- [tasks/hw.html](../../tasks/hw.html) — выполнение ДЗ по ссылке (?token=...)
-- [tasks/auth.html](../../tasks/auth.html) — вход/регистрация по почте и Google
-- [tasks/auth_callback.html](../../tasks/auth_callback.html) — обработка OAuth redirect
-- [tasks/auth_reset.html](../../tasks/auth_reset.html) — сброс пароля
-- [tasks/profile.html](../../tasks/profile.html) — профиль
-- [tasks/stats.html](../../tasks/stats.html) — статистика ученика (самостоятельно)
-- [tasks/my_students.html](../../tasks/my_students.html) — кабинет учителя: ученики
-- [tasks/student.html](../../tasks/student.html) — просмотр статистики ученика учителем
+- добавить новую RPC / поменять схему таблиц
+  - supabase.md
+  - supabase_schema_overview.md (в корне репозитория)
 
-Карта документации
+## Как дополнять эти документы
 
-- [Архитектура и потоки](./architecture.md)
-- [Supabase: контракт и данные](./supabase.md)
-- [Модули и папки](./modules/README.md)
-- [Глоссарий](./glossary.md)
-- [Changelog и как обновлять документацию](./changelog.md)
-
-Как быстро найти нужный файл (частые задачи)
-
-1) Поменять логику входа через Google
-
-- [app/providers/supabase.js](../../app/providers/supabase.js)
-  - signInWithGoogle()
-  - signOut()
-  - finalizeAuthRedirect() / finalizeOAuthRedirect()
-- страница входа: [tasks/auth.js](../../tasks/auth.js)
-- хедер (кнопка Войти/Выйти): [app/ui/header.js](../../app/ui/header.js)
-
-2) Поменять логику входа по почте/паролю
-
-- [app/providers/supabase.js](../../app/providers/supabase.js)
-  - signInWithPassword()
-  - signUpWithPassword()
-  - sendPasswordReset()
-  - updatePassword()
-- UI: [tasks/auth.js](../../tasks/auth.js), [tasks/auth_reset.js](../../tasks/auth_reset.js)
-
-3) Добавить новый тип задания/прототип в контент
-
-- каталог тем: [content/tasks/index.json](../../content/tasks/index.json)
-- манифест конкретной темы: файл по path из index.json
-- загрузка/выбор: [tasks/picker.js](../../tasks/picker.js)
-- показ/проверка: [tasks/trainer.js](../../tasks/trainer.js)
-
-4) Изменить генерацию/прохождение ДЗ
-
-- создание ДЗ (UI): [tasks/hw_create.js](../../tasks/hw_create.js)
-- выполнение ДЗ (UI): [tasks/hw.js](../../tasks/hw.js)
-- контракт Supabase (RPC/table): [app/providers/homework.js](../../app/providers/homework.js)
-- альтернативный REST‑API для вставок (используется точечно): [tasks/homework_api.js](../../tasks/homework_api.js)
-
-5) Добавить метрику/отчёт в статистику
-
-- UI статистики: [tasks/stats.js](../../tasks/stats.js), [tasks/stats_view.js](../../tasks/stats_view.js)
-- кабинет учителя: [tasks/my_students.js](../../tasks/my_students.js), [tasks/student.js](../../tasks/student.js)
-- источники данных в Supabase: answer_events + RPC (см. [supabase.md](./supabase.md))
-
-6) Поменять схему таблиц / добавить RPC
-
-- ориентир по текущей схеме: [supabase_schema_overview.md](../../supabase_schema_overview.md)
-- правила контракта и где используется: [supabase.md](./supabase.md)
-
-7) Поменять базовые настройки Supabase/версии контента
-
-- конфиг: [app/config.js](../../app/config.js)
-- cache-busting контента: CONFIG.content.version + withV() в страницах
-
-8) Поменять шапку (меню/вход/кнопка На главную)
-
-- [app/ui/header.js](../../app/ui/header.js)
-
-9) Изменить алгоритм выбора задач (перемешивание, выбор по базам)
-
-- [app/core/pick.js](../../app/core/pick.js)
-- используется в [tasks/picker.js](../../tasks/picker.js), [tasks/hw_create.js](../../tasks/hw_create.js), smart‑режиме
-
-10) Разобраться с версиями и кешированием
-
-- meta app-build в html
-- параметр v=... в import() и link/script
-- утилита: [app/build.js](../../app/build.js)
-
-План чтения проекта за 60–120 минут
-
-1) Пройти сценарий глазами пользователя
-
-- открыть [index.html](../../index.html) → выбрать темы → старт
-- пройти [tasks/trainer.html](../../tasks/trainer.html)
-- создать ДЗ через [tasks/hw_create.html](../../tasks/hw_create.html)
-- открыть ссылку и пройти [tasks/hw.html](../../tasks/hw.html)
-
-2) Прочитать архитектурную страницу
-
-- [architecture.md](./architecture.md)
-
-3) Прочитать Supabase‑контракт
-
-- [supabase.md](./supabase.md)
-
-4) После этого открывать модульные страницы
-
-- [modules/README.md](./modules/README.md)
+- правила обновления и чек-лист: changelog.md

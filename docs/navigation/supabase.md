@@ -1,274 +1,116 @@
+
 # Supabase: контракт и данные
 
-Дата обновления: 2026-01-10
+Оглавление
+- Общая модель доступа
+- Таблицы и смысл
+- Связи (ER диаграмма)
+- RPC функции и кто вызывает
+- Auth и хранение сессии на фронте
+- Типовые ошибки (PKCE, redirect, RLS)
+- Матрица: экран → таблицы/RPC
 
-Источники
+Источник схемы: supabase_schema_overview.md (в корне репозитория).
 
-- схема и список функций/триггеров: [supabase_schema_overview.md](../../supabase_schema_overview.md)
-- настройки подключения (url, anonKey): [app/config.js](../../app/config.js)
+## Общая модель доступа
 
-Контур
+- Гость: может открыть контент и UI, но не может писать результаты/начинать ДЗ.
+- Ученик: решает тренажёр и ДЗ, видит свою статистику.
+- Учитель: создаёт ДЗ, управляет связью с учениками, видит статистику учеников.
 
-- Supabase URL: https://knhozdhvjhcovyjbjfji.supabase.co
-- project ref: knhozdhvjhcovyjbjfji
-- основной клиент: [app/providers/supabase.js](../../app/providers/supabase.js)
+RLS включён на ключевых таблицах (homeworks, homework_links, homework_attempts, attempts, answer_events, profiles, teachers, teacher_students). Критичные операции сделаны через RPC, чтобы не давать фронту “сырые” права.
 
-ER‑связи (уровень домена)
+## Таблицы и смысл
+
+- profiles: профиль пользователя (роль, имя, признаки завершённости профиля)
+- teachers: whitelist учителей (и/или служебные флаги)
+- teacher_students: связь учитель–ученик
+- homeworks: задание, созданное учителем (спека, параметры)
+- homework_links: токенизированная ссылка на ДЗ
+- homework_attempts: попытки выполнения ДЗ
+- attempts: попытки решения задач вне ДЗ (тренажёр)
+- answer_events: лента событий ответа для статистики (может наполняться триггерами)
+
+## Связи (ER диаграмма)
 
 ```mermaid
 erDiagram
-  PROFILES {
-    uuid id PK
-    text role
-    text first_name
-    text last_name
-  }
-
-  TEACHERS {
-    text email PK
-    boolean approved
-  }
-
-  TEACHER_STUDENTS {
-    uuid teacher_id
-    uuid student_id
-  }
-
-  HOMEWORKS {
-    uuid id PK
-    uuid owner_id
-    jsonb spec_json
-    jsonb frozen_questions
-    text seed
-  }
-
-  HOMEWORK_LINKS {
-    uuid id PK
-    text token
-    uuid homework_id
-    uuid owner_id
-  }
-
-  HOMEWORK_ATTEMPTS {
-    uuid id PK
-    uuid homework_id
-    uuid student_id
-    text token_used
-    jsonb payload
-    int total
-    int correct
-    int duration_ms
-  }
-
-  ATTEMPTS {
-    bigint id PK
-    text student_id
-    jsonb payload
-  }
-
-  ANSWER_EVENTS {
-    bigint id PK
-    uuid student_id
-    text source
-    text topic_id
-    text question_id
-    boolean correct
-    int time_ms
-    uuid hw_attempt_id
-    uuid homework_id
-    text test_attempt_id
-  }
-
-  PROFILES ||--o{ TEACHER_STUDENTS : "teacher_id"
-  PROFILES ||--o{ TEACHER_STUDENTS : "student_id"
-
-  PROFILES ||--o{ HOMEWORKS : "owner_id"
-  HOMEWORKS ||--o{ HOMEWORK_LINKS : "homework_id"
-  HOMEWORKS ||--o{ HOMEWORK_ATTEMPTS : "homework_id"
-  HOMEWORK_LINKS ||--o{ HOMEWORK_ATTEMPTS : "token_used"
-
-  HOMEWORK_ATTEMPTS ||--o{ ANSWER_EVENTS : "hw_attempt_id"
-  HOMEWORKS ||--o{ ANSWER_EVENTS : "homework_id"
+  profiles ||--o{ teacher_students : "teacher_id"
+  profiles ||--o{ teacher_students : "student_id"
+  profiles ||--o{ homeworks : "owner_id"
+  profiles ||--o{ homework_links : "owner_id"
+  homeworks ||--o{ homework_links : "homework_id"
+  profiles ||--o{ homework_attempts : "student_id"
+  homeworks ||--o{ homework_attempts : "homework_id"
+  profiles ||--o{ attempts : "user_id"
 ```
 
-Auth
+## RPC функции и кто вызывает
 
-Провайдеры
+- update_my_profile
+  - вызывает: ../../../tasks/google_complete.js, ../../../tasks/profile.js
 
-- Google OAuth (PKCE)
-- email/password (signup/signin)
-- reset/recovery через email
+- delete_my_account
+  - вызывает: ../../../tasks/profile.js
 
-Где хранится сессия на фронте
+- get_homework_by_token
+  - вызывает: ../../../app/providers/homework.js (используется в ../../../tasks/hw.js)
 
-- supabase-js сохраняет сессию в localStorage под ключом формата sb-<ref>-auth-token
-- в этом проекте ref берётся из CONFIG.supabase.url, поэтому ключ обычно:
-  - sb-knhozdhvjhcovyjbjfji-auth-token
+- start_homework_attempt, has_homework_attempt, submit_homework_attempt
+  - вызывает: ../../../app/providers/homework.js (используется в ../../../tasks/hw.js)
 
-Типовые ошибки и где чинить
+- student_dashboard_self
+  - вызывает: ../../../tasks/stats.js
 
-- code verifier / PKCE гонки
-  - чаще всего от двойной финализации редиректа или разных версий модулей (?v=...)
-  - чинить в [app/providers/supabase.js](../../app/providers/supabase.js) (finalizeAuthRedirect + guards)
-  - проверять страницы [tasks/auth_callback.js](../../tasks/auth_callback.js), [tasks/auth_reset.js](../../tasks/auth_reset.js)
+- teacher_students_summary, list_my_students, add_student_by_email, remove_student
+  - вызывает: ../../../tasks/my_students.js
 
-- токены не обновляются на страницах статистики
-  - страницы stats/my_students/student делают refresh вручную
-  - чинить в [tasks/stats.js](../../tasks/stats.js), [tasks/my_students.js](../../tasks/my_students.js)
+- student_dashboard_for_teacher (и родственные)
+  - вызывает: ../../../tasks/student.js
 
-Таблицы (public)
+Полные сигнатуры и параметры смотреть в supabase_schema_overview.md.
 
-Короткие смыслы и кто их использует.
+## Auth и хранение сессии на фронте
 
-- profiles
-  - 1:1 с auth.users
-  - роль и отображаемые данные
-  - читают/пишут: header.js, profile.js, google_complete.js
+Используется supabase-js v2 с PKCE.
+Сессия хранится в localStorage ключами вида sb-<project-ref>-auth-token (формат Supabase).
 
-- teachers
-  - белый список учителей (email, approved)
-  - используется проверками is_allowed_teacher / is_teacher_email
+Где чинить:
+- OAuth/PKCE: ../../../app/providers/supabase.js (finalizeAuthRedirect, signInWithGoogle)
+- страницы: ../../../tasks/auth.js, ../../../tasks/auth_callback.js, ../../../tasks/auth_reset.js
 
-- teacher_students
-  - связь учитель ↔ ученик
-  - пишется/читается через RPC кабинета учителя
+## Типовые ошибки и где искать
 
-- homeworks
-  - домашнее задание учителя (owner_id)
-  - создаётся на странице hw_create
+- PKCE “code verifier” / повторная обработка redirect
+  - симптомы: вход “иногда работает”, потом выкидывает, ошибки exchangeCodeForSession
+  - чинить: finalizeAuthRedirect должен вызываться один раз на странице callback и как можно раньше
 
-- homework_links
-  - ссылки‑токены на домашку (token)
-  - создаются на hw_create
+- redirectTo и next
+  - симптомы: после входа попадаем не туда
+  - чинить: tasks/auth.js и tasks/auth_callback.js
 
-- homework_attempts
-  - попытка выполнения домашки
-  - создаётся/обновляется через RPC start_homework_attempt / submit_homework_attempt
+- RLS 401/403 на RPC
+  - смотреть Network: /rest/v1/rpc/...
+  - проверять: включён ли Authorization: Bearer <access_token>
+  - сверять политики по таблицам из supabase_schema_overview.md
 
-- attempts
-  - попытки тренажёра
-  - пишутся с [tasks/trainer.js](../../tasks/trainer.js)
-  - важная особенность: student_id хранится как text (см. риски в supabase_schema_overview)
+## Матрица: экран → таблицы/RPC
 
-- answer_events
-  - единая лента событий ответов (источник статистики)
-  - заполняется триггерами из attempts и homework_attempts
+- Главный тренажёр (tasks/trainer.js)
+  - insert: attempts
+  - косвенно влияет на статистику через answer_events
 
-Витрины/представления
+- Создание ДЗ (tasks/hw_create.js)
+  - insert: homeworks, homework_links
 
-- attempts_flat, attempts_daily, questions_flat
-  - витрины для аналитики (статистика/отчёты)
-  - на фронте напрямую не используются, но могут быть полезны для новых отчётов
+- Выполнение ДЗ (tasks/hw.js)
+  - rpc: get_homework_by_token, start_homework_attempt, submit_homework_attempt
+  - writes: homework_attempts (через RPC)
 
-RPC функции (публичный контракт)
+- Статистика ученика (tasks/stats.js)
+  - rpc: student_dashboard_self
+  - читает агрегаты из answer_events (на стороне БД)
 
-Ниже перечислены функции, на которые опирается фронт. Полный список см. в [supabase_schema_overview.md](../../supabase_schema_overview.md).
-
-Профиль
-
-- update_my_profile(...)
-  - кто вызывает: [tasks/profile.js](../../tasks/profile.js), [tasks/google_complete.js](../../tasks/google_complete.js)
-
-- delete_my_account()
-  - кто вызывает: [tasks/profile.js](../../tasks/profile.js)
-
-Кабинет учителя (ученики)
-
-- add_student_by_email(p_email)
-  - кто вызывает: [tasks/my_students.js](../../tasks/my_students.js)
-
-- list_my_students()
-  - кто вызывает: [tasks/my_students.js](../../tasks/my_students.js)
-
-- remove_student(p_student_id)
-  - кто вызывает: [tasks/my_students.js](../../tasks/my_students.js)
-
-Домашки
-
-- get_homework_by_token(p_token)
-  - кто вызывает: [app/providers/homework.js](../../app/providers/homework.js) → [tasks/hw.js](../../tasks/hw.js)
-
-- start_homework_attempt(p_token, p_student_name)
-  - кто вызывает: [app/providers/homework.js](../../app/providers/homework.js) → [tasks/hw.js](../../tasks/hw.js)
-
-- has_homework_attempt(p_token, p_student_name)
-  - кто вызывает: (опционально) hw.js, провайдер homeworks
-
-- submit_homework_attempt(p_attempt_id, p_payload, p_total, p_correct, p_duration_ms)
-  - кто вызывает: [app/providers/homework.js](../../app/providers/homework.js) → [tasks/hw.js](../../tasks/hw.js)
-
-- get_homework_attempt_by_token(p_token)
-  - кто вызывает: [app/providers/homework.js](../../app/providers/homework.js) (экран результата при повторном входе)
-
-- get_homework_attempt_for_teacher(...)
-  - кто вызывает: (в текущем фронте может быть не подключено)
-
-Статистика
-
-- student_dashboard_self(p_days, p_source)
-  - кто вызывает: [tasks/stats.js](../../tasks/stats.js)
-
-- student_dashboard_for_teacher(p_student_id, p_days, p_source)
-  - кто вызывает: [tasks/student.js](../../tasks/student.js)
-
-- teacher_students_summary(p_days, p_source)
-  - кто вызывает: [tasks/my_students.js](../../tasks/my_students.js)
-
-- list_student_attempts(...)
-  - кто вызывает: (частично student.js, зависит от UI)
-
-RLS и роли (модель доступа)
-
-Роли приложения
-
-- гость: не залогинен
-- student: залогинен, роль в profiles.role = student
-- teacher: залогинен, роль = teacher, обычно ещё email должен быть в teachers.approved
-
-Правила владения
-
-- owner_id = auth.uid() для сущностей учителя
-  - homeworks, homework_links
-
-- student_id = auth.uid() для сущностей ученика
-  - homework_attempts, answer_events
-
-Доступ учителя к данным ученика
-
-- через teacher_students и проверки вида is_teacher_for_student(student_id)
-
-Триггеры и события
-
-- attempts → trg_attempts_to_answer_events()
-  - при вставке попытки тренажёра создаются строки answer_events (source='test')
-
-- homework_attempts → trg_homework_attempts_to_answer_events()
-  - при первой установке payload создаются строки answer_events (source='hw')
-
-Матрица экран → таблицы/RPC (минимальный срез)
-
-| экран | файлы | таблицы | RPC | операции |
-| --- | --- | --- | --- | --- |
-| выбор тем | [index.html](../../index.html), [tasks/picker.js](../../tasks/picker.js) | (нет) | (нет) | fetch контента |
-| тренажёр | [tasks/trainer.js](../../tasks/trainer.js) | attempts | (нет) | insert attempts |
-| создание ДЗ | [tasks/hw_create.js](../../tasks/hw_create.js), [app/providers/homework.js](../../app/providers/homework.js) | homeworks, homework_links | (нет) | insert |
-| выполнение ДЗ | [tasks/hw.js](../../tasks/hw.js), [app/providers/homework.js](../../app/providers/homework.js) | homework_attempts, answer_events | get_homework_by_token, start_homework_attempt, submit_homework_attempt | rpc + триггеры |
-| профиль | [tasks/profile.js](../../tasks/profile.js) | profiles | update_my_profile, delete_my_account | rpc |
-| статистика (ученик) | [tasks/stats.js](../../tasks/stats.js) | answer_events | student_dashboard_self | rpc |
-| ученики (учитель) | [tasks/my_students.js](../../tasks/my_students.js) | teacher_students, profiles | add_student_by_email, list_my_students, remove_student, teacher_students_summary | rpc |
-| статистика ученика (учитель) | [tasks/student.js](../../tasks/student.js) | answer_events | student_dashboard_for_teacher | rpc |
-
-Отладка и логи
-
-- DevTools → Network
-  - supabase-js: запросы к /auth/v1/* и /rest/v1/*
-  - прямой REST (stats/my_students): /rest/v1/rpc/<fn>
-
-- DevTools → Application → Local Storage
-  - sb-knhozdhvjhcovyjbjfji-auth-token
-  - другие ключи, влияющие на UX:
-    - auth_force_google_select_account
-
-- серверная отладка
-  - смотреть логи функций RPC в Supabase (Database → Logs)
-  - проверять политики RLS на таблицах
+- Кабинет учителя (tasks/my_students.js, tasks/student.js)
+  - rpc: list_my_students, teacher_students_summary, add_student_by_email, remove_student
+  - rpc: student_dashboard_for_teacher

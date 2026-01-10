@@ -1,21 +1,28 @@
-# Changelog документации навигации
 
-Как обновлять
+# История изменений документации
 
-- если меняется файловая структура или добавляется новая страница, править:
-  - docs/navigation/README.md (точки входа + частые задачи)
-  - docs/navigation/architecture.md (диаграммы потоков, если затронуто)
+## Как обновлять
 
-- если меняется Supabase (таблицы/RPC/RLS), править:
-  - docs/navigation/supabase.md
-  - обновить/перегенерировать снимок в supabase_schema_overview.md (если используешь его как источник)
+1) При добавлении/переименовании страниц и модулей:
+- обновить docs/navigation/modules/README.md
+- обновить docs/navigation/README.md (ссылки)
 
-- если меняются ключи localStorage/sessionStorage, править:
-  - docs/navigation/architecture.md (тонкие места)
-  - docs/navigation/supabase.md (auth/storage)
+2) При изменении логики в ключевых файлах (auth, hw, trainer, stats):
+- обновить соответствующую страницу в docs/navigation/files/…
+- обновить соответствующий сценарий в docs/navigation/scenarios/…
 
-История
+3) При изменении схемы Supabase:
+- обновить docs/navigation/supabase.md
+- обновить матрицу “экран → таблицы/RPC”
 
-- 2026-01-10
-  - создан скелет docs/navigation (этап 1)
-  - добавлены страницы: README, architecture, supabase, modules/*, glossary
+Чек-лист приемки:
+- по 10 случайным файлам можно дойти из docs/navigation/README.md за ≤ 3 клика
+- каждый сценарий содержит ссылки на конкретные файлы и разделы Supabase
+- у страниц есть оглавление
+
+## Записи
+
+- 2026-01-10: этап 3
+  - добавлены L2 страницы по ключевым файлам (files/)
+  - добавлены 6 end-to-end сценариев (scenarios/)
+  - добавлены якоря и оглавления для связи сценариев с архитектурой и supabase
