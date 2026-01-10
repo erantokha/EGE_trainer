@@ -1200,7 +1200,7 @@ input:focus{
   grid-template-columns:repeat(5, minmax(0, 1fr));
   gap:10px;
   /* фиксируем высоту строки, чтобы все карточки были одинаковыми по высоте */
-  grid-auto-rows: var(--student-card-h, 250px);
+  grid-auto-rows: var(--student-card-h, 205px);
 }
 
 @media (max-width: 1400px){
@@ -1226,7 +1226,7 @@ input:focus{
   /* имя → класс: минимально, как перенос строки */
   --gap-name-class:2px;
   /* класс → блоки: фиксированный зазор (чтобы не зависел от --gap-name-class) */
-  --gap-class-metrics:9px;
+  --gap-class-metrics:5px;
 }
 
 .student-title{
