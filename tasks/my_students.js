@@ -332,34 +332,40 @@ function renderStudents(list) {
 
     // Метаданные (email/класс/активность)
     const meta = [];
-    if (email) meta.push(email);
     if (grade) meta.push(`Класс: ${grade}`);
-
-    const lastActive = parseDate(st.last_activity_at || st.last_active_at);
-    meta.push(`Последняя активность: ${fmtDateTime(lastActive)}`);
-
     const metaEl = el('div', { class: 'muted student-meta', text: meta.join(' • ') });
 
     // Метрики
     const metrics = el('div', { class: 'student-metrics' });
 
-    const s = st.__summary || st.summary || st.stats || null;
-    const a30 = safeInt(s?.attempts_count, 0);
-    const f10c = safeInt(s?.form_correct, 0);
-    const f10t = safeInt(s?.form_total, 0);
-    const l10c = safeInt(s?.last10_correct, 0);
-    const l10t = safeInt(s?.last10_total, 0);
-    const covered = safeInt(s?.covered_topics, 0);
+    const sum = st.__summary || st.summary || st.stats || null;
 
-    const total = __totalTopics || safeInt(s?.total_topics, 0) || 0;
+    const activity = safeInt(sum?.activity_total, 0);
+    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
 
-    metrics.appendChild(miniBadge('Активность (30д)', a30 ? String(a30) : '0', pct(l10t, l10c)));
-    const formText = (f10t > 0) ? `${pct(f10t, f10c)}% · ${f10c}/${f10t}` : '—';
-    metrics.appendChild(miniBadge('Форма (10)', formText, pct(f10t, f10c)));
+    const lastSeenAt = sum?.last_seen_at ? new Date(sum.last_seen_at) : null;
+    const lastSeenOk = (lastSeenAt && isFinite(lastSeenAt.getTime()));
+    const lastSeenText = lastSeenOk ? fmtDateTime(lastSeenAt) : '—';
+    let pLast = 0;
+    if (lastSeenOk) {
+      const daysAgo = (Date.now() - lastSeenAt.getTime()) / 86400000;
+      if (daysAgo <= 3) pLast = 90;
+      else if (daysAgo <= 7) pLast = 50;
+      else pLast = 0;
+    }
+    metrics.appendChild(miniBadge('Последняя активность', lastSeenText, pLast));
+
+    const l10t = safeInt(sum?.last10_total, 0);
+    const l10c = safeInt(sum?.last10_correct, 0);
+    const pForm = pct(l10t, l10c);
+    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
+    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
+
+    const covered = safeInt(sum?.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
     const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
     const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
     metrics.appendChild(miniBadge('Покрытие', covText, pCov));
-
     // Действия меню
     gearBtn.addEventListener('click', (e) => {
       e.stopPropagation();

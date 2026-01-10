@@ -1181,18 +1181,31 @@ input:focus{
 
 .students-grid{
   display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns:repeat(5, minmax(0, 1fr));
   gap:10px;
 }
 
-.student-card{ cursor:pointer; padding:12px; }
-.student-title{ font-size:18px; margin-bottom:6px; }
+@media (max-width: 1400px){
+  .students-grid{ grid-template-columns:repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 1150px){
+  .students-grid{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 860px){
+  .students-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px){
+  .students-grid{ grid-template-columns:1fr; }
+}
+.student-card{ cursor:pointer; padding:10px; aspect-ratio: 1 / 1; display:flex; flex-direction:column; }
+.student-title{ font-size:16px; margin-bottom:4px; }
 
+.student-meta{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .student-metrics{
-  display:flex;
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:8px;
-  flex-wrap:wrap;
-  margin-top:10px;
+  margin-top:8px;
 }
 
 .student-actions{
@@ -1210,13 +1223,13 @@ input:focus{
 .stat-mini{
   border:1px solid var(--border);
   border-radius:12px;
-  padding:8px 10px;
-  min-width:150px;
+  padding:6px 8px;
+  min-width:0;
   background: rgba(148,163,184,.08);
 }
 
 .stat-mini-label{ font-size:11px; color: var(--text-dim); margin-bottom:2px; }
-.stat-mini-value{ font-size:13px; }
+.stat-mini-value{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 .stat-gray   { background: rgba(148,163,184,.10); }
 .stat-green  { background: rgba(5,150,105,.12); border-color: rgba(5,150,105,.35); }
@@ -1374,17 +1387,6 @@ input:focus{
 .student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
 .student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
 .student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
-.student-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
-.student-menu-item:hover{background:rgba(148,163,184,.12);}
-.student-menu-item:active{background:rgba(148,163,184,.18);}
-.student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
-
-
-/* my_students: заголовок карточки + меню действий (шестерёнка) */
-.student-titlebar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
-.student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
-.student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
-.student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:180px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
 .student-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}
