@@ -103,6 +103,30 @@ function fmtDateTime(ts) {
   }
 }
 
+
+// Пытаемся распарсить дату из разных форматов (ISO из Supabase, "YYYY-MM-DD HH:MM:SS", и т.п.)
+function parseDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return isFinite(d.getTime()) ? d : null;
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // ISO обычно парсится нативно
+  let d = new Date(s);
+  if (isFinite(d.getTime())) return d;
+
+  // Частый формат без "T": "YYYY-MM-DD HH:MM:SS" или "YYYY-MM-DD HH:MM"
+  const s2 = s.replace(', ', 'T').replace(' ', 'T');
+  d = new Date(s2);
+  if (isFinite(d.getTime())) return d;
+
+  return null;
+}
+
 function miniBadge(label, valueText, p) {
   const b = el('div', { class: `stat-mini ${clsByPct(p)}` });
   b.appendChild(el('div', { class: 'stat-mini-label', text: label }));
