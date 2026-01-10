@@ -111,18 +111,56 @@ function updateHeaderName(firstName) {
 }
 
 function mountActions({ onEdit, onSave, onCancel, onDelete }) {
-  const editBtn = $('#editProfileBtn');
+  const menuWrap = $('#profileMenuWrap');
+  const menuBtn = $('#profileMenuBtn');
+  const menuEl = $('#profileMenu');
+
+  const editBtn = $('#profileMenuEdit');
   const saveBtn = $('#saveProfileBtn');
   const cancelBtn = $('#cancelProfileBtn');
-  const deleteBtn = $('#deleteProfileBtn');
+  const deleteBtn = $('#profileMenuDelete');
+
+  const isOpen = () => !!menuEl && !menuEl.classList.contains('hidden');
+  const setOpen = (open) => {
+    if (!menuEl || !menuBtn) return;
+    menuEl.classList.toggle('hidden', !open);
+    menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  const closeMenu = () => setOpen(false);
+  const toggleMenu = () => setOpen(!isOpen());
+
+  if (menuBtn && !menuBtn.dataset.wired) {
+    menuBtn.dataset.wired = '1';
+    menuBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleMenu();
+    });
+  }
+
+  // закрытие меню кликом вне меню / по Escape
+  if (!document.body.dataset.profileMenuWired) {
+    document.body.dataset.profileMenuWired = '1';
+
+    document.addEventListener('pointerdown', (e) => {
+      if (!menuWrap) return;
+      if (!menuWrap.contains(e.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
+  }
 
   if (editBtn && !editBtn.dataset.wired) {
     editBtn.dataset.wired = '1';
     editBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      closeMenu();
+      if (editBtn.disabled) return;
       onEdit?.();
     });
   }
+
   if (saveBtn && !saveBtn.dataset.wired) {
     saveBtn.dataset.wired = '1';
     saveBtn.addEventListener('click', (e) => {
@@ -130,6 +168,7 @@ function mountActions({ onEdit, onSave, onCancel, onDelete }) {
       onSave?.();
     });
   }
+
   if (cancelBtn && !cancelBtn.dataset.wired) {
     cancelBtn.dataset.wired = '1';
     cancelBtn.addEventListener('click', (e) => {
@@ -142,25 +181,43 @@ function mountActions({ onEdit, onSave, onCancel, onDelete }) {
     deleteBtn.dataset.wired = '1';
     deleteBtn.addEventListener('click', (e) => {
       e.preventDefault();
+      closeMenu();
+      if (deleteBtn.disabled) return;
       onDelete?.();
     });
   }
 
-  return { editBtn, saveBtn, cancelBtn, deleteBtn };
+  return { editBtn, saveBtn, cancelBtn, deleteBtn, menuBtn, closeMenu };
 }
+
 
 function setActionsMode(mode) {
-  const editBtn = $('#editProfileBtn');
+  const menuBtn = $('#profileMenuBtn');
+  const menuEl = $('#profileMenu');
+  const editBtn = $('#profileMenuEdit');
+  const deleteBtn = $('#profileMenuDelete');
+
   const saveBtn = $('#saveProfileBtn');
   const cancelBtn = $('#cancelProfileBtn');
-  const deleteBtn = $('#deleteProfileBtn');
 
   const isEdit = mode === 'edit';
-  if (editBtn) editBtn.classList.toggle('hidden', isEdit);
+
   if (saveBtn) saveBtn.classList.toggle('hidden', !isEdit);
   if (cancelBtn) cancelBtn.classList.toggle('hidden', !isEdit);
-  if (deleteBtn) deleteBtn.classList.toggle('hidden', isEdit);
+
+  // В режиме редактирования поведение сохраняем как раньше:
+  // "Редактировать/Удалить" недоступны, чтобы не было конфликтов с формой.
+  if (menuBtn) menuBtn.disabled = isEdit;
+  if (editBtn) editBtn.disabled = isEdit;
+  if (deleteBtn) deleteBtn.disabled = isEdit;
+
+  // Если вдруг меню было открыто — закрываем.
+  if (isEdit && menuEl && !menuEl.classList.contains('hidden')) {
+    menuEl.classList.add('hidden');
+    if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+  }
 }
+
 
 async function deleteMyAccountRest(accessToken) {
   if (!accessToken) throw new Error('AUTH_REQUIRED');

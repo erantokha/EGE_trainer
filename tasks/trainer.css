@@ -1346,3 +1346,14 @@ input:focus{
   display:inline-block;
 }
 
+
+
+/* profile: меню действий (шестерёнка) */
+.profile-titlebar{display:flex;align-items:center;gap:10px;}
+.profile-menu-wrap{position:relative;display:inline-flex;align-items:center;}
+.profile-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;}
+.profile-menu{position:absolute;top:calc(100% + 8px);left:0;min-width:210px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
+.profile-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
+.profile-menu-item:hover{background:rgba(148,163,184,.12);}
+.profile-menu-item:active{background:rgba(148,163,184,.18);}
+.profile-menu-item:disabled{opacity:.55;cursor:not-allowed;}

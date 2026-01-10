@@ -2,17 +2,26 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-08-1">
+  <meta name="app-build" content="2026-01-10-3">
   <title>Профиль</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-06-1">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-3">
 </head>
 <body>
   <main class="container">
     <section>
       <div class="panel">
         <header id="appHeader" class="page-head">
-          <h1 id="pageTitle">Профиль</h1>
+          <div class="profile-titlebar">
+            <h1 id="pageTitle">Профиль</h1>
+            <div class="profile-menu-wrap" id="profileMenuWrap">
+              <button id="profileMenuBtn" type="button" class="icon-btn profile-gear-btn" aria-label="Меню профиля" aria-expanded="false">⚙</button>
+              <div id="profileMenu" class="profile-menu hidden" role="menu" aria-label="Действия профиля">
+                <button id="profileMenuEdit" type="button" class="profile-menu-item" role="menuitem">Редактировать</button>
+                <button id="profileMenuDelete" type="button" class="profile-menu-item" role="menuitem">Удалить профиль</button>
+              </div>
+            </div>
+          </div>
         </header>
         <script type="module">
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
@@ -28,10 +37,8 @@
           <div id="profileGrid" style="display:grid;grid-template-columns:200px 1fr;gap:10px 16px;align-items:center"></div>
 
           <div id="profileActions" style="margin-top:16px;display:flex;gap:10px;justify-content:flex-start;align-items:center">
-            <button id="editProfileBtn" type="button" class="btn">Редактировать</button>
             <button id="saveProfileBtn" type="button" class="btn hidden">Сохранить</button>
             <button id="cancelProfileBtn" type="button" class="btn hidden">Отмена</button>
-            <button id="deleteProfileBtn" type="button" class="btn btn-danger" style="margin-left:auto">Удалить профиль</button>
           </div>
         </div>
 
