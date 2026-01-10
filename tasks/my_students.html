@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-10-13">
+  <meta name="app-build" content="2026-01-10-14">
   <title>Мои ученики</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-13">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-14">
 </head>
 <body>
   <main class="container">
@@ -27,7 +27,7 @@
 
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
           <label style="display:block; flex:1; min-width:260px">
-            <div style="opacity:.8; margin-bottom:6px">Поиск/добавление ученика</div>
+            <div class="students-ghost-label" aria-hidden="true"></div>
             <input id="searchStudents" type="search" placeholder="ФИО или email" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
           </label>
 
@@ -39,7 +39,7 @@
           </label>
 
           <label style="display:block">
-            <div style="opacity:.8; margin-bottom:6px">Активность</div>
+            <div class="students-ghost-label" aria-hidden="true"></div>
             <select id="summaryDays" style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
               <option value="7">7 дней</option>
               <option value="14">14 дней</option>
@@ -49,7 +49,7 @@
           </label>
 
           <label style="display:block">
-            <div style="opacity:.8; margin-bottom:6px">Источник</div>
+            <div class="students-ghost-label" aria-hidden="true"></div>
             <select id="summarySource" style="padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
               <option value="all" selected>всё</option>
               <option value="hw">только ДЗ</option>
@@ -67,7 +67,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-10-13" defer></script>
+  <script src="./theme.js?v=2026-01-10-14" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
