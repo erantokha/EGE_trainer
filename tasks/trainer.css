@@ -964,26 +964,6 @@ input:focus{
   line-height:1;
   text-align:center;
 }
-
-/* my_students: оверлей модалки "Новый ученик" — непрозрачный фон */
-#addStudentModal .modal-backdrop{
-  background: var(--bg);
-}
-
-/* my_students: кнопка закрытия (как в hw_create -> task picker) */
-#addStudentModal #addStudentModalClose{
-  width:36px;
-  height:36px;
-  /* центр символа примерно на 45% высоты (т.е. отступ от низа ~55%) */
-  padding:0 0 4px 0;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-size:24px;
-  line-height:1;
-  text-align:center;
-}
-
 .modal-body {
   display:grid;
   grid-template-columns:320px 1fr;
@@ -1394,6 +1374,17 @@ input:focus{
 .student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
 .student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
 .student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
+.student-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
+.student-menu-item:hover{background:rgba(148,163,184,.12);}
+.student-menu-item:active{background:rgba(148,163,184,.18);}
+.student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
+
+
+/* my_students: заголовок карточки + меню действий (шестерёнка) */
+.student-titlebar{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
+.student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
+.student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:180px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
 .student-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}

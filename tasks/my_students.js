@@ -172,6 +172,8 @@ let __totalTopics = 0;
 let __currentDays = 7;
 let __currentSource = 'all';
 
+let __knownEmails = new Set();
+let __openStudentMenu = null;
 function applyFiltersAndRender() {
   const term = String($('#searchStudents')?.value || '').trim().toLowerCase();
   const onlyProblems = !!$('#filterProblems')?.checked;
@@ -201,46 +203,38 @@ function applyFiltersAndRender() {
   renderStudents(list);
 }
 
-let __openStudentMenu = null;
-let __studentMenuGlobalBound = false;
+
+function isValidEmail(v) {
+  const s = String(v || '').trim();
+  if (!s) return false;
+  // Достаточно строгая проверка для UI (сервер всё равно валидирует).
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+function rebuildKnownEmails() {
+  __knownEmails = new Set();
+  for (const st of (__studentsRaw || [])) {
+    const email = String(st.email || st.student_email || '').trim().toLowerCase();
+    if (email) __knownEmails.add(email);
+  }
+}
+
+function updateAddButtonState() {
+  const input = $('#searchStudents');
+  const btn = $('#addStudentInlineBtn');
+  if (!btn) return;
+
+  const email = String(input?.value || '').trim().toLowerCase();
+  const can = isValidEmail(email) && !__knownEmails.has(email);
+  btn.disabled = !can;
+}
 
 function closeStudentMenu() {
   if (!__openStudentMenu) return;
-  const { menu, btn } = __openStudentMenu;
-  try { menu.classList.add('hidden'); } catch (_) {}
-  try { btn?.setAttribute('aria-expanded', 'false'); } catch (_) {}
+  try { __openStudentMenu.classList.add('hidden'); } catch (_) {}
+  const btn = __openStudentMenu.__btn;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
   __openStudentMenu = null;
-}
-
-function ensureStudentMenuGlobalClose() {
-  if (__studentMenuGlobalBound) return;
-  __studentMenuGlobalBound = true;
-
-  document.addEventListener('pointerdown', (e) => {
-    if (!__openStudentMenu) return;
-    const t = e.target;
-    const { menu, btn } = __openStudentMenu;
-    if (menu && menu.contains(t)) return;
-    if (btn && btn.contains(t)) return;
-    closeStudentMenu();
-  }, true);
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeStudentMenu();
-  });
-}
-
-function toggleStudentMenu(menu, btn) {
-  ensureStudentMenuGlobalClose();
-  const isOpen = !menu.classList.contains('hidden');
-  if (isOpen) {
-    closeStudentMenu();
-    return;
-  }
-  closeStudentMenu();
-  menu.classList.remove('hidden');
-  btn?.setAttribute('aria-expanded', 'true');
-  __openStudentMenu = { menu, btn };
 }
 
 function renderStudents(list) {
@@ -258,63 +252,8 @@ function renderStudents(list) {
   for (const st of list) {
     const card = el('div', { class: 'panel student-card' });
 
-    const head = el('div', { class: 'student-head' });
-
-    const title = el('div', { class: 'student-title', text: studentLabel(st) });
-
-    const menuWrap = el('div', { class: 'student-menu-wrap' });
-
-    const gearBtn = el('button', {
-      class: 'student-gear-btn',
-      text: '⚙',
-      'aria-haspopup': 'menu',
-      'aria-expanded': 'false',
-      'aria-label': 'Действия',
-    });
-    gearBtn.type = 'button';
-
-    const menu = el('div', { class: 'student-menu hidden' });
-    const delItem = el('button', { class: 'student-menu-item', text: 'Удалить' });
-    delItem.type = 'button';
-
-    menu.appendChild(delItem);
-    menuWrap.appendChild(gearBtn);
-    menuWrap.appendChild(menu);
-
-    head.appendChild(title);
-    head.appendChild(menuWrap);
-
-    const meta = [];
     const email = String(st.email || st.student_email || '').trim();
-    if (email) meta.push(email);
     const grade = String(st.student_grade || st.grade || '').trim();
-    if (grade) meta.push(`Класс: ${grade}`);
-
-    const sum = st.__summary || null;
-    const lastSeen = sum?.last_seen_at ? fmtDateTime(sum.last_seen_at) : '—';
-    const sub = el('div', { class: 'muted', text: (meta.join(' • ') || '') + (meta.length ? ' • ' : '') + `Последняя активность: ${lastSeen}` });
-
-    const metrics = el('div', { class: 'student-metrics' });
-
-    const activity = safeInt(sum?.activity_total, 0);
-    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
-
-    const l10t = safeInt(sum?.last10_total, 0);
-    const l10c = safeInt(sum?.last10_correct, 0);
-    const pForm = pct(l10t, l10c);
-    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
-    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
-
-    const covered = safeInt(sum?.covered_topics_all_time, 0);
-    const total = safeInt(__totalTopics, 0);
-    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
-    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
-    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
-
-    card.appendChild(head);
-    card.appendChild(sub);
-    card.appendChild(metrics);
-
     const sid = String(st.student_id || st.id || '').trim();
 
     function goOpen() {
@@ -337,18 +276,79 @@ function renderStudents(list) {
 
     card.addEventListener('click', () => goOpen());
 
+    // Заголовок карточки + меню (шестерёнка)
+    const titlebar = el('div', { class: 'student-titlebar' });
+    const title = el('div', { class: 'student-title', text: studentLabel(st) });
+
+    const menuWrap = el('div', { class: 'student-menu-wrap' });
+
+    const gearBtn = el('button', { class: 'btn student-gear-btn', text: '⚙' });
+    gearBtn.type = 'button';
+    gearBtn.setAttribute('aria-label', 'Действия');
+    gearBtn.setAttribute('aria-expanded', 'false');
+
+    const menu = el('div', { class: 'student-menu hidden' });
+    menu.__btn = gearBtn;
+
+    const delItem = el('button', { class: 'student-menu-item', text: 'Удалить' });
+    delItem.type = 'button';
+
+    menu.appendChild(delItem);
+    menuWrap.appendChild(gearBtn);
+    menuWrap.appendChild(menu);
+
+    titlebar.appendChild(title);
+    titlebar.appendChild(menuWrap);
+
+    // Метаданные (email/класс/активность)
+    const meta = [];
+    if (email) meta.push(email);
+    if (grade) meta.push(`Класс: ${grade}`);
+
+    const lastActive = parseDate(st.last_activity_at || st.last_active_at);
+    meta.push(`Последняя активность: ${fmtDateTime(lastActive)}`);
+
+    const metaEl = el('div', { class: 'muted student-meta', text: meta.join(' • ') });
+
+    // Метрики
+    const metrics = el('div', { class: 'student-metrics' });
+
+    const s = st.__summary || st.summary || st.stats || null;
+    const a30 = safeInt(s?.attempts_count, 0);
+    const f10c = safeInt(s?.form_correct, 0);
+    const f10t = safeInt(s?.form_total, 0);
+    const l10c = safeInt(s?.last10_correct, 0);
+    const l10t = safeInt(s?.last10_total, 0);
+    const covered = safeInt(s?.covered_topics, 0);
+
+    const total = __totalTopics || safeInt(s?.total_topics, 0) || 0;
+
+    metrics.appendChild(miniBadge('Активность (30д)', a30 ? String(a30) : '0', pct(l10t, l10c)));
+    const formText = (f10t > 0) ? `${pct(f10t, f10c)}% · ${f10c}/${f10t}` : '—';
+    metrics.appendChild(miniBadge('Форма (10)', formText, pct(f10t, f10c)));
+    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
+    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
+    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
+
+    // Действия меню
     gearBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggleStudentMenu(menu, gearBtn);
+      const isOpen = !menu.classList.contains('hidden');
+      closeStudentMenu();
+      if (!isOpen) {
+        menu.classList.remove('hidden');
+        gearBtn.setAttribute('aria-expanded', 'true');
+        __openStudentMenu = menu;
+      }
     });
-    menu.addEventListener('click', (e) => e.stopPropagation());
+
+    menuWrap.addEventListener('click', (e) => e.stopPropagation());
 
     delItem.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!sid) return;
-
       closeStudentMenu();
 
+      if (!sid) return;
       const name = studentLabel(st) || email || 'ученика';
       if (!confirm(`Удалить ${name} из списка учеников?`)) return;
 
@@ -370,9 +370,12 @@ function renderStudents(list) {
       }
     });
 
-    if (isProblemStudent(st)) {
-      card.classList.add('student-problem');
-    }
+    card.appendChild(titlebar);
+    card.appendChild(metaEl);
+    card.appendChild(metrics);
+
+    // Подсветка проблемных учеников рамкой (как было)
+    if (isProblematic(st)) card.classList.add('is-problem');
 
     grid.appendChild(card);
   }
@@ -596,11 +599,16 @@ async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {})
     }
 
     setStatus(status, '');
+    rebuildKnownEmails();
+    updateAddButtonState();
+
     applyFiltersAndRender();
   } catch (e) {
     console.warn('loadStudents error', e);
     setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
     __studentsRaw = [];
+    rebuildKnownEmails();
+    updateAddButtonState();
     applyFiltersAndRender();
   }
 }
@@ -638,79 +646,25 @@ async function removeStudent(cfg, accessToken, studentId) {
   }
 }
 
-async function main() {
+async async function main() {
   const pageStatus = $('#pageStatus');
 
-  const toggleSearchBtn = $('#toggleSearchPanelBtn');
-  const searchPanel = $('#studentsSearchPanel');
-
-  const openAddModalBtn = $('#openAddStudentModalBtn');
-  const modal = $('#addStudentModal');
-  const modalCloseBtn = $('#addStudentModalClose');
-  const modalCancelBtn = $('#addStudentCancelBtn');
-  const emailInput = $('#addStudentEmail');
-  const addBtn = $('#addStudentBtn');
-
   const searchInput = $('#searchStudents');
+  const addBtn = $('#addStudentInlineBtn');
+
   const problemsChk = $('#filterProblems');
   const daysSel = $('#summaryDays');
   const sourceSel = $('#summarySource');
-  const refreshBtn = $('#refreshStudentsBtn');
 
-  function isModalOpen() {
-    return !!(modal && !modal.classList.contains('hidden'));
-  }
-
-  function closeModal() {
-    if (!modal) return;
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
-  function openModal() {
-    if (!modal) return;
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-    setStatus($('#addStatus'), '', { sticky: true });
-    try { emailInput.value = ''; } catch (_) {}
-    try { emailInput?.focus(); } catch (_) {}
-  }
-
-  // Toggle: панель поиска
-  if (searchPanel) searchPanel.classList.add('hidden');
-  if (toggleSearchBtn && searchPanel) {
-    toggleSearchBtn.setAttribute('aria-expanded', 'false');
-    toggleSearchBtn.addEventListener('click', (e) => {
-      e?.preventDefault?.();
-      const isOpen = !searchPanel.classList.contains('hidden');
-      if (isOpen) {
-        searchPanel.classList.add('hidden');
-        toggleSearchBtn.setAttribute('aria-expanded', 'false');
-      } else {
-        searchPanel.classList.remove('hidden');
-        toggleSearchBtn.setAttribute('aria-expanded', 'true');
-        try { searchInput?.focus(); } catch (_) {}
-      }
-    });
-  }
-
-  // Модалка "Новый ученик"
-  openAddModalBtn?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-    openModal();
+  // Закрывать меню карточек при клике вне/по Esc
+  document.addEventListener('pointerdown', (e) => {
+    if (!__openStudentMenu) return;
+    const wrap = __openStudentMenu.closest?.('.student-menu-wrap');
+    if (wrap && wrap.contains(e.target)) return;
+    closeStudentMenu();
   });
-  modalCloseBtn?.addEventListener('click', (e) => { e?.preventDefault?.(); closeModal(); });
-  modalCancelBtn?.addEventListener('click', (e) => { e?.preventDefault?.(); closeModal(); });
-
-  modal?.addEventListener('click', (e) => {
-    const t = e.target;
-    if (t && (t.classList.contains('modal-backdrop') || t.dataset?.close === '1')) {
-      closeModal();
-    }
-  });
-
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && isModalOpen()) closeModal();
+    if (e.key === 'Escape') closeStudentMenu();
   });
 
   try {
@@ -719,79 +673,109 @@ async function main() {
     const auth = await ensureAuth(cfg);
     if (!auth?.access_token || !auth?.user_id) {
       setStatus(pageStatus, 'Войдите, чтобы открыть список учеников.', { sticky: true });
-      if (openAddModalBtn) openAddModalBtn.disabled = true;
+      if (addBtn) addBtn.disabled = true;
       return;
     }
 
     const role = await getMyRoleViaRest(cfg, auth.access_token, auth.user_id).catch(() => '');
     if (role !== 'teacher') {
       setStatus(pageStatus, 'Доступно только для учителя.', { sticky: true });
-      if (openAddModalBtn) openAddModalBtn.disabled = true;
+      if (addBtn) addBtn.disabled = true;
       return;
     }
 
     __cfgGlobal = cfg;
 
-    const days = daysSel ? safeInt(daysSel.value, 7) : 7;
+    const days = daysSel ? safeInt(daysSel.value, 30) : 30;
     const source = sourceSel ? normSource(sourceSel.value) : 'all';
     __currentDays = days;
     __currentSource = source;
 
     await loadStudents(cfg, auth.access_token, { days, source });
 
-    searchInput?.addEventListener('input', () => applyFiltersAndRender());
-    problemsChk?.addEventListener('change', () => applyFiltersAndRender());
+    // Поиск (локальный фильтр) + проверка доступности "Добавить"
+    searchInput?.addEventListener('input', () => {
+      applyFiltersAndRender();
+      updateAddButtonState();
+    });
 
-    refreshBtn?.addEventListener('click', async () => {
+    // "Проблемные" применяется сразу
+    problemsChk?.addEventListener('change', () => {
+      applyFiltersAndRender();
+    });
+
+    // Изменение дней/источника — сразу перезагрузка данных
+    const reloadFromSelectors = async () => {
       const a2 = await ensureAuth(cfg);
       if (!a2?.access_token) {
         setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
         return;
       }
-      const d = daysSel ? safeInt(daysSel.value, 7) : __currentDays;
+      const d = daysSel ? safeInt(daysSel.value, 30) : __currentDays;
       const s = sourceSel ? normSource(sourceSel.value) : __currentSource;
+      __currentDays = d;
+      __currentSource = s;
       await loadStudents(cfg, a2.access_token, { days: d, source: s });
-    });
+    };
 
-    daysSel?.addEventListener('change', async () => refreshBtn?.click());
-    sourceSel?.addEventListener('change', async () => refreshBtn?.click());
+    daysSel?.addEventListener('change', reloadFromSelectors);
+    sourceSel?.addEventListener('change', reloadFromSelectors);
 
-    addBtn?.addEventListener('click', async () => {
-      if (addBtn) addBtn.disabled = true;
+    // Добавление ученика по email из поля поиска
+    const doAdd = async () => {
+      if (!addBtn || addBtn.disabled) return;
+      addBtn.disabled = true;
       try {
-        const email = String(emailInput?.value || '').trim().toLowerCase();
-        if (!email) {
-          setStatus($('#addStatus'), 'Введите email.');
+        const email = String(searchInput?.value || '').trim().toLowerCase();
+        if (!isValidEmail(email)) {
+          setStatus($('#addStatus'), 'Введите корректный email.');
+          return;
+        }
+        if (__knownEmails.has(email)) {
+          setStatus($('#addStatus'), 'Этот ученик уже есть в списке.');
           return;
         }
 
         const a2 = await ensureAuth(cfg);
         if (!a2?.access_token) {
-          setStatus($('#addStatus'), 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
+          setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
           return;
         }
 
         const ok = await addStudent(cfg, a2.access_token, email);
         if (ok) {
-          closeModal();
+          // Перезагрузить список и очистить поле
           await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
+          if (searchInput) searchInput.value = '';
+          applyFiltersAndRender();
         }
       } finally {
-        if (addBtn) addBtn.disabled = false;
+        updateAddButtonState();
+      }
+    };
+
+    addBtn?.addEventListener('click', doAdd);
+
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        // Enter: если можно — добавить; иначе просто не мешаем поиску
+        if (!addBtn?.disabled) {
+          e.preventDefault();
+          doAdd();
+        }
       }
     });
 
-    emailInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addBtn?.click();
-      }
-    });
+    // Стартовое состояние кнопки
+    updateAddButtonState();
   } catch (e) {
     console.error(e);
     setStatus(pageStatus, 'Ошибка инициализации страницы.', { sticky: true });
-    if (openAddModalBtn) openAddModalBtn.disabled = true;
+    if ($('#addStudentInlineBtn')) $('#addStudentInlineBtn').disabled = true;
   }
 }
+
+main();
+
 
 main();

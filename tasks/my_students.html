@@ -2,22 +2,19 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-10-5">
+  <meta name="app-build" content="2026-01-10-6">
   <title>Мои ученики</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-5">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-6">
 </head>
 <body>
   <main class="container">
     <section>
       <div class="panel">
         <header id="appHeader" class="page-head">
-          <div class="students-head">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
             <h1 id="pageTitle" style="margin:0">Мои ученики</h1>
-            <div class="students-head-actions">
-              <button id="toggleSearchPanelBtn" class="btn" type="button" aria-expanded="false">Поиск по ученикам</button>
-              <button id="openAddStudentModalBtn" class="btn" type="button">Новый ученик</button>
-            </div>
+            <button id="toggleAddStudentFormBtn" class="btn" type="button">Новый ученик</button>
           </div>
         </header>
 
@@ -29,11 +26,13 @@
           import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
         </script>
 
-        <div id="studentsSearchPanel" class="hidden" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
-          <label style="display:block; flex:1; min-width:220px">
-            <div style="opacity:.8; margin-bottom:6px">Поиск по ученикам</div>
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end">
+          <label style="display:block; flex:1; min-width:260px">
+            <div style="opacity:.8; margin-bottom:6px">Поиск/добавление ученика</div>
             <input id="searchStudents" type="search" placeholder="ФИО или email" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
           </label>
+
+          <button id="addStudentInlineBtn" class="btn primary" type="button" disabled>Добавить</button>
 
           <label style="display:flex; align-items:center; gap:8px; padding:10px 12px; border:1px solid var(--border); border-radius:12px; background:rgba(148,163,184,.06)">
             <input id="filterProblems" type="checkbox">
@@ -58,33 +57,9 @@
               <option value="test">только тест</option>
             </select>
           </label>
-
-          <button id="refreshStudentsBtn" class="btn" type="button">Обновить</button>
         </div>
 
-        <!-- add student modal -->
-        <div id="addStudentModal" class="modal hidden" aria-hidden="true">
-          <div class="modal-backdrop" data-close="1"></div>
-          <div class="modal-card modal-sm" role="dialog" aria-modal="true" aria-labelledby="addStudentTitle">
-            <div class="modal-head">
-              <div id="addStudentTitle" class="modal-title">Новый ученик</div>
-              <button id="addStudentModalClose" class="btn small" type="button" aria-label="Закрыть">×</button>
-            </div>
-            <div class="modal-body-simple">
-              <label style="display:block">
-                <div style="opacity:.8; margin-bottom:6px">Email ученика</div>
-                <input id="addStudentEmail" type="email" placeholder="student@example.com" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(0,0,0,.15)">
-              </label>
-
-              <div class="modal-actions-simple">
-                <button id="addStudentBtn" class="btn primary" type="button">Добавить ученика</button>
-                <button id="addStudentCancelBtn" class="btn" type="button">Отмена</button>
-              </div>
-
-              <div id="addStatus" class="muted" style="min-height:20px"></div>
-            </div>
-          </div>
-        </div>
+        <div id="addStatus" class="muted" style="min-height:20px; margin-top:10px"></div>
 
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
@@ -94,7 +69,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-10-5" defer></script>
+  <script src="./theme.js?v=2026-01-10-6" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
