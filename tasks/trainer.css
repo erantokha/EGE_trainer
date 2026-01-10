@@ -964,6 +964,26 @@ input:focus{
   line-height:1;
   text-align:center;
 }
+
+/* my_students: оверлей модалки "Новый ученик" — непрозрачный фон */
+#addStudentModal .modal-backdrop{
+  background: var(--bg);
+}
+
+/* my_students: кнопка закрытия (как в hw_create -> task picker) */
+#addStudentModal #addStudentModalClose{
+  width:36px;
+  height:36px;
+  /* центр символа примерно на 45% высоты (т.е. отступ от низа ~55%) */
+  padding:0 0 4px 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  line-height:1;
+  text-align:center;
+}
+
 .modal-body {
   display:grid;
   grid-template-columns:320px 1fr;
