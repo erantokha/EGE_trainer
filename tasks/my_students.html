@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-10-10">
+  <meta name="app-build" content="2026-01-10-12">
   <title>Мои ученики</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-10">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-12">
 </head>
 <body>
   <main class="container">
@@ -58,17 +58,14 @@
           </label>
         </div>
 
-        <div id="addStatus" class="muted" style="min-height:20px; margin-top:10px"></div>
-
-        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
-
-        <div id="pageStatus" class="muted" style="min-height:20px"></div>
-        <div id="studentsList" style="margin-top:10px"></div>
+        <div id="addStatus" class="muted" style="margin-top:10px"></div>
+        <div id="pageStatus" class="muted" style="margin-top:6px"></div>
+        <div id="studentsList" style="margin-top:6px"></div>
       </div>
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-10-7" defer></script>
+  <script src="./theme.js?v=2026-01-10-12" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;

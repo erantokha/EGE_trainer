@@ -545,7 +545,8 @@ async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {})
   __currentDays = safeInt(days, 7);
   __currentSource = normSource(source);
 
-  setStatus(status, 'Загружаем список...', { sticky: true });
+  // Служебный статус загрузки пользователю не показываем (только ошибки/сообщения результата).
+  setStatus(status, '');
 
   try {
     const [students, summary] = await Promise.all([
