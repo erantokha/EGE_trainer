@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-07-3';
+import { CONFIG } from '../config.js?v=2026-01-10-1';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -31,10 +31,244 @@ export const supabase = __g[__SB_GLOBAL_KEY] || (__g[__SB_GLOBAL_KEY] = createCl
   },
 ));
 
-export async function getSession() {
-  const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
-  return data?.session || null;
+// --- Session helpers: быстро и устойчиво к storage-locks (несколько вкладок/расширения) ---
+const __SESSION_CACHE = {
+  session: null,
+  expires_at: 0,
+  inflight: null,
+};
+
+function __pick(obj, paths) {
+  for (const p of (paths || [])) {
+    const parts = String(p).split('.');
+    let cur = obj;
+    let ok = true;
+    for (const part of parts) {
+      if (!cur || typeof cur !== 'object' || !(part in cur)) { ok = false; break; }
+      cur = cur[part];
+    }
+    if (ok && cur !== undefined && cur !== null && String(cur) !== '') return cur;
+  }
+  return null;
+}
+
+function __getAuthStorageKey() {
+  try {
+    const url = String(CONFIG?.supabase?.url || '').trim();
+    const m = url.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
+    const ref = m ? m[1] : null;
+    return ref ? `sb-${ref}-auth-token` : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function __readStoredSession() {
+  const key = __getAuthStorageKey();
+  if (!key) return { key: null, raw: null, session: null };
+
+  let rawStr = null;
+  try { rawStr = localStorage.getItem(key); } catch (_) { rawStr = null; }
+  if (!rawStr) return { key, raw: null, session: null };
+
+  let raw = null;
+  try { raw = JSON.parse(rawStr); } catch (_) { raw = null; }
+  if (!raw || typeof raw !== 'object') return { key, raw, session: null };
+
+  const session = {
+    access_token: String(__pick(raw, ['access_token', 'currentSession.access_token', 'session.access_token']) || ''),
+    refresh_token: String(__pick(raw, ['refresh_token', 'currentSession.refresh_token', 'session.refresh_token']) || ''),
+    token_type: String(__pick(raw, ['token_type', 'currentSession.token_type', 'session.token_type']) || 'bearer'),
+    expires_at: Number(__pick(raw, ['expires_at', 'currentSession.expires_at', 'session.expires_at']) || 0) || 0,
+    user: __pick(raw, ['user', 'currentSession.user', 'session.user']) || null,
+    __raw: raw,
+  };
+
+  if (!session.access_token) return { key, raw, session: null };
+  return { key, raw, session };
+}
+
+function __writeStoredSession(key, raw, newObj) {
+  if (!key || !newObj) return;
+  try {
+    const base = (raw && typeof raw === 'object') ? raw : {};
+    // Подстраиваемся под разные форматы supabase-js.
+    if ('currentSession' in base && base.currentSession && typeof base.currentSession === 'object') {
+      base.currentSession = { ...base.currentSession, ...newObj };
+    } else if ('session' in base && base.session && typeof base.session === 'object') {
+      base.session = { ...base.session, ...newObj };
+    } else {
+      Object.assign(base, newObj);
+    }
+    localStorage.setItem(key, JSON.stringify(base));
+  } catch (_) {}
+}
+
+async function __fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { method, headers, body, signal: ctrl.signal });
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
+    return { ok: res.ok, status: res.status, data };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function __refreshByToken(refreshToken) {
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/auth/v1/token?grant_type=refresh_token`;
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: CONFIG.supabase.anonKey,
+    Authorization: `Bearer ${CONFIG.supabase.anonKey}`,
+  };
+  const body = JSON.stringify({ refresh_token: refreshToken });
+  const r = await __fetchJson(url, { method: 'POST', headers, body, timeoutMs: 15000 });
+  if (!r.ok) {
+    const msg = (typeof r.data === 'string')
+      ? r.data
+      : (r.data?.msg || r.data?.message || r.data?.error_description || r.data?.error || `HTTP_${r.status}`);
+    throw new Error(String(msg));
+  }
+  return r.data;
+}
+
+async function __getSessionViaSupabase(timeoutMs) {
+  const p = (async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return data?.session || null;
+  })();
+  if (!timeoutMs || timeoutMs <= 0) {
+    try { return { session: await p, timeout: false, error: null }; }
+    catch (e) { return { session: null, timeout: false, error: e }; }
+  }
+  const t = new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), timeoutMs));
+  try {
+    const r = await Promise.race([p, t]);
+    if (r && r.__timeout) return { session: null, timeout: true, error: null };
+    return { session: r, timeout: false, error: null };
+  } catch (e) {
+    return { session: null, timeout: false, error: e };
+  }
+}
+
+export async function getSession(opts = {}) {
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 900) || 0);
+  const skewSec = Math.max(0, Number(opts?.skewSec ?? 30) || 0);
+  const now = Math.floor(Date.now() / 1000);
+
+  // быстрый cache
+  const cached = __SESSION_CACHE.session;
+  const cachedExp = Number(__SESSION_CACHE.expires_at || 0) || 0;
+  if (cached && (!cachedExp || (cachedExp - now) > skewSec)) return cached;
+
+  if (__SESSION_CACHE.inflight) return __SESSION_CACHE.inflight;
+
+  __SESSION_CACHE.inflight = (async () => {
+    // 1) пробуем supabase-js, но не ждём бесконечно
+    const r = await __getSessionViaSupabase(timeoutMs);
+    if (r?.session) {
+      const s = r.session;
+      const exp = Number(s.expires_at || 0) || 0;
+      __SESSION_CACHE.session = s;
+      __SESSION_CACHE.expires_at = exp;
+
+      if (!exp || (exp - now) > skewSec) return s;
+
+      // истекает — пробуем refresh напрямую (без supabase.auth.refreshSession, чтобы не залипать на locks)
+      const rt = String(s.refresh_token || '').trim();
+      if (rt) {
+        try {
+          const refreshed = await __refreshByToken(rt);
+          const expiresIn = Number(refreshed?.expires_in || 0) || 0;
+          const newExpiresAt = expiresIn ? (now + expiresIn) : exp;
+
+          const newObj = {
+            access_token: refreshed?.access_token || s.access_token,
+            refresh_token: refreshed?.refresh_token || rt,
+            token_type: refreshed?.token_type || s.token_type || 'bearer',
+            expires_at: newExpiresAt,
+            user: refreshed?.user || s.user || null,
+          };
+
+          const { key, raw } = __readStoredSession();
+          __writeStoredSession(key, raw, newObj);
+
+          const out = { ...s, ...newObj };
+          __SESSION_CACHE.session = out;
+          __SESSION_CACHE.expires_at = newExpiresAt;
+          return out;
+        } catch (_) {
+          // если refresh не удался — вернём текущую сессию (best-effort)
+          return s;
+        }
+      }
+
+      return s;
+    }
+
+    // 2) fallback: читаем сессию напрямую из localStorage
+    const stored = __readStoredSession();
+    const s0 = stored?.session || null;
+    if (!s0) {
+      __SESSION_CACHE.session = null;
+      __SESSION_CACHE.expires_at = 0;
+      return null;
+    }
+
+    const exp0 = Number(s0.expires_at || 0) || 0;
+    // если токен явно протух — refresh обязателен
+    const isExpiredHard = exp0 && (exp0 - now) <= -60;
+
+    if ((!exp0 || (exp0 - now) > skewSec) && !isExpiredHard) {
+      __SESSION_CACHE.session = s0;
+      __SESSION_CACHE.expires_at = exp0;
+      return s0;
+    }
+
+    const rt = String(s0.refresh_token || '').trim();
+    if (!rt) {
+      __SESSION_CACHE.session = null;
+      __SESSION_CACHE.expires_at = 0;
+      return null;
+    }
+
+    try {
+      const refreshed = await __refreshByToken(rt);
+      const expiresIn = Number(refreshed?.expires_in || 0) || 0;
+      const newExpiresAt = expiresIn ? (now + expiresIn) : exp0;
+
+      const newObj = {
+        access_token: refreshed?.access_token,
+        refresh_token: refreshed?.refresh_token || rt,
+        token_type: refreshed?.token_type || s0.token_type || 'bearer',
+        expires_at: newExpiresAt,
+        user: refreshed?.user || s0.user || null,
+      };
+
+      __writeStoredSession(stored.key, stored.raw, newObj);
+
+      const out = { ...s0, ...newObj };
+      __SESSION_CACHE.session = out;
+      __SESSION_CACHE.expires_at = newExpiresAt;
+      return out;
+    } catch (_) {
+      __SESSION_CACHE.session = null;
+      __SESSION_CACHE.expires_at = 0;
+      return null;
+    }
+  })();
+
+  try {
+    return await __SESSION_CACHE.inflight;
+  } finally {
+    __SESSION_CACHE.inflight = null;
+  }
 }
 
 export async function requireSession() {
