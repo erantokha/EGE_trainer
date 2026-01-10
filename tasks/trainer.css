@@ -1179,11 +1179,19 @@ input:focus{
 
 .muted { color: var(--text-dim); }
 
-/* my_students: статусы не должны занимать место, если текста нет */
-#addStatus:empty,
-#pageStatus:empty{
-  display:none;
+/* my_students: резервируем высоту статусов, чтобы список не "прыгал" */
+.students-status{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
 }
+.students-status #addStatus,
+.students-status #pageStatus{
+  min-height:20px;
+}
+.students-list{ margin-top:6px; }
+
 
 .students-grid{
   display:grid;
@@ -1203,16 +1211,15 @@ input:focus{
 @media (max-width: 560px){
   .students-grid{ grid-template-columns:1fr; }
 }
-.student-card{ cursor:pointer; padding:10px; aspect-ratio: 1 / 1; display:flex; flex-direction:column; }
-.student-title{ font-size:16px; margin-bottom:4px; }
+.student-card{cursor:pointer; padding:10px; aspect-ratio: 1 / 1; display:flex; flex-direction:column; --gap-name-class:6px; --gap-class-metrics: calc(var(--gap-name-class) * 2); }
+.student-title{ font-size:16px; margin-bottom:var(--gap-name-class); }
 
 .student-meta{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .student-metrics{
   display:grid;
   grid-template-columns:repeat(2, minmax(0, 1fr));
   gap:8px;
-  /* при фиксированной высоте карточки прижимаем цветные блоки к низу */
-  margin-top:auto;
+  margin-top: var(--gap-class-metrics);
 }
 
 .student-actions{

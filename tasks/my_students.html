@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-10-12">
+  <meta name="app-build" content="2026-01-10-13">
   <title>Мои ученики</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-12">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-13">
 </head>
 <body>
   <main class="container">
@@ -58,14 +58,16 @@
           </label>
         </div>
 
-        <div id="addStatus" class="muted" style="margin-top:10px"></div>
-        <div id="pageStatus" class="muted" style="margin-top:6px"></div>
-        <div id="studentsList" style="margin-top:6px"></div>
+        <div id="studentsStatus" class="students-status">
+          <div id="addStatus" class="muted"></div>
+          <div id="pageStatus" class="muted"></div>
+        </div>
+        <div id="studentsList" class="students-list"></div>
       </div>
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-10-12" defer></script>
+  <script src="./theme.js?v=2026-01-10-13" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;

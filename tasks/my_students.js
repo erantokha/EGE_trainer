@@ -222,16 +222,66 @@ function applyFiltersAndRender() {
     list = list.filter((st) => isProblemStudent(st));
   }
 
+  const now = Date.now();
+
+  // по умолчанию — сначала самые активные
+  if (!onlyProblems) {
+    list.sort((a, b) => {
+      const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
+      const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
+      const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
+      const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
+      return bt - at;
+    });
+    renderStudents(list);
+    return;
+  }
+
+  // если включены "Проблемные" — сортируем по худшим результатам (хуже → выше)
   list.sort((a, b) => {
-    const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
-    const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
-    const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
-    const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
-    return bt - at;
+    const sa = a?.__summary || {};
+    const sb = b?.__summary || {};
+
+    // 1) форма (last10) — ниже = хуже; отсутствие данных считаем хуже
+    const aL10t = safeInt(sa.last10_total, 0);
+    const aL10c = safeInt(sa.last10_correct, 0);
+    const bL10t = safeInt(sb.last10_total, 0);
+    const bL10c = safeInt(sb.last10_correct, 0);
+    const aForm = pct(aL10t, aL10c);
+    const bForm = pct(bL10t, bL10c);
+    const aFormKey = (aForm === null ? -1 : aForm);
+    const bFormKey = (bForm === null ? -1 : bForm);
+    if (aFormKey !== bFormKey) return aFormKey - bFormKey;
+
+    // 2) покрытие — ниже = хуже; отсутствие данных считаем хуже
+    const aCov = safeInt(sa.covered_topics_all_time, 0);
+    const bCov = safeInt(sb.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const aCovPct = total > 0 ? Math.round((aCov / total) * 100) : null;
+    const bCovPct = total > 0 ? Math.round((bCov / total) * 100) : null;
+    const aCovKey = (aCovPct === null ? -1 : aCovPct);
+    const bCovKey = (bCovPct === null ? -1 : bCovPct);
+    if (aCovKey !== bCovKey) return aCovKey - bCovKey;
+
+    // 3) активность (за выбранный период) — меньше = хуже
+    const aAct = safeInt(sa.activity_total, 0);
+    const bAct = safeInt(sb.activity_total, 0);
+    if (aAct !== bAct) return aAct - bAct;
+
+    // 4) давность последней активности — больше дней = хуже
+    const aLast = sa.last_seen_at ? new Date(sa.last_seen_at) : null;
+    const bLast = sb.last_seen_at ? new Date(sb.last_seen_at) : null;
+    const aDays = (aLast && isFinite(aLast.getTime())) ? Math.floor((now - aLast.getTime()) / 86400000) : 9999;
+    const bDays = (bLast && isFinite(bLast.getTime())) ? Math.floor((now - bLast.getTime()) / 86400000) : 9999;
+    if (aDays !== bDays) return bDays - aDays;
+
+    // 5) детерминизм
+    return studentLabel(a).localeCompare(studentLabel(b), 'ru');
   });
 
   renderStudents(list);
 }
+
 
 
 function isValidEmail(v) {
@@ -545,8 +595,7 @@ async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {})
   __currentDays = safeInt(days, 7);
   __currentSource = normSource(source);
 
-  // Служебный статус загрузки пользователю не показываем (только ошибки/сообщения результата).
-  setStatus(status, '');
+  setStatus(status, 'Загружаем список...', { sticky: true });
 
   try {
     const [students, summary] = await Promise.all([
@@ -752,8 +801,5 @@ async function main() {
     if ($('#addStudentInlineBtn')) $('#addStudentInlineBtn').disabled = true;
   }
 }
-
-main();
-
 
 main();
