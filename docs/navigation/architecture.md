@@ -1,15 +1,17 @@
-
 # Архитектура (L0)
 
+Эта страница рассчитана на чтение внутри репозитория.
+Если вы открыли документацию отдельно (docs.zip), используйте ссылки snapshot рядом с ссылками на код.
+
 Оглавление
-- Контур системы
-- Жизненный цикл страницы
-- Доменные сущности
-- Диаграммы
-  - Компонентная схема
-  - Вход через Google (sequence)
-  - Выполнение ДЗ до результата (sequence)
-  - Data-flow по таблицам/RPC
+- [Контур системы](#контур-системы)
+- [Жизненный цикл страницы](#жизненный-цикл-страницы)
+- [Доменные сущности](#доменные-сущности)
+- [Диаграммы](#диаграммы)
+  - [Компонентная схема](#компонентная-схема)
+  - [Вход через Google (sequence)](#вход-через-google-sequence)
+  - [Выполнение ДЗ до результата (sequence)](#выполнение-дз-до-результата-sequence)
+  - [Data-flow по таблицам/RPC](#data-flow-по-таблицамrpc)
 
 ## Контур системы
 
@@ -29,11 +31,11 @@
 7) MathJax typeset после вставки формул
 
 Где это реализовано:
-- шапка: ../../../app/ui/header.js
-- Supabase клиент и finalize redirect: ../../../app/providers/supabase.js
-- тренажёр: ../../../tasks/trainer.js
-- ДЗ: ../../../tasks/hw.js
-- статистика: ../../../tasks/stats.js (через REST rpc)
+- шапка: [app/ui/header.js](../../app/ui/header.js) / [snapshot](./code/app/ui/header.js)
+- Supabase клиент и finalize redirect: [app/providers/supabase.js](../../app/providers/supabase.js) / [snapshot](./code/app/providers/supabase.js)
+- тренажёр: [tasks/trainer.js](../../tasks/trainer.js) / [snapshot](./code/tasks/trainer.js)
+- ДЗ: [tasks/hw.js](../../tasks/hw.js) / [snapshot](./code/tasks/hw.js)
+- статистика: [tasks/stats.js](../../tasks/stats.js) / [snapshot](./code/tasks/stats.js)
 
 ## Доменные сущности
 

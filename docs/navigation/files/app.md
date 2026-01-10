@@ -1,7 +1,14 @@
-
 # app (L2)
 
+
+Оглавление
+- [../../../app/config.js](#appconfigjs)
+- [../../../app/build.js](#appbuildjs)
+
 ## ../../../app/config.js
+
+Ссылка на код: [app/config.js](../../../app/config.js) / [snapshot](../code/app/config.js)
+
 
 Путь: app/config.js
 
@@ -33,6 +40,9 @@
 - console.log CONFIG на странице auth_callback.html
 
 ## ../../../app/build.js
+
+Ссылка на код: [app/build.js](../../../app/build.js) / [snapshot](../code/app/build.js)
+
 
 Путь: app/build.js
 

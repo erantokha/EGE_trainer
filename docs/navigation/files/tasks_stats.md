@@ -1,7 +1,16 @@
-
 # tasks: статистика и умный режим (L2)
 
+
+Оглавление
+- [../../../tasks/stats.js](#tasksstatsjs)
+- [../../../tasks/stats_view.js](#tasksstats_viewjs)
+- [../../../tasks/recommendations.js](#tasksrecommendationsjs)
+- [../../../tasks/smart_select.js, smart_mode.js, smart_hw_builder.js, smart_hw.js](#taskssmart_selectjs-smart_modejs-smart_hw_builderjs-smart_hwjs)
+
 ## ../../../tasks/stats.js
+
+Ссылка на код: [tasks/stats.js](../../../tasks/stats.js) / [snapshot](../code/tasks/stats.js)
+
 
 Назначение: статистика ученика “для себя”.
 Особенность: использует прямые REST вызовы к Supabase:
@@ -14,14 +23,23 @@
 
 ## ../../../tasks/stats_view.js
 
+Ссылка на код: [tasks/stats_view.js](../../../tasks/stats_view.js) / [snapshot](../code/tasks/stats_view.js)
+
+
 Назначение: отрисовка dashboard (темы/подтемы, проценты, счетчики).
 Зависимости: DOM, CSS stats.css.
 
 ## ../../../tasks/recommendations.js
 
+Ссылка на код: [tasks/recommendations.js](../../../tasks/recommendations.js) / [snapshot](../code/tasks/recommendations.js)
+
+
 Назначение: правила “какие темы рекомендовать” по данным dashboard.
 
 ## ../../../tasks/smart_select.js, smart_mode.js, smart_hw_builder.js, smart_hw.js
+
+Ссылка на код: [tasks/smart_select.js,](../../../tasks/smart_select.js,) / [snapshot](../code/tasks/smart_select.js,)
+
 
 Назначение: “умный режим” — из статистики построить план тем и собрать конкретные question_id.
 Тонкости:

@@ -10,8 +10,8 @@
 2) ввести email/password, нажать “Войти”
 
 Внутренние шаги
-- ../../../tasks/auth.js: signInWithPassword(email, password)
-- ../../../app/providers/supabase.js: signInWithPassword
+- [tasks/auth.js](../../../tasks/auth.js) / [snapshot](../code/tasks/auth.js): signInWithPassword(email, password)
+- [app/providers/supabase.js](../../../app/providers/supabase.js) / [snapshot](../code/app/providers/supabase.js): signInWithPassword
 
 Запросы к Supabase
 - Auth: signInWithPassword
@@ -22,8 +22,8 @@
 3) на tasks/auth_reset.html задать новый пароль
 
 Внутренние шаги (reset)
-- ../../../tasks/auth_reset.js: finalizeAuthRedirect, updatePassword
-- ../../../app/providers/supabase.js: finalizeAuthRedirect, updatePassword
+- [tasks/auth_reset.js](../../../tasks/auth_reset.js) / [snapshot](../code/tasks/auth_reset.js): finalizeAuthRedirect, updatePassword
+- [app/providers/supabase.js](../../../app/providers/supabase.js) / [snapshot](../code/app/providers/supabase.js): finalizeAuthRedirect, updatePassword
 
 Типовые поломки и где чинить
 - после reset не обновляется сессия:

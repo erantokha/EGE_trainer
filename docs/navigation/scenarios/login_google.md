@@ -12,9 +12,9 @@
 4) вернуться на сайт и попасть на next-страницу
 
 Внутренние шаги (файлы/функции)
-- ../../../tasks/auth.js: signInWithGoogle()
-- ../../../app/providers/supabase.js: signInWithGoogle (обёртка), finalizeAuthRedirect
-- ../../../tasks/auth_callback.js: вызывает finalizeAuthRedirect и редиректит на next
+- [tasks/auth.js](../../../tasks/auth.js) / [snapshot](../code/tasks/auth.js): signInWithGoogle()
+- [app/providers/supabase.js](../../../app/providers/supabase.js) / [snapshot](../code/app/providers/supabase.js): signInWithGoogle (обёртка), finalizeAuthRedirect
+- [tasks/auth_callback.js](../../../tasks/auth_callback.js) / [snapshot](../code/tasks/auth_callback.js): вызывает finalizeAuthRedirect и редиректит на next
 
 Запросы к Supabase
 - Auth: /authorize → redirect → /token (обмен code→session)

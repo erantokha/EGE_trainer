@@ -1,5 +1,10 @@
 # Матрица: экран → таблицы/RPC
 
+
+Оглавление
+- [Примечания по источникам данных](#примечания-по-источникам-данных)
+- [Быстрый поиск](#быстрый-поиск)
+
 Дата обновления: 2026-01-10
 
 Это сводка для быстрого ответа на вопросы вида:
@@ -20,7 +25,7 @@
 | Дозаполнение профиля (/tasks/google_complete.html) | [tasks/google_complete.html](../../tasks/google_complete.html), [tasks/google_complete.js](../../tasks/google_complete.js) | update_my_profile | profiles (текущие поля профиля) | profiles (update через RPC) |
 | Профиль (/tasks/profile.html) | [tasks/profile.html](../../tasks/profile.html), [tasks/profile.js](../../tasks/profile.js) | update_my_profile, delete_my_account | profiles | profiles (update через RPC); auth.users + public.* (delete_my_account) |
 | Создание ДЗ (/tasks/hw_create.html) | [tasks/hw_create.html](../../tasks/hw_create.html), [tasks/hw_create.js](../../tasks/hw_create.js), [app/providers/homework.js](../../app/providers/homework.js) | — | — | homeworks (insert); homework_links (insert) |
-| Выполнение ДЗ (/tasks/hw.html) | [tasks/hw.html](../../tasks/hw.html), [tasks/hw.js](../../tasks/hw.js), [app/providers/homework.js](../../app/providers/homework.js) | get_homework_by_token, start_homework_attempt, has_homework_attempt, submit_homework_attempt, get_homework_attempt_by_token, get_homework_attempt_for_teacher | homework_attempts (select fallback); homeworks/homework_links (через get_homework_by_token) | homework_attempts (insert/update через RPC); answer_events (trigger) |
+| Выполнение ДЗ (/tasks/hw.html) | [tasks/hw.html](../../tasks/hw.html), [tasks/hw.js](../../tasks/hw.js), [app/providers/homework.js](../../app/providers/homework.js) | get_homework_by_token, start_homework_attempt, has_homework_attempt, submit_homework_attempt, get_homework_attempt_by_token, get_homework_attempt_for_teacher | homework_attempts (fallback select по attempt_id, только debug); homeworks/homework_links (через get_homework_by_token) | homework_attempts (insert/update через RPC); answer_events (trigger) |
 | Статистика ученика (/tasks/stats.html) | [tasks/stats.html](../../tasks/stats.html), [tasks/stats.js](../../tasks/stats.js) | student_dashboard_self | answer_events (агрегация на стороне БД) | — |
 | Кабинет учителя: ученики (/tasks/my_students.html) | [tasks/my_students.html](../../tasks/my_students.html), [tasks/my_students.js](../../tasks/my_students.js) | list_my_students, add_student_by_email, remove_student, teacher_students_summary | profiles (role, first_name) через REST; teacher_students (через RPC); answer_events (агрегации в teacher_students_summary) | teacher_students (insert/delete через RPC) |
 | Кабинет учителя: ученик (/tasks/student.html) | [tasks/student.html](../../tasks/student.html), [tasks/student.js](../../tasks/student.js) | student_dashboard_for_teacher, list_student_attempts, list_my_students | profiles (role) через REST; attempts (через RPC list_student_attempts); answer_events (агрегации) | — |
@@ -39,5 +44,6 @@
 
 ## Быстрый поиск
 
-- найти, где вызывается RPC: см. таблицу RPC в {nav_link('supabase.md','supabase.md')}
-- найти сценарий экрана: см. {nav_link('scenarios/README.md','scenarios/README.md')}
+- найти, где вызывается RPC: см. таблицу RPC в [supabase.md](./supabase.md)
+- найти сценарий экрана: см. [scenarios/README.md](./scenarios/README.md)
+Снимки кода: [code/README.md](./code/README.md)

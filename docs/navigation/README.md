@@ -49,7 +49,7 @@
 
 - добавить новую RPC / поменять схему таблиц
   - [supabase.md](supabase.md)
-  - [supabase_schema_overview.md](../../supabase_schema_overview.md) (в корне репозитория)
+  - [supabase_schema_overview.md](./supabase_schema_overview.md) (в корне репозитория)
 
 - посмотреть, какие таблицы трогаются на конкретном экране
   - [supabase_matrix.md](supabase_matrix.md)
@@ -59,3 +59,8 @@
 
 Как дополнять эти документы
 - правила обновления и чек-лист: [changelog.md](changelog.md)
+
+## Чтение документации отдельно от репозитория (docs.zip)
+
+Если вы читаете документацию как отдельный архив, ссылки на код вида `../../app/...` не откроются.
+Используйте ссылки snapshot, либо открывайте копии файлов в [docs/navigation/code](code/README.md).

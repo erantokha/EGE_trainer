@@ -1,7 +1,14 @@
-
 # tasks: домашние задания (L2)
 
+
+Оглавление
+- [../../../tasks/hw_create.js](#taskshw_createjs)
+- [../../../tasks/hw.js](#taskshwjs)
+
 ## ../../../tasks/hw_create.js
+
+Ссылка на код: [tasks/hw_create.js](../../../tasks/hw_create.js) / [snapshot](../code/tasks/hw_create.js)
+
 
 Назначение: создание ДЗ учителем (выбор задач, параметры, генерация ссылки).
 Таблицы:
@@ -19,6 +26,9 @@
 Сценарий: scenarios/homework_create.md
 
 ## ../../../tasks/hw.js
+
+Ссылка на код: [tasks/hw.js](../../../tasks/hw.js) / [snapshot](../code/tasks/hw.js)
+
 
 Назначение: выполнение ДЗ учеником по token.
 RPC:

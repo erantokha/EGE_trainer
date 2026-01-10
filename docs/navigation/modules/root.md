@@ -1,60 +1,46 @@
 # Корень репозитория (L1)
 
 Назначение
+- статический фронтенд (без сборки) на чистых HTML/JS
+- контент задач хранится в /content (json + картинки)
+- бэкенд и авторизация: Supabase (RPC + таблицы + RLS)
 
-- статический фронтенд без сборки: HTML + JS (ES modules) + CSS
-- банк задач и изображения лежат в репозитории и отдаются как статические файлы
-- Supabase используется как Auth + Postgres + RPC (PostgREST)
+Ключевые папки
+- /tasks — страницы тренажёра, ДЗ, статистики и учителя
+- /app — общие провайдеры (Supabase, ДЗ) и UI (header)
+- /content — банк задач и изображения
+- /docs/navigation — “карта проекта” для разработки и отладки
 
-Ключевые точки входа
+Как локально открыть/проверить
+По умолчанию поднимайте локальный сервер (так надёжнее для fetch и ES modules):
+- python -m http.server 8000
+- открыть http://localhost:8000/
 
-- [index.html](../../../index.html) — главная страница (выбор режима/вход в тренажёр)
-- [tasks/](../../../tasks/) — каталог страниц “приложения” (мультистраничный фронт)
-- [app/](../../../app/) — общий код (Supabase, конфиг, UI)
-- [content/](../../../content/) — банк задач (JSON) и изображения
+Открытие index.html через file:// может частично работать, но часто ломается из‑за ограничений браузера на fetch/модули. Поэтому это не рекомендуемый путь.
 
-Файлы в корне
+Где что искать (быстрые ссылки)
+- авторизация и профиль:
+  - [tasks/auth.js](../../../tasks/auth.js), [tasks/auth_callback.js](../../../tasks/auth_callback.js), [tasks/auth_reset.js](../../../tasks/auth_reset.js)
+  - [app/providers/supabase.js](../../../app/providers/supabase.js)
+  - [app/ui/header.js](../../../app/ui/header.js)
+- тренажёр:
+  - [tasks/trainer.js](../../../tasks/trainer.js)
+  - [tasks/picker.js](../../../tasks/picker.js)
+  - [tasks/smart_mode.js](../../../tasks/smart_mode.js)
+- домашки:
+  - [tasks/hw_create.js](../../../tasks/hw_create.js)
+  - [tasks/hw.js](../../../tasks/hw.js)
+  - [app/providers/homework.js](../../../app/providers/homework.js)
+- статистика:
+  - [tasks/stats.js](../../../tasks/stats.js)
+  - [tasks/stats_view.js](../../../tasks/stats_view.js)
+- учитель:
+  - [tasks/my_students.js](../../../tasks/my_students.js)
+  - [tasks/student.js](../../../tasks/student.js)
+  - (общего провайдера teacher нет; логика в [tasks/my_students.js](../../../tasks/my_students.js) и [tasks/student.js](../../../tasks/student.js))
 
-- [.nojekyll](../../../.nojekyll)
-  - отключает Jekyll на GitHub Pages, чтобы не ломались пути и файлы, начинающиеся с точки
-- [CNAME](../../../CNAME)
-  - привязка кастомного домена GitHub Pages
-- [README.md](../../../README.md)
-  - краткое описание проекта (внешнее)
-- [favicon.ico](../../../favicon.ico)
-  - иконка сайта
-- [supabase_schema_overview.md](../../../supabase_schema_overview.md)
-  - снимок схемы Supabase: таблицы, RLS, функции (используется как база для документации)
-- [.github/workflows/validate.yml](../../../.github/workflows/validate.yml)
-  - workflow проверки (см. страницу [.github](./github.md))
-
-Как локально открыть
-
-- достаточно открыть [index.html](../../../index.html) в браузере
-- если нужны fetch к JSON и работа модулей без ограничений браузера, удобнее поднять локальный статический сервер:
-  - python: `python -m http.server 8000`
-  - node: `npx serve .`
-  - затем открыть http://localhost:8000/
-
-Где что искать (быстрые переходы)
-
-- авторизация: [app/providers/supabase.js](../../../app/providers/supabase.js) и страницы [tasks/auth*.html](../../../tasks/auth.html)
-- создание/прохождение ДЗ: [app/providers/homework.js](../../../app/providers/homework.js), [tasks/hw_create.js](../../../tasks/hw_create.js), [tasks/hw.js](../../../tasks/hw.js)
-- тренажёр и запись попыток: [tasks/trainer.js](../../../tasks/trainer.js), [app/providers/supabase-write.js](../../../app/providers/supabase-write.js)
-- статистика и рекомендации: [tasks/stats.js](../../../tasks/stats.js), [tasks/stats_view.js](../../../tasks/stats_view.js), [tasks/recommendations.js](../../../tasks/recommendations.js)
-- общий хедер/навигация: [app/ui/header.js](../../../app/ui/header.js)
-
-Точки расширения
-
-- добавить новую страницу:
-  - создать .html + .js в [tasks/](../../../tasks/)
-  - подключить общий стиль [tasks/trainer.css](../../../tasks/trainer.css) при необходимости
-  - подключить шапку через [app/ui/header.js](../../../app/ui/header.js)
-- добавить общий модуль:
-  - положить в [app/](../../../app/) и импортировать из страниц tasks
-- добавить тему/задачи:
-  - править [content/tasks/index.json](../../../content/tasks/index.json)
-  - добавить/изменить JSON‑манифест темы в [content/tasks/…](../../../content/tasks/)
-  - не менять существующие id прототипов без миграции статистики
+Supabase
+- схема/контракт данных (локальная копия для папки docs): [supabase_schema_overview.md](../supabase_schema_overview.md)
+- карта Supabase для проекта: [supabase.md](../supabase.md)
 
 Дата обновления: 2026-01-10

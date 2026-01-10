@@ -1,7 +1,13 @@
-
 # app/core (L2)
 
+
+Оглавление
+- [../../../app/core/pick.js](#appcorepickjs)
+
 ## ../../../app/core/pick.js
+
+Ссылка на код: [app/core/pick.js](../../../app/core/pick.js) / [snapshot](../code/app/core/pick.js)
+
 
 Путь: app/core/pick.js
 

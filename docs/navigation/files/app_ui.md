@@ -1,7 +1,13 @@
-
 # app/ui (L2)
 
+
+Оглавление
+- [../../../app/ui/header.js](#appuiheaderjs)
+
 ## ../../../app/ui/header.js
+
+Ссылка на код: [app/ui/header.js](../../../app/ui/header.js) / [snapshot](../code/app/ui/header.js)
+
 
 Путь: app/ui/header.js
 

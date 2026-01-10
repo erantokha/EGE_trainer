@@ -1,7 +1,15 @@
-
 # app/providers (L2)
 
+
+Оглавление
+- [../../../app/providers/supabase.js](#appproviderssupabasejs)
+- [../../../app/providers/supabase-write.js](#appproviderssupabase-writejs)
+- [../../../app/providers/homework.js](#appprovidershomeworkjs)
+
 ## ../../../app/providers/supabase.js
+
+Ссылка на код: [app/providers/supabase.js](../../../app/providers/supabase.js) / [snapshot](../code/app/providers/supabase.js)
+
 
 Путь: app/providers/supabase.js
 
@@ -43,6 +51,9 @@
 
 ## ../../../app/providers/supabase-write.js
 
+Ссылка на код: [app/providers/supabase-write.js](../../../app/providers/supabase-write.js) / [snapshot](../code/app/providers/supabase-write.js)
+
+
 Путь: app/providers/supabase-write.js
 
 Назначение: запись попыток решения задач вне ДЗ в таблицу attempts.
@@ -58,6 +69,9 @@
 - attempts (insert)
 
 ## ../../../app/providers/homework.js
+
+Ссылка на код: [app/providers/homework.js](../../../app/providers/homework.js) / [snapshot](../code/app/providers/homework.js)
+
 
 Путь: app/providers/homework.js
 

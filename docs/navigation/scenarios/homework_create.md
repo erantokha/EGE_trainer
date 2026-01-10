@@ -1,4 +1,3 @@
-
 # Создание ДЗ (учитель)
 
 Предусловия
@@ -12,8 +11,8 @@
 4) получить ссылку /tasks/hw.html?token=...
 
 Внутренние шаги
-- ../../../tasks/hw_create.js: собирает frozen_questions/spec
-- ../../../app/providers/homework.js: insert homeworks, insert homework_links
+- [tasks/hw_create.js](../../../tasks/hw_create.js) / [snapshot](../code/tasks/hw_create.js): собирает frozen_questions/spec
+- [app/providers/homework.js](../../../app/providers/homework.js) / [snapshot](../code/app/providers/homework.js): insert homeworks, insert homework_links
 
 Запросы к Supabase
 - insert homeworks
@@ -29,4 +28,6 @@
   - чинить: supabase policies + RPC get_homework_by_token
 
 Приёмка
-- ссылка открывается в инкогнито и корректно показывает ДЗ после логина ученика
+- открыть ссылку в инкогнито:
+  - до логина: страница ДЗ грузится (если RPC для anon разрешена) и показывает CTA “Войти”, “Начать” недоступна
+  - после логина ученика: возврат на ту же ссылку и возможность начать попытку

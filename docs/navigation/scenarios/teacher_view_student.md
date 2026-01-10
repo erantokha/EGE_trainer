@@ -11,8 +11,8 @@
 3) перейти на tasks/student.html?student_id=...
 
 Внутренние шаги
-- ../../../tasks/my_students.js: list_my_students, teacher_students_summary
-- ../../../tasks/student.js: student_dashboard_for_teacher (и родственные)
+- [tasks/my_students.js](../../../tasks/my_students.js) / [snapshot](../code/tasks/my_students.js): list_my_students, teacher_students_summary
+- [tasks/student.js](../../../tasks/student.js) / [snapshot](../code/tasks/student.js): student_dashboard_for_teacher (и родственные)
 
 Запросы к Supabase
 - rpc list_my_students
