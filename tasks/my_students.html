@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-10-6">
+  <meta name="app-build" content="2026-01-10-7">
   <title>Мои ученики</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-6">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-7">
 </head>
 <body>
   <main class="container">
@@ -14,7 +14,6 @@
         <header id="appHeader" class="page-head">
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap">
             <h1 id="pageTitle" style="margin:0">Мои ученики</h1>
-            <button id="toggleAddStudentFormBtn" class="btn" type="button">Новый ученик</button>
           </div>
         </header>
 
@@ -69,7 +68,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-10-6" defer></script>
+  <script src="./theme.js?v=2026-01-10-7" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;

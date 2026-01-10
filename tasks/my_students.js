@@ -646,7 +646,7 @@ async function removeStudent(cfg, accessToken, studentId) {
   }
 }
 
-async async function main() {
+async function main() {
   const pageStatus = $('#pageStatus');
 
   const searchInput = $('#searchStudents');
