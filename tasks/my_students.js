@@ -306,31 +306,12 @@ function renderStudents(list) {
 
     card.addEventListener('click', () => goOpen());
 
-    // Заголовок карточки + меню (шестерёнка)
+    // Заголовок карточки
     const titlebar = el('div', { class: 'student-titlebar' });
     const title = el('div', { class: 'student-title', text: studentLabel(st) });
-
-    const menuWrap = el('div', { class: 'student-menu-wrap' });
-
-    const gearBtn = el('button', { class: 'btn student-gear-btn', text: '⚙' });
-    gearBtn.type = 'button';
-    gearBtn.setAttribute('aria-label', 'Действия');
-    gearBtn.setAttribute('aria-expanded', 'false');
-
-    const menu = el('div', { class: 'student-menu hidden' });
-    menu.__btn = gearBtn;
-
-    const delItem = el('button', { class: 'student-menu-item', text: 'Удалить' });
-    delItem.type = 'button';
-
-    menu.appendChild(delItem);
-    menuWrap.appendChild(gearBtn);
-    menuWrap.appendChild(menu);
-
     titlebar.appendChild(title);
-    titlebar.appendChild(menuWrap);
 
-    // Метаданные (email/класс/активность)
+// Метаданные (email/класс/активность)
     const meta = [];
     if (grade) meta.push(`Класс: ${grade}`);
     const metaEl = el('div', { class: 'muted student-meta', text: meta.join(' • ') });
@@ -366,46 +347,6 @@ function renderStudents(list) {
     const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
     const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
     metrics.appendChild(miniBadge('Покрытие', covText, pCov));
-    // Действия меню
-    gearBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const isOpen = !menu.classList.contains('hidden');
-      closeStudentMenu();
-      if (!isOpen) {
-        menu.classList.remove('hidden');
-        gearBtn.setAttribute('aria-expanded', 'true');
-        __openStudentMenu = menu;
-      }
-    });
-
-    menuWrap.addEventListener('click', (e) => e.stopPropagation());
-
-    delItem.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      closeStudentMenu();
-
-      if (!sid) return;
-      const name = studentLabel(st) || email || 'ученика';
-      if (!confirm(`Удалить ${name} из списка учеников?`)) return;
-
-      delItem.disabled = true;
-      try {
-        const cfg = __cfgGlobal || await getConfig();
-        __cfgGlobal = cfg;
-
-        const a2 = await ensureAuth(cfg);
-        if (!a2?.access_token) {
-          setStatus($('#pageStatus'), 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
-          return;
-        }
-
-        const ok = await removeStudent(cfg, a2.access_token, sid);
-        if (ok) await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
-      } finally {
-        delItem.disabled = false;
-      }
-    });
-
     card.appendChild(titlebar);
     card.appendChild(metaEl);
     card.appendChild(metrics);

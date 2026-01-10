@@ -279,6 +279,80 @@ function initBackButton() {
   });
 }
 
+
+function initStudentDeleteMenu({ cfg, auth, studentId } = {}) {
+  const actions = $('#studentActions');
+  const gearBtn = $('#studentGearBtn');
+  const menu = $('#studentGearMenu');
+  const delBtn = $('#studentDeleteBtn');
+
+  if (!actions || !gearBtn || !menu || !delBtn) return;
+
+  actions.style.display = '';
+
+  const close = () => {
+    menu.classList.add('hidden');
+    gearBtn.setAttribute('aria-expanded', 'false');
+  };
+  const open = () => {
+    menu.classList.remove('hidden');
+    gearBtn.setAttribute('aria-expanded', 'true');
+  };
+
+  gearBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isOpen = !menu.classList.contains('hidden');
+    if (isOpen) close();
+    else open();
+  });
+
+  actions.addEventListener('click', (e) => e.stopPropagation());
+
+  document.addEventListener('pointerdown', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (actions.contains(e.target)) return;
+    close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  delBtn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+
+    if (!studentId) return;
+
+    const name = String($('#pageTitle')?.textContent || '').trim() || 'ученика';
+    if (!confirm(`Удалить ${name} из списка учеников?`)) return;
+
+    delBtn.disabled = true;
+    setStatus('Удаляем...', '');
+
+    try {
+      const a2 = await ensureAuth(cfg);
+      if (!a2?.access_token) {
+        setStatus('Сессия истекла. Перезайдите в аккаунт.', 'err');
+        return;
+      }
+      await rpc(cfg, a2.access_token, 'remove_student', { p_student_id: studentId });
+      setStatus('Ученик удалён', 'ok');
+
+      // Вернёмся к списку
+      location.href = new URL('./my_students.html', location.href).toString();
+    } catch (err) {
+      console.warn('remove_student error', err);
+      const msg = String(err?.message || 'Не удалось удалить ученика.');
+      setStatus(msg, 'err');
+    } finally {
+      delBtn.disabled = false;
+    }
+  });
+}
+
+
 function setHidden(node, hidden = true) {
   if (!node) return;
   node.classList.toggle('hidden', !!hidden);
@@ -383,6 +457,8 @@ async function main() {
     setStatus('Доступно только для учителя.', 'err');
     return;
   }
+
+  initStudentDeleteMenu({ cfg, auth, studentId });
 
   // подтянем мету ученика через безопасный RPC списка
   if (!cached) {

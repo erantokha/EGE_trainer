@@ -1384,6 +1384,8 @@ input:focus{
 /* карточка ученика: шестерёнка и меню действий */
 .student-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .student-head .student-title{margin-bottom:0;}
+.student-page-titlebar{display:flex;align-items:center;gap:10px;}
+.student-page-titlebar h1{margin:0;}
 .student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
 .student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
 .student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}

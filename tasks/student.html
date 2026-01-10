@@ -2,11 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-09-3">
+  <meta name="app-build" content="2026-01-10-11">
   <title>Ученик</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-09-3">
-  <link rel="stylesheet" href="./stats.css?v=2026-01-09-3">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-11">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-10-11">
 </head>
 <body>
   <main class="container">
@@ -14,7 +14,17 @@
       <div class="panel">
         <header id="appHeader" class="page-head">
           <div>
-            <h1 id="pageTitle">Ученик</h1>
+            <div class="student-page-titlebar">
+              <h1 id="pageTitle">Ученик</h1>
+
+              <div id="studentActions" class="student-menu-wrap" style="display:none">
+                <button id="studentGearBtn" class="btn student-gear-btn" type="button" aria-label="Действия" aria-expanded="false">⚙</button>
+                <div id="studentGearMenu" class="student-menu hidden">
+                  <button id="studentDeleteBtn" class="student-menu-item" type="button">Удалить</button>
+                </div>
+              </div>
+            </div>
+
             <div id="studentSub" class="muted" style="margin-top:6px;display:none"></div>
           </div>
         </header>
@@ -172,7 +182,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-09-3" defer></script>
+  <script src="./theme.js?v=2026-01-10-11" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
