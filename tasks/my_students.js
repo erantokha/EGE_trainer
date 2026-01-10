@@ -191,6 +191,12 @@ function isProblemStudent(st) {
   return false;
 }
 
+// Совместимость: старый код подсветки использовал isProblematic().
+// Теперь критерий вынесен в isProblemStudent(), а isProblematic оставляем как алиас.
+function isProblematic(st) {
+  return isProblemStudent(st);
+}
+
 let __studentsRaw = [];
 let __totalTopics = 0;
 let __currentDays = 7;
