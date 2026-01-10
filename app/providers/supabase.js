@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-10-1';
+import { CONFIG } from '../config.js?v=2026-01-10-2';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -36,7 +36,17 @@ const __SESSION_CACHE = {
   session: null,
   expires_at: 0,
   inflight: null,
+  // защитный флаг: после signOut в течение короткого окна
+  // всегда считаем, что сессии нет (даже если supabase-js ещё не успел очистить in-memory state).
+  signed_out_until: 0,
 };
+
+
+function __clearSessionCache() {
+  __SESSION_CACHE.session = null;
+  __SESSION_CACHE.expires_at = 0;
+  __SESSION_CACHE.inflight = null;
+}
 
 function __pick(obj, paths) {
   for (const p of (paths || [])) {
@@ -162,6 +172,13 @@ export async function getSession(opts = {}) {
   const skewSec = Math.max(0, Number(opts?.skewSec ?? 30) || 0);
   const now = Math.floor(Date.now() / 1000);
 
+
+  // если только что сделали signOut — не возвращаем «старую» сессию из памяти
+  if (Number(__SESSION_CACHE.signed_out_until || 0) > now) {
+    __clearSessionCache();
+    return null;
+  }
+
   // быстрый cache
   const cached = __SESSION_CACHE.session;
   const cachedExp = Number(__SESSION_CACHE.expires_at || 0) || 0;
@@ -173,6 +190,7 @@ export async function getSession(opts = {}) {
     // 1) пробуем supabase-js, но не ждём бесконечно
     const r = await __getSessionViaSupabase(timeoutMs);
     if (r?.session) {
+      __SESSION_CACHE.signed_out_until = 0;
       const s = r.session;
       const exp = Number(s.expires_at || 0) || 0;
       __SESSION_CACHE.session = s;
@@ -228,6 +246,7 @@ export async function getSession(opts = {}) {
     if ((!exp0 || (exp0 - now) > skewSec) && !isExpiredHard) {
       __SESSION_CACHE.session = s0;
       __SESSION_CACHE.expires_at = exp0;
+      __SESSION_CACHE.signed_out_until = 0;
       return s0;
     }
 
@@ -381,7 +400,13 @@ export async function updatePassword(newPassword) {
 
 
 export async function signOut(opts = {}) {
-  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
+    // Немедленно считаем пользователя разлогиненным.
+  // Это нужно, чтобы UI не «откатывался» обратно в logged-in из-за кэша/гонок вкладок.
+  const __now = Math.floor(Date.now() / 1000);
+  __SESSION_CACHE.signed_out_until = __now + 5;
+  __clearSessionCache();
+
+const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
 
   // Запоминаем намерение пользователя «сменить аккаунт».
   // При следующем signInWithGoogle покажем chooser.
@@ -415,10 +440,10 @@ export async function signOut(opts = {}) {
 
   // Best-effort: попросим Supabase ревокнуть refresh token (global), но UX не блокируем надолго.
   const revokePromise = (async () => {
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-      return;
-    } catch (_) {}
+    // 1) быстрый локальный signOut (не должен зависеть от сети)
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch (_) {}
+    // 2) best-effort глобальный (ревок токена) — не блокируем UX
+    try { supabase.auth.signOut({ scope: 'global' }); } catch (_) {}
     try { await supabase.auth.signOut(); } catch (_) {}
   })();
 
@@ -427,6 +452,10 @@ export async function signOut(opts = {}) {
     wipe(typeof localStorage !== 'undefined' ? localStorage : null);
     wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
   } catch (_) {}
+
+  // гарантированно очищаем in-memory кэш после чистки storage
+  __clearSessionCache();
+
 
   // Не ждём бесконечно: максимум timeoutMs (по умолчанию ~450 мс).
   try {
