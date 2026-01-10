@@ -463,11 +463,11 @@ export async function initHeader(opts = {}) {
     } catch (err) {
       console.warn('Header: signOut failed', err);
     } finally {
+      // Не делаем повторный getSession() сразу после signOut:
+      // при нескольких вкладках/lock'ах это может вернуть «старую» сессию из памяти
+      // и визуально откатить UI обратно в logged-in до перезагрузки страницы.
       isSigningOut = false;
-      try {
-        const s = getSession ? await getSession().catch(() => null) : null;
-        applySessionToUI(s);
-      } catch (_) {}
+      applySessionToUI(null);
     }
   });
 
