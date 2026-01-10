@@ -201,6 +201,48 @@ function applyFiltersAndRender() {
   renderStudents(list);
 }
 
+let __openStudentMenu = null;
+let __studentMenuGlobalBound = false;
+
+function closeStudentMenu() {
+  if (!__openStudentMenu) return;
+  const { menu, btn } = __openStudentMenu;
+  try { menu.classList.add('hidden'); } catch (_) {}
+  try { btn?.setAttribute('aria-expanded', 'false'); } catch (_) {}
+  __openStudentMenu = null;
+}
+
+function ensureStudentMenuGlobalClose() {
+  if (__studentMenuGlobalBound) return;
+  __studentMenuGlobalBound = true;
+
+  document.addEventListener('pointerdown', (e) => {
+    if (!__openStudentMenu) return;
+    const t = e.target;
+    const { menu, btn } = __openStudentMenu;
+    if (menu && menu.contains(t)) return;
+    if (btn && btn.contains(t)) return;
+    closeStudentMenu();
+  }, true);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeStudentMenu();
+  });
+}
+
+function toggleStudentMenu(menu, btn) {
+  ensureStudentMenuGlobalClose();
+  const isOpen = !menu.classList.contains('hidden');
+  if (isOpen) {
+    closeStudentMenu();
+    return;
+  }
+  closeStudentMenu();
+  menu.classList.remove('hidden');
+  btn?.setAttribute('aria-expanded', 'true');
+  __openStudentMenu = { menu, btn };
+}
+
 function renderStudents(list) {
   const wrap = $('#studentsList');
   if (!wrap) return;
@@ -216,7 +258,31 @@ function renderStudents(list) {
   for (const st of list) {
     const card = el('div', { class: 'panel student-card' });
 
+    const head = el('div', { class: 'student-head' });
+
     const title = el('div', { class: 'student-title', text: studentLabel(st) });
+
+    const menuWrap = el('div', { class: 'student-menu-wrap' });
+
+    const gearBtn = el('button', {
+      class: 'student-gear-btn',
+      text: '⚙',
+      'aria-haspopup': 'menu',
+      'aria-expanded': 'false',
+      'aria-label': 'Действия',
+    });
+    gearBtn.type = 'button';
+
+    const menu = el('div', { class: 'student-menu hidden' });
+    const delItem = el('button', { class: 'student-menu-item', text: 'Удалить' });
+    delItem.type = 'button';
+
+    menu.appendChild(delItem);
+    menuWrap.appendChild(gearBtn);
+    menuWrap.appendChild(menu);
+
+    head.appendChild(title);
+    head.appendChild(menuWrap);
 
     const meta = [];
     const email = String(st.email || st.student_email || '').trim();
@@ -245,21 +311,9 @@ function renderStudents(list) {
     const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
     metrics.appendChild(miniBadge('Покрытие', covText, pCov));
 
-    const actions = el('div', { class: 'student-actions' });
-
-    const openBtn = el('button', { class: 'btn', text: 'Открыть' });
-    openBtn.type = 'button';
-
-    const delBtn = el('button', { class: 'btn', text: 'Удалить' });
-    delBtn.type = 'button';
-
-    actions.appendChild(openBtn);
-    actions.appendChild(delBtn);
-
-    card.appendChild(title);
+    card.appendChild(head);
     card.appendChild(sub);
     card.appendChild(metrics);
-    card.appendChild(actions);
 
     const sid = String(st.student_id || st.id || '').trim();
 
@@ -282,16 +336,23 @@ function renderStudents(list) {
     }
 
     card.addEventListener('click', () => goOpen());
-    openBtn.addEventListener('click', (e) => { e.stopPropagation(); goOpen(); });
 
-    delBtn.addEventListener('click', async (e) => {
+    gearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleStudentMenu(menu, gearBtn);
+    });
+    menu.addEventListener('click', (e) => e.stopPropagation());
+
+    delItem.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (!sid) return;
+
+      closeStudentMenu();
 
       const name = studentLabel(st) || email || 'ученика';
       if (!confirm(`Удалить ${name} из списка учеников?`)) return;
 
-      delBtn.disabled = true;
+      delItem.disabled = true;
       try {
         const cfg = __cfgGlobal || await getConfig();
         __cfgGlobal = cfg;
@@ -305,7 +366,7 @@ function renderStudents(list) {
         const ok = await removeStudent(cfg, a2.access_token, sid);
         if (ok) await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
       } finally {
-        delBtn.disabled = false;
+        delItem.disabled = false;
       }
     });
 
@@ -318,6 +379,7 @@ function renderStudents(list) {
 
   wrap.appendChild(grid);
 }
+
 
 async function getConfig() {
   const mod = await import(withV('../app/config.js'));
@@ -578,10 +640,16 @@ async function removeStudent(cfg, accessToken, studentId) {
 
 async function main() {
   const pageStatus = $('#pageStatus');
-  const addBtn = $('#addStudentBtn');
-  const toggleBtn = $('#toggleAddStudentFormBtn');
-  const addForm = $('#addStudentForm');
+
+  const toggleSearchBtn = $('#toggleSearchPanelBtn');
+  const searchPanel = $('#studentsSearchPanel');
+
+  const openAddModalBtn = $('#openAddStudentModalBtn');
+  const modal = $('#addStudentModal');
+  const modalCloseBtn = $('#addStudentModalClose');
+  const modalCancelBtn = $('#addStudentCancelBtn');
   const emailInput = $('#addStudentEmail');
+  const addBtn = $('#addStudentBtn');
 
   const searchInput = $('#searchStudents');
   const problemsChk = $('#filterProblems');
@@ -589,20 +657,76 @@ async function main() {
   const sourceSel = $('#summarySource');
   const refreshBtn = $('#refreshStudentsBtn');
 
+  function isModalOpen() {
+    return !!(modal && !modal.classList.contains('hidden'));
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function openModal() {
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+    setStatus($('#addStatus'), '', { sticky: true });
+    try { emailInput.value = ''; } catch (_) {}
+    try { emailInput?.focus(); } catch (_) {}
+  }
+
+  // Toggle: панель поиска
+  if (searchPanel) searchPanel.classList.add('hidden');
+  if (toggleSearchBtn && searchPanel) {
+    toggleSearchBtn.setAttribute('aria-expanded', 'false');
+    toggleSearchBtn.addEventListener('click', (e) => {
+      e?.preventDefault?.();
+      const isOpen = !searchPanel.classList.contains('hidden');
+      if (isOpen) {
+        searchPanel.classList.add('hidden');
+        toggleSearchBtn.setAttribute('aria-expanded', 'false');
+      } else {
+        searchPanel.classList.remove('hidden');
+        toggleSearchBtn.setAttribute('aria-expanded', 'true');
+        try { searchInput?.focus(); } catch (_) {}
+      }
+    });
+  }
+
+  // Модалка "Новый ученик"
+  openAddModalBtn?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+    openModal();
+  });
+  modalCloseBtn?.addEventListener('click', (e) => { e?.preventDefault?.(); closeModal(); });
+  modalCancelBtn?.addEventListener('click', (e) => { e?.preventDefault?.(); closeModal(); });
+
+  modal?.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t && (t.classList.contains('modal-backdrop') || t.dataset?.close === '1')) {
+      closeModal();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isModalOpen()) closeModal();
+  });
+
   try {
     const cfg = await getConfig();
 
     const auth = await ensureAuth(cfg);
     if (!auth?.access_token || !auth?.user_id) {
       setStatus(pageStatus, 'Войдите, чтобы открыть список учеников.', { sticky: true });
-      if (addBtn) addBtn.disabled = true;
+      if (openAddModalBtn) openAddModalBtn.disabled = true;
       return;
     }
 
     const role = await getMyRoleViaRest(cfg, auth.access_token, auth.user_id).catch(() => '');
     if (role !== 'teacher') {
       setStatus(pageStatus, 'Доступно только для учителя.', { sticky: true });
-      if (addBtn) addBtn.disabled = true;
+      if (openAddModalBtn) openAddModalBtn.disabled = true;
       return;
     }
 
@@ -632,19 +756,6 @@ async function main() {
     daysSel?.addEventListener('change', async () => refreshBtn?.click());
     sourceSel?.addEventListener('change', async () => refreshBtn?.click());
 
-    // Форма добавления ученика разворачивается по кнопке "Новый ученик"
-    if (addForm) addForm.style.display = 'none';
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        if (!addForm) return;
-        const isOpen = addForm.style.display !== 'none';
-        addForm.style.display = isOpen ? 'none' : 'flex';
-        if (!isOpen) {
-          try { $('#addStudentEmail')?.focus(); } catch (_) {}
-        }
-      });
-    }
-
     addBtn?.addEventListener('click', async () => {
       if (addBtn) addBtn.disabled = true;
       try {
@@ -662,7 +773,7 @@ async function main() {
 
         const ok = await addStudent(cfg, a2.access_token, email);
         if (ok) {
-          try { emailInput.value = ''; } catch (_) {}
+          closeModal();
           await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
         }
       } finally {
@@ -679,7 +790,7 @@ async function main() {
   } catch (e) {
     console.error(e);
     setStatus(pageStatus, 'Ошибка инициализации страницы.', { sticky: true });
-    if ($('#addStudentBtn')) $('#addStudentBtn').disabled = true;
+    if (openAddModalBtn) openAddModalBtn.disabled = true;
   }
 }
 

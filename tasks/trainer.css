@@ -1357,3 +1357,24 @@ input:focus{
 .profile-menu-item:hover{background:rgba(148,163,184,.12);}
 .profile-menu-item:active{background:rgba(148,163,184,.18);}
 .profile-menu-item:disabled{opacity:.55;cursor:not-allowed;}
+
+
+/* ===== my_students: панель действий и модалка добавления ===== */
+.students-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}
+.students-head-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+
+/* небольшая модалка (добавление ученика) */
+.modal-card.modal-sm{width:min(520px, calc(100vw - 24px));min-height:auto;}
+.modal-body-simple{padding:12px 14px;display:flex;flex-direction:column;gap:12px;}
+.modal-actions-simple{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}
+
+/* карточка ученика: шестерёнка и меню действий */
+.student-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.student-head .student-title{margin-bottom:0;}
+.student-menu-wrap{position:relative;display:inline-flex;align-items:center;}
+.student-gear-btn{width:36px;min-width:36px;height:36px;padding:0;font-size:18px;line-height:1;border-radius:12px;}
+.student-menu{position:absolute;top:calc(100% + 8px);right:0;min-width:160px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);padding:6px;z-index:2600;}
+.student-menu-item{width:100%;display:block;text-align:left;border:none;background:transparent;box-shadow:none;padding:10px 12px;border-radius:10px;cursor:pointer;}
+.student-menu-item:hover{background:rgba(148,163,184,.12);}
+.student-menu-item:active{background:rgba(148,163,184,.18);}
+.student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
