@@ -2,36 +2,22 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-01-07-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-07-3';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-07-3';
+import { CONFIG } from '../app/config.js?v=2026-01-11-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-11-1';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-11-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-01-07-3';
+} from '../app/core/pick.js?v=2026-01-11-1';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
 finalizeOAuthRedirect().catch(() => {});
 
 
-// build/version (cache-busting)
-const BUILD = '2026-01-07-3';
-const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
-if (HTML_BUILD && HTML_BUILD !== BUILD) {
-  const k = 'hw_create:build_reload_attempted';
-  if (!sessionStorage.getItem(k)) {
-    sessionStorage.setItem(k, '1');
-    const u = new URL(location.href);
-    u.searchParams.set('_v', HTML_BUILD);
-    u.searchParams.set('_r', String(Date.now()));
-    location.replace(u.toString());
-  } else {
-    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
-  }
-}
+// bfcache: если браузер вернул страницу из back-forward cache — перезагрузимся, чтобы не было «старого» состояния.
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
 
