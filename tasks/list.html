@@ -115,7 +115,7 @@
     <script type="module">
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
   const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-  import(withV('./list.js'));
+  await import(withV('./list.js'));
 </script>
 </body>
 </html>

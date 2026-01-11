@@ -61,7 +61,7 @@
   <script type="module">
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
   const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-  import(withV('./auth_callback.js'));
+  await import(withV('./auth_callback.js'));
 </script>
 </body>
 </html>
