@@ -2,36 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-11-2">
+  <meta name="app-build" content="2026-01-10-11">
   <title>Ученик</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" data-href="./trainer.css">
-  <link rel="stylesheet" data-href="./stats.css">
-  <script data-src="./theme.js" defer></script>
-  <script>
-    // build-assets: auto-add ?v=... from <meta name="app-build">
-    (function(){
-      var meta = document.querySelector('meta[name="app-build"]');
-      var BUILD = meta && typeof meta.content === 'string' ? meta.content.trim() : '';
-      if (!BUILD) return;
-
-      var enc = encodeURIComponent(BUILD);
-      function withV(p){ return p + (p.indexOf('?') >= 0 ? '&' : '?') + 'v=' + enc; }
-
-      var links = document.querySelectorAll('link[rel="stylesheet"][data-href]');
-      for (var i = 0; i < links.length; i++) {
-        var p = links[i].getAttribute('data-href');
-        if (p) links[i].setAttribute('href', withV(p));
-      }
-
-      var scripts = document.querySelectorAll('script[data-src]');
-      for (var j = 0; j < scripts.length; j++) {
-        var sp = scripts[j].getAttribute('data-src');
-        if (sp) scripts[j].setAttribute('src', withV(sp));
-      }
-    })();
-  </script>
-
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-10-11">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-10-11">
 </head>
 <body>
   <main class="container">
@@ -206,10 +181,12 @@
       </div>
     </section>
   </main>
-<script type="module">
+
+  <script src="./theme.js?v=2026-01-10-11" defer></script>
+  <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-    await import(withV('./student.js'));
+    import(withV('./student.js'));
   </script>
 </body>
 </html>

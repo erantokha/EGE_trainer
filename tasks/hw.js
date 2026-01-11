@@ -10,15 +10,15 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-11-2';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-07-3';
 
-import { CONFIG } from '../app/config.js?v=2026-01-11-2';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-11-2';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-11-2';
+import { CONFIG } from '../app/config.js?v=2026-01-07-3';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-07-3';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-07-3';
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-11-2';
+const BUILD = '2026-01-07-3';
 const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
 if (HTML_BUILD && HTML_BUILD !== BUILD) {
   const k = 'hw:build_reload_attempted';

@@ -7,8 +7,6 @@
 // используем прямые REST-вызовы Supabase (PostgREST /rpc) с access_token,
 // считанным из localStorage, и при необходимости делаем refresh через Auth API.
 
-import { ensureAccessToken } from '../app/providers/auth_token.js?v=2026-01-11-1';
-
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -418,6 +416,60 @@ async function getConfig() {
   return mod.CONFIG;
 }
 
+function getProjectRefFromUrl(supabaseUrl) {
+  try {
+    const host = String(supabaseUrl || '');
+    const ref = host ? new URL(host).hostname.split('.')[0] : '';
+    return ref || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function getAuthStorageKey(cfg) {
+  const ref = getProjectRefFromUrl(cfg?.supabase?.url);
+  if (!ref) return null;
+  return `sb-${ref}-auth-token`;
+}
+
+function pick(obj, paths) {
+  for (const p of paths) {
+    let cur = obj;
+    const parts = p.split('.');
+    let ok = true;
+    for (const part of parts) {
+      if (cur && typeof cur === 'object' && part in cur) cur = cur[part];
+      else { ok = false; break; }
+    }
+    if (ok && cur != null) return cur;
+  }
+  return null;
+}
+
+function readStoredSession(cfg) {
+  const key = getAuthStorageKey(cfg);
+  if (!key) return { key: null, raw: null, session: null };
+  let raw = null;
+  try { raw = localStorage.getItem(key); } catch (_) { raw = null; }
+  if (!raw) return { key, raw: null, session: null };
+
+  let obj = null;
+  try { obj = JSON.parse(raw); } catch (_) { obj = null; }
+  if (!obj || typeof obj !== 'object') return { key, raw: obj, session: null };
+
+  const session = {
+    access_token: String(pick(obj, ['access_token', 'currentSession.access_token', 'session.access_token']) || ''),
+    refresh_token: String(pick(obj, ['refresh_token', 'currentSession.refresh_token', 'session.refresh_token']) || ''),
+    token_type: String(pick(obj, ['token_type', 'currentSession.token_type', 'session.token_type']) || 'bearer'),
+    expires_at: Number(pick(obj, ['expires_at', 'currentSession.expires_at', 'session.expires_at']) || 0) || 0,
+    user: pick(obj, ['user', 'currentSession.user', 'session.user']) || null,
+    __raw: obj,
+  };
+
+  if (!session.access_token) return { key, raw: obj, session: null };
+  return { key, raw: obj, session };
+}
+
 async function fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -447,10 +499,64 @@ async function fetchJson(url, { method = 'GET', headers = {}, body = null, timeo
   }
 }
 
+async function refreshAccessToken(cfg, refreshToken) {
+  const base = String(cfg?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/auth/v1/token?grant_type=refresh_token`;
+  const data = await fetchJson(url, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.supabase.anonKey,
+      authorization: `Bearer ${cfg.supabase.anonKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ refresh_token: String(refreshToken || '') }),
+    timeoutMs: 12000,
+  });
+  return data;
+}
+
+let __authCache = null;
+
 async function ensureAuth(cfg) {
-  const r = await ensureAccessToken(cfg, { skewSec: 30, timeoutMs: 15000 });
-  if (!r || !r.access_token) return null;
-  return { access_token: r.access_token, user_id: r.user_id, expires_at: r.expires_at };
+  // кэшируем на короткое время, чтобы не дёргать storage/refresh на каждое действие
+  const now = Math.floor(Date.now() / 1000);
+  if (__authCache && __authCache.expires_at && __authCache.expires_at - now > 30) return __authCache;
+
+  const { key, session } = readStoredSession(cfg);
+  if (!session?.access_token) return null;
+
+  const uid = String(session?.user?.id || '').trim();
+  const expiresAt = Number(session.expires_at || 0) || 0;
+
+  // если expires_at нет, считаем «валидным» и пробуем работать; при 401 попросим перелогиниться
+  const secondsLeft = expiresAt ? (expiresAt - now) : 999999;
+  if (secondsLeft > 30) {
+    __authCache = { access_token: session.access_token, user_id: uid, expires_at: expiresAt, key };
+    return __authCache;
+  }
+
+  // токен почти истёк/истёк → пробуем refresh
+  if (!session.refresh_token) return null;
+
+  const refreshed = await refreshAccessToken(cfg, session.refresh_token);
+  const expiresIn = Number(refreshed?.expires_in || 0) || 0;
+  const newExpiresAt = expiresIn ? (now + expiresIn) : 0;
+
+  const newObj = {
+    access_token: refreshed?.access_token,
+    refresh_token: refreshed?.refresh_token || session.refresh_token,
+    token_type: refreshed?.token_type || 'bearer',
+    expires_in: refreshed?.expires_in,
+    expires_at: newExpiresAt,
+    user: refreshed?.user || session.user || null,
+  };
+  try {
+    if (key) localStorage.setItem(key, JSON.stringify(newObj));
+  } catch (_) {}
+
+  const newUid = String(newObj?.user?.id || uid || '').trim();
+  __authCache = { access_token: String(newObj.access_token || ''), user_id: newUid, expires_at: newExpiresAt, key };
+  return __authCache.access_token ? __authCache : null;
 }
 
 async function rpc(cfg, accessToken, fn, args) {
