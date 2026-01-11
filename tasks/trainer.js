@@ -1,13 +1,13 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-11-1';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-11-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-11-2';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-11-2';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-11-1';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-11-2';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-11-1';
+import { withBuild } from '../app/build.js?v=2026-01-11-2';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -696,54 +696,64 @@ async function pickFromSection(sec, wantSection) {
 
 async function pickPrototypes() {
   const chosen = [];
-  const anyTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
+
+  const anyTopics = Object.values(CHOICE_TOPICS).some(v => Number(v) > 0);
+  const anySections = Object.values(CHOICE_SECTIONS).some(v => Number(v) > 0);
 
   if (PERF) {
     PERF_DATA.wants.topics = CHOICE_TOPICS;
     PERF_DATA.wants.sections = CHOICE_SECTIONS;
+    PERF_DATA.mode = anyTopics && anySections
+      ? 'mixed'
+      : (anyTopics ? 'byTopics' : (anySections ? 'bySections' : 'none'));
   }
 
-  // A) задано по темам
-  if (anyTopics) {
-    if (PERF) PERF_DATA.mode = 'byTopics';
+  if (!anyTopics && !anySections) return [];
 
+  // A) добавляем задачи по конкретным темам
+  if (anyTopics) {
     for (const sec of SECTIONS) {
       for (const t of sec.topics) {
-        const want = CHOICE_TOPICS[t.id] || 0;
+        const want = Number(CHOICE_TOPICS[t.id] || 0);
         if (!want) continue;
+
         const man = await ensureManifest(t);
         if (!man) continue;
 
         chosen.push(...pickFromManifest(man, want));
       }
     }
+  }
 
-    // Перемешиваем итоговый список только если включён флаг «перемешать задачи»
-    if (SHUFFLE_TASKS) {
-      shuffle(chosen);
+  // B) добавляем задачи по разделам
+  if (anySections) {
+    const jobs = [];
+    for (const sec of SECTIONS) {
+      const wantSection = Number(CHOICE_SECTIONS[sec.id] || 0);
+      if (!wantSection) continue;
+      jobs.push(pickFromSection(sec, wantSection));
     }
-    return chosen;
+
+    const parts = await Promise.all(jobs);
+    for (const arr of parts) chosen.push(...arr);
   }
 
-  // B) задано по разделам
-  if (PERF) PERF_DATA.mode = 'bySections';
-
-  const jobs = [];
-  for (const sec of SECTIONS) {
-    const wantSection = CHOICE_SECTIONS[sec.id] || 0;
-    if (!wantSection) continue;
-    jobs.push(pickFromSection(sec, wantSection));
+  // дедуп по topic_id+question_id (сохраняем первый порядок)
+  const seen = new Set();
+  const out = [];
+  for (const q of chosen) {
+    const key = `${q.topic_id}|${q.question_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(q);
   }
 
-  const parts = await Promise.all(jobs);
-  for (const arr of parts) chosen.push(...arr);
-
-  // Перемешивание только по флагу
   if (SHUFFLE_TASKS) {
-    shuffle(chosen);
+    shuffle(out);
   }
-  return chosen;
+  return out;
 }
+
 
 // ---------- построение вопроса ----------
 function buildQuestion(manifest, type, proto) {

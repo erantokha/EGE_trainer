@@ -2,12 +2,12 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-  <meta name="app-build" content="2026-01-11-1">
+      <meta name="app-build" content="2026-01-11-2">
 <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Тренажер ЕГЭ — список задач</title>
 
-    <link rel="stylesheet" href="./trainer.css?v=2026-01-11-1" />
-    <script src="./theme.js?v=2026-01-11-1" defer></script>
+    <link rel="stylesheet" href="./trainer.css?v=2026-01-11-2" />
+    <script src="./theme.js?v=2026-01-11-2" defer></script>
 
     <script>
       window.MathJax = {
@@ -89,6 +89,10 @@
       </section>
     </main>
 
-    <script type="module" src="./list.js?v=2026-01-11-1"></script>
-  </body>
+    <script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  import(withV('./list.js'));
+</script>
+</body>
 </html>

@@ -2,10 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-11-1">
+  <meta name="app-build" content="2026-01-11-2">
   <title>Создание ДЗ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-11-1">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-11-2">
 </head>
 <body>
   <main class="container">
@@ -101,7 +101,11 @@
     </div>
   </div>
 
-  <script src="./theme.js?v=2026-01-11-1" defer></script>
-  <script type="module" src="./hw_create.js?v=2026-01-11-1"></script>
+  <script src="./theme.js?v=2026-01-11-2" defer></script>
+  <script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  import(withV('./hw_create.js'));
+</script>
 </body>
 </html>

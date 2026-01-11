@@ -10,14 +10,28 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-11-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-11-2';
 
-import { CONFIG } from '../app/config.js?v=2026-01-11-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-11-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-11-1';
+import { CONFIG } from '../app/config.js?v=2026-01-11-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-11-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-11-2';
 
 
-// bfcache: если браузер вернул страницу из back-forward cache — перезагрузимся, чтобы не было «старого» состояния.
+// build/version (cache-busting)
+const BUILD = '2026-01-11-2';
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
+if (HTML_BUILD && HTML_BUILD !== BUILD) {
+  const k = 'hw:build_reload_attempted';
+  if (!sessionStorage.getItem(k)) {
+    sessionStorage.setItem(k, '1');
+    const u = new URL(location.href);
+    u.searchParams.set('_v', BUILD);
+    u.searchParams.set('_r', String(Date.now()));
+    location.replace(u.toString());
+  } else {
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+  }
+}
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
 const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.add(cls); };
@@ -29,84 +43,6 @@ const INDEX_URL = '../content/tasks/index.json';
 
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
-
-const PENDING_SUBMIT_PREFIX = 'hw:pending_submit:';
-
-function pendingSubmitKey(token) {
-  const t = String(token || '').trim();
-  return t ? `${PENDING_SUBMIT_PREFIX}${t}` : '';
-}
-
-function readPendingSubmit(token) {
-  const key = pendingSubmitKey(token);
-  if (!key) return null;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    return obj;
-  } catch (_) {
-    return null;
-  }
-}
-
-function writePendingSubmit(token, data) {
-  const key = pendingSubmitKey(token);
-  if (!key) return;
-  try { localStorage.setItem(key, JSON.stringify(data || {})); } catch (_) {}
-}
-
-function clearPendingSubmit(token) {
-  const key = pendingSubmitKey(token);
-  if (!key) return;
-  try { localStorage.removeItem(key); } catch (_) {}
-}
-
-let PENDING_FLUSH_INFLIGHT = false;
-
-async function maybeFlushPendingSubmit(reason = '') {
-  if (PENDING_FLUSH_INFLIGHT) return;
-  if (isTeacherReportView()) return;
-  if (RUN_STARTED || STARTING) return;
-
-  const token = getToken();
-  if (!token) return;
-  if (!AUTH_SESSION) return;
-  if (!HOMEWORK_READY || !CATALOG_READY) return;
-
-  const pending = readPendingSubmit(token);
-  if (!pending) return;
-
-  const attemptId = String(pending?.attempt_id || '').trim();
-  const payload = pending?.payload;
-  if (!attemptId || !payload || typeof payload !== 'object') {
-    clearPendingSubmit(token);
-    return;
-  }
-
-  PENDING_FLUSH_INFLIGHT = true;
-  try {
-    // Ненавязчиво пытаемся дописать результат: если получится — покажем экран результатов.
-    const r = await submitHomeworkAttempt({
-      attempt_id: attemptId,
-      payload,
-      total: pending?.total ?? 0,
-      correct: pending?.correct ?? 0,
-      duration_ms: pending?.duration_ms ?? 0,
-    });
-
-    if (r?.ok) {
-      clearPendingSubmit(token);
-      // Переоткроем результаты (если уже были сохранены — тоже ок).
-      try { await showExistingAttemptSummary({ token, attemptId }); } catch (_) {}
-    }
-  } catch (e) {
-    console.warn('pending submit failed', { reason, e });
-  } finally {
-    PENDING_FLUSH_INFLIGHT = false;
-  }
-}
 
 function getTeacherAttemptId() {
   try {
@@ -326,7 +262,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateGateUI();
     await maybeShowExistingAttempt('load');
     maybeAutoStart('load');
-    maybeFlushPendingSubmit('load');
 })().catch((e) => {
     console.error(e);
     if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
@@ -633,7 +568,6 @@ async function refreshAuthUI() {
   // При смене сессии может появиться доступ к уже начатой попытке
   await maybeShowExistingAttempt('auth');
   maybeAutoStart('auth');
-  maybeFlushPendingSubmit('auth');
 }
 
 function updateGateUI() {
@@ -1636,11 +1570,6 @@ async function finishSession() {
       duration_ms,
     };
 
-    // 2.1) сохраняем pending в localStorage, чтобы при перезагрузке можно было автодослать
-    if (token) {
-      writePendingSubmit(token, { attempt_id: attemptId, payload, total, correct, duration_ms, ts: Date.now() });
-    }
-
     const res = await withTimeout(
       submitHomeworkAttempt({
         attempt_id: attemptId,
@@ -1655,7 +1584,6 @@ async function finishSession() {
     if (res?.__timeout) throw new Error('SUBMIT_TIMEOUT');
     if (!res?.ok) throw (res?.error || new Error('SUBMIT_FAILED'));
 
-    if (token) clearPendingSubmit(token);
     return true;
   };
 

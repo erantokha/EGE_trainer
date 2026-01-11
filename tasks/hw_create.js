@@ -2,22 +2,36 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-01-11-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-11-1';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-11-1';
+import { CONFIG } from '../app/config.js?v=2026-01-11-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-11-2';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-11-2';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-01-11-1';
+} from '../app/core/pick.js?v=2026-01-11-2';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
 finalizeOAuthRedirect().catch(() => {});
 
 
-// bfcache: если браузер вернул страницу из back-forward cache — перезагрузимся, чтобы не было «старого» состояния.
+// build/version (cache-busting)
+const BUILD = '2026-01-11-2';
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
+if (HTML_BUILD && HTML_BUILD !== BUILD) {
+  const k = 'hw_create:build_reload_attempted';
+  if (!sessionStorage.getItem(k)) {
+    sessionStorage.setItem(k, '1');
+    const u = new URL(location.href);
+    u.searchParams.set('_v', HTML_BUILD);
+    u.searchParams.set('_r', String(Date.now()));
+    location.replace(u.toString());
+  } else {
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+  }
+}
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -669,7 +683,12 @@ async function importSelectionIntoFixedTable() {
   await loadCatalog();
 
   const wanted = [];
-  if (prefill.by === 'topics') {
+
+  const hasTopics = Object.values(prefill.topics || {}).some(v => Number(v) > 0);
+  const hasSections = Object.values(prefill.sections || {}).some(v => Number(v) > 0);
+
+  // 1) добавляем точечный выбор по темам (2-й уровень)
+  if (hasTopics) {
     for (const [topicId, cntRaw] of Object.entries(prefill.topics || {})) {
       const n = normalizeCount(cntRaw);
       if (!n) continue;
@@ -682,7 +701,10 @@ async function importSelectionIntoFixedTable() {
 
       wanted.push(...pickRefsFromManifest(man, n));
     }
-  } else {
+  }
+
+  // 2) добавляем выбор по разделам (верхний уровень)
+  if (hasSections) {
     for (const [secId, cntRaw] of Object.entries(prefill.sections || {})) {
       const n = normalizeCount(cntRaw);
       if (!n) continue;
