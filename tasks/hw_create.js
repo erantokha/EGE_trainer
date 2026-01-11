@@ -683,32 +683,49 @@ async function importSelectionIntoFixedTable() {
   await loadCatalog();
 
   const wanted = [];
-  if (prefill.by === 'topics') {
-    for (const [topicId, cntRaw] of Object.entries(prefill.topics || {})) {
-      const n = normalizeCount(cntRaw);
-      if (!n) continue;
+  const used = new Set();
+  const pushUnique = (r) => {
+    const key = refKey(r);
+    if (used.has(key)) return;
+    used.add(key);
+    wanted.push(r);
+  };
 
-      const topic = TOPIC_BY_ID.get(String(topicId));
-      if (!topic) continue;
+  const topicEntries = Object.entries(prefill.topics || {});
+  const secEntries = Object.entries(prefill.sections || {});
 
-      const man = await ensureManifest(topic);
-      if (!man) continue;
+  const excludeTopicIds = new Set(
+    topicEntries
+      .filter(([, cntRaw]) => normalizeCount(cntRaw) > 0)
+      .map(([id]) => String(id)),
+  );
 
-      wanted.push(...pickRefsFromManifest(man, n));
-    }
-  } else {
-    for (const [secId, cntRaw] of Object.entries(prefill.sections || {})) {
-      const n = normalizeCount(cntRaw);
-      if (!n) continue;
+  // 1) Явный выбор по подтемам
+  for (const [topicId, cntRaw] of topicEntries) {
+    const n = normalizeCount(cntRaw);
+    if (!n) continue;
 
-      const sec = SECTIONS.find(s => String(s.id) === String(secId));
-      if (!sec) continue;
+    const topic = TOPIC_BY_ID.get(String(topicId));
+    if (!topic) continue;
 
-      wanted.push(...(await pickRefsFromSection(sec, n)));
-    }
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+
+    for (const r of pickRefsFromManifest(man, n)) pushUnique(r);
   }
 
-  // дедуп
+  // 2) Добор по разделам
+  for (const [secId, cntRaw] of secEntries) {
+    const n = normalizeCount(cntRaw);
+    if (!n) continue;
+
+    const sec = SECTIONS.find(s => String(s.id) === String(secId));
+    if (!sec) continue;
+
+    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds }))) pushUnique(r);
+  }
+
+  // дедуп (страховка)
   const uniq = [];
   const seen = new Set();
   for (const r of wanted) {
@@ -816,9 +833,11 @@ function pickRefsFromManifest(man, want) {
   return out;
 }
 
-async function pickRefsFromSection(sec, wantSection) {
+async function pickRefsFromSection(sec, wantSection, opts = {}) {
   const out = [];
-  const candidates = (sec.topics || []).filter(t => !!t.path);
+  const exclude = opts.excludeTopicIds;
+  let candidates = (sec.topics || []).filter(t => !!t.path && !(exclude && exclude.has(String(t.id))));
+  if (!candidates.length) candidates = (sec.topics || []).filter(t => !!t.path);
   shuffle(candidates);
 
   // Загружаем не одну тему, а несколько (иначе при огромном cap после размножения

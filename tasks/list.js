@@ -362,9 +362,11 @@ function pickFromManifest(man, want) {
   }
   return out;
 }
-async function pickFromSection(sec, wantSection) {
+async function pickFromSection(sec, wantSection, opts = {}) {
   const out = [];
-  const candidates = (sec.topics || []).filter(t => !!t.path);
+  const exclude = opts.excludeTopicIds;
+  let candidates = (sec.topics || []).filter(t => !!t.path && !(exclude && exclude.has(String(t.id))));
+  if (!candidates.length) candidates = (sec.topics || []).filter(t => !!t.path);
   shuffle(candidates);
 
   // Минимум тем для разнообразия (иначе после размножения прототипов
@@ -444,38 +446,56 @@ async function pickFromSection(sec, wantSection) {
 
 async function pickPrototypes() {
   const chosen = [];
-  const anyTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
+  const hasTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
+  const hasSections = Object.values(CHOICE_SECTIONS).some(v => v > 0);
 
-  // A) задано по темам
-  if (anyTopics) {
+  const used = new Set();
+  const pushUnique = (q) => {
+    const key = `${q.topic_id}::${q.question_id}`;
+    if (used.has(key)) return;
+    used.add(key);
+    chosen.push(q);
+  };
+
+  const excludeTopicIds = new Set(
+    Object.entries(CHOICE_TOPICS || {})
+      .filter(([, v]) => (v || 0) > 0)
+      .map(([id]) => String(id)),
+  );
+
+  // 1) Явный выбор по подтемам
+  if (hasTopics) {
     for (const sec of SECTIONS) {
-      for (const t of sec.topics) {
+      for (const t of (sec.topics || [])) {
         const want = CHOICE_TOPICS[t.id] || 0;
         if (!want) continue;
 
         const man = await ensureManifest(t);
         if (!man) continue;
 
-        chosen.push(...pickFromManifest(man, want));
+        for (const q of pickFromManifest(man, want)) pushUnique(q);
       }
     }
-
-    if (SHUFFLE_TASKS) shuffle(chosen);
-    return chosen;
   }
 
-  // B) задано по разделам
-  const jobs = [];
-  for (const sec of SECTIONS) {
-    const wantSection = CHOICE_SECTIONS[sec.id] || 0;
-    if (!wantSection) continue;
-    jobs.push(pickFromSection(sec, wantSection));
+  // 2) Добор по разделам
+  if (hasSections) {
+    const jobs = [];
+    for (const sec of SECTIONS) {
+      const wantSection = CHOICE_SECTIONS[sec.id] || 0;
+      if (!wantSection) continue;
+      jobs.push(pickFromSection(sec, wantSection, { excludeTopicIds }));
+    }
+
+    const parts = await Promise.all(jobs);
+    for (const arr of parts) {
+      for (const q of arr) pushUnique(q);
+    }
   }
 
-  const parts = await Promise.all(jobs);
-  for (const arr of parts) chosen.push(...arr);
-
-  if (SHUFFLE_TASKS) shuffle(chosen);
+  if (SHUFFLE_TASKS) {
+    shuffle(chosen);
+  }
   return chosen;
 }
 

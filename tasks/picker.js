@@ -407,7 +407,7 @@ function buildHwCreatePrefill() {
   const t = hasDom ? topics : (CHOICE_TOPICS || {});
   const s = hasDom ? sections : (CHOICE_SECTIONS || {});
 
-  const by = anyPositive(t) ? 'topics' : 'sections';
+  const by = 'mixed';
   return {
     v: 1,
     by,
@@ -453,10 +453,7 @@ function initBulkControls() {
 function bulkPickAll(delta) {
   if (!SECTIONS || !SECTIONS.length) return;
 
-  // Переключаемся на выбор по разделам: обнуляем выбор по темам,
-  // чтобы в тренажёре сработал режим B (sections), а не A (topics).
-  CHOICE_TOPICS = {};
-
+  // Добавляем ко всем разделам, не сбрасывая выбор подтем.
   const d = Number(delta) || 0;
   for (const sec of SECTIONS) {
     const cur = Number(CHOICE_SECTIONS[sec.id] || 0);
@@ -482,8 +479,9 @@ function refreshCountsUI() {
 
   // темы
   $$('.node.topic').forEach(node => {
+    const id = node.dataset.id;
     const num = $('.count', node);
-    if (num) num.value = 0;
+    if (num) num.value = CHOICE_TOPICS[id] || 0;
   });
 
   refreshTotalSum();
@@ -680,14 +678,8 @@ function setSectionCount(sectionId, n) {
 }
 
 function bubbleUpSums() {
-  for (const sec of SECTIONS) {
-    const sumTopics = (sec.topics || []).reduce(
-      (s, t) => s + (CHOICE_TOPICS[t.id] || 0),
-      0,
-    );
-    if (sumTopics > 0) CHOICE_SECTIONS[sec.id] = sumTopics;
-  }
-
+  // Выбор аддитивный: разделы и подтемы суммируются.
+  // Не перетираем CHOICE_SECTIONS значениями из CHOICE_TOPICS.
   $$('.node.section').forEach(node => {
     const id = node.dataset.id;
     const num = $('.count', node);
@@ -703,7 +695,7 @@ function bubbleUpSums() {
 function refreshTotalSum() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
-  const total = sumTopics > 0 ? sumTopics : sumSections;
+  const total = sumTopics + sumSections;
 
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
