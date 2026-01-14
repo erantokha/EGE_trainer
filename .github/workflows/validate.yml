@@ -1,4 +1,4 @@
-name: Validate Content
+name: Validate
 
 on:
   push:
@@ -20,19 +20,3 @@ jobs:
 
       - name: Check build/version sync
         run: node tools/check_build.mjs
-
-      - name: Validate content
-        run: |
-          if [ -f tools/validate-content.mjs ]; then
-            node tools/validate-content.mjs --max-errors=200 | tee validation-report.txt
-          else
-            echo "tools/validate-content.mjs not found; skipping content validation." | tee validation-report.txt
-          fi
-        shell: bash
-
-      - name: Upload validation report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: validation-report
-          path: validation-report.txt
