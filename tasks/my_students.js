@@ -2,61 +2,24 @@
 // Страница учителя: список привязанных учеников + добавление по email.
 //
 // Важно:
-// На некоторых окружениях supabase.auth.getSession() может «зависать» из-за storage-locks
-// (гонки вкладок/расширений). Здесь используем единый слой:
-// - app/providers/supabase.js (requireSession) — единый источник сессии
-// - app/providers/supabase-rest.js (supaRest) — RPC/REST с 1 ретраем при 401 (forceRefresh)
+// В некоторых окружениях supabase.auth.getSession() может «зависать» из‑за storage-locks
+// (гонки вкладок/расширений). Чтобы страница не залипала, для этой страницы
+// используем прямые REST-вызовы Supabase (PostgREST /rpc) с access_token,
+// считанным из localStorage, и при необходимости делаем refresh через Auth API.
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
-// ---------- providers (единая auth + REST/RPC) ----------
-let __providers = null;
+let __cfgGlobal = null;
 
-async function loadProviders() {
-  if (__providers) return __providers;
-  const supa = await import(withV('../app/providers/supabase.js'));
-  const rest = await import(withV('../app/providers/supabase-rest.js'));
-  __providers = {
-    requireSession: supa.requireSession,
-    supaRest: rest.supaRest,
-  };
-  return __providers;
-}
-
-function isAuthRequired(err) {
-  const code = String(err?.code || '').toUpperCase();
-  const msg = String(err?.message || '').toUpperCase();
-  return code.includes('AUTH_REQUIRED') || msg.includes('AUTH_REQUIRED');
-}
-
-function extractErrText(err) {
-  try {
-    const d = err?.details;
-    if (d) {
-      if (typeof d === 'string') return d;
-      if (typeof d === 'object') {
-        return String(d.message || d.error_description || d.error || d.hint || d.details || '').trim();
-      }
-    }
-    const data = err?.data;
-    if (data) {
-      if (typeof data === 'string') return data;
-      if (typeof data === 'object') return String(data.message || data.error_description || data.error || '').trim();
-    }
-    return String(err?.message || '').trim();
-  } catch (_) {
-    return '';
-  }
-}
-
+// Служебные подсказки: показываем 5 секунд и скрываем (если не указано sticky).
 const __statusTimers = new Map();
-
-function setStatus(el, text, opts = {}) {
+function setStatus(el, text, { sticky = false } = {}) {
   if (!el) return;
-  const sticky = !!opts.sticky;
+  const msg = String(text || '');
+  el.textContent = msg;
 
   const prev = __statusTimers.get(el);
   if (prev) {
@@ -64,13 +27,11 @@ function setStatus(el, text, opts = {}) {
     __statusTimers.delete(el);
   }
 
-  el.textContent = String(text || '');
-
-  if (!sticky && text) {
+  if (msg && !sticky) {
     const t = setTimeout(() => {
       el.textContent = '';
       __statusTimers.delete(el);
-    }, 3000);
+    }, 5000);
     __statusTimers.set(el, t);
   }
 }
@@ -80,44 +41,22 @@ function fmtName(s) {
 }
 
 function emailLocalPart(email) {
-  const e = String(email || '').trim();
-  const i = e.indexOf('@');
-  return i > 0 ? e.slice(0, i) : e;
+  const s = String(email || '').trim();
+  if (!s) return '';
+  const at = s.indexOf('@');
+  if (at <= 0) return s;
+  return s.slice(0, at);
 }
 
-let __totalTopics = 0;
+function studentLabel(st) {
+  const fn = fmtName(st.first_name);
+  const ln = fmtName(st.last_name);
+  const nm = `${fn} ${ln}`.trim();
+  if (nm) return nm;
 
-async function getTotalTopicsCount() {
-  try {
-    const url = new URL('../content/tasks/index.json', location.href);
-    const res = await fetch(url.toString(), { cache: 'no-store' });
-    if (!res.ok) return 0;
-    const data = await res.json();
-    // index.json: дерево, считаем leaf topics (подтемы), где есть tasks/items
-    let count = 0;
-
-    function walk(node) {
-      if (!node || typeof node !== 'object') return;
-      const children = node.children || node.items || node.sections || null;
-
-      // Лист (topic) обычно содержит tasks/items
-      if (Array.isArray(node.tasks) || Array.isArray(node.items)) {
-        count += 1;
-        return;
-      }
-
-      if (Array.isArray(children)) {
-        for (const ch of children) walk(ch);
-      } else if (children && typeof children === 'object') {
-        Object.values(children).forEach(walk);
-      }
-    }
-
-    walk(data);
-    return count;
-  } catch (_) {
-    return 0;
-  }
+  const email = String(st.email || st.student_email || '').trim();
+  const local = emailLocalPart(email);
+  return local || String(st.student_id || st.id || '').trim() || 'Ученик';
 }
 
 function el(tag, attrs = {}, children = []) {
@@ -158,50 +97,14 @@ function fmtDateTime(ts) {
   try {
     const d = new Date(ts);
     if (!isFinite(d.getTime())) return '—';
-    return d.toLocaleString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return d.toLocaleString('ru-RU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   } catch (_) {
     return '—';
   }
 }
 
-function fmtProblemsCount(x) {
-  const n = safeInt(x, 0);
-  if (n <= 0) return '—';
-  return String(n);
-}
 
-function studentLabel(st) {
-  const fn = fmtName(st.first_name);
-  const ln = fmtName(st.last_name);
-  const nm = `${fn} ${ln}`.trim();
-  if (nm) return nm;
-
-  const email = String(st.email || st.student_email || '').trim();
-  const local = emailLocalPart(email);
-  return local || String(st.student_id || st.id || '').trim() || 'Ученик';
-}
-
-// Список студентов, полученный из list_my_students + summary
-let __studentsRaw = [];
-let __studentsFiltered = [];
-let __currentDays = 7;
-let __currentSource = 'all';
-let __knownEmails = new Set();
-let __openStudentMenu = null;
-
-function normSource(v) {
-  const s = String(v || '').trim().toLowerCase();
-  if (s === 'hw' || s === 'homework') return 'hw';
-  if (s === 'test' || s === 'trainer') return 'test';
-  return 'all';
-}
-
+// Пытаемся распарсить дату из разных форматов (ISO из Supabase, "YYYY-MM-DD HH:MM:SS", и т.п.)
 function parseDate(value) {
   if (!value) return null;
   if (value instanceof Date) return value;
@@ -212,9 +115,11 @@ function parseDate(value) {
   const s = String(value).trim();
   if (!s) return null;
 
+  // ISO обычно парсится нативно
   let d = new Date(s);
   if (isFinite(d.getTime())) return d;
 
+  // Частый формат без "T": "YYYY-MM-DD HH:MM:SS" или "YYYY-MM-DD HH:MM"
   const s2 = s.replace(', ', 'T').replace(' ', 'T');
   d = new Date(s2);
   if (isFinite(d.getTime())) return d;
@@ -229,117 +134,167 @@ function miniBadge(label, valueText, p) {
   return b;
 }
 
-function makeStudentStats(st) {
-  const s = st?.__summary || null;
-  if (!s) return null;
-
-  const lastSeen = parseDate(s.last_seen_at)?.toISOString() || s.last_seen_at || null;
-
-  const weekTotal = safeInt(s.period_total, 0);
-  const weekCorrect = safeInt(s.period_correct, 0);
-  const weekP = pct(weekTotal, weekCorrect);
-
-  const last10Total = safeInt(s.last10_total, 0);
-  const last10Correct = safeInt(s.last10_correct, 0);
-  const last10P = pct(last10Total, last10Correct);
-
-  const problems = safeInt(s.problems_count, 0);
-
-  const covered = safeInt(s.covered_topics_all_time, 0);
-  const total = safeInt(__totalTopics, 0);
-  const coverageP = total > 0 ? Math.round((covered / total) * 100) : null;
-
-  return {
-    lastSeen,
-    weekTotal,
-    weekCorrect,
-    weekP,
-    last10Total,
-    last10Correct,
-    last10P,
-    problems,
-    covered,
-    totalTopics: total,
-    coverageP,
-  };
+function normSource(v) {
+  const s = String(v || 'all').trim().toLowerCase();
+  if (s === 'all') return 'all';
+  if (s === 'hw' || s === 'homework') return 'hw'; // на случай старых значений в html
+  if (s === 'test') return 'test';
+  return 'all';
 }
 
-function compareStudents(a, b) {
-  const sa = makeStudentStats(a) || {};
-  const sb = makeStudentStats(b) || {};
+async function getTotalTopicsCount() {
+  try {
+    const url = new URL('../content/tasks/index.json', location.href);
+    const res = await fetch(url.toString(), { cache: 'no-cache' });
+    if (!res.ok) return 0;
+    const items = await res.json();
+    if (!Array.isArray(items)) return 0;
 
-  const aProb = safeInt(sa.problems, 0);
-  const bProb = safeInt(sb.problems, 0);
-  if (aProb !== bProb) return bProb - aProb;
+    let total = 0;
+    for (const it of items) {
+      const id = String(it?.id || '').trim();
+      const title = String(it?.title || '').trim();
+      const type = String(it?.type || '').trim();
+      const hidden = !!it?.hidden;
+      const enabled = (it?.enabled === undefined) ? true : !!it?.enabled;
 
-  const aL10t = safeInt(sa.last10_total, 0);
-  const aL10c = safeInt(sa.last10_correct, 0);
-  const bL10t = safeInt(sb.last10_total, 0);
-  const bL10c = safeInt(sb.last10_correct, 0);
-  const aForm = pct(aL10t, aL10c);
-  const bForm = pct(bL10t, bL10c);
-  const aFormKey = (aForm === null ? -1 : aForm);
-  const bFormKey = (bForm === null ? -1 : bForm);
-  if (aFormKey !== bFormKey) return aFormKey - bFormKey;
-
-  const aCov = safeInt(sa.covered_topics_all_time, 0);
-  const bCov = safeInt(sb.covered_topics_all_time, 0);
-  const total = safeInt(__totalTopics, 0);
-  const aCovPct = total > 0 ? Math.round((aCov / total) * 100) : null;
-  const bCovPct = total > 0 ? Math.round((bCov / total) * 100) : null;
-  const aCovKey = (aCovPct === null ? -1 : aCovPct);
-  const bCovKey = (bCovPct === null ? -1 : bCovPct);
-  if (aCovKey !== bCovKey) return aCovKey - bCovKey;
-
-  const aLast = parseDate(sa.lastSeen)?.getTime() || 0;
-  const bLast = parseDate(sb.lastSeen)?.getTime() || 0;
-  if (aLast !== bLast) return bLast - aLast;
-
-  const an = studentLabel(a).toLowerCase();
-  const bn = studentLabel(b).toLowerCase();
-  if (an < bn) return -1;
-  if (an > bn) return 1;
-  return 0;
+      if (!id || !title) continue;
+      if (type === 'group') continue;
+      if (hidden || !enabled) continue;
+      if (/^\d+\.\d+/.test(id)) total += 1;
+    }
+    return total;
+  } catch (_) {
+    return 0;
+  }
 }
 
+function isProblemStudent(st) {
+  const sum = st?.__summary || null;
+  if (!sum) return false;
+
+  const lastSeenAt = sum?.last_seen_at ? new Date(sum.last_seen_at) : null;
+  const now = Date.now();
+  const lastSeenDays = (lastSeenAt && isFinite(lastSeenAt.getTime()))
+    ? Math.floor((now - lastSeenAt.getTime()) / 86400000)
+    : 9999;
+
+  if (lastSeenDays > 7) return true;
+
+  const l10t = safeInt(sum?.last10_total, 0);
+  const l10c = safeInt(sum?.last10_correct, 0);
+  if (l10t >= 5) {
+    const p = pct(l10t, l10c);
+    if (p !== null && p < 70) return true;
+  }
+
+  return false;
+}
+
+// Совместимость: старый код подсветки использовал isProblematic().
+// Теперь критерий вынесен в isProblemStudent(), а isProblematic оставляем как алиас.
+function isProblematic(st) {
+  return isProblemStudent(st);
+}
+
+let __studentsRaw = [];
+let __totalTopics = 0;
+let __currentDays = 7;
+let __currentSource = 'all';
+
+let __knownEmails = new Set();
+let __openStudentMenu = null;
 function applyFiltersAndRender() {
-  const status = $('#pageStatus');
-  const q = String($('#searchStudents')?.value || '').trim().toLowerCase();
+  const term = String($('#searchStudents')?.value || '').trim().toLowerCase();
   const onlyProblems = !!$('#filterProblems')?.checked;
 
   let list = Array.isArray(__studentsRaw) ? [...__studentsRaw] : [];
 
-  if (q) {
+  if (term) {
     list = list.filter((st) => {
       const name = studentLabel(st).toLowerCase();
       const email = String(st.email || st.student_email || '').trim().toLowerCase();
-      const grade = String(st.student_grade || st.grade || '').trim().toLowerCase();
-      return name.includes(q) || email.includes(q) || grade.includes(q);
+      return name.includes(term) || email.includes(term);
     });
   }
 
   if (onlyProblems) {
-    list = list.filter((st) => safeInt(st?.__summary?.problems_count, 0) > 0);
+    list = list.filter((st) => isProblemStudent(st));
   }
 
-  list.sort(compareStudents);
+  const now = Date.now();
 
-  __studentsFiltered = list;
+  // по умолчанию — сначала самые активные
+  if (!onlyProblems) {
+    list.sort((a, b) => {
+      const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
+      const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
+      const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
+      const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
+      return bt - at;
+    });
+    renderStudents(list);
+    return;
+  }
 
-  setStatus(status, '');
+  // если включены "Проблемные" — сортируем по худшим результатам (хуже → выше)
+  list.sort((a, b) => {
+    const sa = a?.__summary || {};
+    const sb = b?.__summary || {};
+
+    // 1) форма (last10) — ниже = хуже; отсутствие данных считаем хуже
+    const aL10t = safeInt(sa.last10_total, 0);
+    const aL10c = safeInt(sa.last10_correct, 0);
+    const bL10t = safeInt(sb.last10_total, 0);
+    const bL10c = safeInt(sb.last10_correct, 0);
+    const aForm = pct(aL10t, aL10c);
+    const bForm = pct(bL10t, bL10c);
+    const aFormKey = (aForm === null ? -1 : aForm);
+    const bFormKey = (bForm === null ? -1 : bForm);
+    if (aFormKey !== bFormKey) return aFormKey - bFormKey;
+
+    // 2) покрытие — ниже = хуже; отсутствие данных считаем хуже
+    const aCov = safeInt(sa.covered_topics_all_time, 0);
+    const bCov = safeInt(sb.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const aCovPct = total > 0 ? Math.round((aCov / total) * 100) : null;
+    const bCovPct = total > 0 ? Math.round((bCov / total) * 100) : null;
+    const aCovKey = (aCovPct === null ? -1 : aCovPct);
+    const bCovKey = (bCovPct === null ? -1 : bCovPct);
+    if (aCovKey !== bCovKey) return aCovKey - bCovKey;
+
+    // 3) активность (за выбранный период) — меньше = хуже
+    const aAct = safeInt(sa.activity_total, 0);
+    const bAct = safeInt(sb.activity_total, 0);
+    if (aAct !== bAct) return aAct - bAct;
+
+    // 4) давность последней активности — больше дней = хуже
+    const aLast = sa.last_seen_at ? new Date(sa.last_seen_at) : null;
+    const bLast = sb.last_seen_at ? new Date(sb.last_seen_at) : null;
+    const aDays = (aLast && isFinite(aLast.getTime())) ? Math.floor((now - aLast.getTime()) / 86400000) : 9999;
+    const bDays = (bLast && isFinite(bLast.getTime())) ? Math.floor((now - bLast.getTime()) / 86400000) : 9999;
+    if (aDays !== bDays) return bDays - aDays;
+
+    // 5) детерминизм
+    return studentLabel(a).localeCompare(studentLabel(b), 'ru');
+  });
+
   renderStudents(list);
 }
+
+
 
 function isValidEmail(v) {
   const s = String(v || '').trim();
   if (!s) return false;
+  // Достаточно строгая проверка для UI (сервер всё равно валидирует).
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 }
 
 function rebuildKnownEmails() {
   __knownEmails = new Set();
   for (const st of (__studentsRaw || [])) {
-    const email = String(st?.email || st?.student_email || '').trim().toLowerCase();
+    const email = String(st.email || st.student_email || '').trim().toLowerCase();
     if (email) __knownEmails.add(email);
   }
 }
@@ -392,7 +347,7 @@ function renderStudents(list) {
           first_name: st.first_name || '',
           last_name: st.last_name || '',
           email: email || '',
-          student_grade: grade || '',
+          student_grade: grade || ''
         }));
       } catch (_) {}
 
@@ -401,53 +356,53 @@ function renderStudents(list) {
 
     card.addEventListener('click', () => goOpen());
 
+    // Заголовок карточки
     const titlebar = el('div', { class: 'student-titlebar' });
     const title = el('div', { class: 'student-title', text: studentLabel(st) });
     titlebar.appendChild(title);
 
-    card.appendChild(titlebar);
-
+// Метаданные (email/класс/активность)
     const meta = [];
     if (grade) meta.push(`Класс: ${grade}`);
-    if (email) meta.push(email);
-    const stats = makeStudentStats(st);
-    if (stats?.lastSeen) meta.push(`Активность: ${fmtDateTime(stats.lastSeen)}`);
+    const metaEl = el('div', { class: 'muted student-meta', text: meta.join(' • ') });
 
-    if (meta.length) {
-      card.appendChild(el('div', { class: 'student-meta', text: meta.join(' • ') }));
+    // Метрики
+    const metrics = el('div', { class: 'student-metrics' });
+
+    const sum = st.__summary || st.summary || st.stats || null;
+
+    const activity = safeInt(sum?.activity_total, 0);
+    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
+
+    const lastSeenAt = sum?.last_seen_at ? new Date(sum.last_seen_at) : null;
+    const lastSeenOk = (lastSeenAt && isFinite(lastSeenAt.getTime()));
+    const lastSeenText = lastSeenOk ? fmtDateTime(lastSeenAt) : '—';
+    let pLast = 0;
+    if (lastSeenOk) {
+      const daysAgo = (Date.now() - lastSeenAt.getTime()) / 86400000;
+      if (daysAgo <= 3) pLast = 90;
+      else if (daysAgo <= 7) pLast = 50;
+      else pLast = 0;
     }
+    metrics.appendChild(miniBadge('Последняя активность', lastSeenText, pLast));
 
-    if (stats) {
-      const row = el('div', { class: 'student-stats-row' });
+    const l10t = safeInt(sum?.last10_total, 0);
+    const l10c = safeInt(sum?.last10_correct, 0);
+    const pForm = pct(l10t, l10c);
+    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
+    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
 
-      row.appendChild(miniBadge(
-        `Период (${__currentDays}д)`,
-        `${safeInt(stats.weekCorrect, 0)}/${safeInt(stats.weekTotal, 0)}`,
-        stats.weekP,
-      ));
+    const covered = safeInt(sum?.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
+    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
+    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
+    card.appendChild(titlebar);
+    card.appendChild(metaEl);
+    card.appendChild(metrics);
 
-      row.appendChild(miniBadge(
-        'Последние 10',
-        `${safeInt(stats.last10Correct, 0)}/${safeInt(stats.last10Total, 0)}`,
-        stats.last10P,
-      ));
-
-      row.appendChild(miniBadge(
-        'Проблемные',
-        fmtProblemsCount(stats.problems),
-        stats.problems > 0 ? 0 : null,
-      ));
-
-      if (stats.totalTopics > 0) {
-        row.appendChild(miniBadge(
-          'Покрытие',
-          `${safeInt(stats.covered, 0)}/${safeInt(stats.totalTopics, 0)}`,
-          stats.coverageP,
-        ));
-      }
-
-      card.appendChild(row);
-    }
+    // Подсветка проблемных учеников рамкой (как было)
+    if (isProblematic(st)) card.classList.add('is-problem');
 
     grid.appendChild(card);
   }
@@ -455,25 +410,187 @@ function renderStudents(list) {
   wrap.appendChild(grid);
 }
 
-// ---------- Supabase data (через supaRest) ----------
 
-async function getMyRoleViaRest(supaRest, uid) {
+async function getConfig() {
+  const mod = await import(withV('../app/config.js'));
+  return mod.CONFIG;
+}
+
+function getProjectRefFromUrl(supabaseUrl) {
   try {
-    if (!uid) return '';
-    const rows = await supaRest.select('profiles', {
-      select: 'role',
-      id: `eq.${uid}`,
-      limit: '1',
-    });
-    const role = Array.isArray(rows) ? String(rows?.[0]?.role || '') : String(rows?.role || '');
-    return role.trim().toLowerCase();
-  } catch (e) {
-    console.warn('getMyRoleViaRest error', e);
-    return '';
+    const host = String(supabaseUrl || '');
+    const ref = host ? new URL(host).hostname.split('.')[0] : '';
+    return ref || null;
+  } catch (_) {
+    return null;
   }
 }
 
-async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
+function getAuthStorageKey(cfg) {
+  const ref = getProjectRefFromUrl(cfg?.supabase?.url);
+  if (!ref) return null;
+  return `sb-${ref}-auth-token`;
+}
+
+function pick(obj, paths) {
+  for (const p of paths) {
+    let cur = obj;
+    const parts = p.split('.');
+    let ok = true;
+    for (const part of parts) {
+      if (cur && typeof cur === 'object' && part in cur) cur = cur[part];
+      else { ok = false; break; }
+    }
+    if (ok && cur != null) return cur;
+  }
+  return null;
+}
+
+function readStoredSession(cfg) {
+  const key = getAuthStorageKey(cfg);
+  if (!key) return { key: null, raw: null, session: null };
+  let raw = null;
+  try { raw = localStorage.getItem(key); } catch (_) { raw = null; }
+  if (!raw) return { key, raw: null, session: null };
+
+  let obj = null;
+  try { obj = JSON.parse(raw); } catch (_) { obj = null; }
+  if (!obj || typeof obj !== 'object') return { key, raw: obj, session: null };
+
+  const session = {
+    access_token: String(pick(obj, ['access_token', 'currentSession.access_token', 'session.access_token']) || ''),
+    refresh_token: String(pick(obj, ['refresh_token', 'currentSession.refresh_token', 'session.refresh_token']) || ''),
+    token_type: String(pick(obj, ['token_type', 'currentSession.token_type', 'session.token_type']) || 'bearer'),
+    expires_at: Number(pick(obj, ['expires_at', 'currentSession.expires_at', 'session.expires_at']) || 0) || 0,
+    user: pick(obj, ['user', 'currentSession.user', 'session.user']) || null,
+    __raw: obj,
+  };
+
+  if (!session.access_token) return { key, raw: obj, session: null };
+  return { key, raw: obj, session };
+}
+
+async function fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body,
+      signal: ctrl.signal,
+    });
+    const text = await res.text().catch(() => '');
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+    if (!res.ok) {
+      const msg =
+        (data && (data?.msg || data?.message || data?.error_description || data?.error)) ||
+        text ||
+        `HTTP_${res.status}`;
+      const err = new Error(String(msg));
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function refreshAccessToken(cfg, refreshToken) {
+  const base = String(cfg?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/auth/v1/token?grant_type=refresh_token`;
+  const data = await fetchJson(url, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.supabase.anonKey,
+      authorization: `Bearer ${cfg.supabase.anonKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ refresh_token: String(refreshToken || '') }),
+    timeoutMs: 12000,
+  });
+  return data;
+}
+
+let __authCache = null;
+
+async function ensureAuth(cfg) {
+  // кэшируем на короткое время, чтобы не дёргать storage/refresh на каждое действие
+  const now = Math.floor(Date.now() / 1000);
+  if (__authCache && __authCache.expires_at && __authCache.expires_at - now > 30) return __authCache;
+
+  const { key, session } = readStoredSession(cfg);
+  if (!session?.access_token) return null;
+
+  const uid = String(session?.user?.id || '').trim();
+  const expiresAt = Number(session.expires_at || 0) || 0;
+
+  // если expires_at нет, считаем «валидным» и пробуем работать; при 401 попросим перелогиниться
+  const secondsLeft = expiresAt ? (expiresAt - now) : 999999;
+  if (secondsLeft > 30) {
+    __authCache = { access_token: session.access_token, user_id: uid, expires_at: expiresAt, key };
+    return __authCache;
+  }
+
+  // токен почти истёк/истёк → пробуем refresh
+  if (!session.refresh_token) return null;
+
+  const refreshed = await refreshAccessToken(cfg, session.refresh_token);
+  const expiresIn = Number(refreshed?.expires_in || 0) || 0;
+  const newExpiresAt = expiresIn ? (now + expiresIn) : 0;
+
+  const newObj = {
+    access_token: refreshed?.access_token,
+    refresh_token: refreshed?.refresh_token || session.refresh_token,
+    token_type: refreshed?.token_type || 'bearer',
+    expires_in: refreshed?.expires_in,
+    expires_at: newExpiresAt,
+    user: refreshed?.user || session.user || null,
+  };
+  try {
+    if (key) localStorage.setItem(key, JSON.stringify(newObj));
+  } catch (_) {}
+
+  const newUid = String(newObj?.user?.id || uid || '').trim();
+  __authCache = { access_token: String(newObj.access_token || ''), user_id: newUid, expires_at: newExpiresAt, key };
+  return __authCache.access_token ? __authCache : null;
+}
+
+async function rpc(cfg, accessToken, fn, args) {
+  const base = String(cfg?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/rest/v1/rpc/${encodeURIComponent(fn)}`;
+  return await fetchJson(url, {
+    method: 'POST',
+    headers: {
+      apikey: cfg.supabase.anonKey,
+      authorization: `Bearer ${accessToken}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify(args || {}),
+    timeoutMs: 15000,
+  });
+}
+
+async function getMyRoleViaRest(cfg, accessToken, uid) {
+  const base = String(cfg?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(uid)}`;
+  const data = await fetchJson(url, {
+    method: 'GET',
+    headers: {
+      apikey: cfg.supabase.anonKey,
+      authorization: `Bearer ${accessToken}`,
+      accept: 'application/json',
+    },
+    timeoutMs: 12000,
+  });
+  const role = Array.isArray(data) ? String(data?.[0]?.role || '') : String(data?.role || '');
+  return role.trim().toLowerCase();
+}
+
+async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {}) {
   const status = $('#pageStatus');
   __currentDays = safeInt(days, 7);
   __currentSource = normSource(source);
@@ -482,8 +599,8 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
 
   try {
     const [students, summary] = await Promise.all([
-      supaRest.rpc('list_my_students', {}),
-      supaRest.rpc('teacher_students_summary', { p_days: __currentDays, p_source: __currentSource })
+      rpc(cfg, accessToken, 'list_my_students', {}),
+      rpc(cfg, accessToken, 'teacher_students_summary', { p_days: __currentDays, p_source: __currentSource })
         .catch((e) => {
           console.warn('teacher_students_summary error', e);
           return [];
@@ -511,19 +628,11 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
     setStatus(status, '');
     rebuildKnownEmails();
     updateAddButtonState();
+
     applyFiltersAndRender();
   } catch (e) {
     console.warn('loadStudents error', e);
-
-    const msg = extractErrText(e);
-    if (isAuthRequired(e)) {
-      setStatus(status, 'Нужно войти, чтобы открыть список учеников.', { sticky: true });
-    } else if (msg) {
-      setStatus(status, msg, { sticky: false });
-    } else {
-      setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
-    }
-
+    setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
     __studentsRaw = [];
     rebuildKnownEmails();
     updateAddButtonState();
@@ -531,36 +640,35 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
   }
 }
 
-async function addStudent(supaRest, email) {
+async function addStudent(cfg, accessToken, email) {
   const addStatus = $('#addStatus');
   setStatus(addStatus, 'Добавляем...', { sticky: true });
 
   try {
-    await supaRest.rpc('add_student_by_email', { p_email: email });
+    await rpc(cfg, accessToken, 'add_student_by_email', { p_email: email });
     setStatus(addStatus, 'Готово');
     return true;
   } catch (e) {
     console.warn('add_student_by_email error', e);
-    const msg = extractErrText(e);
-    setStatus(addStatus, msg || 'Не удалось добавить ученика.', { sticky: false });
+    const msg = String(e?.message || 'Не удалось добавить ученика.');
+    setStatus(addStatus, msg, { sticky: false });
     return false;
   }
 }
 
-// Сейчас не используется напрямую (удаление чаще делается со страницы student.html),
-// но оставляем для будущих кнопок/меню.
-async function removeStudent(supaRest, studentId) {
+
+async function removeStudent(cfg, accessToken, studentId) {
   const status = $('#pageStatus');
   setStatus(status, 'Удаляем...', { sticky: true });
 
   try {
-    await supaRest.rpc('remove_student', { p_student_id: studentId });
+    await rpc(cfg, accessToken, 'remove_student', { p_student_id: studentId });
     setStatus(status, 'Ученик удалён');
     return true;
   } catch (e) {
     console.warn('remove_student error', e);
-    const msg = extractErrText(e);
-    setStatus(status, msg || 'Не удалось удалить ученика.', { sticky: false });
+    const msg = String(e?.message || 'Не удалось удалить ученика.');
+    setStatus(status, msg, { sticky: false });
     return false;
   }
 }
@@ -587,32 +695,30 @@ async function main() {
   });
 
   try {
-    const { requireSession, supaRest } = await loadProviders();
+    const cfg = await getConfig();
 
-    // Проверка сессии и роли
-    let session = null;
-    try {
-      session = await requireSession();
-    } catch (e) {
+    const auth = await ensureAuth(cfg);
+    if (!auth?.access_token || !auth?.user_id) {
       setStatus(pageStatus, 'Войдите, чтобы открыть список учеников.', { sticky: true });
       if (addBtn) addBtn.disabled = true;
       return;
     }
 
-    const uid = String(session?.user?.id || '').trim();
-    const role = await getMyRoleViaRest(supaRest, uid).catch(() => '');
+    const role = await getMyRoleViaRest(cfg, auth.access_token, auth.user_id).catch(() => '');
     if (role !== 'teacher') {
       setStatus(pageStatus, 'Доступно только для учителя.', { sticky: true });
       if (addBtn) addBtn.disabled = true;
       return;
     }
 
+    __cfgGlobal = cfg;
+
     const days = daysSel ? safeInt(daysSel.value, 30) : 30;
     const source = sourceSel ? normSource(sourceSel.value) : 'all';
     __currentDays = days;
     __currentSource = source;
 
-    await loadStudents(supaRest, { days, source });
+    await loadStudents(cfg, auth.access_token, { days, source });
 
     // Поиск (локальный фильтр) + проверка доступности "Добавить"
     searchInput?.addEventListener('input', () => {
@@ -627,9 +733,8 @@ async function main() {
 
     // Изменение дней/источника — сразу перезагрузка данных
     const reloadFromSelectors = async () => {
-      try {
-        await requireSession();
-      } catch (e) {
+      const a2 = await ensureAuth(cfg);
+      if (!a2?.access_token) {
         setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
         return;
       }
@@ -637,7 +742,7 @@ async function main() {
       const s = sourceSel ? normSource(sourceSel.value) : __currentSource;
       __currentDays = d;
       __currentSource = s;
-      await loadStudents(supaRest, { days: d, source: s });
+      await loadStudents(cfg, a2.access_token, { days: d, source: s });
     };
 
     daysSel?.addEventListener('change', reloadFromSelectors);
@@ -658,17 +763,16 @@ async function main() {
           return;
         }
 
-        try {
-          await requireSession();
-        } catch (e) {
+        const a2 = await ensureAuth(cfg);
+        if (!a2?.access_token) {
           setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
           return;
         }
 
-        const ok = await addStudent(supaRest, email);
+        const ok = await addStudent(cfg, a2.access_token, email);
         if (ok) {
           // Перезагрузить список и очистить поле
-          await loadStudents(supaRest, { days: __currentDays, source: __currentSource });
+          await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
           if (searchInput) searchInput.value = '';
           applyFiltersAndRender();
         }

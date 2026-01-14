@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-15-6';
+import { CONFIG } from '../config.js?v=2026-01-14-23';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -36,8 +36,11 @@ const __SESSION_CACHE = {
   session: null,
   expires_at: 0,
   inflight: null,
-  signed_out_until: 0, // unix sec: до какого момента считаем, что пользователь "вышел"
+  // защитный флаг: после signOut в течение короткого окна
+  // всегда считаем, что сессии нет (даже если supabase-js ещё не успел очистить in-memory state).
+  signed_out_until: 0,
 };
+
 
 function __clearSessionCache() {
   __SESSION_CACHE.session = null;
@@ -46,7 +49,7 @@ function __clearSessionCache() {
 }
 
 function __pick(obj, paths) {
-  for (const p of paths) {
+  for (const p of (paths || [])) {
     const parts = String(p).split('.');
     let cur = obj;
     let ok = true;
@@ -62,10 +65,9 @@ function __pick(obj, paths) {
 function __getAuthStorageKey() {
   try {
     const url = String(CONFIG?.supabase?.url || '').trim();
-    const m = url.match(/https?:\/\/([a-z0-9]+)\.supabase\.co/i);
-    const ref = m ? m[1] : '';
-    if (!ref) return null;
-    return `sb-${ref}-auth-token`;
+    const m = url.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
+    const ref = m ? m[1] : null;
+    return ref ? `sb-${ref}-auth-token` : null;
   } catch (_) {
     return null;
   }
@@ -81,75 +83,77 @@ function __readStoredSession() {
 
   let raw = null;
   try { raw = JSON.parse(rawStr); } catch (_) { raw = null; }
-  if (!raw) return { key, raw: null, session: null };
+  if (!raw || typeof raw !== 'object') return { key, raw, session: null };
 
-  // поддерживаем разные форматы
-  const session = __pick(raw, ['currentSession', 'session', 'data.session']) || null;
+  const session = {
+    access_token: String(__pick(raw, ['access_token', 'currentSession.access_token', 'session.access_token']) || ''),
+    refresh_token: String(__pick(raw, ['refresh_token', 'currentSession.refresh_token', 'session.refresh_token']) || ''),
+    token_type: String(__pick(raw, ['token_type', 'currentSession.token_type', 'session.token_type']) || 'bearer'),
+    expires_at: Number(__pick(raw, ['expires_at', 'currentSession.expires_at', 'session.expires_at']) || 0) || 0,
+    user: __pick(raw, ['user', 'currentSession.user', 'session.user']) || null,
+    __raw: raw,
+  };
+
+  if (!session.access_token) return { key, raw, session: null };
   return { key, raw, session };
 }
 
-function __writeStoredSession(key, rawObj, patchObj) {
-  if (!key || !rawObj || !patchObj) return;
-  const next = { ...rawObj };
-
-  if (next.currentSession && typeof next.currentSession === 'object') {
-    next.currentSession = { ...next.currentSession, ...patchObj };
-  } else if (next.session && typeof next.session === 'object') {
-    next.session = { ...next.session, ...patchObj };
-  } else if (next.data && next.data.session && typeof next.data.session === 'object') {
-    next.data = { ...next.data, session: { ...next.data.session, ...patchObj } };
-  } else {
-    // неизвестный формат — не трогаем
-    return;
-  }
-
-  try { localStorage.setItem(key, JSON.stringify(next)); } catch (_) {}
+function __writeStoredSession(key, raw, newObj) {
+  if (!key || !newObj) return;
+  try {
+    const base = (raw && typeof raw === 'object') ? raw : {};
+    // Подстраиваемся под разные форматы supabase-js.
+    if ('currentSession' in base && base.currentSession && typeof base.currentSession === 'object') {
+      base.currentSession = { ...base.currentSession, ...newObj };
+    } else if ('session' in base && base.session && typeof base.session === 'object') {
+      base.session = { ...base.session, ...newObj };
+    } else {
+      Object.assign(base, newObj);
+    }
+    localStorage.setItem(key, JSON.stringify(base));
+  } catch (_) {}
 }
 
-async function __fetchJson(url, opts = {}, timeoutMs = 0) {
-  const ctrl = timeoutMs ? new AbortController() : null;
-  const t = timeoutMs ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+async function __fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { ...opts, signal: ctrl ? ctrl.signal : undefined });
+    const res = await fetch(url, { method, headers, body, signal: ctrl.signal });
     const text = await res.text().catch(() => '');
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
     return { ok: res.ok, status: res.status, data };
   } finally {
-    if (t) clearTimeout(t);
+    clearTimeout(t);
   }
 }
 
 async function __refreshByToken(refreshToken) {
-  const base = String(CONFIG.supabase.url || '').replace(/\/+$/g, '');
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
   const url = `${base}/auth/v1/token?grant_type=refresh_token`;
-  const { ok, status, data } = await __fetchJson(url, {
-    method: 'POST',
-    headers: {
-      apikey: CONFIG.supabase.anonKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  }, 6000);
-
-  if (!ok) {
-    const e = new Error('AUTH_REFRESH_FAILED');
-    e.status = status;
-    e.data = data;
-    throw e;
+  const headers = {
+    'Content-Type': 'application/json',
+    apikey: CONFIG.supabase.anonKey,
+    Authorization: `Bearer ${CONFIG.supabase.anonKey}`,
+  };
+  const body = JSON.stringify({ refresh_token: refreshToken });
+  const r = await __fetchJson(url, { method: 'POST', headers, body, timeoutMs: 15000 });
+  if (!r.ok) {
+    const msg = (typeof r.data === 'string')
+      ? r.data
+      : (r.data?.msg || r.data?.message || r.data?.error_description || r.data?.error || `HTTP_${r.status}`);
+    throw new Error(String(msg));
   }
-  return data;
+  return r.data;
 }
 
 async function __getSessionViaSupabase(timeoutMs) {
-  // supabase-js иногда может залипать на storage locks; делаем гонку с таймаутом
   const p = (async () => {
     const { data, error } = await supabase.auth.getSession();
     if (error) throw error;
     return data?.session || null;
   })();
-
-  if (!timeoutMs) {
+  if (!timeoutMs || timeoutMs <= 0) {
     try { return { session: await p, timeout: false, error: null }; }
     catch (e) { return { session: null, timeout: false, error: e }; }
   }
@@ -167,7 +171,6 @@ export async function getSession(opts = {}) {
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 900) || 0);
   const skewSec = Math.max(0, Number(opts?.skewSec ?? 30) || 0);
   const now = Math.floor(Date.now() / 1000);
-  const forceRefresh = !!opts?.forceRefresh;
 
 
   // если только что сделали signOut — не возвращаем «старую» сессию из памяти
@@ -179,13 +182,9 @@ export async function getSession(opts = {}) {
   // быстрый cache
   const cached = __SESSION_CACHE.session;
   const cachedExp = Number(__SESSION_CACHE.expires_at || 0) || 0;
-  if (!forceRefresh && cached && (!cachedExp || (cachedExp - now) > skewSec)) return cached;
+  if (cached && (!cachedExp || (cachedExp - now) > skewSec)) return cached;
 
-  if (__SESSION_CACHE.inflight && !forceRefresh) return __SESSION_CACHE.inflight;
-  if (__SESSION_CACHE.inflight && forceRefresh) {
-    // дождёмся текущего запроса сессии, затем попробуем принудительный refresh
-    try { await __SESSION_CACHE.inflight; } catch (_) {}
-  }
+  if (__SESSION_CACHE.inflight) return __SESSION_CACHE.inflight;
 
   __SESSION_CACHE.inflight = (async () => {
     // 1) пробуем supabase-js, но не ждём бесконечно
@@ -197,7 +196,7 @@ export async function getSession(opts = {}) {
       __SESSION_CACHE.session = s;
       __SESSION_CACHE.expires_at = exp;
 
-      if (!forceRefresh && (!exp || (exp - now) > skewSec)) return s;
+      if (!exp || (exp - now) > skewSec) return s;
 
       // истекает — пробуем refresh напрямую (без supabase.auth.refreshSession, чтобы не залипать на locks)
       const rt = String(s.refresh_token || '').trim();
@@ -244,7 +243,7 @@ export async function getSession(opts = {}) {
     // если токен явно протух — refresh обязателен
     const isExpiredHard = exp0 && (exp0 - now) <= -60;
 
-    if (!forceRefresh && ((!exp0 || (exp0 - now) > skewSec) && !isExpiredHard)) {
+    if ((!exp0 || (exp0 - now) > skewSec) && !isExpiredHard) {
       __SESSION_CACHE.session = s0;
       __SESSION_CACHE.expires_at = exp0;
       __SESSION_CACHE.signed_out_until = 0;
@@ -253,13 +252,6 @@ export async function getSession(opts = {}) {
 
     const rt = String(s0.refresh_token || '').trim();
     if (!rt) {
-      // при forceRefresh не роняем сессию, если токен ещё не «жёстко» протух
-      if (forceRefresh && !isExpiredHard) {
-        __SESSION_CACHE.session = s0;
-        __SESSION_CACHE.expires_at = exp0;
-        __SESSION_CACHE.signed_out_until = 0;
-        return s0;
-      }
       __SESSION_CACHE.session = null;
       __SESSION_CACHE.expires_at = 0;
       return null;
@@ -285,13 +277,6 @@ export async function getSession(opts = {}) {
       __SESSION_CACHE.expires_at = newExpiresAt;
       return out;
     } catch (_) {
-      // при forceRefresh: если refresh не удался, а сессия не «жёстко» протухла — продолжаем с текущим токеном
-      if (forceRefresh && !isExpiredHard) {
-        __SESSION_CACHE.session = s0;
-        __SESSION_CACHE.expires_at = exp0;
-        __SESSION_CACHE.signed_out_until = 0;
-        return s0;
-      }
       __SESSION_CACHE.session = null;
       __SESSION_CACHE.expires_at = 0;
       return null;
@@ -305,8 +290,8 @@ export async function getSession(opts = {}) {
   }
 }
 
-export async function requireSession(opts = {}) {
-  const session = await getSession(opts);
+export async function requireSession() {
+  const session = await getSession();
   if (!session) throw new Error('AUTH_REQUIRED');
   return session;
 }
@@ -320,17 +305,11 @@ export async function signInWithGoogle(redirectTo = null) {
 
   if (forceSelectAccount) {
     // одноразово: показали выбор — больше не принуждаем
-    try { localStorage.removeItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY); } catch (_) {}
+    localStorage.removeItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY);
   }
 
-  const options = {
-    redirectTo: to,
-    queryParams: {},
-  };
-
-  if (forceSelectAccount) {
-    options.queryParams.prompt = 'select_account';
-  }
+  const options = { redirectTo: to };
+  if (forceSelectAccount) options.queryParams = { prompt: 'select_account' };
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -338,7 +317,6 @@ export async function signInWithGoogle(redirectTo = null) {
   });
   if (error) throw error;
 }
-
 export async function signInWithPassword({ email, password } = {}) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
@@ -348,52 +326,344 @@ export async function signInWithPassword({ email, password } = {}) {
 export async function signUpWithPassword({ email, password, emailRedirectTo, data } = {}) {
   const options = {};
   if (emailRedirectTo) options.emailRedirectTo = emailRedirectTo;
-  if (data && typeof data === 'object') options.data = data;
+  if (data && typeof data === "object") options.data = data;
 
-  const { data: out, error } = await supabase.auth.signUp({ email, password, options });
+  const { data: resData, error } = await supabase.auth.signUp({ email, password, options });
   if (error) throw error;
-  return out;
+  return resData;
 }
 
-export async function signOut() {
-  // помечаем на 2 минуты, что только что был выход (не отдаём старый session из памяти)
-  const now = Math.floor(Date.now() / 1000);
-  __SESSION_CACHE.signed_out_until = now + 120;
+export async function resendSignupEmail({ email, emailRedirectTo } = {}) {
+  const options = {};
+  if (emailRedirectTo) options.emailRedirectTo = emailRedirectTo;
+
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options,
+  });
+  if (error) throw error;
+}
+
+export async function sendPasswordReset({ email, redirectTo } = {}) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) throw error;
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export async function authEmailExists(email) {
+  const e = normalizeEmail(email);
+  if (!e) return false;
+  const { data, error } = await supabase.rpc('auth_email_exists', { p_email: e });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+export async function updatePassword(newPassword) {
+  // Прямой вызов Auth API, чтобы не зависеть от внутренних storage-locks supabase-js,
+  // которые иногда «подвисают» (особенно при нескольких вкладках/расширениях).
+  // На практике пароль обновляется (200 OK), но промис supabase.auth.updateUser()
+  // может не резолвиться вовремя из-за синхронизации сессии в storage.
+
+  const session = await getSession();
+  if (!session?.access_token) throw new Error('AUTH_REQUIRED');
+
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  const url = `${base}/auth/v1/user`;
+
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      apikey: CONFIG.supabase.anonKey,
+      authorization: `Bearer ${session.access_token}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ password: String(newPassword || '') }),
+  });
+
+  const text = await res.text().catch(() => '');
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+
+  if (!res.ok) {
+    const msg =
+      (data && (data?.msg || data?.message || data?.error_description || data?.error)) ||
+      `HTTP_${res.status}`;
+    throw new Error(String(msg));
+  }
+
+  return data;
+}
+
+
+export async function signOut(opts = {}) {
+    // Немедленно считаем пользователя разлогиненным.
+  // Это нужно, чтобы UI не «откатывался» обратно в logged-in из-за кэша/гонок вкладок.
+  const __now = Math.floor(Date.now() / 1000);
+  __SESSION_CACHE.signed_out_until = __now + 5;
   __clearSessionCache();
 
-  // при следующем входе хотим показать выбор аккаунта
-  try { localStorage.setItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY, '1'); } catch (_) {}
+const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
 
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  // Запоминаем намерение пользователя «сменить аккаунт».
+  // При следующем signInWithGoogle покажем chooser.
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(FORCE_GOOGLE_SELECT_ACCOUNT_KEY, '1');
+    }
+  } catch (_) {}
+
+  // Подготовим префикс ключей Supabase в storage (sb-<projectRef>-*).
+  let prefix = null;
+  try {
+    const host = String(CONFIG?.supabase?.url || '');
+    const ref = host ? new URL(host).hostname.split('.')[0] : '';
+    if (ref) prefix = `sb-${ref}-`;
+  } catch (_) {}
+
+  const wipe = (store) => {
+    if (!store || !prefix) return;
+    const keys = [];
+    try {
+      for (let i = 0; i < store.length; i++) {
+        const k = store.key(i);
+        if (k && k.startsWith(prefix)) keys.push(k);
+      }
+      keys.forEach((k) => {
+        try { store.removeItem(k); } catch (_) {}
+      });
+    } catch (_) {}
+  };
+
+  // Best-effort: попросим Supabase ревокнуть refresh token (global), но UX не блокируем надолго.
+  const revokePromise = (async () => {
+    // 1) быстрый локальный signOut (не должен зависеть от сети)
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch (_) {}
+    // 2) best-effort глобальный (ревок токена) — не блокируем UX
+    try { supabase.auth.signOut({ scope: 'global' }); } catch (_) {}
+    try { await supabase.auth.signOut(); } catch (_) {}
+  })();
+
+  // Сразу чистим локальные токены, чтобы UI не «залипал», даже если сеть/расширения тормозят.
+  try {
+    wipe(typeof localStorage !== 'undefined' ? localStorage : null);
+    wipe(typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+  } catch (_) {}
+
+  // гарантированно очищаем in-memory кэш после чистки storage
+  __clearSessionCache();
+
+
+  // Не ждём бесконечно: максимум timeoutMs (по умолчанию ~450 мс).
+  try {
+    await Promise.race([
+      Promise.resolve(revokePromise).catch(() => {}),
+      new Promise((r) => setTimeout(r, timeoutMs)),
+    ]);
+  } catch (_) {}
 }
 
-export async function finalizeOAuthRedirect() {
-  // На некоторых страницах хочется гарантированно завершить обмен PKCE-кода сразу,
-  // ещё до initHeader/updateAuthUI.
-  // supabase-js сам делает detectSessionInUrl, но иногда на статике бывают гонки.
+const OAUTH_FINALIZE_KEY_PREFIX = 'oauth_redirect_finalized_v1:';
+
+function stripOAuthParamsFromUrl(urlStr) {
+  const u = new URL(urlStr);
+  ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+  return u;
+}
+
+function hasOAuthParams(urlStr) {
   try {
-    const url = new URL(location.href);
-    const hasCode = url.searchParams.has('code');
-    const hasError = url.searchParams.has('error') || url.searchParams.has('error_description');
-    if (!hasCode && !hasError) return null;
-
-    // пробуем обменять код (supabase-js)
-    const { data, error } = await supabase.auth.exchangeCodeForSession(url.searchParams.get('code'));
-    if (error) throw error;
-
-    // очищаем URL от code/error параметров
-    url.searchParams.delete('code');
-    url.searchParams.delete('error');
-    url.searchParams.delete('error_description');
-    history.replaceState({}, document.title, url.toString());
-
-    // обновим кэш
-    __clearSessionCache();
-    return data?.session || null;
-  } catch (e) {
-    // не блокируем загрузку страницы
-    console.warn('finalizeOAuthRedirect error', e);
-    return null;
+    const u = new URL(urlStr);
+    return ['code', 'state', 'error', 'error_description'].some((k) => u.searchParams.has(k));
+  } catch (_) {
+    return false;
   }
 }
+
+function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
+  const u = new URL(urlStr);
+  const preserve = new Set(preserveParams || []);
+  const kept = new Map();
+  for (const [k, v] of u.searchParams.entries()) {
+    if (preserve.has(k)) kept.set(k, v);
+  }
+
+  ['code', 'state', 'error', 'error_description', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
+  // Важно: ?token=... используется в ссылках на ДЗ (/tasks/hw.html?token=...).
+  // Старый auth-параметр token удаляем только если рядом есть type.
+  if (u.searchParams.has('type')) u.searchParams.delete('token');
+
+  for (const [k, v] of kept.entries()) {
+    u.searchParams.set(k, v);
+  }
+  return u;
+}
+
+function hasAuthParams(urlStr) {
+  try {
+    const u = new URL(urlStr);
+
+    // OAuth PKCE / ошибки
+    if (['code', 'state', 'error', 'error_description'].some((k) => u.searchParams.has(k))) return true;
+
+    // Email confirm / recovery / magic link (современный формат Supabase)
+    if (u.searchParams.has('token_hash')) return true;
+
+    // Legacy: token + type. Не путать с ДЗ-токеном (?token=...), который без type.
+    if (u.searchParams.has('type') && u.searchParams.has('token')) return true;
+
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
+// Универсальный финалайзер редиректов Auth:
+// - OAuth PKCE: ?code=...
+// - email confirm / recovery: ?token_hash=...&type=...
+export async function finalizeAuthRedirect(opts = {}) {
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
+  const preserveParams = Array.isArray(opts?.preserveParams) ? opts.preserveParams : [];
+
+  if (!hasAuthParams(location.href)) return { ok: false, reason: 'no_auth_params' };
+
+  // guard: один раз на вкладку/страницу
+  try {
+    let __guardSuffix = '';
+  try {
+    const __u0 = new URL(location.href);
+    __guardSuffix = __u0.searchParams.get('token_hash') || __u0.searchParams.get('code') || '';
+  } catch (_) {}
+  const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}:${__guardSuffix}`;
+    if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
+    sessionStorage.setItem(k, '1');
+  } catch (_) {}
+
+  const doReplace = () => {
+    try {
+      const cleaned = stripAuthParamsFromUrl(location.href, preserveParams);
+      history.replaceState(null, document.title, cleaned.toString());
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  // Если вернулась ошибка — чистим сразу.
+  try {
+    const u = new URL(location.href);
+    if (u.searchParams.has('error') || u.searchParams.has('error_description')) {
+      doReplace();
+      return { ok: true, reason: 'auth_error' };
+    }
+  } catch (_) {}
+
+  // Пытаемся явно завершить flow (помогает в PKCE)
+  try {
+    const u = new URL(location.href);
+
+    const code = u.searchParams.get('code');
+    if (code) {
+      try {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+      } catch (e) {
+        console.warn('exchangeCodeForSession failed', e);
+      }
+    }
+
+    const rawType = u.searchParams.get('type');
+    // В некоторых шаблонах писем ошибочно ставят type=email; на API это невалидно.
+    // Поддержим совместимость: email -> signup.
+    const type = (rawType === 'email') ? 'signup' : rawType;
+    const tokenHash = u.searchParams.get('token_hash') || (type ? u.searchParams.get('token') : null);
+    if (tokenHash && type) {
+      try {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
+        if (error) throw error;
+      } catch (e) {
+        console.warn('verifyOtp failed', e);
+      }
+    }
+  } catch (_) {}
+
+  // 1) Быстрый путь: если сессия уже поднялась — чистим URL.
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session) {
+      doReplace();
+      return { ok: true, reason: 'session_ready' };
+    }
+  } catch (_) {}
+
+  // 2) Ждём события auth или появления session (поллинг)
+  return await new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (ok, reason) => {
+      if (settled) return;
+      settled = true;
+      try { unsub?.unsubscribe?.(); } catch (_) {}
+      try { clearInterval(pollId); } catch (_) {}
+      if (ok) doReplace();
+      else {
+        // Даже при таймауте лучше убрать одноразовые параметры, чтобы не застрять.
+        doReplace();
+      }
+      resolve({ ok, reason });
+    };
+
+    const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
+
+    let unsub = null;
+    try {
+      const sub = supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+          clearTimeout(timer);
+          finish(true, `event:${event || 'unknown'}`);
+        }
+      });
+      unsub = sub?.data?.subscription || sub?.subscription || null;
+    } catch (_) {}
+
+    let tries = 0;
+    const pollId = setInterval(async () => {
+      tries += 1;
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          clearTimeout(timer);
+          finish(true, 'poll_session_ready');
+        }
+      } catch (_) {}
+      if (tries >= 20) {
+        // ~4s при 200ms
+      }
+    }, 200);
+  });
+}
+
+// Очищаем ?code=&state= из URL один раз после успешного обмена (Supabase PKCE OAuth).
+// Важно: не трогаем URL, пока exchange не завершился (ждём SIGNED_IN или появление session).
+export async function finalizeOAuthRedirect(opts = {}) {
+  // legacy alias
+  return finalizeAuthRedirect(opts);
+}
+
+// auto-run: если пришли с OAuth redirect (?code=&state=), подчистим URL после поднятия сессии
+// На страницах /tasks/auth_reset.html и /tasks/auth_callback.html финализацию делает код страницы,
+// чтобы не было двойного verify и преждевременного удаления параметров.
+(function __autoFinalize() {
+  try {
+    const p = String(location.pathname || '');
+    if (p.endsWith('/tasks/auth_reset.html') || p.endsWith('/tasks/auth_callback.html')) return;
+  } catch (_) {}
+  finalizeOAuthRedirect().catch(() => {});
+})();
+
+
+// Примечание:
+// Отправка попыток тренажёра задач и ДЗ реализована в отдельных модулях
+// (app/providers/supabase-write.js и app/providers/homework.js).
