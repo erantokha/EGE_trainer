@@ -17,7 +17,7 @@ jobs:
   bump:
     runs-on: ubuntu-latest
 
-    # защита от петли: не запускаем bump на коммите, который сделал этот же workflow
+    # чтобы не было бесконечной петли на коммитах бота
     if: github.actor != 'github-actions[bot]'
 
     env:
@@ -32,10 +32,15 @@ jobs:
         with:
           node-version: "20"
 
+      # если было рассинхронизировано — покажем warning, но не остановим автопочинку
+      - name: Pre-check (warn only)
+        continue-on-error: true
+        run: node tools/check_build.mjs
+
       - name: Bump build id
         run: node tools/bump_build.mjs
 
-      - name: Check build/version sync
+      - name: Post-check (strict)
         run: node tools/check_build.mjs
 
       - name: Commit and push if changed
