@@ -15,6 +15,83 @@ const V_RE = /\?v=([0-9]{4}-[0-9]{2}-[0-9]{2}[A-Za-z0-9-]*)/g;
 // app/config.js: content: { ..., version: '...' }
 const CONTENT_VERSION_RE = /(content:\s*{\s*[^}]*?\bversion:\s*')([^']*)(')/s;
 
+// Проверка, что локальные ресурсы и ESM-импорты тоже содержат cache-busting (?v=...).
+const HTML_SCRIPT_SRC_RE = /<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi;
+const HTML_LINK_HREF_RE = /<link\b[^>]*\bhref=["']([^"']+)["'][^>]*>/gi;
+
+const IMPORT_FROM_RE = /(^|\n)\s*import\s+[^;\n]*?\sfrom\s*['"]([^'"]+)['"]/g;
+const IMPORT_BARE_RE = /(^|\n)\s*import\s*['"]([^'"]+)['"]/g;
+const IMPORT_DYN_RE = /import\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+function isExternalUrl(u) {
+  const s = String(u || "").trim();
+  return (
+    s.startsWith("http://") ||
+    s.startsWith("https://") ||
+    s.startsWith("//") ||
+    s.startsWith("data:") ||
+    s.startsWith("blob:")
+  );
+}
+
+function stripQueryHash(u) {
+  return String(u || "").split(/[?#]/)[0];
+}
+
+function hasVParam(u) {
+  return /[?&]v=/.test(String(u || ""));
+}
+
+function needsVParam(u) {
+  const base = stripQueryHash(u);
+  return base.endsWith(".js") || base.endsWith(".css");
+}
+
+function collectMissingVInHtml(r, txt) {
+  const out = [];
+  let m;
+  while ((m = HTML_SCRIPT_SRC_RE.exec(txt)) !== null) {
+    const src = m[1];
+    if (isExternalUrl(src)) continue;
+    if (needsVParam(src) && !hasVParam(src)) out.push(`script src="${src}"`);
+  }
+  HTML_SCRIPT_SRC_RE.lastIndex = 0;
+
+  while ((m = HTML_LINK_HREF_RE.exec(txt)) !== null) {
+    const href = m[1];
+    if (isExternalUrl(href)) continue;
+    if (needsVParam(href) && !hasVParam(href)) out.push(`link href="${href}"`);
+  }
+  HTML_LINK_HREF_RE.lastIndex = 0;
+
+  return out.map((s) => `${r}: ${s}`);
+}
+
+function collectMissingVInImports(r, txt) {
+  const out = [];
+  const specs = new Set();
+
+  let m;
+  while ((m = IMPORT_FROM_RE.exec(txt)) !== null) specs.add(m[2]);
+  IMPORT_FROM_RE.lastIndex = 0;
+
+  while ((m = IMPORT_BARE_RE.exec(txt)) !== null) specs.add(m[2]);
+  IMPORT_BARE_RE.lastIndex = 0;
+
+  while ((m = IMPORT_DYN_RE.exec(txt)) !== null) specs.add(m[1]);
+  IMPORT_DYN_RE.lastIndex = 0;
+
+  for (const spec of specs) {
+    const s = String(spec || "");
+    if (!(s.startsWith(".") || s.startsWith("/"))) continue;
+    if (!stripQueryHash(s).endsWith(".js")) continue;
+    if (!hasVParam(s)) out.push(`${r}: import "${s}"`);
+  }
+
+  return out;
+}
+
+
 async function* walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const e of entries) {
@@ -54,12 +131,21 @@ async function main() {
   const builds = new Set();  // meta app-build
   const vvals = new Set();   // ?v=
   const missingMeta = [];    // html without meta
+  const missingVInHtml = [];
+  const missingVInImports = [];
 
   for await (const fp of walk(REPO_ROOT)) {
     const r = rel(fp);
     if (!shouldScanFile(r)) continue;
 
     const txt = await fs.readFile(fp, "utf8");
+
+    if (r.endsWith(".html")) {
+      missingVInHtml.push(...collectMissingVInHtml(r, txt));
+    }
+    if (r.endsWith(".js")) {
+      missingVInImports.push(...collectMissingVInImports(r, txt));
+    }
 
     const m = txt.match(META_RE);
     if (m?.[1]) builds.add(String(m[1]).trim());
@@ -74,6 +160,9 @@ async function main() {
   const cfgVersion = await readConfigContentVersion();
 
   const problems = [];
+
+  for (const p of missingVInHtml) problems.push(`missing ?v= in HTML asset: ${p}`);
+  for (const p of missingVInImports) problems.push(`missing ?v= in import specifier: ${p}`);
 
   if (missingMeta.length) {
     problems.push(`missing <meta name="app-build"...> in HTML: ${missingMeta.join(", ")}`);
