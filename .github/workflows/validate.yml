@@ -18,6 +18,9 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Check build/version sync
+        run: node tools/check_build.mjs
+
       - name: Validate content
         run: |
           if [ -f tools/validate-content.mjs ]; then
