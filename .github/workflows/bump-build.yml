@@ -1,0 +1,51 @@
+name: Bump build id
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - "docs/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bump-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+
+    # защита от петли: не запускаем bump на коммите, который сделал этот же workflow
+    if: github.actor != 'github-actions[bot]'
+
+    env:
+      TZ: Asia/Yerevan
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Bump build id
+        run: node tools/bump_build.mjs
+
+      - name: Check build/version sync
+        run: node tools/check_build.mjs
+
+      - name: Commit and push if changed
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore: bump build id"
+            git push
+          else
+            echo "No changes."
+          fi
