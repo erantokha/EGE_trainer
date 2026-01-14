@@ -18,9 +18,18 @@ finalizeOAuthRedirect().catch(() => {});
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-07-3';
-const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
-if (HTML_BUILD && HTML_BUILD !== BUILD) {
+// Берём реальный билд из URL модуля (script type="module" ...?v=...)
+// Это устраняет ручной BUILD, который легко "забыть" обновить.
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
+const JS_BUILD = (() => {
+  try {
+    const u = new URL(import.meta.url);
+    return (u.searchParams.get('v') || u.searchParams.get('_v') || '').trim();
+  } catch (_) {
+    return '';
+  }
+})();
+if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
   const k = 'hw_create:build_reload_attempted';
   if (!sessionStorage.getItem(k)) {
     sessionStorage.setItem(k, '1');
@@ -29,10 +38,11 @@ if (HTML_BUILD && HTML_BUILD !== BUILD) {
     u.searchParams.set('_r', String(Date.now()));
     location.replace(u.toString());
   } else {
-    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: JS_BUILD });
   }
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
