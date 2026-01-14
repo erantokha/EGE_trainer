@@ -12,9 +12,14 @@ function $(sel, root = document) {
 function buildWithV(path) {
   const build = document.querySelector('meta[name="app-build"]')?.content?.trim();
   if (!build) return path;
-  const u = new URL(path, import.meta.url);
-  u.searchParams.set('v', build);
-  return u.toString();
+
+  try {
+    const u = new URL(String(path), import.meta.url);
+    u.searchParams.set('v', build);
+    return u.toString();
+  } catch (_) {
+    return path;
+  }
 }
 
 function computeHomeUrl() {
@@ -24,6 +29,23 @@ function computeHomeUrl() {
   } catch (_) {
     return '/';
   }
+}
+
+// Убираем ?v=... из адресной строки после загрузки страницы, чтобы URL оставался "чистым".
+// При этом страница уже загрузилась по уникальному URL и не смешает кэш.
+function stripBuildParamInPlace() {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has('v')) return;
+
+    const pn = String(u.pathname || '');
+    // На страницах подтверждения/сброса пароля не трогаем параметры вовсе,
+    // иначе token_hash/code могут пропасть до обработки.
+    if (pn.endsWith('/tasks/auth_reset.html') || pn.endsWith('/tasks/auth_callback.html')) return;
+
+    u.searchParams.delete('v');
+    history.replaceState(null, '', u.toString());
+  } catch (_) {}
 }
 
 function cleanOauthParams(urlLike) {
@@ -43,6 +65,7 @@ function cleanOauthParams(urlLike) {
     const hasType = u.searchParams.has('type');
 
     const keys = [
+      'v',
       'code',
       'state',
       'error',
@@ -106,7 +129,6 @@ async function fetchProfileFirstName(supabase, userId) {
   }
 }
 
-
 async function fetchProfileRole(supabase, userId) {
   if (!supabase || !userId) return '';
 
@@ -131,7 +153,6 @@ async function fetchProfileRole(supabase, userId) {
     return '';
   }
 }
-
 
 function ensureHeaderSkeleton(headerEl) {
   headerEl.classList.add('page-head');
@@ -244,7 +265,7 @@ function mountHomeButton(right, isHome) {
     homeBtn.type = 'button';
     homeBtn.textContent = 'На главную';
     homeBtn.addEventListener('click', () => {
-      location.href = computeHomeUrl();
+      location.href = buildWithV(computeHomeUrl());
     });
     right.appendChild(homeBtn);
   }
@@ -323,6 +344,9 @@ export async function initHeader(opts = {}) {
   const headerEl = document.getElementById('appHeader');
   if (!headerEl) return;
 
+  // Если страницу открыли по URL с ?v=..., сразу "чистим" адресную строку.
+  stripBuildParamInPlace();
+
   const { right } = ensureHeaderSkeleton(headerEl);
   const ui = mountAuthUI(right);
 
@@ -340,22 +364,25 @@ export async function initHeader(opts = {}) {
     closeMenu();
     try {
       const home = computeHomeUrl();
-      location.href = new URL('tasks/profile.html', home).toString();
+      location.href = buildWithV(new URL('tasks/profile.html', home).toString());
     } catch (_) {
-      location.href = computeHomeUrl() + 'tasks/profile.html';
+      location.href = buildWithV(computeHomeUrl() + 'tasks/profile.html');
     }
   });
+
   ui.menuStats?.addEventListener('click', () => {
     closeMenu();
     try {
       const home = computeHomeUrl();
       if (currentRole === 'teacher') {
-        location.href = new URL('tasks/my_students.html', home).toString();
+        location.href = buildWithV(new URL('tasks/my_students.html', home).toString());
       } else {
-        location.href = new URL('tasks/stats.html', home).toString();
+        location.href = buildWithV(new URL('tasks/stats.html', home).toString());
       }
     } catch (_) {
-      location.href = computeHomeUrl() + (currentRole === 'teacher' ? 'tasks/my_students.html' : 'tasks/stats.html');
+      location.href = buildWithV(
+        computeHomeUrl() + (currentRole === 'teacher' ? 'tasks/my_students.html' : 'tasks/stats.html')
+      );
     }
   });
 
@@ -382,11 +409,10 @@ export async function initHeader(opts = {}) {
     const rel = loginRoute.replace(/^\/+/, '');
     const url = new URL(rel, home);
     if (nextUrl) url.searchParams.set('next', nextUrl);
-    return url.toString();
+    return buildWithV(url.toString());
   };
 
   let isSigningOut = false;
-
   let nameFetchSeq = 0;
 
   const applyRoleToMenu = (roleRaw) => {
@@ -394,7 +420,6 @@ export async function initHeader(opts = {}) {
     currentRole = (r === 'teacher') ? 'teacher' : 'student';
     if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
   };
-
 
   const applySessionToUI = (session) => {
     try { closeMenu(); } catch (_) {}
