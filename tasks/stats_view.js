@@ -178,9 +178,9 @@ function renderSections(root, dash, catalog) {
   // подписи колонок (как легенда)
   acc.appendChild(el('div', { class:'acc-metrics-head' }, [
     el('div', { class:'mh-left' }),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('10', 'Последние 10')]),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('Период', 'Период')]),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('Всё', 'Всё время')]),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('10 последних', '10 последних')]),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('30 дней', '30 дней')]),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('Всё время', 'Всё время')]),
     el('div', { class:'mh-spacer' }),
   ]));
   const sections = Array.isArray(dash?.sections) ? dash.sections : [];
@@ -220,9 +220,9 @@ function renderSections(root, dash, catalog) {
       el('thead', {}, [
         el('tr', {}, [
           el('th', { class:'topic', text:'Подтема' }),
-          el('th', { class:'cell' }, [makeBadgeHead('10', 'Последние 10')]),
-          el('th', { class:'cell' }, [makeBadgeHead('Период', 'Период')]),
-          el('th', { class:'cell' }, [makeBadgeHead('Всё', 'Всё время (по первой попытке)')]),
+          el('th', { class:'cell' }, [makeBadgeHead('10 последних', '10 последних')]),
+          el('th', { class:'cell' }, [makeBadgeHead('30 дней', '30 дней')]),
+          el('th', { class:'cell' }, [makeBadgeHead('Всё время', 'Всё время (по первой попытке)')]),
         ])
       ]),
       el('tbody')

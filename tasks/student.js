@@ -511,6 +511,20 @@ async function main() {
   // в учительском просмотре пока убираем кнопку тренировки (чтобы не путать, она будет в "умной ДЗ")
   if (statsUi.trainBtn) statsUi.trainBtn.style.display = 'none';
 
+// student: фильтры статистики скрываем за иконкой в заголовке
+const statsControls = $('#statsRoot')?.querySelector?.('.stats-controls');
+if (statsControls) statsControls.classList.add('is-hidden');
+
+const statsFiltersToggle = $('#statsFiltersToggle');
+if (statsFiltersToggle && statsControls) {
+  statsFiltersToggle.addEventListener('click', (e) => {
+    e.preventDefault();
+    statsControls.classList.toggle('is-hidden');
+    statsFiltersToggle.classList.toggle('is-open', !statsControls.classList.contains('is-hidden'));
+  });
+}
+
+
     // ----- smart homework (teacher): рекомендации -> план -> создание -----
   const smartBlock = $('#smartHwBlock');
   if (smartBlock) smartBlock.style.display = '';

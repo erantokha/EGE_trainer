@@ -1,6 +1,14 @@
 /* tasks/stats.css */
 /* Локальные стили для страницы статистики (патч 2). */
 
+
+:root{
+  --acc-gap: 8px;
+  --acc-col: 110px;
+  --acc-col-min: 84px;
+  --acc-chev: 22px;
+}
+
 .stats-wrap {
   display: grid;
   gap: 12px;
@@ -130,9 +138,9 @@
 .acc-head {
   width: 100%;
   display: grid;
-  grid-template-columns: 46% 18% 18% 18% 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) var(--acc-chev);
   align-items: center;
-  gap: 8px;
+  gap: var(--acc-gap);
   padding: 8px;
   cursor: pointer;
   background: transparent;
@@ -142,9 +150,9 @@
 
 .acc-metrics-head{
   display:grid;
-  grid-template-columns: 46% 18% 18% 18% 24px;
+  grid-template-columns: minmax(0, 1fr) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) var(--acc-chev);
   align-items:center;
-  gap: 8px;
+  gap: var(--acc-gap);
   padding: 0 8px 6px;
 }
 
@@ -278,3 +286,51 @@
   transform: rotate(180deg);
 }
 
+
+
+@media (max-width: 720px){
+  :root{
+    --acc-gap: 6px;
+    --acc-col: 96px;
+    --acc-col-min: 72px;
+    --acc-chev: 20px;
+  }
+}
+
+
+/* student: заголовок статистики + иконка фильтра */
+.student-stat-head{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0 6px;
+}
+.student-stat-head .student-stat-title{
+  font-size:18px;
+}
+.icon-btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(148,163,184,.06);
+  cursor: pointer;
+  user-select:none;
+}
+.icon-btn:hover{
+  background: rgba(148,163,184,.10);
+}
+.icon-btn svg{
+  width: 16px;
+  height: 16px;
+  opacity: .8;
+}
+
+
+.stats-controls.is-hidden{
+  display:none;
+}
