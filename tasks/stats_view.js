@@ -108,7 +108,7 @@ function makeBadge(label, total, correct) {
 function sectionTitle(sectionId, catalog) {
   const sid = String(sectionId || '').trim();
   const t = catalog?.sections?.get?.(sid);
-  return t ? `№${sid}. ${t}` : `№${sid}`;
+  return t ? `${sid}. ${t}` : `${sid}`;
 }
 
 function topicName(topicId, catalog) {
@@ -175,9 +175,9 @@ function renderSections(root, dash, catalog) {
       el('div', { class:'h-topic' }, [
         el('div', { class:'title', text: title }),
       ]),
-      el('div', { class:'h-cell' }, [makeBadge('', s?.last10?.total, s?.last10?.correct)]),
-      el('div', { class:'h-cell' }, [makeBadge('', s?.period?.total, s?.period?.correct)]),
-      el('div', { class:'h-cell' }, [makeBadge('', s?.all_time?.total, s?.all_time?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadge('10', s?.last10?.total, s?.last10?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadge('Период', s?.period?.total, s?.period?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadge('Всё', s?.all_time?.total, s?.all_time?.correct)]),
       el('div', { class:'h-chev small', text:'▾' }),
     ]);
 
