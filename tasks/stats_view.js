@@ -172,15 +172,13 @@ function renderSections(root, dash, catalog) {
     const title = sectionTitle(sid, catalog);
 
     const head = el('button', { type:'button', class:'acc-head' }, [
-      el('div', { class:'left' }, [
+      el('div', { class:'h-topic' }, [
         el('div', { class:'title', text: title }),
-        el('div', { class:'sub' }, [
-          makeBadge('10', s?.last10?.total, s?.last10?.correct),
-          makeBadge('Период', s?.period?.total, s?.period?.correct),
-          makeBadge('Всё', s?.all_time?.total, s?.all_time?.correct),
-        ]),
       ]),
-      el('div', { class:'small', text:'▾' }),
+      el('div', { class:'h-cell' }, [makeBadge('', s?.last10?.total, s?.last10?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadge('', s?.period?.total, s?.period?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadge('', s?.all_time?.total, s?.all_time?.correct)]),
+      el('div', { class:'h-chev small', text:'▾' }),
     ]);
 
     const body = el('div', { class:'acc-body' });

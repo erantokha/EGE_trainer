@@ -490,6 +490,14 @@ async function main() {
   const smartPanel = $('#smartHwPanel');
   const smartClose = $('#smartHwClose');
 
+  const smartHead = $('#smartHwHead');
+
+  // ----- works (teacher): список выполненных работ (collapsible) -----
+  const worksHead = $('#worksHead');
+  const worksToggle = $('#worksToggle');
+  const worksPanel = $('#worksPanel');
+  let worksLoaded = false;
+
   const smartStatus = $('#smartHwStatus');
 
   const recDaysEl = $('#smartRecDays');
@@ -787,20 +795,30 @@ async function main() {
     }
   }
 
-  function openSmartPanel() {
-    setHidden(smartPanel, false);
+  function togglePanel(panel, btn, openText='Открыть', closeText='Скрыть') {
+    if (!panel) return false;
+    const willOpen = panel.classList.contains('hidden');
+    setHidden(panel, !willOpen);
+    if (btn) btn.textContent = willOpen ? closeText : openText;
+    return willOpen;
+  }
+
+  function toggleSmartPanel(forceOpen = null) {
+    if (!smartPanel) return;
+    const hidden = smartPanel.classList.contains('hidden');
+    const willOpen = (forceOpen === null) ? hidden : !!forceOpen;
+    setHidden(smartPanel, !willOpen);
     smartSetStatus('');
+    if (smartToggle) smartToggle.textContent = willOpen ? 'Скрыть' : 'Открыть';
     // по требованию: при открытии сразу подгружаем рекомендации
-    loadRecommendations(false);
+    if (willOpen && hidden) loadRecommendations(false);
   }
 
-  function closeSmartPanel() {
-    setHidden(smartPanel, true);
-    smartSetStatus('');
-  }
+  if (smartToggle) smartToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleSmartPanel(null); });
+  if (smartHead) smartHead.addEventListener('click', (e) => { if (e.target.closest('button')) return; toggleSmartPanel(null); });
+  if (smartClose) smartClose.addEventListener('click', () => toggleSmartPanel(false));
 
-  if (smartToggle) smartToggle.addEventListener('click', openSmartPanel);
-  if (smartClose) smartClose.addEventListener('click', closeSmartPanel);
+
   if (recLoadBtn) recLoadBtn.addEventListener('click', () => loadRecommendations(true));
 
   if (planClearBtn) planClearBtn.addEventListener('click', () => {
@@ -862,7 +880,22 @@ async function loadDashboard() {
   statsUi.sourceSel.addEventListener('change', loadDashboard);
 
   // ----- works -----
-  async function loadWorks() {
+    // handlers: раскрытие/сворачивание списка работ
+  function toggleWorksPanel() {
+    if (!worksPanel) return;
+    const willOpen = worksPanel.classList.contains('hidden');
+    setHidden(worksPanel, !willOpen);
+    if (worksToggle) worksToggle.textContent = willOpen ? 'Скрыть' : 'Открыть';
+    if (willOpen && !worksLoaded) {
+      worksLoaded = true;
+      loadWorks();
+    }
+  }
+
+  if (worksToggle) worksToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleWorksPanel(); });
+  if (worksHead) worksHead.addEventListener('click', (e) => { if (e.target.closest('button')) return; toggleWorksPanel(); });
+
+async function loadWorks() {
     const works = $('#worksList');
     works.replaceChildren(el('div', { class:'muted', text:'Загружаем выполненные работы...' }));
 
@@ -913,7 +946,7 @@ async function loadDashboard() {
     }
   }
 
-  await Promise.all([loadDashboard(), loadWorks()]);
+  await loadDashboard();
 }
 
 main().catch((e) => {

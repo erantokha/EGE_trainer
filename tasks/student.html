@@ -2,11 +2,11 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-15-7">
+  <meta name="app-build" content="2026-01-14-23">
   <title>Ученик</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-15-7">
-  <link rel="stylesheet" href="./stats.css?v=2026-01-15-7">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-14-23">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-14-23">
 </head>
 <body>
   <main class="container">
@@ -39,15 +39,10 @@
 
         <div id="pageStatus" class="muted" style="min-height:20px"></div>
 
-        <div style="margin-top:12px">
-          <div style="font-size:18px; margin:10px 0 6px">Статистика</div>
-          <div id="statsRoot"></div>
-        </div>
-
         <div id="smartHwBlock" style="margin-top:14px; display:none">
           <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
-          <div class="smart-hw-head">
+          <div id="smartHwHead" class="smart-hw-head">
             <div style="font-size:18px">Умное ДЗ</div>
             <div class="stats-actions">
               <button id="smartHwToggle" class="btn" type="button">Открыть</button>
@@ -168,11 +163,27 @@
           </div>
         </div>
 
+
+        <div id="worksBlock" style="margin-top:14px">
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+          <div id="worksHead" class="smart-hw-head">
+            <div style="font-size:18px">Выполненные работы</div>
+            <div class="stats-actions">
+              <button id="worksToggle" class="btn" type="button">Открыть</button>
+            </div>
+          </div>
+
+          <div id="worksPanel" class="hidden" style="margin-top:10px">
+            <div id="worksList" style="margin-top:10px"></div>
+          </div>
+        </div>
+
         <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
 
-        <div>
-          <div style="font-size:18px; margin:10px 0 6px">Выполненные работы</div>
-          <div id="worksList" style="margin-top:10px"></div>
+<div style="margin-top:12px">
+          <div style="font-size:18px; margin:10px 0 6px">Статистика</div>
+          <div id="statsRoot"></div>
         </div>
 
         <div style="margin-top:16px">
@@ -182,7 +193,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-15-7" defer></script>
+  <script src="./theme.js?v=2026-01-14-23" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
