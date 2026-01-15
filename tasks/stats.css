@@ -169,7 +169,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--acc-split-gap);
   align-items:center;
-  padding: 0 var(--acc-pad-x) 6px;
+  padding: 0 var(--acc-pad-x);
 }
 
 .acc-head{
@@ -212,22 +212,21 @@
 
 /* правая половина: 3 фиксированные позиции (лево/центр/право) */
 .acc-right{
-  position: relative;
+  display:flex;
+  align-items:center;
   min-height: 30px;
 }
 .metrics-pos{
-  position: relative;
-  height: 100%;
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 var(--metrics-edge);
+  box-sizing: border-box;
 }
 .m-slot{
-  position:absolute;
-  top:50%;
   width: var(--badge-w);
-  transform: translateY(-50%);
 }
-.m-slot.left{ left: var(--metrics-edge); }
-.m-slot.right{ right: var(--metrics-edge); }
-.m-slot.mid{ left:50%; transform: translate(-50%, -50%); }
 .m-slot .badge{
   width: 100%;
   justify-content: center;
