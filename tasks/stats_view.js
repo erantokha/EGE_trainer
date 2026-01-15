@@ -156,9 +156,9 @@ function renderOverall(root, dash, opts = {}) {
   }
 
   const cards = el('div', { class: 'stat-cards' }, [
-    card('Последние 10 (по последней попытке на задачу)', overall?.last10),
-    card('Период (по последней попытке на задачу)', overall?.period),
-    card('Всё время (по первой попытке на задачу)', overall?.all_time),
+    card('Последние 10', overall?.last10),
+    card(((opts && opts.periodLabel) ? String(opts.periodLabel) : 'Период'), overall?.period),
+    card('Всё время', overall?.all_time),
   ]);
 
   const lastSeen = overall?.last_seen_at ? new Date(overall.last_seen_at) : null;
@@ -173,7 +173,8 @@ function renderOverall(root, dash, opts = {}) {
   }
 }
 
-function renderSections(root, dash, catalog) {
+function renderSections(root, dash, catalog, opts = {}) {
+  const periodLabel = (opts && opts.periodLabel) ? String(opts.periodLabel) : '30 дней';
   const acc = el('div', { class: 'stats-acc' });
 
   const mkSlot = (pos, node) => el('div', { class: `m-slot ${pos}` }, [node]);
@@ -190,7 +191,7 @@ function renderSections(root, dash, catalog) {
     el('div', { class:'acc-left acc-left-head' }),
     mkRight(
       makeBadgeHead('10 последних', '10 последних'),
-      makeBadgeHead('30 дней', '30 дней'),
+      makeBadgeHead(periodLabel, periodLabel),
       makeBadgeHead('Всё время', 'Всё время')
     ),
   ]));
@@ -219,7 +220,7 @@ function renderSections(root, dash, catalog) {
       ]),
       mkRight(
         makeBadgeVal(s?.last10?.total, s?.last10?.correct, '10 последних'),
-        makeBadgeVal(s?.period?.total, s?.period?.correct, '30 дней'),
+        makeBadgeVal(s?.period?.total, s?.period?.correct, periodLabel),
         makeBadgeVal(s?.all_time?.total, s?.all_time?.correct, 'Всё время'),
       ),
     ]);
@@ -258,7 +259,7 @@ function renderSections(root, dash, catalog) {
           ]),
           mkRight(
             makeBadgeVal(l10.total, l10.correct, '10 последних'),
-            makeBadgeVal(per.total, per.correct, '30 дней'),
+            makeBadgeVal(per.total, per.correct, periodLabel),
             makeBadgeVal(all.total, all.correct, 'Всё время'),
           )
         ]);
@@ -340,7 +341,7 @@ export function renderDashboard(ui, dash, catalog, opts = {}) {
   ui.sectionsEl.innerHTML = '';
 
   renderOverall(ui.overallEl, dash, opts);
-  renderSections(ui.sectionsEl, dash, catalog);
+  renderSections(ui.sectionsEl, dash, catalog, opts);
 }
 
 export function pickWeakTopics(dash, { metric = 'period', minTotal = 5, limit = 5 } = {}) {

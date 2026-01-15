@@ -355,6 +355,10 @@
   font-size: 14px;
 }
 
+.smart-hw-head{
+  cursor:pointer;
+}
+
 .smart-hw-head.is-open .smart-hw-chev{
   transform: rotate(180deg);
 }

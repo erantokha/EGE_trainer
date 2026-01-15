@@ -879,6 +879,7 @@ async function loadDashboard() {
     statsUi.sectionsEl.innerHTML = '';
 
     const days = Number(statsUi.daysSel.value) || 30;
+    const periodLabel = (statsUi.daysSel?.selectedOptions?.[0]?.textContent || `${days} дней`).trim();
     const source = String(statsUi.sourceSel.value || 'all');
 
     try {
@@ -895,7 +896,7 @@ async function loadDashboard() {
       statsUi.hintEl.textContent = '';
       __lastSeenAt = dash?.overall?.last_seen_at || null;
       if (__currentStudentMeta) applyHeader(__currentStudentMeta, __lastSeenAt);
-      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false });
+      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel });
     } catch (e) {
       if (isAccessDenied(e)) {
         statsUi.statusEl.innerHTML = '';
