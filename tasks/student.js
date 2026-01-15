@@ -6,6 +6,9 @@
 
 let buildStatsUI, renderDashboard, loadCatalog;
 
+let __currentStudentMeta = null;
+let __lastSeenAt = null;
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -251,15 +254,41 @@ function writeCachedStudent(studentId, meta) {
   } catch (_) {}
 }
 
-function applyHeader(meta) {
+
+function fmtActivityShort(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (!isFinite(d.getTime())) return '';
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `Активность: ${dd}.${mm}, ${hh}:${mi}`;
+}
+
+function applyHeader(meta, lastSeenAt = null) {
+  __currentStudentMeta = meta || __currentStudentMeta;
   const titleEl = $('#pageTitle');
   const subEl = $('#studentSub');
   if (titleEl) titleEl.textContent = deriveDisplayName(meta);
 
   const gradeText = deriveGradeText(meta);
+  const actText = fmtActivityShort(lastSeenAt);
   if (subEl) {
-    subEl.textContent = gradeText;
-    subEl.style.display = gradeText ? '' : 'none';
+    subEl.innerHTML = '';
+    if (gradeText) {
+      const s1 = document.createElement('span');
+      s1.className = 'grade';
+      s1.textContent = gradeText;
+      subEl.appendChild(s1);
+    }
+    if (actText) {
+      const s2 = document.createElement('span');
+      s2.className = 'activity';
+      s2.textContent = actText;
+      subEl.appendChild(s2);
+    }
+    subEl.style.display = (gradeText || actText) ? '' : 'none';
   }
 }
 
@@ -434,7 +463,7 @@ async function main() {
   }
 
   const cached = readCachedStudent(studentId);
-  if (cached) applyHeader(cached);
+  if (cached) applyHeader(cached, __lastSeenAt);
 
   const cfg = __cfgGlobal || await getConfig();
   __cfgGlobal = cfg;
@@ -468,7 +497,7 @@ async function main() {
       const meta = arr.find((x) => String(x?.student_id || '').trim() === String(studentId)) || null;
       if (meta) {
         writeCachedStudent(studentId, meta);
-        applyHeader(meta);
+        applyHeader(meta, __lastSeenAt);
       }
     } catch (_) {}
   }
@@ -486,7 +515,6 @@ async function main() {
   const smartBlock = $('#smartHwBlock');
   if (smartBlock) smartBlock.style.display = '';
 
-  const smartToggle = $('#smartHwToggle');
   const smartPanel = $('#smartHwPanel');
   const smartClose = $('#smartHwClose');
 
@@ -494,7 +522,6 @@ async function main() {
 
   // ----- works (teacher): список выполненных работ (collapsible) -----
   const worksHead = $('#worksHead');
-  const worksToggle = $('#worksToggle');
   const worksPanel = $('#worksPanel');
   let worksLoaded = false;
 
@@ -795,27 +822,17 @@ async function main() {
     }
   }
 
-  function togglePanel(panel, btn, openText='Открыть', closeText='Скрыть') {
-    if (!panel) return false;
-    const willOpen = panel.classList.contains('hidden');
-    setHidden(panel, !willOpen);
-    if (btn) btn.textContent = willOpen ? closeText : openText;
-    return willOpen;
-  }
-
   function toggleSmartPanel(forceOpen = null) {
     if (!smartPanel) return;
     const hidden = smartPanel.classList.contains('hidden');
     const willOpen = (forceOpen === null) ? hidden : !!forceOpen;
     setHidden(smartPanel, !willOpen);
     smartSetStatus('');
-    if (smartToggle) smartToggle.textContent = willOpen ? 'Скрыть' : 'Открыть';
+    if (smartHead) smartHead.classList.toggle('is-open', willOpen);
     // по требованию: при открытии сразу подгружаем рекомендации
     if (willOpen && hidden) loadRecommendations(false);
   }
-
-  if (smartToggle) smartToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleSmartPanel(null); });
-  if (smartHead) smartHead.addEventListener('click', (e) => { if (e.target.closest('button')) return; toggleSmartPanel(null); });
+  if (smartHead) smartHead.addEventListener('click', () => toggleSmartPanel(null));
   if (smartClose) smartClose.addEventListener('click', () => toggleSmartPanel(false));
 
 
@@ -862,7 +879,9 @@ async function loadDashboard() {
       });
 
       statsUi.hintEl.textContent = '';
-      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() });
+      __lastSeenAt = dash?.overall?.last_seen_at || null;
+      if (__currentStudentMeta) applyHeader(__currentStudentMeta, __lastSeenAt);
+      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false });
     } catch (e) {
       if (isAccessDenied(e)) {
         statsUi.statusEl.innerHTML = '';
@@ -875,7 +894,7 @@ async function loadDashboard() {
     }
   }
 
-  statsUi.refreshBtn.addEventListener('click', loadDashboard);
+  if (statsUi.refreshBtn) statsUi.refreshBtn.remove();
   statsUi.daysSel.addEventListener('change', loadDashboard);
   statsUi.sourceSel.addEventListener('change', loadDashboard);
 
@@ -885,15 +904,13 @@ async function loadDashboard() {
     if (!worksPanel) return;
     const willOpen = worksPanel.classList.contains('hidden');
     setHidden(worksPanel, !willOpen);
-    if (worksToggle) worksToggle.textContent = willOpen ? 'Скрыть' : 'Открыть';
+    if (worksHead) worksHead.classList.toggle('is-open', willOpen);
     if (willOpen && !worksLoaded) {
       worksLoaded = true;
       loadWorks();
     }
   }
-
-  if (worksToggle) worksToggle.addEventListener('click', (e) => { e.stopPropagation(); toggleWorksPanel(); });
-  if (worksHead) worksHead.addEventListener('click', (e) => { if (e.target.closest('button')) return; toggleWorksPanel(); });
+  if (worksHead) worksHead.addEventListener('click', () => toggleWorksPanel());
 
 async function loadWorks() {
     const works = $('#worksList');

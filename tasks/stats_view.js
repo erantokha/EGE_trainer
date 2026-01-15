@@ -105,6 +105,24 @@ function makeBadge(label, total, correct) {
   ]);
 }
 
+function makeBadgeVal(total, correct, title = '') {
+  const p = pct(total, correct);
+  const cls = clsByPct(p);
+  const attrs = { class: `badge ${cls}` };
+  if (title) attrs.title = title;
+  return el('span', attrs, [
+    el('b', { text: fmtPct(p) }),
+    el('span', { class: 'small', text: fmtCnt(total, correct) }),
+  ]);
+}
+
+function makeBadgeHead(label, title = '') {
+  const attrs = { class: 'badge head', text: label };
+  if (title) attrs.title = title;
+  return el('span', attrs);
+}
+
+
 function sectionTitle(sectionId, catalog) {
   const sid = String(sectionId || '').trim();
   const t = catalog?.sections?.get?.(sid);
@@ -121,7 +139,7 @@ function toggleAcc(item) {
   item.classList.toggle('open');
 }
 
-function renderOverall(root, dash) {
+function renderOverall(root, dash, opts = {}) {
   const overall = dash?.overall || {};
 
   function card(title, obj) {
@@ -149,11 +167,22 @@ function renderOverall(root, dash) {
     : '—';
 
   root.appendChild(cards);
-  root.appendChild(el('div', { class:'small', text:`Последняя активность: ${lastSeenTxt}` }));
+
+  if (opts?.showLastSeen !== false) {
+    root.appendChild(el('div', { class:'small', text:`Последняя активность: ${lastSeenTxt}` }));
+  }
 }
 
 function renderSections(root, dash, catalog) {
   const acc = el('div', { class: 'stats-acc' });
+  // подписи колонок (как легенда)
+  acc.appendChild(el('div', { class:'acc-metrics-head' }, [
+    el('div', { class:'mh-left' }),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('10', 'Последние 10')]),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('Период', 'Период')]),
+    el('div', { class:'mh-cell' }, [makeBadgeHead('Всё', 'Всё время')]),
+    el('div', { class:'mh-spacer' }),
+  ]));
   const sections = Array.isArray(dash?.sections) ? dash.sections : [];
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
 
@@ -175,9 +204,9 @@ function renderSections(root, dash, catalog) {
       el('div', { class:'h-topic' }, [
         el('div', { class:'title', text: title }),
       ]),
-      el('div', { class:'h-cell' }, [makeBadge('10', s?.last10?.total, s?.last10?.correct)]),
-      el('div', { class:'h-cell' }, [makeBadge('Период', s?.period?.total, s?.period?.correct)]),
-      el('div', { class:'h-cell' }, [makeBadge('Всё', s?.all_time?.total, s?.all_time?.correct)]),
+      el('div', { class:'h-cell' }, [makeBadgeVal(s?.last10?.total, s?.last10?.correct, 'Последние 10')]),
+      el('div', { class:'h-cell' }, [makeBadgeVal(s?.period?.total, s?.period?.correct, 'Период')]),
+      el('div', { class:'h-cell' }, [makeBadgeVal(s?.all_time?.total, s?.all_time?.correct, 'Всё время')]),
       el('div', { class:'h-chev small', text:'▾' }),
     ]);
 
@@ -191,9 +220,9 @@ function renderSections(root, dash, catalog) {
       el('thead', {}, [
         el('tr', {}, [
           el('th', { class:'topic', text:'Подтема' }),
-          el('th', { class:'cell', text:'Последние 10' }),
-          el('th', { class:'cell', text:'Период' }),
-          el('th', { class:'cell', text:'Всё время (перв.)' }),
+          el('th', { class:'cell' }, [makeBadgeHead('10', 'Последние 10')]),
+          el('th', { class:'cell' }, [makeBadgeHead('Период', 'Период')]),
+          el('th', { class:'cell' }, [makeBadgeHead('Всё', 'Всё время (по первой попытке)')]),
         ])
       ]),
       el('tbody')
@@ -226,9 +255,9 @@ function renderSections(root, dash, catalog) {
             el('div', { text: topicName(r?.topic_id, catalog) }),
             el('div', { class:'small', text: `последняя: ${lastSeenTxt}` }),
           ]),
-          el('td', { class:'cell' }, [makeBadge('', l10.total, l10.correct)]),
-          el('td', { class:'cell' }, [makeBadge('', per.total, per.correct)]),
-          el('td', { class:'cell' }, [makeBadge('', all.total, all.correct)]),
+          el('td', { class:'cell' }, [makeBadgeVal(l10.total, l10.correct, 'Последние 10')]),
+          el('td', { class:'cell' }, [makeBadgeVal(per.total, per.correct, 'Период')]),
+          el('td', { class:'cell' }, [makeBadgeVal(all.total, all.correct, 'Всё время')]),
         ]));
       }
     }
@@ -301,11 +330,11 @@ export function buildStatsUI(root) {
   };
 }
 
-export function renderDashboard(ui, dash, catalog) {
+export function renderDashboard(ui, dash, catalog, opts = {}) {
   ui.overallEl.innerHTML = '';
   ui.sectionsEl.innerHTML = '';
 
-  renderOverall(ui.overallEl, dash);
+  renderOverall(ui.overallEl, dash, opts);
   renderSections(ui.sectionsEl, dash, catalog);
 }
 
