@@ -123,6 +123,35 @@
 .badge.yellow { background: rgba(234,179,8,.14); border-color: rgba(234,179,8,.35); }
 .badge.red    { background: rgba(220,38,38,.12); border-color: rgba(220,38,38,.35); }
 
+/* Аккордеон тем/подтем (student) */
+
+:root{
+  /* ширина овальных стикеров в правой половине */
+  --badge-w: 110px;
+  /* отступ левого/правого стикера от границ правой половины */
+  --metrics-edge: 8px;
+  /* вертикальные/горизонтальные паддинги строк аккордеона */
+  --acc-pad-y: 8px;
+  --acc-pad-x: 8px;
+  /* расстояние между левой и правой половинами */
+  --acc-split-gap: 10px;
+}
+
+@media (max-width: 760px){
+  :root{
+    --badge-w: 96px;
+    --metrics-edge: 6px;
+    --acc-split-gap: 8px;
+  }
+}
+@media (max-width: 560px){
+  :root{
+    --badge-w: 88px;
+    --metrics-edge: 6px;
+    --acc-split-gap: 6px;
+  }
+}
+
 .stats-acc {
   display:grid;
   gap:7px;
@@ -135,79 +164,124 @@
   background: rgba(148,163,184,.05);
 }
 
-.acc-head {
+.acc-metrics-head{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--acc-split-gap);
+  align-items:center;
+  padding: 0 var(--acc-pad-x) 6px;
+}
+
+.acc-head{
   width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) var(--acc-chev);
-  align-items: center;
-  gap: var(--acc-gap);
-  padding: 8px;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--acc-split-gap);
+  align-items:center;
+  padding: var(--acc-pad-y) var(--acc-pad-x);
   cursor: pointer;
   background: transparent;
   border: 0;
   color: inherit;
-}
-
-.acc-metrics-head{
-  display:grid;
-  grid-template-columns: minmax(0, 1fr) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) minmax(var(--acc-col-min), var(--acc-col)) var(--acc-chev);
-  align-items:center;
-  gap: var(--acc-gap);
-  padding: 0 8px 6px;
-}
-
-.acc-metrics-head .mh-cell{
-  display:flex;
-  justify-content:flex-end;
-}
-
-.acc-metrics-head .mh-left{
-  min-height: 1px;
-}
-
-
-.acc-head .h-topic {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  justify-self: start;
   text-align: left;
 }
 
-.acc-head .h-cell {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.acc-head .h-chev {
-  text-align: right;
-}
-
-.acc-head .left {
+.acc-left{ min-width:0; }
+.acc-left-head{
   display:flex;
-  flex-direction:column;
-  gap: 4px;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  min-width:0;
 }
-
-.acc-head .title {
+.acc-left-head .title{
+  min-width:0;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
 }
-
-.acc-head .sub {
-  display:flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.acc-left-head .h-chev{
+  opacity:.75;
+  transition: transform .15s ease, opacity .15s ease;
+}
+.acc-item.open .h-chev{
+  transform: rotate(180deg);
+  opacity: .9;
 }
 
-.acc-body {
-  padding: 0 8px 8px 8px;
+/* правая половина: 3 фиксированные позиции (лево/центр/право) */
+.acc-right{
+  position: relative;
+  min-height: 30px;
+}
+.metrics-pos{
+  position: relative;
+  height: 100%;
+}
+.m-slot{
+  position:absolute;
+  top:50%;
+  width: var(--badge-w);
+  transform: translateY(-50%);
+}
+.m-slot.left{ left: var(--metrics-edge); }
+.m-slot.right{ right: var(--metrics-edge); }
+.m-slot.mid{ left:50%; transform: translate(-50%, -50%); }
+.m-slot .badge{
+  width: 100%;
+  justify-content: center;
+}
+
+/* подтемы */
+.acc-body{
   display:none;
+  padding: 0;
+}
+.acc-item.open .acc-body{
+  display:block;
 }
 
-.acc-item.open .acc-body {
-  display:block;
+.sub-list{
+  padding: 6px var(--acc-pad-x) var(--acc-pad-x);
+  display:flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sub-row{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--acc-split-gap);
+  align-items:center;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(148,163,184,.04);
+  border: 1px solid rgba(148,163,184,.12);
+}
+.sub-row:hover{ background: rgba(148,163,184,.06); }
+
+.acc-left-sub{
+  display:flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width:0;
+}
+.acc-left-sub > div:first-child{
+  min-width:0;
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub-empty{
+  padding: 6px 2px;
+}
+
+/* легенда: сделать "10 последних / 30 дней / Всё время" жирным */
+.badge.head{
+  font-weight: 700;
+  text-align: center;
 }
 
 .table {
@@ -302,13 +376,13 @@
 .student-stat-head{
   display:flex;
   align-items:center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 10px; /* как у шестерёнки возле имени ученика */
   margin: 10px 0 6px;
 }
 .student-stat-head .student-stat-title{
   font-size:18px;
 }
+
 .icon-btn{
   display:inline-flex;
   align-items:center;

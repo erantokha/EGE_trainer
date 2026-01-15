@@ -175,14 +175,26 @@ function renderOverall(root, dash, opts = {}) {
 
 function renderSections(root, dash, catalog) {
   const acc = el('div', { class: 'stats-acc' });
-  // подписи колонок (как легенда)
+
+  const mkSlot = (pos, node) => el('div', { class: `m-slot ${pos}` }, [node]);
+  const mkRight = (a, b, c) => el('div', { class: 'acc-right' }, [
+    el('div', { class: 'metrics-pos' }, [
+      mkSlot('left', a),
+      mkSlot('mid', b),
+      mkSlot('right', c),
+    ])
+  ]);
+
+  // подписи колонок (легенда, одна на весь аккордеон)
   acc.appendChild(el('div', { class:'acc-metrics-head' }, [
-    el('div', { class:'mh-left' }),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('10 последних', '10 последних')]),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('30 дней', '30 дней')]),
-    el('div', { class:'mh-cell' }, [makeBadgeHead('Всё время', 'Всё время')]),
-    el('div', { class:'mh-spacer' }),
+    el('div', { class:'acc-left acc-left-head' }),
+    mkRight(
+      makeBadgeHead('10 последних', '10 последних'),
+      makeBadgeHead('30 дней', '30 дней'),
+      makeBadgeHead('Всё время', 'Всё время')
+    ),
   ]));
+
   const sections = Array.isArray(dash?.sections) ? dash.sections : [];
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
 
@@ -201,13 +213,15 @@ function renderSections(root, dash, catalog) {
     const title = sectionTitle(sid, catalog);
 
     const head = el('button', { type:'button', class:'acc-head' }, [
-      el('div', { class:'h-topic' }, [
+      el('div', { class:'acc-left acc-left-head' }, [
         el('div', { class:'title', text: title }),
+        el('div', { class:'h-chev small', text:'▾' }),
       ]),
-      el('div', { class:'h-cell' }, [makeBadgeVal(s?.last10?.total, s?.last10?.correct, 'Последние 10')]),
-      el('div', { class:'h-cell' }, [makeBadgeVal(s?.period?.total, s?.period?.correct, 'Период')]),
-      el('div', { class:'h-cell' }, [makeBadgeVal(s?.all_time?.total, s?.all_time?.correct, 'Всё время')]),
-      el('div', { class:'h-chev small', text:'▾' }),
+      mkRight(
+        makeBadgeVal(s?.last10?.total, s?.last10?.correct, '10 последних'),
+        makeBadgeVal(s?.period?.total, s?.period?.correct, '30 дней'),
+        makeBadgeVal(s?.all_time?.total, s?.all_time?.correct, 'Всё время'),
+      ),
     ]);
 
     const body = el('div', { class:'acc-body' });
@@ -216,23 +230,10 @@ function renderSections(root, dash, catalog) {
       .filter(t => String(t?.section_id || '').trim() === sid)
       .sort((a,b) => String(a.topic_id||'').localeCompare(String(b.topic_id||''), 'ru'));
 
-    const table = el('table', { class:'table' }, [
-      el('thead', {}, [
-        el('tr', {}, [
-          el('th', { class:'topic', text:'Подтема' }),
-          el('th', { class:'cell' }, [makeBadgeHead('10 последних', '10 последних')]),
-          el('th', { class:'cell' }, [makeBadgeHead('30 дней', '30 дней')]),
-          el('th', { class:'cell' }, [makeBadgeHead('Всё время', 'Всё время (по первой попытке)')]),
-        ])
-      ]),
-      el('tbody')
-    ]);
+    const list = el('div', { class:'sub-list' });
 
-    const tbody = $('tbody', table);
     if (!rows.length) {
-      tbody.appendChild(el('tr', {}, [
-        el('td', { colspan:'4', class:'small', text:'Пока нет попыток по этому номеру.' })
-      ]));
+      list.appendChild(el('div', { class:'small sub-empty', text:'Пока нет попыток по этому номеру.' }));
     } else {
       for (const r of rows) {
         const l10 = r?.last10 || {};
@@ -250,19 +251,23 @@ function renderSections(root, dash, catalog) {
           }
         })();
 
-        tbody.appendChild(el('tr', {}, [
-          el('td', { class:'topic' }, [
+        const rowNode = el('div', { class:'sub-row' }, [
+          el('div', { class:'acc-left acc-left-sub' }, [
             el('div', { text: topicName(r?.topic_id, catalog) }),
             el('div', { class:'small', text: `последняя: ${lastSeenTxt}` }),
           ]),
-          el('td', { class:'cell' }, [makeBadgeVal(l10.total, l10.correct, 'Последние 10')]),
-          el('td', { class:'cell' }, [makeBadgeVal(per.total, per.correct, 'Период')]),
-          el('td', { class:'cell' }, [makeBadgeVal(all.total, all.correct, 'Всё время')]),
-        ]));
+          mkRight(
+            makeBadgeVal(l10.total, l10.correct, '10 последних'),
+            makeBadgeVal(per.total, per.correct, '30 дней'),
+            makeBadgeVal(all.total, all.correct, 'Всё время'),
+          )
+        ]);
+
+        list.appendChild(rowNode);
       }
     }
 
-    body.appendChild(table);
+    body.appendChild(list);
 
     const item = el('div', { class:'acc-item' }, [head, body]);
     head.addEventListener('click', () => toggleAcc(item));
