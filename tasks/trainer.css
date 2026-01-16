@@ -419,20 +419,23 @@ body[data-home-variant="student"] #accordion .unique-btn{
 body[data-home-variant="student"] #accordion .node.section .section-title{margin-left:0}
 body[data-home-variant="student"] #accordion .node .row .countbox{margin-right:12px}
 
-/* названия тем/подтем — в овальной плашке, но без подсветки по цветам */
-body[data-home-variant="student"] #accordion .section-title,
+/* главная ученика: названия тем/подтем — как у учителя (без овальных плашек) */
 body[data-home-variant="student"] #accordion .node.topic .title{
-  display:inline-flex;
-  align-items:center;
-  padding:6px 12px;
-  border:1px solid var(--border);
-  border-radius:999px;
-  background:rgba(148,163,184,.08);
-  line-height:1;
-  white-space:nowrap;
-  max-width:100%;
-  overflow:hidden;
-  text-overflow:ellipsis;
+  display:block;
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+  line-height:1.25;
+  white-space:normal;
+  overflow:visible;
+}
+
+body[data-home-variant="student"] #accordion .section-title{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
 }
 
 /* отдельный бейдж "10 последних" — точь-в-точь как на странице статистики */
@@ -449,6 +452,10 @@ body[data-home-variant="student"] #accordion .badge{
   gap:5px;
   line-height:1;
   white-space:nowrap;
+  width:112px;
+  min-width:112px;
+  overflow:visible;
+  font-variant-numeric:tabular-nums;
 }
 body[data-home-variant="student"] #accordion .badge b{font-weight:600}
 body[data-home-variant="student"] #accordion .badge .small{font-size:10px;color:var(--text-dim)}
@@ -459,8 +466,6 @@ body[data-home-variant="student"] #accordion .badge.yellow{background:rgba(245,1
 body[data-home-variant="student"] #accordion .badge.red{background:rgba(239,68,68,.14)}
 
 @media (max-width:640px){
-  body[data-home-variant="student"] #accordion .section-title,
-  body[data-home-variant="student"] #accordion .node.topic .title{padding:6px 10px}
   body[data-home-variant="student"] #accordion .badge{padding:4px 7px}
 }
 
