@@ -2,83 +2,38 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-    <meta name="app-build" content="2026-01-15-14">
-<title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-15-14">
+
+  <!--
+    Legacy URL.
+    Ранее входная страница жила в /tasks/index.html.
+    Сейчас основная точка входа — корень сайта (/).
+  -->
+  <meta name="robots" content="noindex,follow">
+  <link rel="canonical" href="../">
+  <meta http-equiv="refresh" content="0;url=../">
+
+  <title>Переадресация…</title>
+
+  <script>
+    // Безопасный редирект, сохраняем origin и не ломаем историю.
+    try {
+      location.replace(new URL('../', location.href).toString());
+    } catch (_) {
+      location.href = '../';
+    }
+  </script>
 </head>
 <body>
-  <main class="container">
-    <section id="picker">
-      <div class="panel">
-        <h1>Тренажер по задачам из банка ФИПИ</h1>
-
-        <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
-        <div class="controls">
-          <div class="controls-left">
-            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-              <button
-                type="button"
-                class="mode-btn active"
-                id="modeList"
-                data-mode="list"
-                aria-selected="true"
-              >
-                Список задач
-              </button>
-              <button
-                type="button"
-                class="mode-btn"
-                id="modeTest"
-                data-mode="test"
-                aria-selected="false"
-              >
-                Тестирование
-              </button>
-            </div>
-
-            <label class="shuffle">
-              <input type="checkbox" id="shuffleToggle">
-              Перемешать задачи
-            </label>
-          </div>
-
-          <div class="controls-actions-right">
-            <button id="start" disabled>Начать</button>
-            <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
-          </div>
-
-          <div class="theme-toggle">
-            <input
-              type="checkbox"
-              id="themeToggle"
-              class="theme-toggle-input"
-              aria-label="Переключить тему"
-            >
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
-        <div class="sub-controls">
-          <div class="bulk-controls" id="bulkControls">
-            <button id="bulkPickAll" type="button">Выбрать все</button>
-            <button id="bulkResetAll" type="button">Сбросить все</button>
-          </div>
-
-          <div class="sum">Итого: <span id="sum">0</span></div>
-        </div>
-
-        <!-- Ряд 3: аккордеон -->
-        <div id="accordion" class="accordion"></div>
-      </div>
-    </section>
+  <main class="container" style="max-width:900px;margin:40px auto;padding:0 16px">
+    <h1 style="margin:0 0 12px">Страница переехала</h1>
+    <p style="margin:0 0 12px;opacity:.9">
+      Сейчас входная страница находится в корне сайта.
+    </p>
+    <p style="margin:0">
+      Если переадресация не сработала, открой:
+      <a href="../">главную страницу</a>.
+    </p>
   </main>
-
-  <script src="./theme.js?v=2026-01-15-14" defer></script>
-  <script type="module" src="./picker.js?v=2026-01-15-14"></script>
 </body>
 </html>
