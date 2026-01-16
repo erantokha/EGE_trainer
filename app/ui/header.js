@@ -31,25 +31,6 @@ function computeHomeUrl() {
   }
 }
 
-function isHomeVariantPage() {
-  try {
-    const pn = String(location.pathname || '');
-    // Варианты главной (ученик/учитель) и корневой индекс.
-    return pn.endsWith('/home_teacher.html') || pn.endsWith('/home_student.html') || pn.endsWith('/index.html') || pn === '/' || pn === '';
-  } catch (_) {
-    return false;
-  }
-}
-
-function goHomeReplace() {
-  try {
-    location.replace(buildWithV(computeHomeUrl()));
-  } catch (_) {
-    try { location.replace(computeHomeUrl()); } catch (__){ location.href = computeHomeUrl(); }
-  }
-}
-
-
 // Убираем ?v=... из адресной строки после загрузки страницы, чтобы URL оставался "чистым".
 // При этом страница уже загрузилась по уникальному URL и не смешает кэш.
 function stripBuildParamInPlace() {
@@ -170,6 +151,40 @@ async function fetchProfileRole(supabase, userId) {
     return role;
   } catch (_) {
     return '';
+  }
+}
+
+function clearProfileCaches() {
+  // Чистим кэш имени/роли для разных uid (мы не всегда знаем uid в момент логаута).
+  try {
+    for (let i = sessionStorage.length - 1; i >= 0; i--) {
+      const k = sessionStorage.key(i);
+      if (!k) continue;
+      if (k.startsWith('ege_profile_first_name:') || k.startsWith('ege_profile_role:')) {
+        sessionStorage.removeItem(k);
+      }
+    }
+  } catch (_) {}
+}
+
+function getLandingKind() {
+  try {
+    const pn = String(location.pathname || '');
+    if (pn === '/' || pn === '' || pn.endsWith('/index.html')) return 'root';
+    if (pn.endsWith('/home_student.html')) return 'student';
+    if (pn.endsWith('/home_teacher.html')) return 'teacher';
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function hasAsOverride() {
+  try {
+    const u = new URL(location.href);
+    return u.searchParams.has('as');
+  } catch (_) {
+    return false;
   }
 }
 
@@ -377,7 +392,57 @@ export async function initHeader(opts = {}) {
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
 
   // Текущая роль пользователя (из profiles.role) для ветвления меню.
-  var currentRole = 'student';
+  let currentRole = 'student';
+  let currentSession = null;
+
+  const applyRoleToMenu = (roleRaw) => {
+    const r = String(roleRaw || '').trim().toLowerCase();
+    currentRole = (r === 'teacher') ? 'teacher' : 'student';
+    if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
+
+    // После того как роль стала известна — можно корректно "прибить" пользователя к нужной главной.
+    maybeRedirectLanding();
+  };
+
+  const maybeRedirectLanding = () => {
+    // Не мешаем режиму "as=..." для дизайна/отладки.
+    if (hasAsOverride()) return;
+
+    const kind = getLandingKind();
+    if (!kind) return;
+
+    // На страницах авторизации не лезем в навигацию.
+    const pn = String(location.pathname || '');
+    if (pn.endsWith('/tasks/auth.html') || pn.endsWith('/tasks/auth_callback.html') || pn.endsWith('/tasks/auth_reset.html')) return;
+
+    const home = computeHomeUrl();
+    const toStudent = () => {
+      try { location.replace(new URL('home_student.html', home).toString()); } catch (_) { location.replace('./home_student.html'); }
+    };
+    const toTeacher = () => {
+      try { location.replace(new URL('home_teacher.html', home).toString()); } catch (_) { location.replace('./home_teacher.html'); }
+    };
+    const toRoot = () => {
+      try { location.replace(home); } catch (_) { location.replace('./'); }
+    };
+
+    if (!currentSession) {
+      // Разлогинились на home_* — уходим на / (index.html)
+      if (kind === 'student' || kind === 'teacher') toRoot();
+      return;
+    }
+
+    // Залогинен — / должен быть "гостевой", поэтому уводим на role-home.
+    if (kind === 'root') {
+      if (currentRole === 'teacher') toTeacher();
+      else toStudent();
+      return;
+    }
+
+    // На чужой домашней странице — тоже перекидываем.
+    if (kind === 'student' && currentRole === 'teacher') { toTeacher(); return; }
+    if (kind === 'teacher' && currentRole !== 'teacher') { toStudent(); return; }
+  };
 
   ui.menuProfile?.addEventListener('click', () => {
     closeMenu();
@@ -434,14 +499,10 @@ export async function initHeader(opts = {}) {
   let isSigningOut = false;
   let nameFetchSeq = 0;
 
-  const applyRoleToMenu = (roleRaw) => {
-    const r = String(roleRaw || '').trim().toLowerCase();
-    currentRole = (r === 'teacher') ? 'teacher' : 'student';
-    if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
-  };
-
   const applySessionToUI = (session) => {
     try { closeMenu(); } catch (_) {}
+
+    currentSession = session || null;
 
     const authed = Boolean(session);
     if (ui.loginBtn) ui.loginBtn.classList.toggle('hidden', hideLogin || authed);
@@ -480,6 +541,9 @@ export async function initHeader(opts = {}) {
       applyRoleToMenu('student');
     }
 
+    // Если мы на landing-страницах, может потребоваться редирект.
+    maybeRedirectLanding();
+
     try {
       window.dispatchEvent(new CustomEvent('app-auth-changed', { detail: { session: session || null } }));
     } catch (_) {}
@@ -488,10 +552,14 @@ export async function initHeader(opts = {}) {
   ui.loginBtn.addEventListener('click', (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    // На главных (ученик/учитель) после входа всегда возвращаемся в корень (/),
-    // чтобы роутер корректно выбрал вариант по роли.
-    const nextBase = isHomeVariantPage() ? computeHomeUrl() : location.href;
-    const nextUrl = cleanOauthParams(nextBase);
+
+    // На главных страницах (/, home_student, home_teacher) всегда возвращаемся на /.
+    // Это нужно, чтобы после смены роли не "залипать" на чужой главной.
+    const kind = getLandingKind();
+    const nextUrl = (kind === 'root' || kind === 'student' || kind === 'teacher')
+      ? cleanOauthParams(computeHomeUrl())
+      : cleanOauthParams(location.href);
+
     location.href = buildAuthLoginUrl(nextUrl);
   });
 
@@ -503,21 +571,22 @@ export async function initHeader(opts = {}) {
     if (isSigningOut) return;
     isSigningOut = true;
 
+    // Сразу прячем UI аккаунта.
     applySessionToUI(null);
+    clearProfileCaches();
 
     try {
       if (signOut) await signOut();
     } catch (err) {
       console.warn('Header: signOut failed', err);
     } finally {
-      // Не делаем повторный getSession() сразу после signOut:
-      // при нескольких вкладках/lock'ах это может вернуть «старую» сессию из памяти
-      // и визуально откатить UI обратно в logged-in до перезагрузки страницы.
       isSigningOut = false;
-      applySessionToUI(null);
-      // После выхода не остаёмся на «чужой» главной: возвращаемся в корень,
-      // где роутер выберет правильный вариант (ученик/учитель).
-      goHomeReplace();
+      // После логаута всегда уходим на корень.
+      try {
+        location.replace(computeHomeUrl());
+      } catch (_) {
+        location.replace('./');
+      }
     }
   });
 
@@ -528,10 +597,18 @@ export async function initHeader(opts = {}) {
   applySessionToUI(initial);
 
   try {
-    supabase?.auth?.onAuthStateChange(async () => {
+    supabase?.auth?.onAuthStateChange(async (event, session) => {
       if (isSigningOut) return;
-      const s = getSession ? await getSession().catch(() => null) : null;
+
+      // session может приходить в аргументах (быстрее), но на всякий случай fallback.
+      const s = session || (getSession ? await getSession().catch(() => null) : null);
       applySessionToUI(s);
+
+      // Если разлогинились не через меню (например, в другой вкладке) — на landing-страницах уводим на /.
+      if (event === 'SIGNED_OUT') {
+        clearProfileCaches();
+        maybeRedirectLanding();
+      }
     });
   } catch (_) {}
 }
