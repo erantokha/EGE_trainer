@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+    <meta name="app-build" content="2026-01-15-14">
+<title>Тренажер по задачам из банка ФИПИ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <!--
+    Главная страница сайта (/): это "вход" в тренажёр.
+    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
+    подключаем стили и скрипты с корректными путями.
+  -->
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-01-15-14">
+</head>
+<body data-home-variant="teacher">
+<main class="container">
+    <section id="picker">
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+  <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
+</header>
+<script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
+</div>
+
+        <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
+        <div class="controls">
+          <div class="controls-left">
+            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+              <button
+                type="button"
+                class="mode-btn active"
+                id="modeList"
+                data-mode="list"
+                aria-selected="true"
+              >
+                Список задач
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                id="modeTest"
+                data-mode="test"
+                aria-selected="false"
+              >
+                Тестирование
+              </button>
+            </div>
+
+            <label class="shuffle">
+              <input type="checkbox" id="shuffleToggle">
+              Перемешать задачи
+            </label>
+          </div>
+
+          <div class="controls-actions-right">
+            <button id="start" disabled>Начать</button>
+            <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
+          </div>
+
+          <div class="theme-toggle">
+            <input
+              type="checkbox"
+              id="themeToggle"
+              class="theme-toggle-input"
+              aria-label="Переключить тему"
+            >
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
+        <div class="sub-controls">
+          <div class="bulk-controls" id="bulkControls">
+            <button id="bulkPickAll" type="button">Выбрать все</button>
+            <button id="bulkResetAll" type="button">Сбросить все</button>
+          </div>
+
+          <div class="sum">Итого: <span id="sum">0</span></div>
+        </div>
+
+        <!-- Ряд 3: аккордеон -->
+        <div id="accordion" class="accordion"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./tasks/theme.js?v=2026-01-15-14" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-01-15-14"></script>
+</body>
+</html>
