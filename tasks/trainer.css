@@ -825,6 +825,7 @@ body[data-home-variant="student"] button:hover{
 body[data-home-variant="student"] #accordion .section-title,
 body[data-home-variant="student"] #accordion .node.topic .title{
   border-radius:9999px;
+  padding-inline:0.75ch;
 }
 body[data-home-variant="student"] #accordion .section-title:hover,
 body[data-home-variant="student"] #accordion .section-title:focus-visible{
