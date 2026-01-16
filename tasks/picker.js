@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-17-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-17-1';
-import { CONFIG } from '../app/config.js?v=2026-01-17-1';
+import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -49,6 +49,12 @@ const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
 
 let _STATS_SEQ = 0;
+
+let _LAST10_LIVE_READY = false;
+let _LAST10_KNOWN_UID = null;
+let _LAST10_DEBOUNCE_T = 0;
+let _LAST10_LAST_FORCE_AT = 0;
+const LAST10_FORCE_MIN_INTERVAL_MS = 5000;
 
 function pct(total, correct) {
   const t = Number(total || 0) || 0;
@@ -170,8 +176,12 @@ function readSessionFallback() {
   return null;
 }
 
-async function refreshStudentLast10() {
+async function refreshStudentLast10(opts = {}) {
   if (!IS_STUDENT_PAGE) return;
+
+  const force = !!opts.force;
+  const reason = String(opts.reason || '');
+  void reason; // reserved for debug
 
   const seq = ++_STATS_SEQ;
 
@@ -185,6 +195,9 @@ async function refreshStudentLast10() {
 
   const uid = session?.user?.id || null;
   const token = String(session?.access_token || '').trim();
+
+  _LAST10_KNOWN_UID = uid || null;
+
   if (!uid || !token) {
     clearStudentLast10UI();
     return;
@@ -192,6 +205,8 @@ async function refreshStudentLast10() {
 
   const cacheKey = `home_student:last10:v2:${uid}`;
   const now = Date.now();
+
+  let cacheApplied = false;
 
   try {
     const raw = sessionStorage.getItem(cacheKey);
@@ -201,10 +216,25 @@ async function refreshStudentLast10() {
       if (ts && (now - ts) < 90_000 && obj?.dash) {
         if (seq !== _STATS_SEQ) return;
         applyDashboardLast10(obj.dash);
-        return;
+        cacheApplied = true;
+        // If not forcing refresh, use cache and stop here.
+        if (!force) return;
       }
     }
   } catch (_) {}
+
+  // Throttle forced refetches (tab flicker/back-forward cache)
+  if (force) {
+    const dt = now - (_LAST10_LAST_FORCE_AT || 0);
+    if (_LAST10_LAST_FORCE_AT && dt < LAST10_FORCE_MIN_INTERVAL_MS) {
+      // Too soon: keep cached UI if we had it, otherwise just keep silent.
+      if (!cacheApplied) {
+        // no-op
+      }
+      return;
+    }
+    _LAST10_LAST_FORCE_AT = now;
+  }
 
   try {
     const dash = await fetchStudentDashboardSelf(token);
@@ -216,9 +246,78 @@ async function refreshStudentLast10() {
     applyDashboardLast10(dash);
   } catch (e) {
     console.warn('home_student last10 load failed', e);
-    clearStudentLast10UI();
+    // If cache already shown, do not wipe UI.
+    if (!cacheApplied) clearStudentLast10UI();
   }
 }
+
+
+
+function invalidateStudentLast10Cache(uid) {
+  if (!uid) return;
+  const key = `home_student:last10:v2:${uid}`;
+  try { sessionStorage.removeItem(key); } catch (_) {}
+}
+
+function scheduleStudentLast10Refresh(opts = {}) {
+  if (!IS_STUDENT_PAGE) return;
+
+  const force = !!opts.force;
+  const reason = String(opts.reason || '');
+
+  // Debounce multiple rapid triggers.
+  if (_LAST10_DEBOUNCE_T) {
+    clearTimeout(_LAST10_DEBOUNCE_T);
+    _LAST10_DEBOUNCE_T = 0;
+  }
+
+  _LAST10_DEBOUNCE_T = setTimeout(() => {
+    refreshStudentLast10({ force, reason });
+  }, 250);
+}
+
+function initStudentLast10LiveRefresh() {
+  if (_LAST10_LIVE_READY || !IS_STUDENT_PAGE) return;
+  _LAST10_LIVE_READY = true;
+
+  // Refresh when user returns to the tab.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleStudentLast10Refresh({ force: true, reason: 'visibility' });
+    }
+  });
+
+  // Refresh when page is restored from bfcache (Back/Forward).
+  window.addEventListener('pageshow', (e) => {
+    scheduleStudentLast10Refresh({ force: true, reason: e?.persisted ? 'pageshow_bfcache' : 'pageshow' });
+  });
+
+  // Refresh on auth changes in the same tab (sign-in/out).
+  try {
+    supabase.auth.onAuthStateChange((event, session) => {
+      const ev = String(event || '');
+      if (ev === 'SIGNED_OUT') {
+        if (_LAST10_KNOWN_UID) invalidateStudentLast10Cache(_LAST10_KNOWN_UID);
+        _LAST10_KNOWN_UID = null;
+        clearStudentLast10UI();
+        return;
+      }
+      if (ev === 'SIGNED_IN') {
+        const uid = session?.user?.id || null;
+        if (uid) invalidateStudentLast10Cache(uid);
+        _LAST10_KNOWN_UID = uid;
+        scheduleStudentLast10Refresh({ force: true, reason: 'signed_in' });
+        return;
+      }
+      if (ev === 'TOKEN_REFRESHED' || ev === 'USER_UPDATED') {
+        scheduleStudentLast10Refresh({ force: false, reason: 'auth_update' });
+      }
+    });
+  } catch (e) {
+    console.warn('home_student last10 onAuthStateChange failed', e);
+  }
+}
+
 
 function applyDashboardLast10(dash) {
   if (!IS_STUDENT_PAGE) return;
@@ -497,9 +596,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCatalog();
     renderAccordion();
     initBulkControls();
-
     // Главная ученика: подсветка по статистике (последние 10)
-    refreshStudentLast10();
+    initStudentLast10LiveRefresh();
+    refreshStudentLast10({ force: true, reason: 'boot' });
   } catch (e) {
     console.error(e);
     const host = $('#accordion');
