@@ -415,6 +415,37 @@ body[data-home-variant="student"] #accordion .unique-btn{
 
 .node .spacer{flex:1}
 
+/* главная ученика: подсветка по последним 10 попыткам (как в статистике) */
+body[data-home-variant="student"] #accordion .row.stat-gray,
+body[data-home-variant="student"] #accordion .row.stat-red,
+body[data-home-variant="student"] #accordion .row.stat-yellow,
+body[data-home-variant="student"] #accordion .row.stat-lime,
+body[data-home-variant="student"] #accordion .row.stat-green{
+  border-radius:10px;
+}
+
+/* pill со счётом "правильно/всего" для последних 10 */
+body[data-home-variant="student"] #accordion .last10{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:56px;
+  padding:3px 10px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  font-size:12px;
+  line-height:1;
+  white-space:nowrap;
+}
+
+@media (max-width:640px){
+  body[data-home-variant="student"] #accordion .last10{
+    min-width:52px;
+    padding:3px 8px;
+    font-size:12px;
+  }
+}
+
 /* темы (подразделы) — убираем жирный шрифт */
 .node.topic .title{
   font-weight:400;
