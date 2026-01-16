@@ -50,15 +50,16 @@ function isIncludedFile(fp) {
   const r = rel(fp);
 
   // Touch:
-  // - root index.html
+  // - root *.html (включая index.html и отдельные варианты главной)
   // - tasks/** (pages + scripts + css)
   // - app/** (shared modules)
-  if (r === "index.html") return true;
+  if (r.endsWith(".html") && !r.startsWith("docs/") && !r.startsWith("content/")) return true;
   if (r.startsWith("tasks/")) return true;
   if (r.startsWith("app/")) return true;
 
   return false;
 }
+
 
 async function readText(fp) {
   return await fs.readFile(fp, "utf8");

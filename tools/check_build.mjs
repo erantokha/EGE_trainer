@@ -110,8 +110,10 @@ function rel(fp) {
 }
 
 function shouldScanFile(r) {
-  if (r === "index.html") return true;
-  if (r.startsWith("tasks/")) return r.endsWith(".html") || r.endsWith(".js") || r.endsWith(".css");
+  // HTML: index.html + любые другие страницы в корне (например, home_student.html/home_teacher.html) и в tasks/.
+  if (r.endsWith(".html")) return true;
+  // Static assets under tasks/ and shared modules.
+  if (r.startsWith("tasks/")) return r.endsWith(".js") || r.endsWith(".css");
   if (r.startsWith("app/")) return r.endsWith(".js");
   return false;
 }
