@@ -6,7 +6,7 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-import { withBuild } from '../app/build.js?v=2026-01-16-7';
+import { withBuild } from '../app/build.js?v=2026-01-16-8';
 
 const INDEX_URL = '../content/tasks/index.json';
 
