@@ -1,14 +1,14 @@
 // tasks/home_router.js
-// Teacher gate для корневой главной (/):
-// - по умолчанию остаёмся на / (она выглядит как главная ученика)
-// - если пользователь — учитель, перекидываем на /home_teacher.html
-// Override для просмотра дизайна: /?as=teacher или /?as=student
+// Роутер для корня сайта (/):
+// - если не залогинен: остаёмся на / (index.html)
+// - если залогинен: по роли перекидываем на /home_student.html или /home_teacher.html
+// Override для просмотра дизайна (без редиректа по роли): /?as=student или /?as=teacher
 
 (function () {
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
   const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
 
-  // Запускаем gate только на корне (/, /index.html).
+  // Запускаем только на корне (/, /index.html)
   const pn = String(location.pathname || '');
   const isRoot = (pn === '/' || pn === '' || pn.endsWith('/index.html'));
   if (!isRoot) return;
@@ -20,17 +20,6 @@
     try { document.body?.classList?.remove('gate-pending'); } catch (_) {}
   };
 
-  const redirectTeacher = () => {
-    try {
-      const u = new URL('./home_teacher.html', location.href);
-      u.searchParams.delete('as');
-      u.hash = '';
-      location.replace(u.toString());
-    } catch (_) {
-      location.replace('./home_teacher.html');
-    }
-  };
-
   const stripAsParamInPlace = () => {
     try {
       const u = new URL(location.href);
@@ -38,6 +27,22 @@
       u.searchParams.delete('as');
       history.replaceState(null, '', u.toString());
     } catch (_) {}
+  };
+
+  const targetUrl = (role) => {
+    const r = String(role || '').trim().toLowerCase();
+    return (r === 'teacher') ? './home_teacher.html' : './home_student.html';
+  };
+
+  const go = (urlLike) => {
+    try {
+      const u = new URL(String(urlLike), location.href);
+      u.searchParams.delete('as');
+      u.hash = '';
+      location.replace(u.toString());
+    } catch (_) {
+      location.replace(String(urlLike));
+    }
   };
 
   async function loadSupabase() {
@@ -66,21 +71,15 @@
 
       const user = session?.user;
       if (!user?.id) {
-        // Не залогинен — остаёмся на корне (ученическая главная).
+        // Гость — остаёмся на корне.
         reveal();
         return;
       }
 
       const role = await readRoleFromProfiles(supabase, user.id);
-      const isTeacher = String(role || '').toLowerCase() === 'teacher';
-      if (isTeacher) {
-        redirectTeacher();
-        return;
-      }
-
-      // Ученик — остаёмся на корне.
-      reveal();
+      go(targetUrl(role));
     } catch (_) {
+      // На ошибках не блокируем главную.
       reveal();
     }
   }
@@ -91,7 +90,7 @@
 
     // Режимы для дизайна/отладки.
     if (as === 'teacher') {
-      redirectTeacher();
+      go('./home_teacher.html');
       return;
     }
     if (as === 'student') {
@@ -105,14 +104,14 @@
       ({ supabase, getSession } = await loadSupabase());
       if (!supabase) throw new Error('no supabase');
     } catch (_) {
-      // Если по каким-то причинам supabase не загрузился — не блокируем главную.
+      // Если supabase не загрузился — просто показываем главную.
       reveal();
       return;
     }
 
     await checkAndAct(supabase, getSession);
 
-    // Реагируем на смену сессии без перезагрузки (например, логаут в другой вкладке).
+    // Если сессия меняется без перезагрузки (логаут/логин в другой вкладке).
     try {
       supabase.auth.onAuthStateChange(async (event) => {
         if (event === 'SIGNED_OUT') {
