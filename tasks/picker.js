@@ -8,7 +8,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется с корневой /index.html (основная точка входа).
 // Ранее выбор жил в /tasks/index.html, но теперь это legacy URL с редиректом.
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-16-5';
+import { withBuild } from '../app/build.js?v=2026-01-16-6';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
