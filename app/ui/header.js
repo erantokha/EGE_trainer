@@ -31,6 +31,25 @@ function computeHomeUrl() {
   }
 }
 
+function isHomeVariantPage() {
+  try {
+    const pn = String(location.pathname || '');
+    // Варианты главной (ученик/учитель) и корневой индекс.
+    return pn.endsWith('/home_teacher.html') || pn.endsWith('/home_student.html') || pn.endsWith('/index.html') || pn === '/' || pn === '';
+  } catch (_) {
+    return false;
+  }
+}
+
+function goHomeReplace() {
+  try {
+    location.replace(buildWithV(computeHomeUrl()));
+  } catch (_) {
+    try { location.replace(computeHomeUrl()); } catch (__){ location.href = computeHomeUrl(); }
+  }
+}
+
+
 // Убираем ?v=... из адресной строки после загрузки страницы, чтобы URL оставался "чистым".
 // При этом страница уже загрузилась по уникальному URL и не смешает кэш.
 function stripBuildParamInPlace() {
@@ -469,7 +488,10 @@ export async function initHeader(opts = {}) {
   ui.loginBtn.addEventListener('click', (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    const nextUrl = cleanOauthParams(location.href);
+    // На главных (ученик/учитель) после входа всегда возвращаемся в корень (/),
+    // чтобы роутер корректно выбрал вариант по роли.
+    const nextBase = isHomeVariantPage() ? computeHomeUrl() : location.href;
+    const nextUrl = cleanOauthParams(nextBase);
     location.href = buildAuthLoginUrl(nextUrl);
   });
 
@@ -493,6 +515,9 @@ export async function initHeader(opts = {}) {
       // и визуально откатить UI обратно в logged-in до перезагрузки страницы.
       isSigningOut = false;
       applySessionToUI(null);
+      // После выхода не остаёмся на «чужой» главной: возвращаемся в корень,
+      // где роутер выберет правильный вариант (ученик/учитель).
+      goHomeReplace();
     }
   });
 
