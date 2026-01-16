@@ -8,8 +8,8 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-16-13';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-16-13';
+import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -37,6 +37,139 @@ let _AUTH_READY = false;
 let _NAME_SEQ = 0;
 let _ROLE_SEQ = 0;
 let CURRENT_ROLE = '';
+
+
+// ---------- Главная ученика: подсветка по статистике (последние 10) ----------
+const HOME_VARIANT = String(document.body?.getAttribute('data-home-variant') || '').trim().toLowerCase();
+const IS_STUDENT_HOME = HOME_VARIANT === 'student';
+
+let _STATS_SEQ = 0;
+
+function pct(total, correct) {
+  const t = Number(total || 0) || 0;
+  const c = Number(correct || 0) || 0;
+  if (!t) return null;
+  return Math.round((c / t) * 100);
+}
+
+function statClassByPct(p) {
+  if (p === null || p === undefined) return 'stat-gray';
+  const v = Number(p);
+  if (!isFinite(v)) return 'stat-gray';
+  if (v >= 90) return 'stat-green';
+  if (v >= 70) return 'stat-lime';
+  if (v >= 50) return 'stat-yellow';
+  return 'stat-red';
+}
+
+function fmtLast10(total, correct) {
+  const t = Math.max(0, Number(total || 0) || 0);
+  const c = Math.max(0, Number(correct || 0) || 0);
+  return `${c}/${t}`;
+}
+
+function applyLast10ToNode(node, last10) {
+  if (!node) return;
+  const t = Math.max(0, Number(last10?.total || 0) || 0);
+  const c = Math.max(0, Number(last10?.correct || 0) || 0);
+  const p = pct(t, c);
+  const cls = statClassByPct(p);
+
+  const pill = node.querySelector('.last10');
+  if (pill) {
+    pill.textContent = fmtLast10(t, c);
+    pill.classList.remove('stat-gray','stat-red','stat-yellow','stat-lime','stat-green');
+    pill.classList.add(cls);
+    pill.setAttribute('title', 'Правильно/Всего (10 последних)');
+  }
+
+  // подсветка строки, а не всей ноды (чтобы фон секции не заливал список подтем)
+  const row = node.querySelector('.row');
+  if (row) {
+    row.classList.remove('stat-gray','stat-red','stat-yellow','stat-lime','stat-green');
+    // если данных нет — оставляем строку без фона, подсветка только на pill
+    if (t > 0) row.classList.add(cls);
+  }
+}
+
+async function refreshStudentLast10() {
+  if (!IS_STUDENT_HOME) return;
+
+  const seq = ++_STATS_SEQ;
+
+  let session = null;
+  try {
+    session = await getSession({ timeoutMs: 1200, skewSec: 30 });
+  } catch (_) {
+    session = null;
+  }
+  const uid = session?.user?.id || null;
+  if (!uid) return;
+
+  const cacheKey = `home_student:last10:v1:${uid}`;
+  const now = Date.now();
+  try {
+    const raw = sessionStorage.getItem(cacheKey);
+    if (raw) {
+      const obj = JSON.parse(raw);
+      const ts = Number(obj?.ts || 0) || 0;
+      if (ts && (now - ts) < 90_000 && obj?.dash) {
+        if (seq !== _STATS_SEQ) return;
+        applyDashboardLast10(obj.dash);
+        return;
+      }
+    }
+  } catch (_) {}
+
+  try {
+    const { data, error } = await supabase.rpc('student_dashboard_self', { days: 30, source: 'all' });
+    if (seq !== _STATS_SEQ) return;
+    if (error) throw error;
+
+    const dash = data || null;
+    if (!dash || typeof dash !== 'object') return;
+
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ ts: now, dash }));
+    } catch (_) {}
+
+    applyDashboardLast10(dash);
+  } catch (e) {
+    // не ломаем страницу выбора задач, просто без подсветки
+    console.warn('last10 dashboard load failed', e);
+  }
+}
+
+function applyDashboardLast10(dash) {
+  if (!IS_STUDENT_HOME) return;
+
+  const sections = Array.isArray(dash?.sections) ? dash.sections : [];
+  const topics = Array.isArray(dash?.topics) ? dash.topics : [];
+
+  const secMap = new Map();
+  for (const s of sections) {
+    const sid = String(s?.section_id || '').trim();
+    if (!sid) continue;
+    secMap.set(sid, s?.last10 || { total: 0, correct: 0 });
+  }
+
+  const topMap = new Map();
+  for (const t of topics) {
+    const tid = String(t?.topic_id || '').trim();
+    if (!tid) continue;
+    topMap.set(tid, t?.last10 || { total: 0, correct: 0 });
+  }
+
+  $$('.node.section').forEach(node => {
+    const sid = String(node?.dataset?.id || '').trim();
+    applyLast10ToNode(node, secMap.get(sid) || { total: 0, correct: 0 });
+  });
+
+  $$('.node.topic').forEach(node => {
+    const tid = String(node?.dataset?.id || '').trim();
+    applyLast10ToNode(node, topMap.get(tid) || { total: 0, correct: 0 });
+  });
+}
 
 
 function cleanRedirectUrl() {
@@ -279,6 +412,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCatalog();
     renderAccordion();
     initBulkControls();
+
+    // Главная ученика: подсветка по статистике (последние 10)
+    refreshStudentLast10();
   } catch (e) {
     console.error(e);
     const host = $('#accordion');
@@ -537,6 +673,7 @@ function renderSectionNode(sec) {
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button">Уникальные прототипы</button>
       <div class="spacer"></div>
+      ${IS_STUDENT_HOME ? '<div class=\"last10 stat-gray\">0/0</div>' : ''}
     </div>
     <div class="children"></div>
   `;
@@ -614,6 +751,7 @@ function renderTopicRow(topic) {
       </div>
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
+      ${IS_STUDENT_HOME ? '<div class=\"last10 stat-gray\">0/0</div>' : ''}
     </div>
   `;
 
