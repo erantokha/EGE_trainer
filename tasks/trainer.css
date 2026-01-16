@@ -808,6 +808,34 @@ input:focus{
   outline-offset:2px;
 }
 
+/* главная ученика: окантовка только при наведении, а фокус-обводка — только для клавиатуры */
+body[data-home-variant="student"] button:focus{
+  outline:none;
+}
+body[data-home-variant="student"] button:focus-visible{
+  outline:2px solid rgba(59,130,246,.35);
+  outline-offset:2px;
+}
+body[data-home-variant="student"] button:hover{
+  outline:2px solid rgba(59,130,246,.35);
+  outline-offset:2px;
+}
+
+/* главная ученика: овальная окантовка у названий тем/подтем в аккордеоне */
+body[data-home-variant="student"] #accordion .section-title,
+body[data-home-variant="student"] #accordion .node.topic .title{
+  border-radius:9999px;
+}
+body[data-home-variant="student"] #accordion .section-title:hover,
+body[data-home-variant="student"] #accordion .section-title:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 2px rgba(59,130,246,.35);
+}
+body[data-home-variant="student"] #accordion .node.topic .title:hover,
+body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
+  box-shadow:0 0 0 2px rgba(59,130,246,.35);
+}
+
 /* hw_create: верхняя панель + авторизация */
 .create-head { display:flex; justify-content:space-between; align-items:center; }
 .create-head-right { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }
