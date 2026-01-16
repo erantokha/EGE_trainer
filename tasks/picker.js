@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-16-16';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-16-16';
-import { CONFIG } from '../app/config.js?v=2026-01-16-16';
+import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -123,7 +123,7 @@ async function fetchStudentDashboardSelf(accessToken) {
       apikey: String(CONFIG?.supabase?.anonKey || ''),
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ days: 30, source: 'all' }),
+    body: JSON.stringify({ p_days: 30, p_source: 'all' }),
   });
 
   if (!res.ok) {
