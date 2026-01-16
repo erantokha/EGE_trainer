@@ -16,6 +16,7 @@
 - [tasks/student.html](../../../tasks/student.html), [tasks/student.js](../../../tasks/student.js)
   - карточка ученика для учителя
   - dashboard ученика через RPC student_dashboard_for_teacher
+  - блок «Умное ДЗ»: подбор тем + создание ДЗ (через [tasks/homework_api.js](../../../tasks/homework_api.js))
 - (часто используется) [tasks/stats_view.js](../../../tasks/stats_view.js) для отрисовки
 
 Зависимости
@@ -39,4 +40,4 @@
 - удаление ученика:
   - важно не “удалить профиль”, а убрать связь и очистить доступы согласно контракту (см. RPC remove_student)
 
-Дата обновления: 2026-01-10
+Дата обновления: 2026-01-16

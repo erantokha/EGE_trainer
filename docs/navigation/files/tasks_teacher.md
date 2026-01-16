@@ -4,6 +4,7 @@
 Оглавление
 - [../../../tasks/my_students.js](#tasksmy_studentsjs)
 - [../../../tasks/student.js](#tasksstudentjs)
+- [../../../tasks/homework_api.js](#taskshomework_apijs)
 
 ## ../../../tasks/my_students.js
 
@@ -33,3 +34,13 @@ RPC:
 - list_student_attempts(p_student_id uuid) — список работ/попыток для вкладки «Выполненные работы»
 
 Сценарий: scenarios/teacher_view_student.md
+
+## ../../../tasks/homework_api.js
+
+Ссылка на код: [tasks/homework_api.js](../../../tasks/homework_api.js) / [snapshot](../code/tasks/homework_api.js)
+
+Назначение: минимальный PostgREST API для создания ДЗ и ссылки (homeworks + homework_links) без supabase-js.
+Где используется: tasks/student.js (кнопка «Создать ДЗ» в блоке «Умное ДЗ»).
+Тонкости:
+- требует валидного access_token (Bearer) и корректных RLS/проверок роли учителя
+- ретраи при коллизии token

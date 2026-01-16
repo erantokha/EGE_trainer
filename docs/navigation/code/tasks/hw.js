@@ -10,17 +10,26 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-07-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-15-14';
 
-import { CONFIG } from '../app/config.js?v=2026-01-07-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-07-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-07-1';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-15-14';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-15-14';
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-07-1';
-const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
-if (HTML_BUILD && HTML_BUILD !== BUILD) {
+// Берём реальный билд из URL модуля (script type="module" ...?v=...)
+// Это устраняет ручной BUILD, который легко "забыть" обновить.
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
+const JS_BUILD = (() => {
+  try {
+    const u = new URL(import.meta.url);
+    return (u.searchParams.get('v') || u.searchParams.get('_v') || '').trim();
+  } catch (_) {
+    return '';
+  }
+})();
+if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
   const k = 'hw:build_reload_attempted';
   if (!sessionStorage.getItem(k)) {
     sessionStorage.setItem(k, '1');
@@ -29,11 +38,15 @@ if (HTML_BUILD && HTML_BUILD !== BUILD) {
     u.searchParams.set('_r', String(Date.now()));
     location.replace(u.toString());
   } else {
-    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: JS_BUILD });
   }
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+
 const $ = (sel, root = document) => root.querySelector(sel);
+const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.add(cls); };
+const rmCls  = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.remove(cls); };
+
 const HOME_URL = new URL('../', location.href).href;
 
 const INDEX_URL = '../content/tasks/index.json';
@@ -380,7 +393,7 @@ async function onStart() {
         clearTimeout(AUTO_START_TIMER);
         AUTO_START_TIMER = null;
       }
-      $('#hwGate')?.classList.add('hidden');
+      addCls('#hwGate', 'hidden');
       mountRunnerUI(); // создаёт #summary тоже
 
       // Запуск сессии
@@ -721,9 +734,9 @@ async function showAttemptSummaryFromRow(row) {
   mountRunnerUI();
 
   // показываем summary
-  $('#hwGate')?.classList.add('hidden');
-  $('#runner')?.classList.add('hidden');
-  $('#summary')?.classList.remove('hidden');
+  addCls('#hwGate', 'hidden');
+  addCls('#runner', 'hidden');
+  rmCls('#summary', 'hidden');
 
   const total = Number(row?.total ?? built.length);
   const correct = Number(row?.correct ?? built.reduce((s, q) => s + (q.correct ? 1 : 0), 0));
@@ -1183,8 +1196,8 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
     meta: { studentName, studentKey, token, homeworkId: homework.id, homeworkAttemptId: homeworkAttemptId || null },
   };
 
-  $('#summary')?.classList.add('hidden');
-  $('#runner')?.classList.remove('hidden');
+  addCls('#summary', 'hidden');
+  rmCls('#runner', 'hidden');
   const metaEl = $('#hwMeta');
   if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
 
@@ -1456,8 +1469,17 @@ function saveTimeForCurrent() {
 
 // ---------- завершение ----------
 async function finishSession() {
+  // защита от двойного клика / повторного вызова
+  SESSION.meta = SESSION.meta || {};
+  if (SESSION.meta.finishing) return;
+  SESSION.meta.finishing = true;
+
   const finishBtn = $('#finishHomework');
   if (finishBtn) finishBtn.disabled = true;
+
+  // учтём время на текущем вопросе и остановим таймер
+  try { saveTimeForCurrent(); } catch (_) {}
+  try { stopTick(); } catch (_) {}
 
   const total = SESSION.questions.length;
 
@@ -1495,72 +1517,127 @@ async function finishSession() {
     correct_text: q.correct_text,
   }));
 
-  // 1) гарантируем наличие attempt_id
-  let attemptId = SESSION.meta?.homeworkAttemptId || null;
-  const token = getToken();
+  // UI: показываем результаты сразу (даже если сеть/БД подвиснут)
+  addCls('#runner', 'hidden');
+  rmCls('#summary', 'hidden');
 
-  if (!attemptId && token && SESSION.meta?.studentName) {
-    try {
-      const res = await startHomeworkAttempt({ token, student_name: SESSION.meta.studentName });
+  renderStats({ total, correct, duration_ms, avg_ms });
+  renderReviewCards();
+
+  const summaryPanel = $('#summary .panel') || $('#summary');
+  let statusEl = summaryPanel ? $('#hwSaveStatus', summaryPanel) : null;
+  if (summaryPanel && !statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'hwSaveStatus';
+    statusEl.className = 'muted';
+    statusEl.style.marginTop = '10px';
+    summaryPanel.appendChild(statusEl);
+  }
+  if (statusEl) statusEl.textContent = 'Сохраняем результат...';
+
+  const withTimeout = (p, ms) => {
+    return Promise.race([
+      Promise.resolve().then(() => p),
+      new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), ms)),
+    ]);
+  };
+
+  const buildSubmitPayload = () => ({
+    homework_id: SESSION.meta?.homeworkId || null,
+    title: SESSION.meta?.title || null,
+    student_name: SESSION.meta?.studentName || null,
+    questions: payloadQuestions,
+  });
+
+  const saveOnce = async () => {
+    // 1) гарантируем наличие attempt_id
+    let attemptId = SESSION.meta?.homeworkAttemptId || null;
+    const token = getToken();
+
+    if (!attemptId && token && SESSION.meta?.studentName) {
+      const res = await withTimeout(
+        startHomeworkAttempt({ token, student_name: SESSION.meta.studentName }),
+        8000
+      );
+      if (res?.__timeout) throw new Error('START_TIMEOUT');
       if (res?.ok && res?.attempt_id) {
         attemptId = res.attempt_id;
         SESSION.meta.homeworkAttemptId = attemptId;
+      } else if (res && !res.ok) {
+        throw (res.error || new Error('START_FAILED'));
       }
-    } catch (e) {
-      console.warn('startHomeworkAttempt failed at finish', e);
     }
-  }
 
-  // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
-  let savedOk = false;
-  let savedErr = null;
+    if (!attemptId) throw new Error('NO_ATTEMPT_ID');
 
-  if (attemptId) {
-    const payload = {
-      homework_id: SESSION.meta?.homeworkId || null,
-      title: SESSION.meta?.title || null,
-      student_name: SESSION.meta?.studentName || null,
-      questions: payloadQuestions,
+    // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
+    const payload = buildSubmitPayload();
+    SESSION.meta.lastSubmit = {
+      attempt_id: attemptId,
+      payload,
+      total,
+      correct,
+      duration_ms,
     };
 
-    try {
-      const res = await submitHomeworkAttempt({
+    const res = await withTimeout(
+      submitHomeworkAttempt({
         attempt_id: attemptId,
         payload,
         total,
         correct,
         duration_ms,
-      });
-      savedOk = !!res?.ok;
-      savedErr = res?.error || null;
+      }),
+      12000
+    );
+
+    if (res?.__timeout) throw new Error('SUBMIT_TIMEOUT');
+    if (!res?.ok) throw (res?.error || new Error('SUBMIT_FAILED'));
+
+    return true;
+  };
+
+  const ensureRetryButton = () => {
+    if (!summaryPanel) return null;
+    let btn = $('#hwRetrySave', summaryPanel);
+    if (btn) return btn;
+
+    btn = document.createElement('button');
+    btn.id = 'hwRetrySave';
+    btn.type = 'button';
+    btn.className = 'btn small';
+    btn.textContent = 'Повторить сохранение';
+    btn.style.marginTop = '10px';
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      if (statusEl) statusEl.textContent = 'Сохраняем результат...';
+      try {
+        await saveOnce();
+        if (statusEl) statusEl.textContent = 'Результат сохранён.';
+        btn.remove();
+      } catch (e) {
+        console.warn('Homework submit error (retry)', e);
+        if (statusEl) statusEl.textContent = 'Не удалось сохранить результат. Проверьте интернет и попробуйте ещё раз.';
+        btn.disabled = false;
+      }
+    });
+
+    summaryPanel.appendChild(btn);
+    return btn;
+  };
+
+  // сохраняем в фоне, чтобы UI не зависал
+  (async () => {
+    try {
+      await saveOnce();
+      if (statusEl) statusEl.textContent = 'Результат сохранён.';
     } catch (e) {
-      savedOk = false;
-      savedErr = e;
+      console.warn('Homework submit error', e);
+      if (statusEl) statusEl.textContent = 'Не удалось сохранить результат. Проверьте интернет и попробуйте ещё раз.';
+      ensureRetryButton();
     }
-  } else {
-    savedOk = false;
-    savedErr = new Error('NO_ATTEMPT_ID');
-  }
-
-  // UI: показываем summary + карточки
-  $('#runner')?.classList.add('hidden');
-  $('#summary')?.classList.remove('hidden');
-
-  renderStats({ total, correct, duration_ms, avg_ms });
-
-  renderReviewCards();
-
-  if (!savedOk) {
-    console.warn('Homework submit error', savedErr);
-    const summaryPanel = $('#summary .panel') || $('#summary');
-    if (summaryPanel) {
-      const warn = document.createElement('div');
-      warn.className = 'hw-warn';
-      warn.textContent =
-        'Внимание: запись результата не выполнена. Проверьте RPC submit_homework_attempt и таблицу homework_attempts.';
-      summaryPanel.appendChild(warn);
-    }
-  }
+  })();
 }
 
 

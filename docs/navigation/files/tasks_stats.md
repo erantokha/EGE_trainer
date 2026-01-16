@@ -38,8 +38,11 @@
 
 ## ../../../tasks/smart_select.js, smart_mode.js, smart_hw_builder.js, smart_hw.js
 
-Ссылка на код: [tasks/smart_select.js,](../../../tasks/smart_select.js,) / [snapshot](../code/tasks/smart_select.js,)
-
+Ссылки на код:
+- [tasks/smart_select.js](../../../tasks/smart_select.js) / [snapshot](../code/tasks/smart_select.js)
+- [tasks/smart_mode.js](../../../tasks/smart_mode.js) / [snapshot](../code/tasks/smart_mode.js)
+- [tasks/smart_hw_builder.js](../../../tasks/smart_hw_builder.js) / [snapshot](../code/tasks/smart_hw_builder.js)
+- [tasks/smart_hw.js](../../../tasks/smart_hw.js) / [snapshot](../code/tasks/smart_hw.js)
 
 Назначение: “умный режим” — из статистики построить план тем и собрать конкретные question_id.
 Тонкости:

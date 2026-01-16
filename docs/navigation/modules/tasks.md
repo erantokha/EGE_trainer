@@ -21,6 +21,7 @@
 - домашние задания:
   - [tasks/hw_create.html](../../../tasks/hw_create.html), [tasks/hw_create.js](../../../tasks/hw_create.js)
   - [tasks/hw.html](../../../tasks/hw.html), [tasks/hw.js](../../../tasks/hw.js)
+  - [tasks/homework_api.js](../../../tasks/homework_api.js) (PostgREST insert для создания ДЗ из student.js)
 - статистика и рекомендации:
   - [tasks/stats.html](../../../tasks/stats.html), [tasks/stats.js](../../../tasks/stats.js)
   - [tasks/stats_view.js](../../../tasks/stats_view.js), [tasks/stats.css](../../../tasks/stats.css)
@@ -33,6 +34,7 @@
   - [tasks/my_students.html](../../../tasks/my_students.html), [tasks/my_students.js](../../../tasks/my_students.js)
   - [tasks/student.html](../../../tasks/student.html), [tasks/student.js](../../../tasks/student.js)
 - прочее:
+  - [tasks/index.html](../../../tasks/index.html) (legacy: входная точка, когда сайт жил в /tasks)
   - [tasks/profile.html](../../../tasks/profile.html), [tasks/profile.js](../../../tasks/profile.js)
   - [tasks/unique.html](../../../tasks/unique.html), [tasks/unique.js](../../../tasks/unique.js)
   - [tasks/theme.js](../../../tasks/theme.js)
@@ -65,4 +67,4 @@
 - [stats](./tasks_stats.md)
 - [teacher](./tasks_teacher.md)
 
-Дата обновления: 2026-01-10
+Дата обновления: 2026-01-16

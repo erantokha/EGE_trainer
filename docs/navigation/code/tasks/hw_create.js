@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-01-07-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-07-3';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-07-3';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
+import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-01-15-14';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-01-07-3';
+} from '../app/core/pick.js?v=2026-01-15-14';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
@@ -18,9 +18,18 @@ finalizeOAuthRedirect().catch(() => {});
 
 
 // build/version (cache-busting)
-const BUILD = '2026-01-07-3';
-const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content;
-if (HTML_BUILD && HTML_BUILD !== BUILD) {
+// Берём реальный билд из URL модуля (script type="module" ...?v=...)
+// Это устраняет ручной BUILD, который легко "забыть" обновить.
+const HTML_BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
+const JS_BUILD = (() => {
+  try {
+    const u = new URL(import.meta.url);
+    return (u.searchParams.get('v') || u.searchParams.get('_v') || '').trim();
+  } catch (_) {
+    return '';
+  }
+})();
+if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
   const k = 'hw_create:build_reload_attempted';
   if (!sessionStorage.getItem(k)) {
     sessionStorage.setItem(k, '1');
@@ -29,10 +38,11 @@ if (HTML_BUILD && HTML_BUILD !== BUILD) {
     u.searchParams.set('_r', String(Date.now()));
     location.replace(u.toString());
   } else {
-    console.warn('Build mismatch persists', { html: HTML_BUILD, js: BUILD });
+    console.warn('Build mismatch persists', { html: HTML_BUILD, js: JS_BUILD });
   }
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
@@ -683,32 +693,49 @@ async function importSelectionIntoFixedTable() {
   await loadCatalog();
 
   const wanted = [];
-  if (prefill.by === 'topics') {
-    for (const [topicId, cntRaw] of Object.entries(prefill.topics || {})) {
-      const n = normalizeCount(cntRaw);
-      if (!n) continue;
+  const used = new Set();
+  const pushUnique = (r) => {
+    const key = refKey(r);
+    if (used.has(key)) return;
+    used.add(key);
+    wanted.push(r);
+  };
 
-      const topic = TOPIC_BY_ID.get(String(topicId));
-      if (!topic) continue;
+  const topicEntries = Object.entries(prefill.topics || {});
+  const secEntries = Object.entries(prefill.sections || {});
 
-      const man = await ensureManifest(topic);
-      if (!man) continue;
+  const excludeTopicIds = new Set(
+    topicEntries
+      .filter(([, cntRaw]) => normalizeCount(cntRaw) > 0)
+      .map(([id]) => String(id)),
+  );
 
-      wanted.push(...pickRefsFromManifest(man, n));
-    }
-  } else {
-    for (const [secId, cntRaw] of Object.entries(prefill.sections || {})) {
-      const n = normalizeCount(cntRaw);
-      if (!n) continue;
+  // 1) Явный выбор по подтемам
+  for (const [topicId, cntRaw] of topicEntries) {
+    const n = normalizeCount(cntRaw);
+    if (!n) continue;
 
-      const sec = SECTIONS.find(s => String(s.id) === String(secId));
-      if (!sec) continue;
+    const topic = TOPIC_BY_ID.get(String(topicId));
+    if (!topic) continue;
 
-      wanted.push(...(await pickRefsFromSection(sec, n)));
-    }
+    const man = await ensureManifest(topic);
+    if (!man) continue;
+
+    for (const r of pickRefsFromManifest(man, n)) pushUnique(r);
   }
 
-  // дедуп
+  // 2) Добор по разделам
+  for (const [secId, cntRaw] of secEntries) {
+    const n = normalizeCount(cntRaw);
+    if (!n) continue;
+
+    const sec = SECTIONS.find(s => String(s.id) === String(secId));
+    if (!sec) continue;
+
+    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds }))) pushUnique(r);
+  }
+
+  // дедуп (страховка)
   const uniq = [];
   const seen = new Set();
   for (const r of wanted) {
@@ -816,9 +843,11 @@ function pickRefsFromManifest(man, want) {
   return out;
 }
 
-async function pickRefsFromSection(sec, wantSection) {
+async function pickRefsFromSection(sec, wantSection, opts = {}) {
   const out = [];
-  const candidates = (sec.topics || []).filter(t => !!t.path);
+  const exclude = opts.excludeTopicIds;
+  let candidates = (sec.topics || []).filter(t => !!t.path && !(exclude && exclude.has(String(t.id))));
+  if (!candidates.length) candidates = (sec.topics || []).filter(t => !!t.path);
   shuffle(candidates);
 
   // Загружаем не одну тему, а несколько (иначе при огромном cap после размножения

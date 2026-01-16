@@ -103,6 +103,30 @@ function fmtDateTime(ts) {
   }
 }
 
+
+// Пытаемся распарсить дату из разных форматов (ISO из Supabase, "YYYY-MM-DD HH:MM:SS", и т.п.)
+function parseDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return isFinite(d.getTime()) ? d : null;
+  }
+  const s = String(value).trim();
+  if (!s) return null;
+
+  // ISO обычно парсится нативно
+  let d = new Date(s);
+  if (isFinite(d.getTime())) return d;
+
+  // Частый формат без "T": "YYYY-MM-DD HH:MM:SS" или "YYYY-MM-DD HH:MM"
+  const s2 = s.replace(', ', 'T').replace(' ', 'T');
+  d = new Date(s2);
+  if (isFinite(d.getTime())) return d;
+
+  return null;
+}
+
 function miniBadge(label, valueText, p) {
   const b = el('div', { class: `stat-mini ${clsByPct(p)}` });
   b.appendChild(el('div', { class: 'stat-mini-label', text: label }));
@@ -167,11 +191,19 @@ function isProblemStudent(st) {
   return false;
 }
 
+// Совместимость: старый код подсветки использовал isProblematic().
+// Теперь критерий вынесен в isProblemStudent(), а isProblematic оставляем как алиас.
+function isProblematic(st) {
+  return isProblemStudent(st);
+}
+
 let __studentsRaw = [];
 let __totalTopics = 0;
 let __currentDays = 7;
 let __currentSource = 'all';
 
+let __knownEmails = new Set();
+let __openStudentMenu = null;
 function applyFiltersAndRender() {
   const term = String($('#searchStudents')?.value || '').trim().toLowerCase();
   const onlyProblems = !!$('#filterProblems')?.checked;
@@ -190,15 +222,99 @@ function applyFiltersAndRender() {
     list = list.filter((st) => isProblemStudent(st));
   }
 
+  const now = Date.now();
+
+  // по умолчанию — сначала самые активные
+  if (!onlyProblems) {
+    list.sort((a, b) => {
+      const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
+      const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
+      const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
+      const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
+      return bt - at;
+    });
+    renderStudents(list);
+    return;
+  }
+
+  // если включены "Проблемные" — сортируем по худшим результатам (хуже → выше)
   list.sort((a, b) => {
-    const ad = a?.__summary?.last_seen_at ? new Date(a.__summary.last_seen_at) : null;
-    const bd = b?.__summary?.last_seen_at ? new Date(b.__summary.last_seen_at) : null;
-    const at = (ad && isFinite(ad.getTime())) ? ad.getTime() : -1;
-    const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
-    return bt - at;
+    const sa = a?.__summary || {};
+    const sb = b?.__summary || {};
+
+    // 1) форма (last10) — ниже = хуже; отсутствие данных считаем хуже
+    const aL10t = safeInt(sa.last10_total, 0);
+    const aL10c = safeInt(sa.last10_correct, 0);
+    const bL10t = safeInt(sb.last10_total, 0);
+    const bL10c = safeInt(sb.last10_correct, 0);
+    const aForm = pct(aL10t, aL10c);
+    const bForm = pct(bL10t, bL10c);
+    const aFormKey = (aForm === null ? -1 : aForm);
+    const bFormKey = (bForm === null ? -1 : bForm);
+    if (aFormKey !== bFormKey) return aFormKey - bFormKey;
+
+    // 2) покрытие — ниже = хуже; отсутствие данных считаем хуже
+    const aCov = safeInt(sa.covered_topics_all_time, 0);
+    const bCov = safeInt(sb.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const aCovPct = total > 0 ? Math.round((aCov / total) * 100) : null;
+    const bCovPct = total > 0 ? Math.round((bCov / total) * 100) : null;
+    const aCovKey = (aCovPct === null ? -1 : aCovPct);
+    const bCovKey = (bCovPct === null ? -1 : bCovPct);
+    if (aCovKey !== bCovKey) return aCovKey - bCovKey;
+
+    // 3) активность (за выбранный период) — меньше = хуже
+    const aAct = safeInt(sa.activity_total, 0);
+    const bAct = safeInt(sb.activity_total, 0);
+    if (aAct !== bAct) return aAct - bAct;
+
+    // 4) давность последней активности — больше дней = хуже
+    const aLast = sa.last_seen_at ? new Date(sa.last_seen_at) : null;
+    const bLast = sb.last_seen_at ? new Date(sb.last_seen_at) : null;
+    const aDays = (aLast && isFinite(aLast.getTime())) ? Math.floor((now - aLast.getTime()) / 86400000) : 9999;
+    const bDays = (bLast && isFinite(bLast.getTime())) ? Math.floor((now - bLast.getTime()) / 86400000) : 9999;
+    if (aDays !== bDays) return bDays - aDays;
+
+    // 5) детерминизм
+    return studentLabel(a).localeCompare(studentLabel(b), 'ru');
   });
 
   renderStudents(list);
+}
+
+
+
+function isValidEmail(v) {
+  const s = String(v || '').trim();
+  if (!s) return false;
+  // Достаточно строгая проверка для UI (сервер всё равно валидирует).
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+}
+
+function rebuildKnownEmails() {
+  __knownEmails = new Set();
+  for (const st of (__studentsRaw || [])) {
+    const email = String(st.email || st.student_email || '').trim().toLowerCase();
+    if (email) __knownEmails.add(email);
+  }
+}
+
+function updateAddButtonState() {
+  const input = $('#searchStudents');
+  const btn = $('#addStudentInlineBtn');
+  if (!btn) return;
+
+  const email = String(input?.value || '').trim().toLowerCase();
+  const can = isValidEmail(email) && !__knownEmails.has(email);
+  btn.disabled = !can;
+}
+
+function closeStudentMenu() {
+  if (!__openStudentMenu) return;
+  try { __openStudentMenu.classList.add('hidden'); } catch (_) {}
+  const btn = __openStudentMenu.__btn;
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  __openStudentMenu = null;
 }
 
 function renderStudents(list) {
@@ -216,51 +332,8 @@ function renderStudents(list) {
   for (const st of list) {
     const card = el('div', { class: 'panel student-card' });
 
-    const title = el('div', { class: 'student-title', text: studentLabel(st) });
-
-    const meta = [];
     const email = String(st.email || st.student_email || '').trim();
-    if (email) meta.push(email);
     const grade = String(st.student_grade || st.grade || '').trim();
-    if (grade) meta.push(`Класс: ${grade}`);
-
-    const sum = st.__summary || null;
-    const lastSeen = sum?.last_seen_at ? fmtDateTime(sum.last_seen_at) : '—';
-    const sub = el('div', { class: 'muted', text: (meta.join(' • ') || '') + (meta.length ? ' • ' : '') + `Последняя активность: ${lastSeen}` });
-
-    const metrics = el('div', { class: 'student-metrics' });
-
-    const activity = safeInt(sum?.activity_total, 0);
-    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
-
-    const l10t = safeInt(sum?.last10_total, 0);
-    const l10c = safeInt(sum?.last10_correct, 0);
-    const pForm = pct(l10t, l10c);
-    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
-    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
-
-    const covered = safeInt(sum?.covered_topics_all_time, 0);
-    const total = safeInt(__totalTopics, 0);
-    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
-    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
-    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
-
-    const actions = el('div', { class: 'student-actions' });
-
-    const openBtn = el('button', { class: 'btn', text: 'Открыть' });
-    openBtn.type = 'button';
-
-    const delBtn = el('button', { class: 'btn', text: 'Удалить' });
-    delBtn.type = 'button';
-
-    actions.appendChild(openBtn);
-    actions.appendChild(delBtn);
-
-    card.appendChild(title);
-    card.appendChild(sub);
-    card.appendChild(metrics);
-    card.appendChild(actions);
-
     const sid = String(st.student_id || st.id || '').trim();
 
     function goOpen() {
@@ -282,42 +355,61 @@ function renderStudents(list) {
     }
 
     card.addEventListener('click', () => goOpen());
-    openBtn.addEventListener('click', (e) => { e.stopPropagation(); goOpen(); });
 
-    delBtn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!sid) return;
+    // Заголовок карточки
+    const titlebar = el('div', { class: 'student-titlebar' });
+    const title = el('div', { class: 'student-title', text: studentLabel(st) });
+    titlebar.appendChild(title);
 
-      const name = studentLabel(st) || email || 'ученика';
-      if (!confirm(`Удалить ${name} из списка учеников?`)) return;
+// Метаданные (email/класс/активность)
+    const meta = [];
+    if (grade) meta.push(`Класс: ${grade}`);
+    const metaEl = el('div', { class: 'muted student-meta', text: meta.join(' • ') });
 
-      delBtn.disabled = true;
-      try {
-        const cfg = __cfgGlobal || await getConfig();
-        __cfgGlobal = cfg;
+    // Метрики
+    const metrics = el('div', { class: 'student-metrics' });
 
-        const a2 = await ensureAuth(cfg);
-        if (!a2?.access_token) {
-          setStatus($('#pageStatus'), 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
-          return;
-        }
+    const sum = st.__summary || st.summary || st.stats || null;
 
-        const ok = await removeStudent(cfg, a2.access_token, sid);
-        if (ok) await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
-      } finally {
-        delBtn.disabled = false;
-      }
-    });
+    const activity = safeInt(sum?.activity_total, 0);
+    metrics.appendChild(miniBadge(`Активность (${__currentDays}д)`, String(activity), (activity > 0 ? 70 : null)));
 
-    if (isProblemStudent(st)) {
-      card.classList.add('student-problem');
+    const lastSeenAt = sum?.last_seen_at ? new Date(sum.last_seen_at) : null;
+    const lastSeenOk = (lastSeenAt && isFinite(lastSeenAt.getTime()));
+    const lastSeenText = lastSeenOk ? fmtDateTime(lastSeenAt) : '—';
+    let pLast = 0;
+    if (lastSeenOk) {
+      const daysAgo = (Date.now() - lastSeenAt.getTime()) / 86400000;
+      if (daysAgo <= 3) pLast = 90;
+      else if (daysAgo <= 7) pLast = 50;
+      else pLast = 0;
     }
+    metrics.appendChild(miniBadge('Последняя активность', lastSeenText, pLast));
+
+    const l10t = safeInt(sum?.last10_total, 0);
+    const l10c = safeInt(sum?.last10_correct, 0);
+    const pForm = pct(l10t, l10c);
+    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
+    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
+
+    const covered = safeInt(sum?.covered_topics_all_time, 0);
+    const total = safeInt(__totalTopics, 0);
+    const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
+    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
+    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
+    card.appendChild(titlebar);
+    card.appendChild(metaEl);
+    card.appendChild(metrics);
+
+    // Подсветка проблемных учеников рамкой (как было)
+    if (isProblematic(st)) card.classList.add('is-problem');
 
     grid.appendChild(card);
   }
 
   wrap.appendChild(grid);
 }
+
 
 async function getConfig() {
   const mod = await import(withV('../app/config.js'));
@@ -534,11 +626,16 @@ async function loadStudents(cfg, accessToken, { days = 7, source = 'all' } = {})
     }
 
     setStatus(status, '');
+    rebuildKnownEmails();
+    updateAddButtonState();
+
     applyFiltersAndRender();
   } catch (e) {
     console.warn('loadStudents error', e);
     setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
     __studentsRaw = [];
+    rebuildKnownEmails();
+    updateAddButtonState();
     applyFiltersAndRender();
   }
 }
@@ -578,16 +675,24 @@ async function removeStudent(cfg, accessToken, studentId) {
 
 async function main() {
   const pageStatus = $('#pageStatus');
-  const addBtn = $('#addStudentBtn');
-  const toggleBtn = $('#toggleAddStudentFormBtn');
-  const addForm = $('#addStudentForm');
-  const emailInput = $('#addStudentEmail');
 
   const searchInput = $('#searchStudents');
+  const addBtn = $('#addStudentInlineBtn');
+
   const problemsChk = $('#filterProblems');
   const daysSel = $('#summaryDays');
   const sourceSel = $('#summarySource');
-  const refreshBtn = $('#refreshStudentsBtn');
+
+  // Закрывать меню карточек при клике вне/по Esc
+  document.addEventListener('pointerdown', (e) => {
+    if (!__openStudentMenu) return;
+    const wrap = __openStudentMenu.closest?.('.student-menu-wrap');
+    if (wrap && wrap.contains(e.target)) return;
+    closeStudentMenu();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeStudentMenu();
+  });
 
   try {
     const cfg = await getConfig();
@@ -608,78 +713,92 @@ async function main() {
 
     __cfgGlobal = cfg;
 
-    const days = daysSel ? safeInt(daysSel.value, 7) : 7;
+    const days = daysSel ? safeInt(daysSel.value, 30) : 30;
     const source = sourceSel ? normSource(sourceSel.value) : 'all';
     __currentDays = days;
     __currentSource = source;
 
     await loadStudents(cfg, auth.access_token, { days, source });
 
-    searchInput?.addEventListener('input', () => applyFiltersAndRender());
-    problemsChk?.addEventListener('change', () => applyFiltersAndRender());
+    // Поиск (локальный фильтр) + проверка доступности "Добавить"
+    searchInput?.addEventListener('input', () => {
+      applyFiltersAndRender();
+      updateAddButtonState();
+    });
 
-    refreshBtn?.addEventListener('click', async () => {
+    // "Проблемные" применяется сразу
+    problemsChk?.addEventListener('change', () => {
+      applyFiltersAndRender();
+    });
+
+    // Изменение дней/источника — сразу перезагрузка данных
+    const reloadFromSelectors = async () => {
       const a2 = await ensureAuth(cfg);
       if (!a2?.access_token) {
         setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
         return;
       }
-      const d = daysSel ? safeInt(daysSel.value, 7) : __currentDays;
+      const d = daysSel ? safeInt(daysSel.value, 30) : __currentDays;
       const s = sourceSel ? normSource(sourceSel.value) : __currentSource;
+      __currentDays = d;
+      __currentSource = s;
       await loadStudents(cfg, a2.access_token, { days: d, source: s });
-    });
+    };
 
-    daysSel?.addEventListener('change', async () => refreshBtn?.click());
-    sourceSel?.addEventListener('change', async () => refreshBtn?.click());
+    daysSel?.addEventListener('change', reloadFromSelectors);
+    sourceSel?.addEventListener('change', reloadFromSelectors);
 
-    // Форма добавления ученика разворачивается по кнопке "Новый ученик"
-    if (addForm) addForm.style.display = 'none';
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => {
-        if (!addForm) return;
-        const isOpen = addForm.style.display !== 'none';
-        addForm.style.display = isOpen ? 'none' : 'flex';
-        if (!isOpen) {
-          try { $('#addStudentEmail')?.focus(); } catch (_) {}
-        }
-      });
-    }
-
-    addBtn?.addEventListener('click', async () => {
-      if (addBtn) addBtn.disabled = true;
+    // Добавление ученика по email из поля поиска
+    const doAdd = async () => {
+      if (!addBtn || addBtn.disabled) return;
+      addBtn.disabled = true;
       try {
-        const email = String(emailInput?.value || '').trim().toLowerCase();
-        if (!email) {
-          setStatus($('#addStatus'), 'Введите email.');
+        const email = String(searchInput?.value || '').trim().toLowerCase();
+        if (!isValidEmail(email)) {
+          setStatus($('#addStatus'), 'Введите корректный email.');
+          return;
+        }
+        if (__knownEmails.has(email)) {
+          setStatus($('#addStatus'), 'Этот ученик уже есть в списке.');
           return;
         }
 
         const a2 = await ensureAuth(cfg);
         if (!a2?.access_token) {
-          setStatus($('#addStatus'), 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
+          setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
           return;
         }
 
         const ok = await addStudent(cfg, a2.access_token, email);
         if (ok) {
-          try { emailInput.value = ''; } catch (_) {}
+          // Перезагрузить список и очистить поле
           await loadStudents(cfg, a2.access_token, { days: __currentDays, source: __currentSource });
+          if (searchInput) searchInput.value = '';
+          applyFiltersAndRender();
         }
       } finally {
-        if (addBtn) addBtn.disabled = false;
+        updateAddButtonState();
+      }
+    };
+
+    addBtn?.addEventListener('click', doAdd);
+
+    searchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        // Enter: если можно — добавить; иначе просто не мешаем поиску
+        if (!addBtn?.disabled) {
+          e.preventDefault();
+          doAdd();
+        }
       }
     });
 
-    emailInput?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        addBtn?.click();
-      }
-    });
+    // Стартовое состояние кнопки
+    updateAddButtonState();
   } catch (e) {
     console.error(e);
     setStatus(pageStatus, 'Ошибка инициализации страницы.', { sticky: true });
-    if ($('#addStudentBtn')) $('#addStudentBtn').disabled = true;
+    if ($('#addStudentInlineBtn')) $('#addStudentInlineBtn').disabled = true;
   }
 }
 
