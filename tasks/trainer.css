@@ -415,29 +415,53 @@ body[data-home-variant="student"] #accordion .unique-btn{
 
 .node .spacer{flex:1}
 
-/* главная ученика: подсветка по последним 10 (как в статистике)
-   Важно: подсветку добавляет JS только у залогиненного ученика (через класс .stat-chip). */
-body[data-home-variant="student"] #accordion .stat-chip{
+/* главная ученика: нейтральные плашки названий + отдельный бейдж "10 последних" (как в статистике) */
+body[data-home-variant="student"] #accordion .node.section .section-title{margin-left:0}
+body[data-home-variant="student"] #accordion .node .row .countbox{margin-right:12px}
+
+/* названия тем/подтем — в овальной плашке, но без подсветки по цветам */
+body[data-home-variant="student"] #accordion .section-title,
+body[data-home-variant="student"] #accordion .node.topic .title{
   display:inline-flex;
   align-items:center;
   padding:6px 12px;
   border:1px solid var(--border);
   border-radius:999px;
+  background:rgba(148,163,184,.08);
+  line-height:1;
+  white-space:nowrap;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* отдельный бейдж "10 последних" — точь-в-точь как на странице статистики */
+body[data-home-variant="student"] #accordion .home-last10-badge{margin-right:12px;flex:0 0 auto}
+body[data-home-variant="student"] #accordion .badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(148,163,184,.08);
+  font-size:11px;
+  gap:5px;
   line-height:1;
   white-space:nowrap;
 }
-
-/* чтобы счёт в конце не обрезался троеточием */
-body[data-home-variant="student"] #accordion .section-title.stat-chip,
-body[data-home-variant="student"] #accordion .node.topic .title.stat-chip{
-  overflow:visible;
-  text-overflow:clip;
-}
+body[data-home-variant="student"] #accordion .badge b{font-weight:600}
+body[data-home-variant="student"] #accordion .badge .small{font-size:10px;color:var(--text-dim)}
+body[data-home-variant="student"] #accordion .badge.gray{background:rgba(148,163,184,.10)}
+body[data-home-variant="student"] #accordion .badge.green{background:rgba(16,185,129,.12)}
+body[data-home-variant="student"] #accordion .badge.lime{background:rgba(132,204,22,.14)}
+body[data-home-variant="student"] #accordion .badge.yellow{background:rgba(245,158,11,.16)}
+body[data-home-variant="student"] #accordion .badge.red{background:rgba(239,68,68,.14)}
 
 @media (max-width:640px){
-  body[data-home-variant="student"] #accordion .stat-chip{
-    padding:6px 10px;
-  }
+  body[data-home-variant="student"] #accordion .section-title,
+  body[data-home-variant="student"] #accordion .node.topic .title{padding:6px 10px}
+  body[data-home-variant="student"] #accordion .badge{padding:4px 7px}
 }
 
 /* темы (подразделы) — убираем жирный шрифт */

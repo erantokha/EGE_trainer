@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-16-17';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-16-17';
-import { CONFIG } from '../app/config.js?v=2026-01-16-17';
+import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -57,19 +57,29 @@ function pct(total, correct) {
   return Math.round((c / t) * 100);
 }
 
-function statClassByPct(p) {
-  if (p === null || p === undefined) return 'stat-gray';
+const BADGE_COLOR_CLASSES = ['gray', 'red', 'yellow', 'lime', 'green'];
+
+function badgeClassByPct(p) {
+  if (p === null || p === undefined) return 'gray';
   const v = Number(p);
-  if (!isFinite(v)) return 'stat-gray';
-  if (v >= 90) return 'stat-green';
-  if (v >= 70) return 'stat-lime';
-  if (v >= 50) return 'stat-yellow';
-  return 'stat-red';
+  if (!isFinite(v)) return 'gray';
+  if (v >= 90) return 'green';
+  if (v >= 70) return 'lime';
+  if (v >= 50) return 'yellow';
+  return 'red';
 }
 
-function fmtLast10(total, correct) {
+function fmtPct(p) {
+  if (p === null || p === undefined) return '—';
+  const v = Number(p);
+  if (!isFinite(v)) return '—';
+  return `${v}%`;
+}
+
+function fmtCnt(total, correct) {
   const t = Math.max(0, Number(total || 0) || 0);
   const c = Math.max(0, Number(correct || 0) || 0);
+  if (!t) return '0/0';
   return `${c}/${t}`;
 }
 
@@ -81,34 +91,39 @@ function ensureBaseTitle(el) {
   return String(el.dataset.baseTitle || '').trim();
 }
 
-function resetStatChip(el) {
+function resetTitle(el) {
   if (!el) return;
   const base = ensureBaseTitle(el);
   if (base) el.textContent = base;
+  // на всякий случай чистим следы старой реализации "подсветки названия"
   el.classList.remove('stat-chip', 'stat-gray', 'stat-red', 'stat-yellow', 'stat-lime', 'stat-green');
   el.removeAttribute('title');
 }
 
-function applyStatChip(el, last10) {
-  if (!el) return;
-  const base = ensureBaseTitle(el);
-
+function setLast10Badge(badgeEl, last10) {
+  if (!badgeEl) return;
   const t = Math.max(0, Number(last10?.total || 0) || 0);
   const c = Math.max(0, Number(last10?.correct || 0) || 0);
   const p = pct(t, c);
-  const cls = statClassByPct(p);
+  const cls = badgeClassByPct(p);
 
-  el.textContent = `${base} ${fmtLast10(t, c)}`;
-  el.classList.add('stat-chip');
-  el.classList.remove('stat-gray', 'stat-red', 'stat-yellow', 'stat-lime', 'stat-green');
-  el.classList.add(cls);
-  el.setAttribute('title', 'Правильно/Всего (10 последних)');
+  // оставляем "badge" и "home-last10-badge", меняем только цвет
+  badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
+  badgeEl.classList.add(cls);
+
+  const b = badgeEl.querySelector('b');
+  if (b) b.textContent = fmtPct(p);
+  const small = badgeEl.querySelector('.small');
+  if (small) small.textContent = fmtCnt(t, c);
+
+  badgeEl.setAttribute('title', '10 последних');
 }
 
 function clearStudentLast10UI() {
   if (!IS_STUDENT_PAGE) return;
-  $$('.node.section .section-title').forEach(resetStatChip);
-  $$('.node.topic .title').forEach(resetStatChip);
+  $$('.node.section .section-title').forEach(resetTitle);
+  $$('.node.topic .title').forEach(resetTitle);
+  $$('.home-last10-badge').forEach((b) => setLast10Badge(b, { total: 0, correct: 0 }));
 }
 
 async function fetchStudentDashboardSelf(accessToken) {
@@ -123,6 +138,7 @@ async function fetchStudentDashboardSelf(accessToken) {
       apikey: String(CONFIG?.supabase?.anonKey || ''),
       Authorization: `Bearer ${accessToken}`,
     },
+    // параметры должны совпадать с RPC student_dashboard_self(p_days int, p_source text)
     body: JSON.stringify({ p_days: 30, p_source: 'all' }),
   });
 
@@ -226,16 +242,18 @@ function applyDashboardLast10(dash) {
 
   $$('.node.section').forEach(node => {
     const sid = String(node?.dataset?.id || '').trim();
-    const el = node.querySelector('.section-title');
-    if (!el) return;
-    applyStatChip(el, secMap.get(sid) || { total: 0, correct: 0 });
+    const title = node.querySelector('.section-title');
+    resetTitle(title);
+    const badge = node.querySelector('.home-last10-badge');
+    setLast10Badge(badge, secMap.get(sid) || { total: 0, correct: 0 });
   });
 
   $$('.node.topic').forEach(node => {
     const tid = String(node?.dataset?.id || '').trim();
-    const el = node.querySelector('.title');
-    if (!el) return;
-    applyStatChip(el, topMap.get(tid) || { total: 0, correct: 0 });
+    const title = node.querySelector('.title');
+    resetTitle(title);
+    const badge = node.querySelector('.home-last10-badge');
+    setLast10Badge(badge, topMap.get(tid) || { total: 0, correct: 0 });
   });
 }
 
@@ -737,6 +755,7 @@ function renderSectionNode(sec) {
           value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
+      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge"><b>—</b><span class="small">0/0</span></span>' : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button">Уникальные прототипы</button>
       <div class="spacer"></div>
@@ -818,6 +837,7 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
+      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge"><b>—</b><span class="small">0/0</span></span>' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       
