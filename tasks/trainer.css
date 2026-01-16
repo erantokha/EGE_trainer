@@ -380,6 +380,23 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   font-weight:600;
 }
 
+/* главная ученика: заголовок раздела по ширине текста + УП рядом с названием */
+body[data-home-variant="student"] #accordion .section-title{
+  flex:0 0 auto;
+  width:auto;
+  display:inline-flex;
+  align-items:center;
+  white-space:nowrap;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+
+body[data-home-variant="student"] #accordion .unique-btn{
+  margin-left:5ch;
+}
+
 /* заголовки тем на странице уникальных прототипов делаем жирными */
 #uniqAccordion .section-title{
   font-weight:600;
@@ -394,14 +411,6 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
 }
 .node.section.show-uniq .unique-btn{
   display:inline-flex;
-}
-
-/* кнопка «Все» для темы (подраздела) */
-.topic-all-btn{
-  margin-left:12px;
-  font-size:12px;
-  padding:4px 10px;
-  border-radius:999px;
 }
 
 .node .spacer{flex:1}
@@ -587,9 +596,9 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   .unique-btn{
     margin-left:8px;
   }
-  .topic-all-btn{
-    margin-left:8px;
-    margin-top:4px; /* чуть оторвать кнопку, если текст на две строки */
+
+  body[data-home-variant="student"] #accordion .unique-btn{
+    margin-left:3ch;
   }
 }
 
