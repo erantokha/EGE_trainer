@@ -415,34 +415,28 @@ body[data-home-variant="student"] #accordion .unique-btn{
 
 .node .spacer{flex:1}
 
-/* главная ученика: подсветка по последним 10 попыткам (как в статистике) */
-body[data-home-variant="student"] #accordion .row.stat-gray,
-body[data-home-variant="student"] #accordion .row.stat-red,
-body[data-home-variant="student"] #accordion .row.stat-yellow,
-body[data-home-variant="student"] #accordion .row.stat-lime,
-body[data-home-variant="student"] #accordion .row.stat-green{
-  border-radius:10px;
-}
-
-/* pill со счётом "правильно/всего" для последних 10 */
-body[data-home-variant="student"] #accordion .last10{
+/* главная ученика: подсветка по последним 10 (как в статистике)
+   Важно: подсветку добавляет JS только у залогиненного ученика (через класс .stat-chip). */
+body[data-home-variant="student"] #accordion .stat-chip{
   display:inline-flex;
   align-items:center;
-  justify-content:center;
-  min-width:56px;
-  padding:3px 10px;
+  padding:6px 12px;
   border:1px solid var(--border);
   border-radius:999px;
-  font-size:12px;
   line-height:1;
   white-space:nowrap;
 }
 
+/* чтобы счёт в конце не обрезался троеточием */
+body[data-home-variant="student"] #accordion .section-title.stat-chip,
+body[data-home-variant="student"] #accordion .node.topic .title.stat-chip{
+  overflow:visible;
+  text-overflow:clip;
+}
+
 @media (max-width:640px){
-  body[data-home-variant="student"] #accordion .last10{
-    min-width:52px;
-    padding:3px 8px;
-    font-size:12px;
+  body[data-home-variant="student"] #accordion .stat-chip{
+    padding:6px 10px;
   }
 }
 

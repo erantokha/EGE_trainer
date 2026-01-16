@@ -8,8 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-01-16-15';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-16-15';
+import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-15-14';
+import { CONFIG } from '../app/config.js?v=2026-01-15-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -40,8 +41,12 @@ let CURRENT_ROLE = '';
 
 
 // ---------- Главная ученика: подсветка по статистике (последние 10) ----------
+// Важно: эти данные должны быть только у залогиненного ученика на home_student.html.
+// На гостевом входе (после разлогина) — никакой подсветки/0\/0.
+
 const HOME_VARIANT = String(document.body?.getAttribute('data-home-variant') || '').trim().toLowerCase();
 const IS_STUDENT_HOME = HOME_VARIANT === 'student';
+const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
 
 let _STATS_SEQ = 0;
 
@@ -68,46 +73,110 @@ function fmtLast10(total, correct) {
   return `${c}/${t}`;
 }
 
-function applyLast10ToNode(node, last10) {
-  if (!node) return;
+function ensureBaseTitle(el) {
+  if (!el) return '';
+  if (!el.dataset.baseTitle) {
+    el.dataset.baseTitle = String(el.textContent || '').trim();
+  }
+  return String(el.dataset.baseTitle || '').trim();
+}
+
+function resetStatChip(el) {
+  if (!el) return;
+  const base = ensureBaseTitle(el);
+  if (base) el.textContent = base;
+  el.classList.remove('stat-chip', 'stat-gray', 'stat-red', 'stat-yellow', 'stat-lime', 'stat-green');
+  el.removeAttribute('title');
+}
+
+function applyStatChip(el, last10) {
+  if (!el) return;
+  const base = ensureBaseTitle(el);
+
   const t = Math.max(0, Number(last10?.total || 0) || 0);
   const c = Math.max(0, Number(last10?.correct || 0) || 0);
   const p = pct(t, c);
   const cls = statClassByPct(p);
 
-  const pill = node.querySelector('.last10');
-  if (pill) {
-    pill.textContent = fmtLast10(t, c);
-    pill.classList.remove('stat-gray','stat-red','stat-yellow','stat-lime','stat-green');
-    pill.classList.add(cls);
-    pill.setAttribute('title', 'Правильно/Всего (10 последних)');
+  el.textContent = `${base} ${fmtLast10(t, c)}`;
+  el.classList.add('stat-chip');
+  el.classList.remove('stat-gray', 'stat-red', 'stat-yellow', 'stat-lime', 'stat-green');
+  el.classList.add(cls);
+  el.setAttribute('title', 'Правильно/Всего (10 последних)');
+}
+
+function clearStudentLast10UI() {
+  if (!IS_STUDENT_PAGE) return;
+  $$('.node.section .section-title').forEach(resetStatChip);
+  $$('.node.topic .title').forEach(resetStatChip);
+}
+
+async function fetchStudentDashboardSelf(accessToken) {
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  if (!base) throw new Error('Supabase URL is empty');
+
+  const url = `${base}/rest/v1/rpc/student_dashboard_self`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: String(CONFIG?.supabase?.anonKey || ''),
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ days: 30, source: 'all' }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`student_dashboard_self failed: HTTP ${res.status} ${txt}`);
   }
 
-  // подсветка строки, а не всей ноды (чтобы фон секции не заливал список подтем)
-  const row = node.querySelector('.row');
-  if (row) {
-    row.classList.remove('stat-gray','stat-red','stat-yellow','stat-lime','stat-green');
-    // если данных нет — оставляем строку без фона, подсветка только на pill
-    if (t > 0) row.classList.add(cls);
-  }
+  return await res.json();
+}
+
+function supabaseRefFromUrl(url) {
+  const u = String(url || '')
+    .trim();
+  const m = u.match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co\b/i);
+  return m ? m[1] : '';
+}
+
+function readSessionFallback() {
+  try {
+    const ref = supabaseRefFromUrl(CONFIG?.supabase?.url);
+    if (!ref) return null;
+    const raw = localStorage.getItem(`sb-${ref}-auth-token`);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const s = obj?.currentSession || obj?.session || obj;
+    if (s && s.access_token && s.user && s.user.id) return s;
+  } catch (_) {}
+  return null;
 }
 
 async function refreshStudentLast10() {
-  if (!IS_STUDENT_HOME) return;
+  if (!IS_STUDENT_PAGE) return;
 
   const seq = ++_STATS_SEQ;
 
   let session = null;
   try {
-    session = await getSession({ timeoutMs: 1200, skewSec: 30 });
+    session = await getSession({ timeoutMs: 2000, skewSec: 30 });
   } catch (_) {
     session = null;
   }
-  const uid = session?.user?.id || null;
-  if (!uid) return;
+  if (!session) session = readSessionFallback();
 
-  const cacheKey = `home_student:last10:v1:${uid}`;
+  const uid = session?.user?.id || null;
+  const token = String(session?.access_token || '').trim();
+  if (!uid || !token) {
+    clearStudentLast10UI();
+    return;
+  }
+
+  const cacheKey = `home_student:last10:v2:${uid}`;
   const now = Date.now();
+
   try {
     const raw = sessionStorage.getItem(cacheKey);
     if (raw) {
@@ -122,26 +191,21 @@ async function refreshStudentLast10() {
   } catch (_) {}
 
   try {
-    const { data, error } = await supabase.rpc('student_dashboard_self', { days: 30, source: 'all' });
+    const dash = await fetchStudentDashboardSelf(token);
     if (seq !== _STATS_SEQ) return;
-    if (error) throw error;
+    if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
 
-    const dash = data || null;
-    if (!dash || typeof dash !== 'object') return;
-
-    try {
-      sessionStorage.setItem(cacheKey, JSON.stringify({ ts: now, dash }));
-    } catch (_) {}
+    try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: now, dash })); } catch (_) {}
 
     applyDashboardLast10(dash);
   } catch (e) {
-    // не ломаем страницу выбора задач, просто без подсветки
-    console.warn('last10 dashboard load failed', e);
+    console.warn('home_student last10 load failed', e);
+    clearStudentLast10UI();
   }
 }
 
 function applyDashboardLast10(dash) {
-  if (!IS_STUDENT_HOME) return;
+  if (!IS_STUDENT_PAGE) return;
 
   const sections = Array.isArray(dash?.sections) ? dash.sections : [];
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
@@ -162,15 +226,18 @@ function applyDashboardLast10(dash) {
 
   $$('.node.section').forEach(node => {
     const sid = String(node?.dataset?.id || '').trim();
-    applyLast10ToNode(node, secMap.get(sid) || { total: 0, correct: 0 });
+    const el = node.querySelector('.section-title');
+    if (!el) return;
+    applyStatChip(el, secMap.get(sid) || { total: 0, correct: 0 });
   });
 
   $$('.node.topic').forEach(node => {
     const tid = String(node?.dataset?.id || '').trim();
-    applyLast10ToNode(node, topMap.get(tid) || { total: 0, correct: 0 });
+    const el = node.querySelector('.title');
+    if (!el) return;
+    applyStatChip(el, topMap.get(tid) || { total: 0, correct: 0 });
   });
 }
-
 
 function cleanRedirectUrl() {
   const u = new URL(location.href);
@@ -673,7 +740,7 @@ function renderSectionNode(sec) {
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button">Уникальные прототипы</button>
       <div class="spacer"></div>
-      ${IS_STUDENT_HOME ? '<div class=\"last10 stat-gray\">0/0</div>' : ''}
+      
     </div>
     <div class="children"></div>
   `;
@@ -685,6 +752,8 @@ function renderSectionNode(sec) {
 
   // раскрытие/сворачивание секции + показ/скрытие кнопки «Уникальные прототипы»
   const titleBtn = $('.section-title', node);
+  titleBtn.dataset.baseTitle = `${sec.id}. ${sec.title}`;
+
   titleBtn.addEventListener('click', () => {
     const wasExpanded = node.classList.contains('expanded');
 
@@ -751,9 +820,12 @@ function renderTopicRow(topic) {
       </div>
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
-      ${IS_STUDENT_HOME ? '<div class=\"last10 stat-gray\">0/0</div>' : ''}
+      
     </div>
   `;
+
+  const titleEl = $('.title', row);
+  if (titleEl) titleEl.dataset.baseTitle = `${topic.id}. ${topic.title}`;
 
   // поправка значения count (чтобы не было issues с шаблонной строкой внутри)
   const num = $('.count', row);
