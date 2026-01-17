@@ -132,8 +132,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const url = new URL(location.href);
   const next = sanitizeNext(url.searchParams.get('next'));
 
+  let finalizeResult = null;
   try {
-    await finalizeAuthRedirect({ preserveParams: ['next'], timeoutMs: 8000 }).catch(() => null);
+    finalizeResult = await finalizeAuthRedirect({ preserveParams: ['next'], timeoutMs: 8000 }).catch(() => null);
   } catch (_) {}
 
   const err = url.searchParams.get('error_description') || url.searchParams.get('error') || '';
@@ -163,6 +164,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const loginUrl = new URL(appUrl(CONFIG?.auth?.routes?.login || '/tasks/auth.html'));
   loginUrl.searchParams.set('next', next);
+
+  // Если токен подтверждения отработал, но сессия не появилась — это нормально
+  // (частый кейс: письмо подтвердили на другом устройстве). Просто просим войти.
+  if (finalizeResult?.otpVerified && finalizeResult?.reason === 'verified_no_session') {
+    showStatus('Почта подтверждена.');
+    showHint(
+      'Теперь можно войти на любом устройстве. ' +
+      `Откройте страницу входа: <a href="${loginUrl.toString()}">войти</a>.`
+    );
+    return;
+  }
 
   showStatus('Сессия не создана.');
   showHint(`Откройте страницу входа: <a href="${loginUrl.toString()}">войти</a>.`);
