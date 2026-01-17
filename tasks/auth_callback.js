@@ -165,6 +165,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   const loginUrl = new URL(appUrl(CONFIG?.auth?.routes?.login || '/tasks/auth.html'));
   loginUrl.searchParams.set('next', next);
 
+  // Частый кейс: ссылка подтверждения уже была открыта на другом устройстве,
+  // поэтому здесь она становится недействительной. В этом случае просто
+  // предлагаем войти обычным способом.
+  if (finalizeResult?.reason === 'otp_invalid_or_expired') {
+    showStatus('Ссылка подтверждения недействительна или уже использована.');
+    showHint(
+      'Если вы уже подтверждали почту, просто войдите: ' +
+      `<a href="${loginUrl.toString()}">войти</a>.`
+    );
+    return;
+  }
+
   // Если токен подтверждения отработал, но сессия не появилась — это нормально
   // (частый кейс: письмо подтвердили на другом устройстве). Просто просим войти.
   if (finalizeResult?.otpVerified && finalizeResult?.reason === 'verified_no_session') {
