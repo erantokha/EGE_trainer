@@ -551,6 +551,11 @@ export async function finalizeAuthRedirect(opts = {}) {
     }
   };
 
+  // Флаг: verifyOtp отработал успешно (токен подтверждён), но сессия может
+  // не появиться (например, при подтверждении email после signup).
+  let otpVerified = false;
+  let otpVerifiedType = null;
+
   // Если вернулась ошибка — чистим сразу.
   try {
     const u = new URL(location.href);
@@ -583,6 +588,11 @@ export async function finalizeAuthRedirect(opts = {}) {
       try {
         const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
         if (error) throw error;
+
+        // Токен подтверждён. Сессия может не появиться (например, при подтверждении
+        // email после signup), это не считаем ошибкой.
+        otpVerified = true;
+        otpVerifiedType = type;
       } catch (e) {
         console.warn('verifyOtp failed', e);
       }
@@ -612,10 +622,20 @@ export async function finalizeAuthRedirect(opts = {}) {
         // Даже при таймауте лучше убрать одноразовые параметры, чтобы не застрять.
         doReplace();
       }
-      resolve({ ok, reason });
+      resolve({ ok, reason, otpVerified, otpType: otpVerifiedType });
     };
 
-    const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
+    const allowNoSessionTypes = new Set(['signup', 'invite', 'email_change']);
+    const timer = setTimeout(() => {
+      // Если токен успешно подтверждён, но сессия не появилась —
+      // для signup/invite/email_change это нормально: пользователь может
+      // подтвердить почту на другом устройстве и затем войти.
+      if (otpVerified && allowNoSessionTypes.has(String(otpVerifiedType || ''))) {
+        finish(true, 'verified_no_session');
+      } else {
+        finish(false, 'timeout');
+      }
+    }, timeoutMs);
 
     let unsub = null;
     try {
