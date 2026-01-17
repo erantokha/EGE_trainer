@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
     <meta name="app-build" content="2026-01-17-8">
-<title>Тренажер по задачам из банка ФИПИ</title>
+<title>EGE-trainer — тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
     Главная страница сайта (/): это "вход" в тренажёр.
@@ -15,6 +15,26 @@
   <style>
     /* Чтобы учитель не видел "мигание" ученической главной до редиректа */
     body.gate-pending { visibility: hidden; }
+
+    /* Требования Google OAuth branding verification:
+       1) На главной странице должно быть явно указано имя приложения (EGE-trainer).
+       2) Должна быть видимая ссылка на политику конфиденциальности. */
+    .app-brand{
+      font-size:14px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      opacity:.75;
+      margin:0 0 6px 0;
+    }
+    .site-footer{
+      margin:18px 0 28px;
+      padding:10px 12px;
+      font-size:14px;
+      opacity:.9;
+    }
+    .site-footer a{
+      text-decoration:underline;
+    }
   </style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
 
@@ -24,6 +44,7 @@
     <section id="picker">
       <div class="panel">
         <header id="appHeader" class="page-head">
+  <div class="app-brand">EGE-trainer</div>
   <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
 </header>
 <script type="module">
@@ -100,6 +121,14 @@
       </div>
     </section>
   </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <a href="/privacy.html">Политика конфиденциальности</a>
+    <span class="sep">·</span>
+    <a href="/terms.html">Условия использования</a>
+    <span class="sep">·</span>
+    <a href="mailto:support@ege-trainer.ru">support@ege-trainer.ru</a>
+  </footer>
     <script type="module" src="./tasks/home_router.js?v=2026-01-17-8"></script>
 
 <script src="./tasks/theme.js?v=2026-01-17-8" defer></script>
