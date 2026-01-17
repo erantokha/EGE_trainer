@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-01-17-7';
+import { CONFIG } from '../config.js?v=2026-01-17-4';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -491,15 +491,45 @@ function stripAuthParamsFromUrl(urlStr, preserveParams = []) {
     if (preserve.has(k)) kept.set(k, v);
   }
 
+  // Remember if legacy auth params were present.
+  const hadType = u.searchParams.has('type');
+
+  // Remove known one-time auth params.
   ['code', 'state', 'error', 'error_description', 'token_hash', 'type', 'redirect_to'].forEach((k) => u.searchParams.delete(k));
-  // Важно: ?token=... используется в ссылках на ДЗ (/tasks/hw.html?token=...).
-  // Старый auth-параметр token удаляем только если рядом есть type.
-  if (u.searchParams.has('type')) u.searchParams.delete('token');
+
+  // Important: ?token=... is also used for homework links (/tasks/hw.html?token=...).
+  // We only remove legacy auth token if it was accompanied by type.
+  if (hadType) u.searchParams.delete('token');
 
   for (const [k, v] of kept.entries()) {
     u.searchParams.set(k, v);
   }
   return u;
+}
+
+function _otpTypeFromUrl(rawType) {
+  const t = String(rawType || '').trim().toLowerCase();
+  if (!t) return null;
+  // Some templates mistakenly use type=email; Supabase expects signup.
+  if (t === 'email' || t === 'signup') return 'signup';
+  if (t === 'recovery') return 'recovery';
+  if (t === 'invite') return 'invite';
+  if (t === 'magiclink') return 'magiclink';
+  if (t === 'email_change') return 'email_change';
+  return null;
+}
+
+function _classifyOtpError(err) {
+  const msg = String(err?.message || err?.error_description || err || '').toLowerCase();
+  const code = String(err?.code || err?.status || '').toLowerCase();
+  // Best-effort classification across Supabase versions.
+  if (msg.includes('expired') || msg.includes('invalid') || msg.includes('not found') || msg.includes('already used')) {
+    return { kind: 'otp_invalid_or_expired', message: String(err?.message || err) };
+  }
+  if (code === '403' || code === '401') {
+    return { kind: 'otp_invalid_or_expired', message: String(err?.message || err) };
+  }
+  return { kind: 'otp_failed', message: String(err?.message || err) };
 }
 
 function hasAuthParams(urlStr) {
@@ -523,27 +553,35 @@ function hasAuthParams(urlStr) {
 // Универсальный финалайзер редиректов Auth:
 // - OAuth PKCE: ?code=...
 // - email confirm / recovery: ?token_hash=...&type=...
+
+
 export async function finalizeAuthRedirect(opts = {}) {
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 8000) || 0);
+  const pollMs = Math.max(50, Number(opts?.pollMs ?? 150) || 150);
   const preserveParams = Array.isArray(opts?.preserveParams) ? opts.preserveParams : [];
 
-  if (!hasAuthParams(location.href)) return { ok: false, reason: 'no_auth_params' };
+  if (!hasAuthParams(location.href)) {
+    return { ok: false, reason: 'no_auth_params', otpVerified: false, otpError: null, otpErrorMessage: null, session: null };
+  }
 
-  // guard: один раз на вкладку/страницу
+  // Guard: run at most once per (page + token/code) per tab.
   try {
-    let __guardSuffix = '';
-  try {
-    const __u0 = new URL(location.href);
-    __guardSuffix = __u0.searchParams.get('token_hash') || __u0.searchParams.get('code') || '';
-  } catch (_) {}
-  const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}:${__guardSuffix}`;
-    if (sessionStorage.getItem(k)) return { ok: false, reason: 'already_finalized' };
+    let suffix = '';
+    try {
+      const u0 = new URL(location.href);
+      suffix = u0.searchParams.get('token_hash') || u0.searchParams.get('code') || (u0.searchParams.has('type') ? (u0.searchParams.get('token') || '') : '') || '';
+    } catch (_) {}
+    const k = `${OAUTH_FINALIZE_KEY_PREFIX}auth:${location.pathname}:${suffix}`;
+    if (sessionStorage.getItem(k)) {
+      return { ok: false, reason: 'already_finalized', otpVerified: false, otpError: null, otpErrorMessage: null, session: null };
+    }
     sessionStorage.setItem(k, '1');
   } catch (_) {}
 
   const doReplace = () => {
     try {
       const cleaned = stripAuthParamsFromUrl(location.href, preserveParams);
+      cleaned.hash = '';
       history.replaceState(null, document.title, cleaned.toString());
       return true;
     } catch (_) {
@@ -551,24 +589,26 @@ export async function finalizeAuthRedirect(opts = {}) {
     }
   };
 
-  // Флаг: verifyOtp отработал успешно (токен подтверждён), но сессия может
-  // не появиться (например, при подтверждении email после signup).
+  const resultBase = (otpVerified, otpErr) => ({
+    otpVerified: !!otpVerified,
+    otpError: otpErr?.kind ?? null,
+    otpErrorMessage: otpErr?.message ?? null,
+  });
+
   let otpVerified = false;
-  let otpVerifiedType = null;
+  let otpErr = null; // { kind, message }
 
-  // Если вернулась ошибка — чистим сразу.
-  try {
-    const u = new URL(location.href);
-    if (u.searchParams.has('error') || u.searchParams.has('error_description')) {
-      doReplace();
-      return { ok: true, reason: 'auth_error' };
-    }
-  } catch (_) {}
+  let u = null;
+  try { u = new URL(location.href); } catch (_) { u = null; }
 
-  // Пытаемся явно завершить flow (помогает в PKCE)
-  try {
-    const u = new URL(location.href);
+  // If returned with explicit error params — clean and stop.
+  if (u && (u.searchParams.has('error') || u.searchParams.has('error_description'))) {
+    doReplace();
+    return { ok: false, reason: 'auth_error', session: null, ...resultBase(false, null) };
+  }
 
+  // Explicitly finish flows (PKCE and token_hash links).
+  if (u) {
     const code = u.searchParams.get('code');
     if (code) {
       try {
@@ -579,91 +619,68 @@ export async function finalizeAuthRedirect(opts = {}) {
       }
     }
 
-    const rawType = u.searchParams.get('type');
-    // В некоторых шаблонах писем ошибочно ставят type=email; на API это невалидно.
-    // Поддержим совместимость: email -> signup.
-    const type = (rawType === 'email') ? 'signup' : rawType;
-    const tokenHash = u.searchParams.get('token_hash') || (type ? u.searchParams.get('token') : null);
-    if (tokenHash && type) {
-      try {
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-        if (error) throw error;
+    const type = _otpTypeFromUrl(u.searchParams.get('type'));
+    const tokenHash = u.searchParams.get('token_hash');
+    const legacyToken = u.searchParams.get('token');
 
-        // Токен подтверждён. Сессия может не появиться (например, при подтверждении
-        // email после signup), это не считаем ошибкой.
+    if (type && (tokenHash || legacyToken)) {
+      const th = tokenHash || legacyToken;
+      try {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: th, type });
+        if (error) throw error;
         otpVerified = true;
-        otpVerifiedType = type;
       } catch (e) {
+        otpErr = _classifyOtpError(e);
         console.warn('verifyOtp failed', e);
       }
     }
-  } catch (_) {}
+  }
 
-  // 1) Быстрый путь: если сессия уже поднялась — чистим URL.
+  // Fast path: session is already present.
   try {
     const { data } = await supabase.auth.getSession();
     if (data?.session) {
       doReplace();
-      return { ok: true, reason: 'session_ready' };
+      return { ok: true, reason: 'session_ready', session: data.session, ...resultBase(otpVerified, otpErr) };
     }
   } catch (_) {}
 
-  // 2) Ждём события auth или появления session (поллинг)
-  return await new Promise((resolve) => {
-    let settled = false;
+  // If otp link is invalid/expired, no point waiting.
+  if (otpErr && otpErr.kind === 'otp_invalid_or_expired' && !otpVerified) {
+    doReplace();
+    return { ok: false, reason: 'otp_invalid_or_expired', session: null, ...resultBase(false, otpErr) };
+  }
 
-    const finish = (ok, reason) => {
-      if (settled) return;
-      settled = true;
-      try { unsub?.unsubscribe?.(); } catch (_) {}
-      try { clearInterval(pollId); } catch (_) {}
-      if (ok) doReplace();
-      else {
-        // Даже при таймауте лучше убрать одноразовые параметры, чтобы не застрять.
-        doReplace();
-      }
-      resolve({ ok, reason, otpVerified, otpType: otpVerifiedType });
-    };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const deadline = Date.now() + timeoutMs;
 
-    const allowNoSessionTypes = new Set(['signup', 'invite', 'email_change']);
-    const timer = setTimeout(() => {
-      // Если токен успешно подтверждён, но сессия не появилась —
-      // для signup/invite/email_change это нормально: пользователь может
-      // подтвердить почту на другом устройстве и затем войти.
-      if (otpVerified && allowNoSessionTypes.has(String(otpVerifiedType || ''))) {
-        finish(true, 'verified_no_session');
-      } else {
-        finish(false, 'timeout');
-      }
-    }, timeoutMs);
-
-    let unsub = null;
+  while (true) {
     try {
-      const sub = supabase.auth.onAuthStateChange((event, session) => {
-        if (session) {
-          clearTimeout(timer);
-          finish(true, `event:${event || 'unknown'}`);
-        }
-      });
-      unsub = sub?.data?.subscription || sub?.subscription || null;
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        doReplace();
+        return { ok: true, reason: 'poll_session_ready', session: data.session, ...resultBase(otpVerified, otpErr) };
+      }
     } catch (_) {}
 
-    let tries = 0;
-    const pollId = setInterval(async () => {
-      tries += 1;
-      try {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session) {
-          clearTimeout(timer);
-          finish(true, 'poll_session_ready');
-        }
-      } catch (_) {}
-      if (tries >= 20) {
-        // ~4s при 200ms
-      }
-    }, 200);
-  });
+    if (Date.now() >= deadline) break;
+    await sleep(pollMs);
+  }
+
+  // Timeout: still clean url, and return a hint.
+  doReplace();
+
+  if (otpVerified) {
+    return { ok: true, reason: 'verified_no_session', session: null, ...resultBase(true, otpErr) };
+  }
+
+  if (otpErr) {
+    return { ok: false, reason: otpErr.kind || 'otp_failed', session: null, ...resultBase(false, otpErr) };
+  }
+
+  return { ok: false, reason: 'timeout', session: null, ...resultBase(false, null) };
 }
+
 
 // Очищаем ?code=&state= из URL один раз после успешного обмена (Supabase PKCE OAuth).
 // Важно: не трогаем URL, пока exchange не завершился (ждём SIGNED_IN или появление session).
