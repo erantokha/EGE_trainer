@@ -122,6 +122,9 @@
 
             <div class="stats-actions" style="margin-top:10px">
               <button id="smartRecLoad" class="btn" type="button">Подобрать темы</button>
+              <button id="smartRecAddAll" class="btn" type="button">Добавить все</button>
+              <button id="smartRecAddTop5" class="btn" type="button">Топ-5</button>
+              <button id="smartRecAddTop10" class="btn" type="button">Топ-10</button>
               <button id="smartPlanClear" class="btn" type="button">Очистить план</button>
               <button id="smartHwClose" class="btn" type="button">Скрыть</button>
               <span id="smartHwStatus" class="muted"></span>
@@ -130,6 +133,16 @@
             <div class="smart-hw-grid" style="margin-top:12px">
               <div>
                 <div class="smart-hw-subhead">Рекомендованные темы</div>
+                <div class="smart-hw-toolbar">
+                  <input id="smartRecSearch" class="smart-hw-search" type="text" placeholder="Поиск темы…">
+                  <select id="smartRecSort" class="smart-hw-sort">
+                    <option value="score" selected>по важности</option>
+                    <option value="worst">хуже точность</option>
+                    <option value="oldest">давно не решал</option>
+                    <option value="few">мало попыток</option>
+                    <option value="title">по названию</option>
+                  </select>
+                </div>
                 <div id="smartRecList" class="smart-hw-list"></div>
               </div>
 
@@ -138,11 +151,12 @@
                 <div id="smartPlanList" class="smart-hw-list"></div>
 
                 <div class="smart-hw-total">
-                  Всего задач: <span id="smartPlanTotal">0</span>
+                  Тем: <span id="smartPlanTopics">0</span> · Всего задач: <span id="smartPlanTotal">0</span>
                 </div>
 
-                <div class="stats-actions" style="margin-top:10px">
+                <div class="stats-actions" style="margin-top:10px; align-items:center">
                   <button id="smartHwCreate" class="btn" type="button" disabled>Создать ДЗ</button>
+                  <span id="smartHwCreateHint" class="smart-hw-hint"></span>
                 </div>
 
                 <div id="smartHwResult" class="hidden" style="margin-top:12px">

@@ -525,7 +525,7 @@ if (statsFiltersToggle && statsControls) {
 }
 
 
-    // ----- smart homework (teacher): рекомендации -> план -> создание -----
+  // ----- smart homework (teacher): рекомендации -> план -> создание -----
   const smartBlock = $('#smartHwBlock');
   if (smartBlock) smartBlock.style.display = '';
 
@@ -550,24 +550,136 @@ if (statsFiltersToggle && statsControls) {
   const recIncludeUncoveredEl = $('#smartRecIncludeUncovered');
 
   const recLoadBtn = $('#smartRecLoad');
+  const recAddAllBtn = $('#smartRecAddAll');
+  const recAddTop5Btn = $('#smartRecAddTop5');
+  const recAddTop10Btn = $('#smartRecAddTop10');
   const planClearBtn = $('#smartPlanClear');
+
+  const recSearchEl = $('#smartRecSearch');
+  const recSortEl = $('#smartRecSort');
 
   const recListEl = $('#smartRecList');
   const planListEl = $('#smartPlanList');
   const planTotalEl = $('#smartPlanTotal');
+  const planTopicsEl = $('#smartPlanTopics');
 
   const titleEl = $('#smartHwTitle');
   const createBtn = $('#smartHwCreate');
+  const createHintEl = $('#smartHwCreateHint');
 
   const resultBox = $('#smartHwResult');
   const linkEl = $('#smartHwLink');
   const copyBtn = $('#smartHwCopy');
   const openBtn = $('#smartHwOpen');
 
-  // дефолты — из фильтров статистики
-  if (recDaysEl) recDaysEl.value = String(statsUi.daysSel.value || '30');
-  if (recSourceEl) recSourceEl.value = String(statsUi.sourceSel.value || 'all');
-  if (titleEl) titleEl.value = `Умное ДЗ (${todayISO()})`;
+  // -------- smart state (filters + plan) --------
+  function debounce(fn, ms) {
+    let t = null;
+    return (...args) => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  }
+
+  const LS_FILTERS_KEY = `smart_hw_filters_v1:${studentId}`;
+  const LS_PLAN_KEY = `smart_hw_plan_v1:${studentId}`;
+
+  const ui = {
+    search: '',
+    sort: 'score',
+  };
+
+  // plan: topic_id -> { count, title, reason, why, meta }
+  const plan = new Map();
+  let lastRecsRaw = [];
+  let lastRecsView = [];
+  let lastDash = null;
+  let lastKey = '';
+
+  const saveFilters = debounce(() => {
+    try {
+      const obj = {
+        days: String(recDaysEl?.value || ''),
+        source: String(recSourceEl?.value || ''),
+        mode: String(recModeEl?.value || ''),
+        min: String(recMinEl?.value || ''),
+        limit: String(recLimitEl?.value || ''),
+        def: String(recDefaultCountEl?.value || ''),
+        unc: !!recIncludeUncoveredEl?.checked,
+        title: String(titleEl?.value || ''),
+        search: String(ui.search || ''),
+        sort: String(ui.sort || 'score'),
+      };
+      localStorage.setItem(LS_FILTERS_KEY, JSON.stringify(obj));
+    } catch (_) {}
+  }, 250);
+
+  const savePlan = debounce(() => {
+    try {
+      const items = [];
+      for (const [tid, it] of plan.entries()) {
+        const c = safeInt(it?.count, 0);
+        if (c <= 0) continue;
+        items.push({
+          topic_id: String(tid),
+          count: c,
+          title: String(it?.title || ''),
+          reason: String(it?.reason || ''),
+          why: String(it?.why || ''),
+          meta: it?.meta || null,
+        });
+      }
+      localStorage.setItem(LS_PLAN_KEY, JSON.stringify({ items }));
+    } catch (_) {}
+  }, 250);
+
+  function loadSmartFromStorage() {
+    // дефолты — из фильтров статистики
+    if (recDaysEl) recDaysEl.value = String(statsUi.daysSel.value || '30');
+    if (recSourceEl) recSourceEl.value = String(statsUi.sourceSel.value || 'all');
+    if (titleEl) titleEl.value = `Умное ДЗ (${todayISO()})`;
+
+    try {
+      const raw = localStorage.getItem(LS_FILTERS_KEY);
+      const obj = raw ? JSON.parse(raw) : null;
+      if (obj && typeof obj === 'object') {
+        if (recDaysEl && obj.days) recDaysEl.value = String(obj.days);
+        if (recSourceEl && obj.source) recSourceEl.value = String(obj.source);
+        if (recModeEl && obj.mode) recModeEl.value = String(obj.mode);
+        if (recMinEl && obj.min) recMinEl.value = String(obj.min);
+        if (recLimitEl && obj.limit) recLimitEl.value = String(obj.limit);
+        if (recDefaultCountEl && obj.def) recDefaultCountEl.value = String(obj.def);
+        if (recIncludeUncoveredEl) recIncludeUncoveredEl.checked = (obj.unc !== false);
+        if (titleEl && obj.title) titleEl.value = String(obj.title);
+
+        ui.search = String(obj.search || '');
+        ui.sort = String(obj.sort || 'score');
+        if (recSearchEl) recSearchEl.value = ui.search;
+        if (recSortEl) recSortEl.value = ui.sort;
+      }
+    } catch (_) {}
+
+    try {
+      const raw = localStorage.getItem(LS_PLAN_KEY);
+      const obj = raw ? JSON.parse(raw) : null;
+      const items = Array.isArray(obj?.items) ? obj.items : [];
+      for (const it of items) {
+        const tid = String(it?.topic_id || '').trim();
+        if (!tid) continue;
+        const c = safeInt(it?.count, 0);
+        if (c <= 0) continue;
+        plan.set(tid, {
+          count: c,
+          title: String(it?.title || ''),
+          reason: String(it?.reason || ''),
+          why: String(it?.why || ''),
+          meta: it?.meta || null,
+        });
+      }
+    } catch (_) {}
+  }
+
+  loadSmartFromStorage();
 
   function smartSetStatus(text, kind = '') {
     if (!smartStatus) return;
@@ -592,21 +704,31 @@ if (statsFiltersToggle && statsControls) {
     return Number.isFinite(n) ? Math.trunc(n) : def;
   }
 
-  const plan = new Map(); // topic_id -> count
-  let lastRecs = [];
-  let lastDash = null;
-  let lastKey = '';
+  // ---------- helpers ----------
 
   function computePlanTotal() {
     let sum = 0;
-    for (const v of plan.values()) sum += safeInt(v, 0);
+    for (const it of plan.values()) sum += safeInt(it?.count, 0);
     return sum;
   }
 
   function updateCreateState() {
-    const total = computePlanTotal();
-    if (planTotalEl) planTotalEl.textContent = String(total);
-    if (createBtn) createBtn.disabled = total <= 0;
+    const totalTasks = computePlanTotal();
+    const totalTopics = plan.size;
+    if (planTotalEl) planTotalEl.textContent = String(totalTasks);
+    if (planTopicsEl) planTopicsEl.textContent = String(totalTopics);
+
+    const title = String(titleEl?.value || '').trim();
+    let can = true;
+    let why = '';
+    if (totalTasks <= 0) { can = false; why = 'Добавьте темы в план.'; }
+    else if (!title) { can = false; why = 'Введите название ДЗ.'; }
+
+    if (createBtn) createBtn.disabled = !can;
+    if (createHintEl) {
+      createHintEl.textContent = can ? '' : why;
+      createHintEl.className = can ? 'smart-hw-hint' : 'smart-hw-hint err';
+    }
   }
 
   function topicName(topicId) {
@@ -627,24 +749,30 @@ if (statsFiltersToggle && statsControls) {
     }
 
     for (const tid of ids) {
-      const cnt = safeInt(plan.get(tid), 0);
+      const it = plan.get(tid) || { count: 0 };
+      const cnt = safeInt(it?.count, 0);
 
-      const num = el('input', {
-        type: 'number',
-        min: '0',
-        max: '50',
-        value: String(cnt),
-      });
-      num.addEventListener('change', () => {
-        const v = safeInt(num.value, 0);
+      const minusBtn = el('button', { type:'button', class:'btn btn-compact', text:'−' });
+      minusBtn.addEventListener('click', () => {
+        const v = safeInt((plan.get(tid)?.count ?? 0), 0) - 1;
         if (v <= 0) plan.delete(tid);
-        else plan.set(tid, v);
+        else plan.set(tid, { ...(plan.get(tid) || {}), count: v });
+        savePlan();
         renderPlan();
       });
 
-      const removeBtn = el('button', { type:'button', class:'btn btn-danger btn-compact', text:'Убрать' });
+      const plusBtn = el('button', { type:'button', class:'btn btn-compact', text:'+' });
+      plusBtn.addEventListener('click', () => {
+        const v = safeInt((plan.get(tid)?.count ?? 0), 0) + 1;
+        plan.set(tid, { ...(plan.get(tid) || {}), count: v });
+        savePlan();
+        renderPlan();
+      });
+
+      const removeBtn = el('button', { type:'button', class:'btn btn-danger btn-compact', text:'Удалить' });
       removeBtn.addEventListener('click', () => {
         plan.delete(tid);
+        savePlan();
         renderPlan();
       });
 
@@ -652,12 +780,14 @@ if (statsFiltersToggle && statsControls) {
         el('div', { class:'row' }, [
           el('div', { class:'name', text: topicName(tid) }),
           el('div', { class:'actions' }, [
-            el('div', { class:'muted', text:'задач:' }),
-            num,
+            minusBtn,
+            el('span', { class:'smart-count-pill', text: String(cnt) }),
+            plusBtn,
             removeBtn,
           ]),
         ]),
-      ]);
+        (it?.why ? el('div', { class:'small muted', style:'margin-top:6px', text: String(it.why) }) : null),
+      ].filter(Boolean));
 
       planListEl.appendChild(row);
     }
@@ -665,21 +795,57 @@ if (statsFiltersToggle && statsControls) {
     updateCreateState();
   }
 
-  function addToPlan(topicId, count) {
+  function addToPlan(topicId, count, rec = null) {
     const tid = String(topicId || '').trim();
     if (!tid) return;
     const c = safeInt(count, 0);
     if (c <= 0) return;
 
-    const prev = safeInt(plan.get(tid), 0);
-    plan.set(tid, prev + c);
+    const prev = plan.get(tid) || { count: 0 };
+    const nextCount = safeInt(prev?.count, 0) + c;
+    plan.set(tid, {
+      count: nextCount,
+      title: topicName(tid),
+      reason: String(rec?.reason || prev?.reason || ''),
+      why: String(rec?.why || prev?.why || ''),
+      meta: rec ? ({
+        period_pct: rec.period_pct,
+        period_total: rec.period_total,
+        period_correct: rec.period_correct,
+        last_seen_at: rec.last_seen_at || null,
+      }) : (prev?.meta || null),
+    });
+    savePlan();
     renderPlan();
   }
 
-  function renderRecs(recs) {
+  function compareRecs(a, b, mode) {
+    if (mode === 'title') return topicName(a.topic_id).localeCompare(topicName(b.topic_id), 'ru');
+    if (mode === 'worst') return safeInt(a.period_pct, 999) - safeInt(b.period_pct, 999);
+    if (mode === 'few') return safeInt(a.period_total, 999) - safeInt(b.period_total, 999);
+    if (mode === 'oldest') {
+      const ta = a.last_seen_at ? new Date(a.last_seen_at).getTime() : 0;
+      const tb = b.last_seen_at ? new Date(b.last_seen_at).getTime() : 0;
+      return ta - tb;
+    }
+    return safeInt(a.score, 999999) - safeInt(b.score, 999999);
+  }
+
+  function rebuildRecsView() {
+    const q = String(ui.search || '').trim().toLowerCase();
+    let arr = Array.isArray(lastRecsRaw) ? lastRecsRaw.slice() : [];
+    if (q) {
+      arr = arr.filter((r) => topicName(r.topic_id).toLowerCase().includes(q));
+    }
+    arr.sort((a, b) => compareRecs(a, b, ui.sort || 'score'));
+    lastRecsView = arr;
+  }
+
+  function renderRecs() {
     if (!recListEl) return;
     recListEl.innerHTML = '';
 
+    const recs = lastRecsView;
     if (!Array.isArray(recs) || recs.length === 0) {
       recListEl.appendChild(el('div', { class:'muted', text:'Рекомендаций нет. Попробуйте увеличить период или включить непокрытые темы.' }));
       return;
@@ -693,9 +859,12 @@ if (statsFiltersToggle && statsControls) {
       const badgeCls = reason === 'weak' ? 'red' : (reason === 'low' ? 'yellow' : (reason === 'uncovered' ? 'gray' : 'gray'));
       const reasonText = reason === 'weak' ? 'плохая точность' : (reason === 'low' ? 'мало решено' : (reason === 'uncovered' ? 'не решал' : reason));
 
-      const cntInput = el('input', { type:'number', min:'1', max:'20', value: String(defCount) });
-      const addBtn = el('button', { type:'button', class:'btn btn-compact', text:'Добавить' });
-      addBtn.addEventListener('click', () => addToPlan(tid, cntInput.value));
+      const btnDef = el('button', { type:'button', class:'btn btn-compact', text:`+${defCount}` });
+      btnDef.addEventListener('click', () => addToPlan(tid, defCount, r));
+      const btn1 = el('button', { type:'button', class:'btn btn-compact', text:'+1' });
+      btn1.addEventListener('click', () => addToPlan(tid, 1, r));
+      const btn3 = el('button', { type:'button', class:'btn btn-compact', text:'+3' });
+      btn3.addEventListener('click', () => addToPlan(tid, 3, r));
 
       const metaLine = [
         (r.period_pct == null) ? '—' : `${r.period_pct}%`,
@@ -711,15 +880,12 @@ if (statsFiltersToggle && statsControls) {
           el('span', { class:'small', text:`Период: ${metaLine}` }),
           (r.last_seen_at ? el('span', { class:'small', text:`последняя: ${fmtDateTime(r.last_seen_at)}` }) : null),
         ].filter(Boolean)),
-        el('div', { class:'actions' }, [
-          el('span', { class:'muted', text:'добавить:' }),
-          cntInput,
-          addBtn,
-        ]),
+        (r.why ? el('div', { class:'small muted', style:'margin-top:6px', text:String(r.why) }) : null),
+        el('div', { class:'actions' }, [btnDef, btn1, btn3]),
       ]);
 
-      // клик по карточке тоже добавляет
-      card.addEventListener('dblclick', () => addToPlan(tid, cntInput.value));
+      // dblclick по карточке тоже добавляет
+      card.addEventListener('dblclick', () => addToPlan(tid, defCount, r));
 
       recListEl.appendChild(card);
     }
@@ -727,7 +893,7 @@ if (statsFiltersToggle && statsControls) {
 
   async function loadRecommendations(force = false) {
     const k = settingsKey();
-    if (!force && lastKey === k && Array.isArray(lastRecs) && lastRecs.length) return;
+    if (!force && lastKey === k && Array.isArray(lastRecsRaw) && lastRecsRaw.length) return;
 
     smartSetStatus('Подбираем темы…');
     if (recLoadBtn) recLoadBtn.disabled = true;
@@ -751,7 +917,7 @@ if (statsFiltersToggle && statsControls) {
       });
 
       const recMod = await import(withV('./recommendations.js'));
-      lastRecs = recMod.buildRecommendations(lastDash, catalog, {
+      lastRecsRaw = recMod.buildRecommendations(lastDash, catalog, {
         mode,
         minAttempts,
         limit,
@@ -759,8 +925,9 @@ if (statsFiltersToggle && statsControls) {
       });
 
       lastKey = k;
-      renderRecs(lastRecs);
-      smartSetStatus(lastRecs.length ? 'Темы подобраны.' : 'Нет рекомендаций.');
+      rebuildRecsView();
+      renderRecs();
+      smartSetStatus(lastRecsRaw.length ? 'Темы подобраны.' : 'Нет рекомендаций.');
     } catch (e) {
       if (isAccessDenied(e)) {
         smartSetStatus('Нет доступа (ACCESS_DENIED). Проверьте привязку ученика и права учителя.', 'err');
@@ -780,8 +947,8 @@ if (statsFiltersToggle && statsControls) {
 
     try {
       const topics = {};
-      for (const [tid, cnt] of plan.entries()) {
-        const c = safeInt(cnt, 0);
+      for (const [tid, it] of plan.entries()) {
+        const c = safeInt(it?.count, 0);
         if (c > 0) topics[String(tid)] = c;
       }
       const totalWanted = Object.values(topics).reduce((a, b) => a + safeInt(b, 0), 0);
@@ -852,13 +1019,59 @@ if (statsFiltersToggle && statsControls) {
 
   if (recLoadBtn) recLoadBtn.addEventListener('click', () => loadRecommendations(true));
 
+  if (recAddAllBtn) recAddAllBtn.addEventListener('click', () => {
+    const n = safeInt(recDefaultCountEl?.value, 2);
+    for (const r of (lastRecsView || [])) addToPlan(r.topic_id, n, r);
+    smartSetStatus('Темы добавлены в план.');
+  });
+  if (recAddTop5Btn) recAddTop5Btn.addEventListener('click', () => {
+    const n = safeInt(recDefaultCountEl?.value, 2);
+    for (const r of (lastRecsView || []).slice(0, 5)) addToPlan(r.topic_id, n, r);
+    smartSetStatus('Топ-5 добавлены в план.');
+  });
+  if (recAddTop10Btn) recAddTop10Btn.addEventListener('click', () => {
+    const n = safeInt(recDefaultCountEl?.value, 2);
+    for (const r of (lastRecsView || []).slice(0, 10)) addToPlan(r.topic_id, n, r);
+    smartSetStatus('Топ-10 добавлены в план.');
+  });
+
+  if (recSearchEl) recSearchEl.addEventListener('input', () => {
+    ui.search = String(recSearchEl.value || '');
+    rebuildRecsView();
+    renderRecs();
+    saveFilters();
+  });
+  if (recSortEl) recSortEl.addEventListener('change', () => {
+    ui.sort = String(recSortEl.value || 'score');
+    rebuildRecsView();
+    renderRecs();
+    saveFilters();
+  });
+
   if (planClearBtn) planClearBtn.addEventListener('click', () => {
     plan.clear();
+    savePlan();
     renderPlan();
     smartSetStatus('План очищен.');
   });
 
   if (createBtn) createBtn.addEventListener('click', createHomeworkFromPlan);
+
+  if (titleEl) titleEl.addEventListener('input', () => {
+    updateCreateState();
+    saveFilters();
+  });
+
+  // сохраняем фильтры при изменении селектов/чекбокса
+  const filterEls = [recDaysEl, recSourceEl, recModeEl, recMinEl, recLimitEl, recDefaultCountEl, recIncludeUncoveredEl];
+  for (const fe of filterEls) {
+    if (!fe) continue;
+    fe.addEventListener('change', () => {
+      saveFilters();
+      smartSetStatus('Настройки обновлены. Нажмите «Подобрать темы».');
+      updateCreateState();
+    });
+  }
 
   if (copyBtn) copyBtn.addEventListener('click', async () => {
     const ok = await copyToClipboard(linkEl?.value || '');
@@ -871,8 +1084,11 @@ if (statsFiltersToggle && statsControls) {
   });
 
   // первичный рендер
+  rebuildRecsView();
   renderPlan();
-async function loadDashboard() {
+  renderRecs();
+
+  async function loadDashboard() {
     setStatus('');
     statsUi.statusEl.innerHTML = '';
     statsUi.overallEl.innerHTML = '';

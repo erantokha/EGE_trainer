@@ -17,6 +17,27 @@ function pct(total, correct) {
   return Math.round((c / t) * 100);
 }
 
+function topicSortKey(topicId) {
+  // нужно для стабильного score у uncovered
+  const s = String(topicId || '').trim();
+  const m = s.match(/^([0-9]{1,2})(?:\.(\d+))?/);
+  if (!m) return 999999;
+  const a = safeInt(m[1], 99);
+  const b = safeInt(m[2], 9999);
+  return a * 10000 + b;
+}
+
+function buildWhy({ reason, perPct, perTotal, last10Pct }) {
+  if (reason === 'uncovered') return 'Нет попыток в выбранном периоде.';
+  if (reason === 'low') return `Мало попыток: ${perTotal} за период.`;
+  if (reason === 'weak') {
+    const parts = [`Точность ${perPct}% за период при ${perTotal} попытках.`];
+    if (last10Pct != null) parts.push(`Последние 10: ${last10Pct}%.`);
+    return parts.join(' ');
+  }
+  return '';
+}
+
 function topicIdToSectionId(topicId) {
   const s = String(topicId || '').trim();
   const m = s.match(/^([0-9]{1,2})\./);
@@ -84,6 +105,14 @@ export function buildRecommendations(dash, catalog, {
     // по умолчанию рекомендуем только проблемные, а не «всё подряд»
     if (mode === 'mixed' && !reason) continue;
 
+    const why = buildWhy({ reason, perPct, perTotal, last10Pct });
+
+    // score: меньше = выше в списке (для sortMode=score)
+    let score = 999999;
+    if (reason === 'weak') score = safeInt(perPct, 999) * 100 + safeInt(perTotal, 0);
+    else if (reason === 'low') score = 100000 + safeInt(perTotal, 0);
+    else if (reason === 'uncovered') score = 200000 + topicSortKey(tid);
+
     list.push({
       topic_id: tid,
       section_id: String(r?.section_id || topicIdToSectionId(tid) || '').trim(),
@@ -94,6 +123,8 @@ export function buildRecommendations(dash, catalog, {
       last10_pct: last10Pct,
       all_time_pct: allPct,
       last_seen_at: r?.last_seen_at || null,
+      why,
+      score,
     });
   }
 
