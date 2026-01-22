@@ -217,6 +217,48 @@ a:hover{text-decoration:underline}
   border-radius:10px;
 }
 
+
+
+/* Главная ученика: Умная тренировка (настройки) */
+#picker .smart-controls{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:var(--row-gap);
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--panel-2);
+}
+#picker .smart-controls .smart-left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+#picker .smart-controls .smart-n{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-wrap:wrap;
+}
+#picker .smart-controls .smart-label{
+  font-size:12px;
+  color:var(--text-dim);
+  margin-right:2px;
+}
+#picker .smart-controls .smart-n-btn.active{
+  background:var(--accent);
+  color:#fff;
+  box-shadow:0 0 0 1px rgba(59,130,246,.6);
+}
+#picker .smart-controls .smart-hint{
+  font-size:12px;
+  color:var(--text-dim);
+  max-width:560px;
+}
 @media (max-width: 640px){
   #picker .controls{
     justify-content:flex-start;

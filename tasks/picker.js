@@ -27,6 +27,10 @@ let CHOICE_SECTIONS = {}; // sectionId -> count
 let CURRENT_MODE = 'list'; // 'list' | 'test'
 let SHUFFLE_TASKS = false;
 
+let PICK_MODE = 'manual'; // 'manual' | 'smart' (только для главной ученика)
+let SMART_N = 10;
+let LAST_DASH = null; // dashboard из student_dashboard_self (p_days=30)
+
 let LAST_SELECTION = null;
 
 
@@ -106,30 +110,43 @@ function resetTitle(el) {
   el.removeAttribute('title');
 }
 
-function setLast10Badge(badgeEl, last10) {
-  if (!badgeEl) return;
-  const t = Math.max(0, Number(last10?.total || 0) || 0);
-  const c = Math.max(0, Number(last10?.correct || 0) || 0);
-  const p = pct(t, c);
-  const cls = badgeClassByPct(p);
 
-  // оставляем "badge" и "home-last10-badge", меняем только цвет
+function setHomeStatBadge(badgeEl, period, last10) {
+  if (!badgeEl) return;
+
+  const pt = Math.max(0, Number(period?.total || 0) || 0);
+  const pc = Math.max(0, Number(period?.correct || 0) || 0);
+  const pp = pct(pt, pc);
+  const cls = badgeClassByPct(pp);
+
   badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
   badgeEl.classList.add(cls);
 
   const b = badgeEl.querySelector('b');
-  if (b) b.textContent = fmtPct(p);
+  if (b) b.textContent = fmtPct(pp);
   const small = badgeEl.querySelector('.small');
-  if (small) small.textContent = fmtCnt(t, c);
+  if (small) small.textContent = fmtCnt(pt, pc);
 
-  badgeEl.setAttribute('title', '10 последних');
+  const lt = Math.max(0, Number(last10?.total || 0) || 0);
+  const lc = Math.max(0, Number(last10?.correct || 0) || 0);
+  const lp = pct(lt, lc);
+
+  const title = [
+    `30 дней: ${fmtPct(pp)} (${fmtCnt(pt, pc)})`,
+    `10 последних: ${fmtPct(lp)} (${fmtCnt(lt, lc)})`,
+  ].join('
+');
+
+  badgeEl.setAttribute('title', title);
 }
+
 
 function clearStudentLast10UI() {
   if (!IS_STUDENT_PAGE) return;
+  LAST_DASH = null;
   $$('.node.section .section-title').forEach(resetTitle);
   $$('.node.topic .title').forEach(resetTitle);
-  $$('.home-last10-badge').forEach((b) => setLast10Badge(b, { total: 0, correct: 0 }));
+  $$('.home-last10-badge').forEach((b) => setHomeStatBadge(b, { total: 0, correct: 0 }, { total: 0, correct: 0 }));
 }
 
 async function fetchStudentDashboardSelf(accessToken) {
@@ -215,7 +232,7 @@ async function refreshStudentLast10(opts = {}) {
       const ts = Number(obj?.ts || 0) || 0;
       if (ts && (now - ts) < 90_000 && obj?.dash) {
         if (seq !== _STATS_SEQ) return;
-        applyDashboardLast10(obj.dash);
+        applyDashboardHomeStats(obj.dash);
         cacheApplied = true;
         // If not forcing refresh, use cache and stop here.
         if (!force) return;
@@ -243,7 +260,7 @@ async function refreshStudentLast10(opts = {}) {
 
     try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: now, dash })); } catch (_) {}
 
-    applyDashboardLast10(dash);
+    applyDashboardHomeStats(dash);
   } catch (e) {
     console.warn('home_student last10 load failed', e);
     // If cache already shown, do not wipe UI.
@@ -319,8 +336,17 @@ function initStudentLast10LiveRefresh() {
 }
 
 
-function applyDashboardLast10(dash) {
+
+function applyDashboardHomeStats(dash) {
   if (!IS_STUDENT_PAGE) return;
+
+  if (!dash || typeof dash !== 'object') {
+    LAST_DASH = null;
+    clearStudentLast10UI();
+    return;
+  }
+
+  LAST_DASH = dash;
 
   const sections = Array.isArray(dash?.sections) ? dash.sections : [];
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
@@ -329,14 +355,20 @@ function applyDashboardLast10(dash) {
   for (const s of sections) {
     const sid = String(s?.section_id || '').trim();
     if (!sid) continue;
-    secMap.set(sid, s?.last10 || { total: 0, correct: 0 });
+    secMap.set(sid, {
+      period: s?.period || { total: 0, correct: 0 },
+      last10: s?.last10 || { total: 0, correct: 0 },
+    });
   }
 
   const topMap = new Map();
   for (const t of topics) {
     const tid = String(t?.topic_id || '').trim();
     if (!tid) continue;
-    topMap.set(tid, t?.last10 || { total: 0, correct: 0 });
+    topMap.set(tid, {
+      period: t?.period || { total: 0, correct: 0 },
+      last10: t?.last10 || { total: 0, correct: 0 },
+    });
   }
 
   $$('.node.section').forEach(node => {
@@ -344,7 +376,8 @@ function applyDashboardLast10(dash) {
     const title = node.querySelector('.section-title');
     resetTitle(title);
     const badge = node.querySelector('.home-last10-badge');
-    setLast10Badge(badge, secMap.get(sid) || { total: 0, correct: 0 });
+    const st = secMap.get(sid) || { period: { total: 0, correct: 0 }, last10: { total: 0, correct: 0 } };
+    setHomeStatBadge(badge, st.period, st.last10);
   });
 
   $$('.node.topic').forEach(node => {
@@ -352,9 +385,13 @@ function applyDashboardLast10(dash) {
     const title = node.querySelector('.title');
     resetTitle(title);
     const badge = node.querySelector('.home-last10-badge');
-    setLast10Badge(badge, topMap.get(tid) || { total: 0, correct: 0 });
+    const st = topMap.get(tid) || { period: { total: 0, correct: 0 }, last10: { total: 0, correct: 0 } };
+    setHomeStatBadge(badge, st.period, st.last10);
   });
+
+  updateSmartHint();
 }
+
 
 function cleanRedirectUrl() {
   const u = new URL(location.href);
@@ -588,7 +625,15 @@ function initAuthHeader() {
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   initAuthHeader();
-  initModeToggle();
+
+  if (IS_STUDENT_PAGE) {
+    CURRENT_MODE = 'test';
+    initPickModeToggle();
+    initSmartControls();
+  } else {
+    initModeToggle();
+  }
+
   initShuffleToggle();
   initCreateHomeworkButton();
 
@@ -608,7 +653,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  $('#start')?.addEventListener('click', () => {
+  $('#start')?.addEventListener('click', async () => {
+    if (IS_STUDENT_PAGE && PICK_MODE === 'smart') {
+      if (getTotalSelected() <= 0) {
+        const ok = await tryBuildSmartSelection(SMART_N);
+        if (!ok) return;
+      }
+    }
     saveSelectionAndGo();
   });
 });
@@ -665,6 +716,196 @@ function initModeToggle() {
   listBtn.addEventListener('click', () => applyMode('list'));
   testBtn.addEventListener('click', () => applyMode('test'));
 }
+
+
+
+// ---------- Режим подбора (главная ученика): ручной / умная тренировка ----------
+function initPickModeToggle() {
+  if (!IS_STUDENT_PAGE) return;
+
+  const manualBtn = $('#pickManual');
+  const smartBtn = $('#pickSmart');
+  if (!manualBtn || !smartBtn) return;
+
+  // восстановление выбора
+  const prev = getLastSelection();
+  if (prev && (prev.pick_mode === 'manual' || prev.pick_mode === 'smart')) {
+    PICK_MODE = prev.pick_mode;
+  } else {
+    PICK_MODE = 'manual';
+  }
+
+  const apply = (mode) => {
+    PICK_MODE = (mode === 'smart') ? 'smart' : 'manual';
+    syncPickModeUI();
+    refreshTotalSum();
+    updateSmartHint();
+  };
+
+  manualBtn.addEventListener('click', () => apply('manual'));
+  smartBtn.addEventListener('click', () => apply('smart'));
+
+  apply(PICK_MODE);
+}
+
+function syncPickModeUI() {
+  const manualBtn = $('#pickManual');
+  const smartBtn = $('#pickSmart');
+  const smartBox = $('#smartControls');
+  const bulk = $('#bulkControls');
+
+  if (manualBtn) {
+    const is = PICK_MODE === 'manual';
+    manualBtn.classList.toggle('active', is);
+    manualBtn.setAttribute('aria-selected', is ? 'true' : 'false');
+  }
+
+  if (smartBtn) {
+    const is = PICK_MODE === 'smart';
+    smartBtn.classList.toggle('active', is);
+    smartBtn.setAttribute('aria-selected', is ? 'true' : 'false');
+  }
+
+  if (smartBox) smartBox.hidden = (PICK_MODE !== 'smart');
+  if (bulk) bulk.hidden = (PICK_MODE === 'smart');
+}
+
+function initSmartControls() {
+  if (!IS_STUDENT_PAGE) return;
+
+  // кнопки выбора количества
+  const btns = $$('.smart-n-btn');
+  if (btns.length) {
+    btns.forEach((b) => {
+      b.addEventListener('click', () => {
+        const n = Number(b.dataset.n || 0) || 10;
+        setSmartN(n);
+      });
+    });
+  }
+
+  const buildBtn = $('#smartBuild');
+  if (buildBtn) {
+    buildBtn.addEventListener('click', async () => {
+      await tryBuildSmartSelection(SMART_N);
+    });
+  }
+
+  setSmartN(SMART_N);
+  updateSmartHint();
+}
+
+function setSmartN(n) {
+  const v = Math.max(5, Math.min(60, Number(n) || 10));
+  SMART_N = v;
+
+  $$('.smart-n-btn').forEach((b) => {
+    const bn = Number(b.dataset.n || 0) || 0;
+    b.classList.toggle('active', bn === SMART_N);
+  });
+}
+
+function updateSmartHint(msg = '') {
+  if (!IS_STUDENT_PAGE) return;
+  const el = $('#smartHint');
+  if (!el) return;
+
+  if (msg) {
+    el.textContent = msg;
+    return;
+  }
+
+  const total = getTotalSelected();
+
+  if (!_LAST10_KNOWN_UID) {
+    el.textContent = 'Для «умной тренировки» нужен вход в аккаунт.';
+    return;
+  }
+
+  if (!LAST_DASH) {
+    el.textContent = 'Загружаю статистику…';
+    return;
+  }
+
+  if (total > 0) {
+    el.textContent = 'Нажмите «Собрать план», чтобы заменить текущий выбор, или «Начать», чтобы решать выбранное.';
+    return;
+  }
+
+  el.textContent = 'План составляется по статистике за 30 дней.';
+}
+
+function getTotalSelected() {
+  const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
+  const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
+  return sumTopics + sumSections;
+}
+
+async function tryBuildSmartSelection(n) {
+  if (!IS_STUDENT_PAGE) return false;
+
+  // статистика может ещё не быть загружена
+  if (!LAST_DASH) {
+    await refreshStudentLast10({ force: true, reason: 'smart_build' });
+  }
+
+  const dash = LAST_DASH;
+
+  if (!dash || typeof dash !== 'object') {
+    updateSmartHint('Не удалось загрузить статистику. Войдите в аккаунт и попробуйте ещё раз.');
+    return false;
+  }
+
+  const validTopicIds = new Set($$('.node.topic').map((x) => String(x?.dataset?.id || '').trim()).filter(Boolean));
+  if (!validTopicIds.size) {
+    updateSmartHint('Каталог тем ещё не загружен. Обновите страницу.');
+    return false;
+  }
+
+  const topics = Array.isArray(dash?.topics) ? dash.topics : [];
+  const ranked = topics
+    .map((t) => {
+      const id = String(t?.topic_id || '').trim();
+      const per = t?.period || { total: 0, correct: 0 };
+      const total = Math.max(0, Number(per?.total || 0) || 0);
+      const correct = Math.max(0, Number(per?.correct || 0) || 0);
+      const p = total ? (correct / total) : -1; // -1 = не решал
+      return { id, total, correct, p };
+    })
+    .filter((x) => x.id && validTopicIds.has(x.id))
+    .sort((a, b) => {
+      if ((a.total === 0) !== (b.total === 0)) return (a.total === 0) ? -1 : 1;
+      if (a.p !== b.p) return a.p - b.p;
+      return a.total - b.total;
+    });
+
+  if (!ranked.length) {
+    updateSmartHint('Нет данных по темам. Решите несколько задач и попробуйте снова.');
+    return false;
+  }
+
+  const N = Math.max(1, Number(n) || 10);
+  const topK = Math.min(12, ranked.length);
+
+  const plan = {};
+  let left = N;
+  let i = 0;
+  while (left > 0) {
+    const id = ranked[i % topK].id;
+    plan[id] = (plan[id] || 0) + 1;
+    i += 1;
+    left -= 1;
+  }
+
+  // применяем план: темы, секции сбрасываем
+  CHOICE_TOPICS = { ...plan };
+  CHOICE_SECTIONS = {};
+  refreshCountsUI();
+
+  updateSmartHint('План собран. Нажмите «Начать».');
+  return true;
+}
+
 
 // ---------- Чекбокс "Перемешать задачи" ----------
 function initShuffleToggle() {
@@ -1017,12 +1258,15 @@ function refreshTotalSum() {
   if (sumEl) sumEl.textContent = total;
 
   const startBtn = $('#start');
-  if (startBtn) startBtn.disabled = total <= 0;
+  if (startBtn) {
+    if (IS_STUDENT_PAGE && PICK_MODE === 'smart') startBtn.disabled = false;
+    else startBtn.disabled = total <= 0;
+  }
 }
 
 // ---------- передача выбора в тренажёр / список ----------
 function saveSelectionAndGo() {
-  const mode = CURRENT_MODE || 'list';
+  const mode = IS_STUDENT_PAGE ? 'test' : (CURRENT_MODE || 'list');
 
   const selection = {
     topics: CHOICE_TOPICS,
@@ -1030,6 +1274,8 @@ function saveSelectionAndGo() {
     mode,
     shuffle: SHUFFLE_TASKS,
   };
+  if (IS_STUDENT_PAGE) selection.pick_mode = PICK_MODE;
+
 
   try {
     sessionStorage.setItem('tasks_selection_v1', JSON.stringify(selection));
