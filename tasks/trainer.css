@@ -1620,3 +1620,10 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}
 .student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
+
+/* FIX: чтобы атрибут hidden работал даже при display:flex в стилях блоков */
+#smartControls[hidden],
+#bulkControls[hidden],
+#accordion[hidden]{
+  display:none !important;
+}
