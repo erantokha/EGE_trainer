@@ -153,6 +153,19 @@ a:hover{text-decoration:underline}
   flex-wrap:wrap;
   margin:0; /* вертикальные отступы задаёт .sub-controls */
 }
+
+/* чекбокс "Перемешать задачи" (вручную, рядом со "Сбросить все") */
+#picker .bulk-controls .shuffle{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  color:var(--text-dim);
+  margin-left:14px; /* ~"5 пробелов" вправо от кнопки */
+}
+#picker .bulk-controls .shuffle input{
+  margin:0;
+}
 #picker .bulk-controls .bulk-hint{
   font-size:12px;
   color:var(--text-dim);

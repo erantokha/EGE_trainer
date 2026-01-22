@@ -752,6 +752,7 @@ function syncPickModeUI() {
   const smartBtn = $('#pickSmart');
   const smartBox = $('#smartControls');
   const bulk = $('#bulkControls');
+  const accordion = $('#accordion');
 
   if (manualBtn) {
     const is = PICK_MODE === 'manual';
@@ -767,6 +768,7 @@ function syncPickModeUI() {
 
   if (smartBox) smartBox.hidden = (PICK_MODE !== 'smart');
   if (bulk) bulk.hidden = (PICK_MODE === 'smart');
+  if (accordion) accordion.hidden = (PICK_MODE === 'smart');
 }
 
 function initSmartControls() {
