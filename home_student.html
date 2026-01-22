@@ -31,16 +31,16 @@
       <!-- Ряд 1: режим + перемешать (слева), старт (справа) -->
       <div class="controls">
         <div class="controls-left">
-          <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-            <button type="button" class="mode-btn active" id="modeList" data-mode="list" aria-selected="true">
-              Список задач
+          <div class="mode-toggle" id="pickSwitch" role="tablist" aria-label="Режим подбора">
+            <button type="button" class="mode-btn active" id="pickManual" data-pick="manual" aria-selected="true">
+              Ручное добавление задач
             </button>
-            <button type="button" class="mode-btn" id="modeTest" data-mode="test" aria-selected="false">
-              Тестирование
+            <button type="button" class="mode-btn" id="pickSmart" data-pick="smart" aria-selected="false">
+              Умная тренировка
             </button>
           </div>
 
-          <label class="shuffle">
+<label class="shuffle">
             <input type="checkbox" id="shuffleToggle">
             Перемешать задачи
           </label>
@@ -57,6 +57,20 @@
             <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
           </label>
         </div>
+      </div>
+
+      <!-- Умная тренировка: настройки и сбор плана -->
+      <div class="smart-controls" id="smartControls" hidden>
+        <div class="smart-left">
+          <div class="smart-n" role="group" aria-label="Количество задач">
+            <span class="smart-label">Количество:</span>
+            <button type="button" class="btn-compact smart-n-btn active" data-n="10">10</button>
+            <button type="button" class="btn-compact smart-n-btn" data-n="15">15</button>
+            <button type="button" class="btn-compact smart-n-btn" data-n="20">20</button>
+          </div>
+          <button id="smartBuild" type="button" class="btn-compact">Собрать план</button>
+        </div>
+        <div id="smartHint" class="smart-hint"></div>
       </div>
 
       <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
