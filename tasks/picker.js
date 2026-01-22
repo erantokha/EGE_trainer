@@ -1262,11 +1262,18 @@ function refreshTotalSum() {
   if (sumEl) sumEl.textContent = total;
 
   const startBtn = $('#start');
-  if (startBtn) startBtn.classList.toggle('is-ready', total > 0);
-  if (startBtn) {
-    if (IS_STUDENT_PAGE && PICK_MODE === 'smart') startBtn.disabled = false;
-    else startBtn.disabled = total <= 0;
-  }
+  if (!startBtn) return;
+
+  const isReady = total > 0;
+  const smartNoSelection = IS_STUDENT_PAGE && PICK_MODE === 'smart' && !isReady;
+
+  startBtn.classList.toggle('is-ready', isReady);
+  startBtn.classList.toggle('is-smart', smartNoSelection);
+
+  // На главной ученика в "умной тренировке" кнопку "Начать" не блокируем:
+  // при total=0 она запускает автосбор плана (и поэтому должна выглядеть кликабельно).
+  if (IS_STUDENT_PAGE && PICK_MODE === 'smart') startBtn.disabled = false;
+  else startBtn.disabled = total <= 0;
 }
 
 // ---------- передача выбора в тренажёр / список ----------

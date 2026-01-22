@@ -1644,6 +1644,14 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   box-shadow:none;
   cursor:pointer;
 }
+.start-sum-btn.is-smart{
+  background:transparent;
+  border-color:var(--accent);
+  color:var(--accent);
+}
+.start-sum-btn.is-smart:hover{
+  background:rgba(37,99,235,.08);
+}
 .start-sum-btn.is-ready{
   background:var(--accent);
   border-color:var(--accent);
@@ -1655,3 +1663,7 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 }
 body[data-pick-mode="manual"] .start-sum-btn{ margin-left:20ch; }
 body[data-pick-mode="smart"] .start-sum-btn{ margin-left:0; }
+
+@media (max-width:640px){
+  body[data-pick-mode="manual"] .start-sum-btn{ margin-left:0; }
+}
