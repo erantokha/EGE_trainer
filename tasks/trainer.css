@@ -1627,3 +1627,31 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 #accordion[hidden]{
   display:none !important;
 }
+
+
+/* --- Student home: merged Start+Total button --- */
+.start-sum-btn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 14px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:var(--panel-2);
+  color:var(--text-dim);
+  font-weight:600;
+  font-size:14px;
+  box-shadow:none;
+  cursor:pointer;
+}
+.start-sum-btn.is-ready{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.start-sum-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+body[data-pick-mode="manual"] .start-sum-btn{ margin-left:20ch; }
+body[data-pick-mode="smart"] .start-sum-btn{ margin-left:0; }

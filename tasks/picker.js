@@ -769,6 +769,9 @@ function syncPickModeUI() {
   if (smartBox) smartBox.hidden = (PICK_MODE !== 'smart');
   if (bulk) bulk.hidden = (PICK_MODE === 'smart');
   if (accordion) accordion.hidden = (PICK_MODE === 'smart');
+
+  try { if (document.body) document.body.dataset.pickMode = PICK_MODE; } catch (_) {}
+
 }
 
 function initSmartControls() {
@@ -1259,6 +1262,7 @@ function refreshTotalSum() {
   if (sumEl) sumEl.textContent = total;
 
   const startBtn = $('#start');
+  if (startBtn) startBtn.classList.toggle('is-ready', total > 0);
   if (startBtn) {
     if (IS_STUDENT_PAGE && PICK_MODE === 'smart') startBtn.disabled = false;
     else startBtn.disabled = total <= 0;
