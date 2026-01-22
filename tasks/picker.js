@@ -134,8 +134,7 @@ function setHomeStatBadge(badgeEl, period, last10) {
   const title = [
     `30 дней: ${fmtPct(pp)} (${fmtCnt(pt, pc)})`,
     `10 последних: ${fmtPct(lp)} (${fmtCnt(lt, lc)})`,
-  ].join('
-');
+  ].join('\n');
 
   badgeEl.setAttribute('title', title);
 }
