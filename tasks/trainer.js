@@ -1,14 +1,14 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-17-8';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-17-8';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-23-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-23-1';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-17-8';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-23-1';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-17-8';
-import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-17-8';
+import { withBuild } from '../app/build.js?v=2026-01-23-1';
+import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-23-1';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
