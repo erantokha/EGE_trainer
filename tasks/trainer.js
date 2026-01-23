@@ -8,6 +8,7 @@ import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSm
 
 
 import { withBuild } from '../app/build.js?v=2026-01-17-8';
+import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-17-8';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1153,6 +1154,8 @@ async function finishSession() {
     `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
     `<div>Среднее время: ${Math.round(avg_ms / 1000)} c</div>`;
 
+  renderReviewCards();
+
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();
     const csv = toCsv(SESSION.questions);
@@ -1169,6 +1172,77 @@ async function finishSession() {
       warn.textContent =
         'Внимание: запись в Supabase не выполнена. Проверьте RLS и ключи в app/config.js.';
       summaryPanel.appendChild(warn);
+    }
+  }
+}
+
+
+
+function renderReviewCards() {
+  const host = document.getElementById('reviewList');
+  if (!host) return;
+  host.innerHTML = '';
+
+  const questions = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
+  questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
+
+    const head = document.createElement('div');
+    head.className = 'hw-review-head';
+
+    const num = document.createElement('div');
+    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
+    num.textContent = String(idx + 1);
+
+    head.appendChild(num);
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    stem.innerHTML = q.stem || '';
+    card.appendChild(stem);
+
+    if (q.figure && q.figure.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ans = document.createElement('div');
+    ans.className = 'hw-review-answers';
+    const protoId = String(q.question_id || q.id || '').trim();
+    ans.innerHTML =
+      `<div class="answer-row">` +
+      `<div>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></div>` +
+      `<span class="video-solution-slot" data-video-proto="${esc(protoId)}">Видео скоро будет</span>` +
+      `</div>` +
+      `<div>Правильный: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
+    card.appendChild(ans);
+
+    host.appendChild(card);
+  });
+
+  // Видео-решения (Rutube): подставляем ссылки по prototype_id
+  try {
+    void hydrateVideoLinks(host, { missingText: 'Видео скоро будет' });
+  } catch (e) {
+    console.warn('hydrateVideoLinks failed', e);
+  }
+
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([host]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
     }
   }
 }
