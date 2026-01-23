@@ -1,14 +1,14 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-23-3';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-23-3';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-17-8';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-17-8';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-23-3';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-17-8';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-23-3';
-import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-23-3';
+import { withBuild } from '../app/build.js?v=2026-01-17-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1229,7 +1229,8 @@ function renderReviewCards() {
 
   // Видео-решения (Rutube): подставляем ссылки по prototype_id
   try {
-    void hydrateVideoLinks(host, { missingText: 'Видео скоро будет' });
+    void hydrateVideoLinks(host, { mode: 'modal', missingText: 'Видео скоро будет' });
+    wireVideoSolutionModal(host);
   } catch (e) {
     console.warn('hydrateVideoLinks failed', e);
   }
