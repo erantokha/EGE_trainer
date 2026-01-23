@@ -13,6 +13,8 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-17-8';
 
 import { CONFIG } from '../app/config.js?v=2026-01-17-8';
+import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-17-8';
+
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-17-8';
 import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-17-8';
 
@@ -1757,12 +1759,22 @@ function renderReviewCards() {
     const ans = document.createElement('div');
     ans.className = 'hw-review-answers';
     ans.innerHTML =
+      `<div class="answer-row">` +
       `<div>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></div>` +
+      `<span class="video-solution-slot" data-video-proto="${escHtml(q.question_id || q.id || '')}">Видео скоро будет</span>` +
+      `</div>` +
       `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
     card.appendChild(ans);
 
     host.appendChild(card);
   });
+
+  // Видео-решения (Rutube): подставляем ссылки по prototype_id
+  try {
+    void hydrateVideoLinks(host, { missingText: 'Видео скоро будет' });
+  } catch (e) {
+    console.warn('hydrateVideoLinks failed', e);
+  }
 
   if (window.MathJax) {
     try {
