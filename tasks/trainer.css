@@ -153,19 +153,6 @@ a:hover{text-decoration:underline}
   flex-wrap:wrap;
   margin:0; /* вертикальные отступы задаёт .sub-controls */
 }
-
-/* чекбокс "Перемешать задачи" (вручную, рядом со "Сбросить все") */
-#picker .bulk-controls .shuffle{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-size:13px;
-  color:var(--text-dim);
-  margin-left:14px; /* ~"5 пробелов" вправо от кнопки */
-}
-#picker .bulk-controls .shuffle input{
-  margin:0;
-}
 #picker .bulk-controls .bulk-hint{
   font-size:12px;
   color:var(--text-dim);
@@ -230,48 +217,6 @@ a:hover{text-decoration:underline}
   border-radius:10px;
 }
 
-
-
-/* Главная ученика: Умная тренировка (настройки) */
-#picker .smart-controls{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  flex-wrap:wrap;
-  margin-top:var(--row-gap);
-  padding:10px 12px;
-  border:1px solid var(--border);
-  border-radius:12px;
-  background:var(--panel-2);
-}
-#picker .smart-controls .smart-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  flex-wrap:wrap;
-}
-#picker .smart-controls .smart-n{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  flex-wrap:wrap;
-}
-#picker .smart-controls .smart-label{
-  font-size:12px;
-  color:var(--text-dim);
-  margin-right:2px;
-}
-#picker .smart-controls .smart-n-btn.active{
-  background:var(--accent);
-  color:#fff;
-  box-shadow:0 0 0 1px rgba(59,130,246,.6);
-}
-#picker .smart-controls .smart-hint{
-  font-size:12px;
-  color:var(--text-dim);
-  max-width:560px;
-}
 @media (max-width: 640px){
   #picker .controls{
     justify-content:flex-start;
@@ -1275,6 +1220,105 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   margin-top:1.8em;
 }
 
+/* Видео-решение в карточке итогов (ДЗ/тренировка) */
+.hw-review-answers .hw-ans-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.video-solution-slot{ white-space:nowrap; }
+.video-solution-missing{ opacity:.75; font-size:12px; }
+
+.video-solution-btn{
+  border:none;
+  background:var(--accent);
+  color:#fff;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:500;
+  box-shadow:0 0 0 1px rgba(59,130,246,.6);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.video-solution-btn:hover{ filter:brightness(.97); }
+
+/* Модалка видео-решения (Rutube iframe) */
+body.vs-modal-open{ overflow:hidden; }
+
+.vs-modal{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:3200;
+}
+.vs-modal[hidden]{ display:none; }
+
+.vs-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background:rgba(0,0,0,.38);
+}
+
+.vs-modal-card{
+  position:relative;
+  width:min(980px, calc(100vw - 24px));
+  max-height:calc(100vh - 24px);
+  overflow:hidden;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:var(--card);
+  box-shadow:0 20px 50px rgba(0,0,0,.22);
+  display:flex;
+  flex-direction:column;
+}
+
+.vs-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  background:var(--panel-2);
+}
+.vs-modal-title{ font-size:16px; }
+.vs-modal-close{
+  width:36px;
+  height:36px;
+  padding:0 0 4px 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  line-height:1;
+  border-radius:12px;
+}
+.vs-modal-body{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.vs-iframe-wrap{
+  width:100%;
+  aspect-ratio:16/9;
+  border-radius:12px;
+  overflow:hidden;
+  border:1px solid var(--border);
+  background:#000;
+}
+.vs-iframe-wrap iframe{
+  width:100%;
+  height:100%;
+  border:0;
+}
+
+.vs-modal-foot{ opacity:.9; font-size:12px; }
+
 /* hw_create: меню аккаунта */
 .user-menu-btn { white-space: nowrap; }
 
@@ -1620,90 +1664,3 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}
 .student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
-
-/* FIX: чтобы атрибут hidden работал даже при display:flex в стилях блоков */
-#smartControls[hidden],
-#bulkControls[hidden],
-#accordion[hidden]{
-  display:none !important;
-}
-
-
-/* --- Student home: merged Start+Total button --- */
-.start-sum-btn{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding:8px 14px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  background:var(--panel-2);
-  color:var(--text-dim);
-  font-weight:600;
-  font-size:14px;
-  box-shadow:none;
-  cursor:pointer;
-}
-.start-sum-btn.is-ready{
-  background:var(--accent);
-  border-color:var(--accent);
-  color:#fff;
-}
-.start-sum-btn:disabled{
-  opacity:.55;
-  cursor:not-allowed;
-}
-body[data-pick-mode="manual"] .start-sum-btn{ margin-left:20ch; }
-body[data-pick-mode="smart"] .start-sum-btn{ margin-left:0; }
-
-
-/* Видео-решение (Rutube) — для итогов ДЗ и итогов тренировки */
-.hw-review-head{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:4px;
-}
-
-/* В review-карточках используем свой .answer-row (не тот, что в сессии с инпутом) */
-.hw-review-answers .answer-row{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-  margin-top:0; /* перебиваем .answer-row из блока сессии */
-}
-.hw-review-answers .answer-row > div{
-  min-width:0;
-  flex:1 1 auto;
-}
-@media (max-width: 520px){
-  .hw-review-answers .answer-row{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-}
-
-.video-solution-slot{
-  white-space:nowrap;
-  font-size:13px;
-}
-.video-solution-link{
-  display:inline-block;
-  padding:6px 10px;
-  border-radius:12px;
-  border:1px solid var(--border);
-  background:rgba(148,163,184,.10);
-  text-decoration:none;
-}
-.video-solution-link:hover{
-  background:rgba(148,163,184,.16);
-}
-.video-solution-slot.video-solution-missing{
-  opacity:.65;
-}
-.video-solution-slot.video-solution-ready{
-  opacity:1;
-}
-

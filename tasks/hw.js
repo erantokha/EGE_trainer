@@ -13,10 +13,9 @@
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-17-8';
 
 import { CONFIG } from '../app/config.js?v=2026-01-17-8';
-import { hydrateVideoLinks } from '../app/video_solutions.js?v=2026-01-17-8';
-
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-17-8';
 import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-17-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
 
 
 // build/version (cache-busting)
@@ -1758,22 +1757,25 @@ function renderReviewCards() {
 
     const ans = document.createElement('div');
     ans.className = 'hw-review-answers';
+    const protoId = String(q.question_id || q.id || '').trim();
     ans.innerHTML =
-      `<div class="answer-row">` +
-      `<div>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></div>` +
-      `<span class="video-solution-slot" data-video-proto="${escHtml(q.question_id || q.id || '')}">Видео скоро будет</span>` +
+      `<div class="hw-ans-line">` +
+      `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
+      `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
       `</div>` +
-      `<div>Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+      `<div class="hw-ans-line">Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+
     card.appendChild(ans);
 
     host.appendChild(card);
   });
 
-  // Видео-решения (Rutube): подставляем ссылки по prototype_id
+  // Видео-решения (Rutube): превращаем слоты в кнопки и включаем модалку
   try {
-    void hydrateVideoLinks(host, { missingText: 'Видео скоро будет' });
+    hydrateVideoLinks(host, { mode: 'modal', missingText: 'Видео скоро будет' });
+    wireVideoSolutionModal(host);
   } catch (e) {
-    console.warn('hydrateVideoLinks failed', e);
+    console.warn('video solutions init failed', e);
   }
 
   if (window.MathJax) {
