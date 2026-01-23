@@ -12,7 +12,8 @@ const SKIP_DIRS = new Set([".git", "docs", "content", "node_modules"]);
 const INCLUDE_EXT = new Set([".html", ".js", ".css"]);
 
 const META_RE = /(<meta\s+name=["']app-build["']\s+content=["'])([^"']*)(["'][^>]*>)/i;
-const V_RE = /(\?v=)(\d{4}-\d{2}-\d{2}[A-Za-z0-9-]*)/g;
+// Support both ?v= and &v= so we can safely append v to URLs that already have query params.
+const V_RE = /([?&]v=)(\d{4}-\d{2}-\d{2}[A-Za-z0-9-]*)/g;
 
 // app/config.js: content.version = '...'
 const CONTENT_VERSION_RE = /(content:\s*{\s*[^}]*?\bversion:\s*')([^']*)(')/s;
@@ -115,6 +116,72 @@ function replaceAllVersions(text, newBuild) {
   return out;
 }
 
+// Ensure every HTML file has <meta name="app-build" ...> so strict check_build won't get stuck.
+// Also ensure local CSS/JS references contain a v=... cache-busting param.
+const HEAD_OPEN_RE = /<head\b[^>]*>/i;
+const META_CHARSET_RE = /<meta\s+charset=["'][^"']+["']\s*\/?\s*>/i;
+
+const LINK_HREF_RE = /(<link\b[^>]*\bhref=["'])([^"']+)(["'][^>]*>)/gi;
+const SCRIPT_SRC_RE = /(<script\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi;
+
+function isExternalUrl(u) {
+  const s = String(u || '').trim();
+  // Any scheme (http:, https:, data:, mailto:, etc) or protocol-relative URL.
+  return /^([a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/.test(s);
+}
+
+function ensureVParam(url, newBuild) {
+  const s = String(url || '').trim();
+  if (!s) return s;
+  if (isExternalUrl(s)) return s;
+
+  // If v already exists, just rewrite it.
+  if (/[?&]v=/.test(s)) {
+    return s.replace(/([?&]v=)[^&]*/i, `$1${newBuild}`);
+  }
+
+  const join = s.includes('?') ? '&' : '?';
+  return `${s}${join}v=${newBuild}`;
+}
+
+function ensureHtmlHasMeta(html, newBuild) {
+  if (META_RE.test(html)) return html;
+
+  const mHead = html.match(HEAD_OPEN_RE);
+  if (!mHead || mHead.index == null) return html;
+
+  const headEnd = mHead.index + mHead[0].length;
+  const insert = `\n  <meta name="app-build" content="${newBuild}">`;
+
+  // Prefer placing right after <meta charset=...> if present.
+  const afterHead = html.slice(headEnd);
+  const mCharset = afterHead.match(META_CHARSET_RE);
+  if (mCharset && mCharset.index != null) {
+    const at = headEnd + mCharset.index + mCharset[0].length;
+    return html.slice(0, at) + insert + html.slice(at);
+  }
+
+  return html.slice(0, headEnd) + insert + html.slice(headEnd);
+}
+
+function ensureHtmlHasVParams(html, newBuild) {
+  let out = html;
+
+  out = out.replace(LINK_HREF_RE, (m, p1, href, p3) => {
+    const path = String(href || '').split('#')[0].split('?')[0];
+    if (!/\.css$/i.test(path)) return m;
+    return `${p1}${ensureVParam(href, newBuild)}${p3}`;
+  });
+
+  out = out.replace(SCRIPT_SRC_RE, (m, p1, src, p3) => {
+    const path = String(src || '').split('#')[0].split('?')[0];
+    if (!/\.(?:mjs|js)$/i.test(path)) return m;
+    return `${p1}${ensureVParam(src, newBuild)}${p3}`;
+  });
+
+  return out;
+}
+
 async function main() {
   const arg = process.argv[2];
   const explicitBuild = arg && !arg.startsWith("--") ? arg : null;
@@ -133,6 +200,14 @@ async function main() {
 
     const txt = await readText(fp);
     let out = replaceAllVersions(txt, newBuild);
+
+    // HTML: if meta is missing, add it; also ensure local CSS/JS have v=...
+    if (r.endsWith('.html')) {
+      out = ensureHtmlHasMeta(out, newBuild);
+      out = ensureHtmlHasVParams(out, newBuild);
+      // Re-run replacer to keep behavior consistent (in case we inserted older tokens).
+      out = replaceAllVersions(out, newBuild);
+    }
 
     // Also sync content.version in app/config.js
     if (r === "app/config.js") {
