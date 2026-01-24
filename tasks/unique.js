@@ -6,8 +6,34 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-import { withBuild } from '../app/build.js?v=2026-01-24-6';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-6';
+function ensureUniqueVideoStyles() {
+  // unique.html: «Видео-решение» должно быть всегда видно и располагаться справа от summary «Ответ».
+  // Добавляем точечные стили прямо на страницу, не трогая общий trainer.css.
+  if (document.getElementById('uniqueVideoCss')) return;
+
+  const style = document.createElement('style');
+  style.id = 'uniqueVideoCss';
+  style.textContent = `
+    /* Unique prototypes: answer row + video button */
+    #tasks .ws-ans > summary,
+    #tasks .ws-answer > summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #tasks .ws-ans > summary .video-solution-slot,
+    #tasks .ws-answer > summary .video-solution-slot {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+import { withBuild } from '../app/build.js?v=2026-01-17-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -55,6 +81,9 @@ async function init() {
   } catch (e) {
     console.warn('[unique.js] video modal init failed', e);
   }
+
+  ensureUniqueVideoStyles();
+
   const params = new URLSearchParams(location.search);
   const sectionId = params.get('section');
 
@@ -402,11 +431,8 @@ function renderUnicTasks(container, tasks) {
     videoSlot.className = 'video-solution-slot';
     videoSlot.dataset.videoProto = t.id;
 
-    const sumRow = document.createElement("div");
-    sumRow.className = "ws-ans-row";
-    sumRow.appendChild(sumLabel);
-    sumRow.appendChild(videoSlot);
-    sum.appendChild(sumRow);
+    sum.appendChild(sumLabel);
+    sum.appendChild(videoSlot);
 
     const ansText = document.createElement('div');
     ansText.className = 'ws-ans-text';
