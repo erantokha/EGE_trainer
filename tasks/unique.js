@@ -13,8 +13,7 @@ function ensureUniqueVideoStyles() {
 
   const style = document.createElement('style');
   style.id = 'uniqueVideoCss';
-  style.textContent = `
-    /* Unique prototypes: answer row + video button */
+  style.textContent = `    /* Unique prototypes: answer row + video button */
     #uniqAccordion .ws-ans > summary,
     #uniqAccordion .ws-answer > summary,
     #tasks .ws-ans > summary,
@@ -36,8 +35,8 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-01-24-9';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-9';
+import { withBuild } from '../app/build.js?v=2026-01-24-7';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-7';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -407,15 +406,35 @@ function renderUnicTasks(container, tasks) {
       figWrap.className = 'ws-fig';
 
       const raw = t.figure;
-      const src = (typeof raw === 'string') ? raw : (raw?.src || raw?.url || raw?.path);
 
-      if (typeof src === 'string' && src.trim().startsWith('<svg')) {
-        figWrap.innerHTML = src;
-      } else if (typeof src === 'string' && src.trim()) {
+      // Фигура может быть:
+      // 1) строкой: либо inline <svg ...>, либо путь до изображения
+      // 2) объектом: { img: 'content/...', alt: '...', ... } или { svg: '<svg...>' }
+      let src = '';
+      let alt = '';
+      let inlineSvg = '';
+
+      if (typeof raw === 'string') {
+        src = raw;
+      } else if (raw && typeof raw === 'object') {
+        src = raw.img || raw.src || raw.url || raw.path || raw.href || '';
+        alt = raw.alt || raw.title || '';
+        inlineSvg = raw.svg || raw.html || '';
+      }
+
+      const srcTrim = String(src || '').trim();
+      const inlineTrim = String(inlineSvg || '').trim();
+
+      if (inlineTrim.startsWith('<svg')) {
+        figWrap.innerHTML = inlineTrim;
+      } else if (srcTrim.startsWith('<svg')) {
+        figWrap.innerHTML = srcTrim;
+      } else if (srcTrim) {
         const img = document.createElement('img');
         img.loading = 'lazy';
-        img.alt = '';
-        img.src = withBuild(src.trim());
+        img.decoding = 'async';
+        img.alt = String(alt || '');
+        img.src = withBuild(asset(srcTrim));
         figWrap.appendChild(img);
       }
 
