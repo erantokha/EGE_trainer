@@ -15,12 +15,16 @@ function ensureUniqueVideoStyles() {
   style.id = 'uniqueVideoCss';
   style.textContent = `
     /* Unique prototypes: answer row + video button */
+    #uniqAccordion .ws-ans > summary,
+    #uniqAccordion .ws-answer > summary,
     #tasks .ws-ans > summary,
     #tasks .ws-answer > summary {
       display: flex;
       align-items: center;
       gap: 12px;
     }
+    #uniqAccordion .ws-ans > summary .video-solution-slot,
+    #uniqAccordion .ws-answer > summary .video-solution-slot,
     #tasks .ws-ans > summary .video-solution-slot,
     #tasks .ws-answer > summary .video-solution-slot {
       margin-left: auto;
@@ -32,8 +36,8 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-01-24-8';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-8';
+import { withBuild } from '../app/build.js?v=2026-01-24-7';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-7';
 
 const INDEX_URL = '../content/tasks/index.json';
 

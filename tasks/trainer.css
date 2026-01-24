@@ -1227,6 +1227,25 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   justify-content:space-between;
   gap:12px;
 }
+/* Правое выравнивание кнопки "Видео-решение" в итогах */
+.hw-review-answers .answer-row{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.hw-review-answers .hw-ans-line > :first-child,
+.hw-review-answers .answer-row > :first-child{
+  flex:1 1 auto;
+  min-width:0;
+}
+.hw-review-answers .hw-ans-line .video-solution-slot,
+.hw-review-answers .answer-row .video-solution-slot{
+  margin-left:auto;
+  display:inline-flex;
+  align-items:center;
+  white-space:nowrap;
+}
+
 .video-solution-slot{ white-space:nowrap; }
 .video-solution-missing{ opacity:.75; font-size:12px; }
 
