@@ -25,6 +25,59 @@ const MAP_URL = new URL(
 
 let _MAP = null;
 let _MAP_PROMISE = null;
+let _FAMILY_INDEX = null;
+
+/**
+ * Приводим protoId к "чистому" виду:
+ * - убираем пробелы
+ * - если внутри есть служебные суффиксы (например "7.3.1.2#1"), вытаскиваем только "7.3.1.2"
+ */
+function normProtoId(x) {
+  const s = String(x || '').trim();
+  // Обычно prototype_id имеет >= 4 сегмента: 7.3.1.2
+  const m = s.match(/(\d+(?:\.\d+){3,})/);
+  return (m ? m[1] : s).trim();
+}
+
+function baseIdFromProtoId(id) {
+  const s = String(id || '');
+  const parts = s.split('.');
+  if (parts.length >= 4) {
+    const last = parts[parts.length - 1];
+    if (/^\d+$/.test(last)) return parts.slice(0, -1).join('.');
+  }
+  return s;
+}
+
+function normalizeUrl(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.startsWith('//')) return 'https:' + s;
+  if (/^(www\.)?rutube\.ru\//i.test(s) || s.startsWith('rutube.ru/')) return 'https://' + s;
+  return s;
+}
+
+function buildFamilyIndex(map) {
+  const idx = Object.create(null);
+  for (const [k0, v0] of Object.entries(map || {})) {
+    const url = normalizeUrl(v0);
+    if (!url) continue;
+    const k = normProtoId(k0);
+    if (!k) continue;
+
+    const base = baseIdFromProtoId(k);
+    const parts = k.split('.');
+    const last = parts[parts.length - 1];
+    const lastNum = /^\d+$/.test(last) ? parseInt(last, 10) : 1e9;
+
+    const cur = idx[base];
+    if (!cur || lastNum < cur.lastNum) {
+      idx[base] = { url, key: k, lastNum };
+    }
+  }
+  return idx;
+}
 
 async function loadRutubeMap(opts = {}) {
   const force = !!opts.force;
@@ -36,14 +89,31 @@ async function loadRutubeMap(opts = {}) {
       const resp = await fetch(withBuild(MAP_URL), { cache: 'no-store' });
       if (!resp.ok) {
         _MAP = {};
+        _FAMILY_INDEX = Object.create(null);
         return _MAP;
       }
+
       const obj = await resp.json();
-      _MAP = (obj && typeof obj === 'object') ? obj : {};
+      const raw = (obj && typeof obj === 'object') ? obj : {};
+
+      // Нормализуем ключи (на случай пробелов/служебных суффиксов в ключах) и урлы.
+      const norm = Object.create(null);
+      for (const [k0, v0] of Object.entries(raw)) {
+        const k = normProtoId(k0);
+        const url = normalizeUrl(v0);
+        if (!k) continue;
+
+        // если ключ дублируется: предпочитаем непустую ссылку
+        if (!norm[k] || (url && !norm[k])) norm[k] = url || norm[k] || '';
+      }
+
+      _MAP = norm;
+      _FAMILY_INDEX = buildFamilyIndex(_MAP);
       return _MAP;
     } catch (e) {
       console.warn('rutube_map load failed', e);
       _MAP = {};
+      _FAMILY_INDEX = Object.create(null);
       return _MAP;
     } finally {
       _MAP_PROMISE = null;
@@ -53,15 +123,23 @@ async function loadRutubeMap(opts = {}) {
   return _MAP_PROMISE;
 }
 
-function normProtoId(x) {
-  return String(x || '').trim();
-}
-
 function getUrlFromMap(map, protoId) {
   const id = normProtoId(protoId);
   if (!id || !map) return '';
-  const u = map[id];
-  if (typeof u === 'string' && u.trim()) return u.trim();
+
+  // 1) точное совпадение
+  const direct = map[id];
+  if (typeof direct === 'string' && direct.trim()) return direct.trim();
+
+  // 2) если кто-то положил ключ ровно базой (без ".1")
+  const base = baseIdFromProtoId(id);
+  const baseDirect = map[base];
+  if (typeof baseDirect === 'string' && baseDirect.trim()) return baseDirect.trim();
+
+  // 3) самый ранний "родственник" в этом семействе (например, у тебя есть только 7.3.1.1)
+  const fam = _FAMILY_INDEX && _FAMILY_INDEX[base];
+  if (fam && fam.url) return fam.url;
+
   return '';
 }
 
@@ -124,7 +202,7 @@ export async function hydrateVideoLinks(root, opts = {}) {
 
 function extractRutubeId(rawUrl) {
   try {
-    const u = new URL(String(rawUrl || ''), location.href);
+    const u = new URL(normalizeUrl(String(rawUrl || '')), location.href);
     const host = String(u.hostname || '').toLowerCase();
     if (!host.includes('rutube')) return '';
 
@@ -134,14 +212,14 @@ function extractRutubeId(rawUrl) {
     const iPlay = parts.indexOf('play');
     if (iPlay !== -1 && parts[iPlay + 1] === 'embed' && parts[iPlay + 2]) return parts[iPlay + 2];
 
-    // /video/embed/<id>
+    // /video/embed/<id> или /video/<id>
     const iVideo = parts.indexOf('video');
     if (iVideo !== -1) {
       if (parts[iVideo + 1] === 'embed' && parts[iVideo + 2]) return parts[iVideo + 2];
       if (parts[iVideo + 1]) return parts[iVideo + 1];
     }
 
-    // fallback: last segment
+    // fallback: последний сегмент
     return parts[parts.length - 1] || '';
   } catch (_) {
     return '';
@@ -149,7 +227,8 @@ function extractRutubeId(rawUrl) {
 }
 
 function toRutubeEmbedUrl(rawUrl) {
-  const id = extractRutubeId(rawUrl);
+  const src = normalizeUrl(rawUrl);
+  const id = extractRutubeId(src);
   if (!id) return '';
   return `https://rutube.ru/play/embed/${encodeURIComponent(id)}`;
 }
@@ -198,7 +277,6 @@ function ensureModal() {
   closeBtn?.addEventListener('click', close);
   backdrop?.addEventListener('click', close);
 
-  // Escape
   document.addEventListener('keydown', (e) => {
     if (!_MODAL || _MODAL.hidden) return;
     if (e.key === 'Escape') {
@@ -207,7 +285,6 @@ function ensureModal() {
     }
   });
 
-  // Click outside card
   modal.addEventListener('click', (e) => {
     if (e.target && e.target.getAttribute && e.target.getAttribute('data-vs-close') === '1') {
       closeVideoModal();
@@ -218,12 +295,12 @@ function ensureModal() {
 }
 
 function openVideoModal(rawUrl, title) {
-  const url = String(rawUrl || '').trim();
+  const url = normalizeUrl(String(rawUrl || '').trim());
   if (!url) return;
 
   const embed = toRutubeEmbedUrl(url);
+
   if (!embed) {
-    // если формат не распознан — просто открываем внешнюю ссылку
     window.open(url, '_blank', 'noopener');
     return;
   }
@@ -243,7 +320,6 @@ function openVideoModal(rawUrl, title) {
   document.body.classList.add('vs-modal-open');
   _MODAL.hidden = false;
 
-  // фокус на кнопку закрытия
   const closeBtn = _MODAL.querySelector('#vsModalClose');
   closeBtn?.focus?.();
 }
@@ -261,7 +337,6 @@ function closeVideoModal() {
   const foot = _MODAL.querySelector('#vsModalFoot');
   if (foot) foot.hidden = true;
 
-  // возвращаем фокус
   try { _LAST_ACTIVE?.focus?.(); } catch (_) {}
   _LAST_ACTIVE = null;
 }
@@ -279,10 +354,9 @@ export function wireVideoSolutionModal(root) {
     if (!el) return;
     if (!host.contains(el)) return;
 
-    const url = String(el.dataset.videoUrl || '').trim();
+    const url = normalizeUrl(String(el.dataset.videoUrl || '').trim());
     if (!url) return;
 
-    // в режиме modal всегда перехватываем
     e.preventDefault();
     e.stopPropagation();
 
