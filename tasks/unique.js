@@ -6,8 +6,8 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-import { withBuild } from '../app/build.js?v=2026-01-17-8';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
+import { withBuild } from '../app/build.js?v=2026-01-24-5';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-5';
 
 const INDEX_URL = '../content/tasks/index.json';
 
