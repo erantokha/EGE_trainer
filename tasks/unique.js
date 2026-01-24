@@ -6,8 +6,34 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-import { withBuild } from '../app/build.js?v=2026-01-24-2';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-24-2';
+function ensureUniqueVideoStyles() {
+  // unique.html: «Видео-решение» должно быть всегда видно и располагаться справа от summary «Ответ».
+  // Добавляем точечные стили прямо на страницу, не трогая общий trainer.css.
+  if (document.getElementById('uniqueVideoCss')) return;
+
+  const style = document.createElement('style');
+  style.id = 'uniqueVideoCss';
+  style.textContent = `
+    /* Unique prototypes: answer row + video button */
+    #tasks .ws-ans > summary,
+    #tasks .ws-answer > summary {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    #tasks .ws-ans > summary .video-solution-slot,
+    #tasks .ws-answer > summary .video-solution-slot {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+import { withBuild } from '../app/build.js?v=2026-01-17-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -55,6 +81,9 @@ async function init() {
   } catch (e) {
     console.warn('[unique.js] video modal init failed', e);
   }
+
+  ensureUniqueVideoStyles();
+
   const params = new URLSearchParams(location.search);
   const sectionId = params.get('section');
 
@@ -364,25 +393,53 @@ function renderUnicTasks(container, tasks) {
     stemEl.className = 'ws-stem';
     stemEl.innerHTML = t.stem;
 
+    // Раньше эти элементы не добавлялись в DOM — из-за этого «текст задач пропадал».
+    item.appendChild(num);
+    item.appendChild(stemEl);
+
+    // Фигура (если есть)
+    if (t.figure) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'ws-fig';
+
+      const raw = t.figure;
+      const src = (typeof raw === 'string') ? raw : (raw?.src || raw?.url || raw?.path);
+
+      if (typeof src === 'string' && src.trim().startsWith('<svg')) {
+        figWrap.innerHTML = src;
+      } else if (typeof src === 'string' && src.trim()) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.alt = '';
+        img.src = withBuild(src.trim());
+        figWrap.appendChild(img);
+      }
+
+      if (figWrap.childNodes.length) item.appendChild(figWrap);
+    }
+
     const ans = document.createElement('details');
     ans.className = 'ws-ans';
     const sum = document.createElement('summary');
-    sum.textContent = 'Ответ';
-    const ansText = document.createElement('div');
-    ansText.textContent = t.answerText;
+    // summary: «Ответ» слева, «Видео-решение» справа (в summary, чтобы было видно всегда)
+    const sumLabel = document.createElement('span');
+    sumLabel.className = 'ws-ans-label';
+    sumLabel.textContent = 'Ответ';
 
     // Видео-решение (гидратируется из манифеста content/video/rutube_map.json)
     const videoSlot = document.createElement('span');
     videoSlot.className = 'video-solution-slot';
     videoSlot.dataset.videoProto = t.id;
 
-    const videoLine = document.createElement('div');
-    videoLine.className = 'ws-video-line';
-    videoLine.appendChild(videoSlot);
+    sum.appendChild(sumLabel);
+    sum.appendChild(videoSlot);
+
+    const ansText = document.createElement('div');
+    ansText.className = 'ws-ans-text';
+    ansText.textContent = t.answerText || '';
 
     ans.appendChild(sum);
     if (t.answerText) ans.appendChild(ansText);
-    ans.appendChild(videoLine);
 
     item.appendChild(ans);
 
