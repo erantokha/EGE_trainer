@@ -6,7 +6,8 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-import { withBuild } from '../app/build.js?v=2026-01-24-1';
+import { withBuild } from '../app/build.js?v=2026-01-17-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-17-8';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -47,6 +48,13 @@ function mapLimit(items, limit, fn) {
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
+
+  // Видео-решения: открытие в модалке (Rutube iframe)
+  try {
+    wireVideoSolutionModal(document.body);
+  } catch (e) {
+    console.warn('[unique.js] video modal init failed', e);
+  }
   const params = new URLSearchParams(location.search);
   const sectionId = params.get('section');
 
@@ -362,25 +370,22 @@ function renderUnicTasks(container, tasks) {
     sum.textContent = 'Ответ';
     const ansText = document.createElement('div');
     ansText.textContent = t.answerText;
+
+    // Видео-решение (гидратируется из манифеста content/video/rutube_map.json)
+    const videoSlot = document.createElement('span');
+    videoSlot.className = 'video-solution-slot';
+    videoSlot.dataset.videoProto = t.id;
+
+    const videoLine = document.createElement('div');
+    videoLine.className = 'ws-video-line';
+    videoLine.appendChild(videoSlot);
+
     ans.appendChild(sum);
-    ans.appendChild(ansText);
+    if (t.answerText) ans.appendChild(ansText);
+    ans.appendChild(videoLine);
 
-    item.appendChild(num);
-    item.appendChild(stemEl);
+    item.appendChild(ans);
 
-    if (t.figure && t.figure.img) {
-      const figWrap = document.createElement('div');
-      figWrap.className = 'ws-fig';
-      const img = document.createElement('img');
-      img.src = asset(t.figure.img);
-      img.alt = t.figure.alt || '';
-      figWrap.appendChild(img);
-      item.appendChild(figWrap);
-    }
-
-    if (t.answerText) {
-      item.appendChild(ans);
-    }
 
     list.appendChild(item);
   }
@@ -388,13 +393,24 @@ function renderUnicTasks(container, tasks) {
   container.innerHTML = '';
   container.appendChild(list);
 
-  // безопасный прогон через MathJax
-  typesetSafe(container);
+  // безопасный прогон через MathJax + гидрация видео-решений
+  typesetSafe(container, () => {
+    hydrateVideoLinks(container, { mode: 'modal', missingText: 'Видео скоро будет' });
+  });
 }
 
 // ---------- безопасный вызов MathJax ----------
-function typesetSafe(root) {
-  if (!window.MathJax || !window.MathJax.typesetPromise) return;
+function typesetSafe(root, after = null) {
+  const done = () => {
+    if (typeof after === 'function') {
+      try { after(); } catch (e) { console.warn('[unique.js] after-typeset failed', e); }
+    }
+  };
+
+  if (!window.MathJax || !window.MathJax.typesetPromise) {
+    done();
+    return;
+  }
 
   const backupHTML = root.innerHTML;
 
@@ -405,17 +421,19 @@ function typesetSafe(root) {
       );
       if (badSvg) {
         console.warn(
-          '[unique.js] MathJax создал SVG с NaN-размерами, откатываемся к исходному TeX.',
+          '[unique.js] MathJax создал SVG с NaN-размерами, откатываю к исходному TeX.',
         );
         root.innerHTML = backupHTML;
       }
     })
-    .catch(err => {
+    .catch((err) => {
       console.error('[unique.js] Ошибка MathJax.typesetPromise:', err);
       root.innerHTML = backupHTML;
+    })
+    .finally(() => {
+      done();
     });
 }
-
 // ---------- утилиты ----------
 function esc(s) {
   return String(s).replace(/[&<>"]/g, m => ({
