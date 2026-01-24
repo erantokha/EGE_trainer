@@ -1664,18 +1664,3 @@ body.vs-modal-open{ overflow:hidden; }
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}
 .student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
-
-/* unique.html: «Ответ» + «Видео-решение» в одной строке, кнопка справа */
-.ws-ans-row{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  width:100%;
-}
-.ws-ans-row .ws-ans-label{
-  flex:0 0 auto;
-}
-.ws-ans-row .video-solution-slot{
-  margin-left:auto;
-  flex:0 0 auto;
-}
