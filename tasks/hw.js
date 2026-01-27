@@ -10,14 +10,15 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-27-6';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-25-6';
 
-import { CONFIG } from '../app/config.js?v=2026-01-27-6';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-27-6';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-27-6';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-27-6';
+import { CONFIG } from '../app/config.js?v=2026-01-25-6';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-25-6';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-25-6';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-25-6';
 
 
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-25-6';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1130,7 +1131,16 @@ function computeAnswer(type, proto, params) {
     if (proto.answer.value != null) out.value = proto.answer.value;
     if (proto.answer.text != null) out.text = proto.answer.text;
   } else if (t.expr) {
-    out.value = evalExpr(t.expr, params);
+    try {
+      out.value = safeEvalExpr(t.expr, params);
+    } catch (e) {
+      const msg = e && e.message ? e.message : String(e);
+      const pid = (proto && (proto.id ?? proto.prototype_id ?? proto.prototypeId)) || null;
+      const tid = (type && (type.id ?? type.type_id ?? type.typeId)) || null;
+      console.warn('[safeEvalExpr] Ошибка вычисления ответа', { pid, tid, expr: t.expr, msg });
+      out.value = NaN;
+      out._error = msg;
+    }
   }
   return out;
 }
@@ -1140,12 +1150,6 @@ function interpolate(tpl, params) {
     /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
     (_, k) => (params[k] !== undefined ? String(params[k]) : ''),
   );
-}
-function evalExpr(expr, params) {
-  const pnames = Object.keys(params || {});
-  // eslint-disable-next-line no-new-func
-  const f = new Function(...pnames, `return (${expr});`);
-  return f(...pnames.map(k => params[k]));
 }
 
 // ---------- UI тренажёра (вставка разметки trainer.html) ----------
