@@ -1,62 +1,103 @@
 // tools/check_no_eval.mjs
-// Быстрая защита от возвращения eval/new Function в рантайм-код (app/ и tasks/).
+// Soft guard: forbid only explicit eval(...) and new Function(...) in runtime code (app/, tasks/).
+// This is to prevent accidental reintroduction of unsafe-eval patterns.
 
-import fs from 'node:fs/promises';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const REPO_ROOT = path.resolve(__dirname, '..');
-
-const SKIP_DIRS = new Set(['.git', 'docs', 'content', 'node_modules']);
+const ROOT = process.cwd();
 const TARGET_DIRS = ['app', 'tasks'];
+const EXT_OK = new Set(['.js', '.mjs']);
 
-const FORBIDDEN = [
-  { re: /\bnew\s+Function\b/, name: 'new Function' },
-  { re: /\beval\s*\(/, name: 'eval(' },
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'docs',
+  'tools',
+  'vendor',
+]);
+
+const PATTERNS = [
+  { name: 'eval(', re: /\beval\s*\(/ },
+  { name: 'new Function', re: /\bnew\s+Function\b/ },
 ];
 
-async function* walk(dir) {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const e of entries) {
-    const full = path.join(dir, e.name);
-    if (e.isDirectory()) {
-      if (SKIP_DIRS.has(e.name)) continue;
-      yield* walk(full);
-    } else if (e.isFile()) {
-      yield full;
+async function walk(dirAbs, out) {
+  let items;
+  try {
+    items = await fs.readdir(dirAbs, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const it of items) {
+    const p = path.join(dirAbs, it.name);
+    if (it.isDirectory()) {
+      if (SKIP_DIRS.has(it.name)) continue;
+      await walk(p, out);
+      continue;
     }
+    const ext = path.extname(it.name).toLowerCase();
+    if (!EXT_OK.has(ext)) continue;
+    out.push(p);
   }
 }
 
-function rel(fp) {
-  return path.relative(REPO_ROOT, fp).replaceAll('\\', '/');
+function lineCol(text, index) {
+  let line = 1, col = 1;
+  for (let i = 0; i < index; i++) {
+    if (text[i] === '\n') { line++; col = 1; }
+    else col++;
+  }
+  return { line, col };
 }
 
-function shouldScan(r) {
-  if (!TARGET_DIRS.some(d => r.startsWith(d + '/'))) return false;
-  return r.endsWith('.js') || r.endsWith('.mjs');
+function snippet(text, index, radius = 60) {
+  const a = Math.max(0, index - radius);
+  const b = Math.min(text.length, index + radius);
+  return text.slice(a, b).replace(/\s+/g, ' ').trim();
 }
 
-let bad = [];
+async function main() {
+  const files = [];
+  for (const d of TARGET_DIRS) {
+    await walk(path.join(ROOT, d), files);
+  }
 
-for await (const fp of walk(REPO_ROOT)) {
-  const r = rel(fp);
-  if (!shouldScan(r)) continue;
-  const txt = await fs.readFile(fp, 'utf-8');
+  const findings = [];
 
-  for (const f of FORBIDDEN) {
-    if (f.re.test(txt)) {
-      bad.push({ file: r, kind: f.name });
+  for (const fileAbs of files) {
+    const rel = path.relative(ROOT, fileAbs);
+    // extra skip: if someone later vendors third-party scripts inside app/vendor/
+    if (rel.startsWith('app' + path.sep + 'vendor' + path.sep)) continue;
+
+    const text = await fs.readFile(fileAbs, 'utf8');
+    for (const p of PATTERNS) {
+      const m = p.re.exec(text);
+      if (!m) continue;
+      const pos = lineCol(text, m.index);
+      findings.push({
+        pattern: p.name,
+        file: rel,
+        line: pos.line,
+        col: pos.col,
+        snippet: snippet(text, m.index),
+      });
     }
   }
+
+  if (findings.length) {
+    console.error('Forbidden constructs found (eval/new Function):');
+    for (const f of findings) {
+      console.error(`${f.file}:${f.line}:${f.col} -> ${f.pattern} | ${f.snippet}`);
+    }
+    process.exit(1);
+  }
+
+  console.log('no eval/new Function ok');
 }
 
-if (bad.length) {
-  console.error('Forbidden constructs found:');
-  for (const b of bad) console.error(`- ${b.kind} in ${b.file}`);
-  process.exit(1);
-}
-
-console.log('no eval/new Function ok');
+main().catch((e) => {
+  console.error('check_no_eval failed:', e?.stack || e);
+  process.exit(2);
+});
