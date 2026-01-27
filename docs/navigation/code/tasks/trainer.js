@@ -1100,6 +1100,26 @@ async function finishSession() {
     renderSmartPanel();
   }
 
+  // Считываем ответ из поля текущего вопроса (если пользователь не нажал "Проверить")
+  try {
+    const qcur = SESSION.questions[SESSION.idx];
+    if (qcur && qcur.correct == null) {
+      const el = $('#answer');
+      qcur.chosen_text = String(el ? el.value : '');
+    }
+  } catch (_) {}
+
+  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный"
+  for (const q of SESSION.questions) {
+    const raw = q.chosen_text ?? '';
+    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer || {}, raw);
+    q.correct = correct;
+    q.chosen_text = chosen_text;
+    q.normalized_text = normalized_text;
+    q.correct_text = correct_text;
+    q.time_ms = q.time_ms || 0;
+  }
+
   const total = SESSION.questions.length;
   const correct = SESSION.questions.reduce(
     (s, q) => s + (q.correct ? 1 : 0),
