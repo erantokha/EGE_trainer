@@ -7,18 +7,15 @@
       "title": "Абсцисса точки A",
       "stem_template": "На рисунке изображены графики двух линейных функций, пересекающиеся в точке $A$. Найдите абсциссу точки $A$.",
       "answer_spec": {
-        "type": "number",
-        "locale": "ru-RU",
-        "decimal_separators": [
-          ",",
-          "."
-        ],
-        "display": "text",
-        "display_decimal_separator": ",",
-        "accept_decimal_comma": true
+        "type": "string",
+        "format": "ege_decimal"
       },
       "defaults": {
-        "difficulty": 1
+        "difficulty": 1,
+        "normalize": [
+          "strip_spaces",
+          "unicode_minus_to_ascii"
+        ]
       },
       "prototypes": [
         {
@@ -29,10 +26,7 @@
           },
           "answer": {
             "value": 5,
-            "text": "5",
-            "accepted": [
-              "5"
-            ]
+            "text": "5"
           },
           "params": {
             "ax": 0,
@@ -54,10 +48,7 @@
           },
           "answer": {
             "value": 10,
-            "text": "10",
-            "accepted": [
-              "10"
-            ]
+            "text": "10"
           },
           "params": {
             "ax": -6,
@@ -78,10 +69,7 @@
           },
           "answer": {
             "value": 9,
-            "text": "9",
-            "accepted": [
-              "9"
-            ]
+            "text": "9"
           },
           "params": {
             "ax": -4,
@@ -102,10 +90,7 @@
           },
           "answer": {
             "value": 11,
-            "text": "11",
-            "accepted": [
-              "11"
-            ]
+            "text": "11"
           },
           "params": {
             "ax": -4,
@@ -126,10 +111,7 @@
           },
           "answer": {
             "value": -8,
-            "text": "-8",
-            "accepted": [
-              "-8"
-            ]
+            "text": "-8"
           },
           "params": {
             "ax": -3,
@@ -150,10 +132,7 @@
           },
           "answer": {
             "value": -9,
-            "text": "-9",
-            "accepted": [
-              "-9"
-            ]
+            "text": "-9"
           },
           "params": {
             "ax": -3,
@@ -174,10 +153,7 @@
           },
           "answer": {
             "value": -10,
-            "text": "-10",
-            "accepted": [
-              "-10"
-            ]
+            "text": "-10"
           },
           "params": {
             "ax": -3,
@@ -198,11 +174,7 @@
           },
           "answer": {
             "value": -5.5,
-            "text": "-5,5",
-            "accepted": [
-              "-5,5",
-              "-5.5"
-            ]
+            "text": "-5,5"
           },
           "params": {
             "ax": -2,
@@ -223,10 +195,7 @@
           },
           "answer": {
             "value": -5,
-            "text": "-5",
-            "accepted": [
-              "-5"
-            ]
+            "text": "-5"
           },
           "params": {
             "ax": -2,
@@ -247,10 +216,7 @@
           },
           "answer": {
             "value": -22,
-            "text": "-22",
-            "accepted": [
-              "-22"
-            ]
+            "text": "-22"
           },
           "params": {
             "ax": -2,
@@ -271,10 +237,7 @@
           },
           "answer": {
             "value": 16,
-            "text": "16",
-            "accepted": [
-              "16"
-            ]
+            "text": "16"
           },
           "params": {
             "ax": 0,
@@ -295,10 +258,7 @@
           },
           "answer": {
             "value": 12,
-            "text": "12",
-            "accepted": [
-              "12"
-            ]
+            "text": "12"
           },
           "params": {
             "ax": 0,
@@ -319,11 +279,7 @@
           },
           "answer": {
             "value": 7.5,
-            "text": "7,5",
-            "accepted": [
-              "7,5",
-              "7.5"
-            ]
+            "text": "7,5"
           },
           "params": {
             "ax": 0,
@@ -344,10 +300,7 @@
           },
           "answer": {
             "value": 12,
-            "text": "12",
-            "accepted": [
-              "12"
-            ]
+            "text": "12"
           },
           "params": {
             "ax": 0,
@@ -368,10 +321,7 @@
           },
           "answer": {
             "value": -14,
-            "text": "-14",
-            "accepted": [
-              "-14"
-            ]
+            "text": "-14"
           },
           "params": {
             "ax": 0,
@@ -392,10 +342,7 @@
           },
           "answer": {
             "value": -16,
-            "text": "-16",
-            "accepted": [
-              "-16"
-            ]
+            "text": "-16"
           },
           "params": {
             "ax": 0,
@@ -416,10 +363,7 @@
           },
           "answer": {
             "value": -12,
-            "text": "-12",
-            "accepted": [
-              "-12"
-            ]
+            "text": "-12"
           },
           "params": {
             "ax": 0,
@@ -440,10 +384,7 @@
           },
           "answer": {
             "value": -9,
-            "text": "-9",
-            "accepted": [
-              "-9"
-            ]
+            "text": "-9"
           },
           "params": {
             "ax": 0,
@@ -464,11 +405,7 @@
           },
           "answer": {
             "value": -10.5,
-            "text": "-10,5",
-            "accepted": [
-              "-10,5",
-              "-10.5"
-            ]
+            "text": "-10,5"
           },
           "params": {
             "ax": 0,
@@ -489,10 +426,7 @@
           },
           "answer": {
             "value": 42,
-            "text": "42",
-            "accepted": [
-              "42"
-            ]
+            "text": "42"
           },
           "params": {
             "ax": 0,
