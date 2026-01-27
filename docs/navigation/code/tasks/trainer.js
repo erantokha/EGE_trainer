@@ -8,6 +8,7 @@ import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSm
 
 
 import { withBuild } from '../app/build.js?v=2026-01-15-14';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-25-6';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -796,7 +797,16 @@ function computeAnswer(type, proto, params) {
     if (proto.answer.value != null) out.value = proto.answer.value;
     if (proto.answer.text != null) out.text = proto.answer.text;
   } else if (t.expr) {
-    out.value = evalExpr(t.expr, params);
+    try {
+      out.value = safeEvalExpr(t.expr, params);
+    } catch (e) {
+      const msg = e && e.message ? e.message : String(e);
+      const pid = (proto && (proto.id ?? proto.prototype_id ?? proto.prototypeId)) || null;
+      const tid = (type && (type.id ?? type.type_id ?? type.typeId)) || null;
+      console.warn('[safeEvalExpr] Ошибка вычисления ответа', { pid, tid, expr: t.expr, msg });
+      out.value = NaN;
+      out._error = msg;
+    }
   }
   return out;
 }
@@ -808,12 +818,6 @@ function interpolate(tpl, params) {
   );
 }
 
-function evalExpr(expr, params) {
-  const pnames = Object.keys(params || {});
-  // eslint-disable-next-line no-new-func
-  const f = new Function(...pnames, `return (${expr});`);
-  return f(...pnames.map(k => params[k]));
-}
 
 // ---------- Режим ТЕСТИРОВАНИЯ ----------
 async function startTestSession(arr) {
