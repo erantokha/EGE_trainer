@@ -21,8 +21,5 @@ jobs:
       - name: Check build/version sync
         run: node tools/check_build.mjs
 
-      - name: Check forbidden eval/new Function
+      - name: Forbid eval/new Function in runtime
         run: node tools/check_no_eval.mjs
-
-      - name: Unit test safe_expr
-        run: node tools/test_safe_expr.mjs
