@@ -1,15 +1,15 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-27-8';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-27-8';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-25-6';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-25-6';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-27-8';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-25-6';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-27-8';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-27-8';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-27-8';
+import { withBuild } from '../app/build.js?v=2026-01-25-6';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-25-6';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-25-6';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1099,6 +1099,26 @@ async function finishSession() {
   if (SMART_ACTIVE) {
     smartSyncProgress();
     renderSmartPanel();
+  }
+
+  // Считываем ответ из поля текущего вопроса (если пользователь не нажал "Проверить")
+  try {
+    const qcur = SESSION.questions[SESSION.idx];
+    if (qcur && qcur.correct == null) {
+      const el = $('#answer');
+      qcur.chosen_text = String(el ? el.value : '');
+    }
+  } catch (_) {}
+
+  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный"
+  for (const q of SESSION.questions) {
+    const raw = q.chosen_text ?? '';
+    const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer || {}, raw);
+    q.correct = correct;
+    q.chosen_text = chosen_text;
+    q.normalized_text = normalized_text;
+    q.correct_text = correct_text;
+    q.time_ms = q.time_ms || 0;
   }
 
   const total = SESSION.questions.length;
