@@ -6,6 +6,52 @@
   <title>Домашнее задание</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="referrer" content="no-referrer">
+
+  <script id="sentry-loader"
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+
+  <script>
+  (function () {
+    function init() {
+      if (!window.Sentry) return;
+  
+      var buildMeta = document.querySelector('meta[name="app-build"]');
+      var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
+      var env = (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+  
+      window.Sentry.init({
+        release: release,
+        environment: env,
+        beforeSend: function (event) {
+          try {
+            if (event && event.request && event.request.headers) {
+              delete event.request.headers.Authorization;
+              delete event.request.headers.authorization;
+            }
+          } catch (e) {}
+          return event;
+        }
+      });
+  
+      window.Sentry.init({
+        release: release,
+        environment: env,
+        tags: { page: location.pathname }
+        // ...
+      });
+
+    }
+  
+    if (window.Sentry) {
+      init();
+    } else {
+      var s = document.getElementById('sentry-loader');
+      if (s) s.addEventListener('load', init);
+    }
+  })();
+  </script>
+  
   <link rel="stylesheet" href="./trainer.css?v=2026-01-28-10">
 
   <script>
