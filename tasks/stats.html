@@ -2,55 +2,88 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-29-1">
+  <meta name="app-build" content="2026-01-28-35">
   <title>Статистика</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
   <script id="sentry-loader"
     src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
     crossorigin="anonymous"></script>
-  
+
   <script>
   (function () {
-    function init() {
-      if (!window.Sentry) return;
+    function boot() {
+      if (!window.Sentry || typeof window.Sentry.init !== 'function') return;
       if (window.__SENTRY_INITED__) return;
       window.__SENTRY_INITED__ = true;
-  
+
       var buildMeta = document.querySelector('meta[name="app-build"]');
       var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
       var env = (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
-  
-      window.Sentry.init({
+
+      var integrations = [];
+      try {
+        if (window.Sentry.breadcrumbsIntegration) {
+          integrations.push(window.Sentry.breadcrumbsIntegration({
+            console: true,
+            dom: true,
+            fetch: true,
+            xhr: true,
+            history: true,
+            sentry: true
+          }));
+        }
+        if (window.Sentry.browserApiErrorsIntegration) {
+          integrations.push(window.Sentry.browserApiErrorsIntegration());
+        }
+        if (window.Sentry.globalHandlersIntegration) {
+          integrations.push(window.Sentry.globalHandlersIntegration({
+            onerror: true,
+            onunhandledrejection: true
+          }));
+        }
+      } catch (e) {}
+
+      var opts = {
         release: release,
         environment: env,
-        tags: { page: location.pathname },
+        maxBreadcrumbs: 100,
+        initialScope: { tags: { page: location.pathname } },
         beforeSend: function (event) {
           try {
             if (event && event.request) {
               if (event.request.url && event.request.url.indexOf('?') !== -1) {
                 event.request.url = event.request.url.split('?')[0];
               }
+              if (event.request.headers) {
+                delete event.request.headers.Authorization;
+                delete event.request.headers.authorization;
+              }
               delete event.request.query_string;
             }
           } catch (e) {}
           return event;
         }
-      });
+      };
+
+      if (integrations.length) opts.integrations = integrations;
+      window.Sentry.init(opts);
     }
-  
-    if (window.Sentry) {
-      init();
+
+    if (window.Sentry && typeof window.Sentry.onLoad === 'function') {
+      window.Sentry.onLoad(boot);
     } else {
       var s = document.getElementById('sentry-loader');
-      if (s) s.addEventListener('load', init);
+      if (s) s.addEventListener('load', boot);
+      if (window.Sentry) boot();
     }
   })();
   </script>
 
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-29-1">
-  <link rel="stylesheet" href="./stats.css?v=2026-01-29-1">
-  <script src="./theme.js?v=2026-01-29-1" defer></script>
+
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-28-35">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-28-35">
+  <script src="./theme.js?v=2026-01-28-35" defer></script>
 </head>
 <body>
   <main class="container">
@@ -77,6 +110,6 @@
     </section>
   </main>
 
-  <script type="module" src="./stats.js?v=2026-01-29-1"></script>
+  <script type="module" src="./stats.js?v=2026-01-28-35"></script>
 </body>
 </html>
