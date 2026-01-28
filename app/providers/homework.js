@@ -1,8 +1,8 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-01-28-30';
-import { supabase } from './supabase.js?v=2026-01-28-30';
+import { CONFIG } from '../config.js?v=2026-01-28-31';
+import { supabase } from './supabase.js?v=2026-01-28-31';
 
 // supabase-js v2: getUser() возвращает { data: { user }, error }
 async function getAuth() {
