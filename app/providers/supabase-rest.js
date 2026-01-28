@@ -5,8 +5,8 @@
 // - 1 ретрай при 401 с принудительным refresh (forceRefresh)
 // - единый формат ошибок (code/status/endpoint/details)
 
-import { CONFIG } from '../config.js?v=2026-01-28-15';
-import { getSession, requireSession } from './supabase.js?v=2026-01-28-15';
+import { CONFIG } from '../config.js?v=2026-01-28-16';
+import { getSession, requireSession } from './supabase.js?v=2026-01-28-16';
 
 function __baseUrl() {
   return String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
