@@ -5,11 +5,11 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-28-25';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-28-26';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-28-25';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-28-25';
+import { withBuild } from '../app/build.js?v=2026-01-28-26';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-28-26';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
