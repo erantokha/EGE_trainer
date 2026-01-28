@@ -12,13 +12,15 @@
   -->
 
   <script id="sentry-loader"
-  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
-  crossorigin="anonymous"></script>
-
+    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+    crossorigin="anonymous"></script>
+  
   <script>
   (function () {
     function init() {
       if (!window.Sentry) return;
+      if (window.__SENTRY_INITED__) return;
+      window.__SENTRY_INITED__ = true;
   
       var buildMeta = document.querySelector('meta[name="app-build"]');
       var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
@@ -27,24 +29,19 @@
       window.Sentry.init({
         release: release,
         environment: env,
+        tags: { page: location.pathname },
         beforeSend: function (event) {
           try {
-            if (event && event.request && event.request.headers) {
-              delete event.request.headers.Authorization;
-              delete event.request.headers.authorization;
+            if (event && event.request) {
+              if (event.request.url && event.request.url.indexOf('?') !== -1) {
+                event.request.url = event.request.url.split('?')[0];
+              }
+              delete event.request.query_string;
             }
           } catch (e) {}
           return event;
         }
       });
-  
-      window.Sentry.init({
-        release: release,
-        environment: env,
-        tags: { page: location.pathname }
-        // ...
-      });
-
     }
   
     if (window.Sentry) {
@@ -55,6 +52,7 @@
     }
   })();
   </script>
+
   
   <link rel="stylesheet" href="./tasks/trainer.css?v=2026-01-28-20">
 </head>
