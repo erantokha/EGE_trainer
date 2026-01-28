@@ -39,7 +39,13 @@
         }
       });
   
-      window.Sentry.setTag('page', location.pathname);
+      window.Sentry.init({
+        release: release,
+        environment: env,
+        tags: { page: location.pathname }
+        // ...
+      });
+
     }
   
     if (window.Sentry) {
