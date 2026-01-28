@@ -35,8 +35,8 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-01-28-28';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-28-28';
+import { withBuild } from '../app/build.js?v=2026-01-28-29';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-28-29';
 
 const INDEX_URL = '../content/tasks/index.json';
 
