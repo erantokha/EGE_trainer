@@ -12,46 +12,65 @@
   -->
   
   <script id="sentry-loader"
-    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
-    crossorigin="anonymous"></script>
-  
-  <script>
-  (function () {
-    function init() {
-      if (!window.Sentry) return;
-      if (window.__SENTRY_INITED__) return;
-      window.__SENTRY_INITED__ = true;
-  
-      var buildMeta = document.querySelector('meta[name="app-build"]');
-      var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
-      var env = (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
-  
-      window.Sentry.init({
-        release: release,
-        environment: env,
-        tags: { page: location.pathname },
-        beforeSend: function (event) {
-          try {
-            if (event && event.request) {
-              if (event.request.url && event.request.url.indexOf('?') !== -1) {
-                event.request.url = event.request.url.split('?')[0];
-              }
-              delete event.request.query_string;
-            }
-          } catch (e) {}
-          return event;
-        }
-      });
-    }
-  
-    if (window.Sentry) {
-      init();
-    } else {
-      var s = document.getElementById('sentry-loader');
-      if (s) s.addEventListener('load', init);
-    }
-  })();
-  </script>
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+<script>
+(function () {
+  if (window.__SENTRY_INITED__) return;
+  window.__SENTRY_INITED__ = true;
+
+  function getRelease() {
+    var m = document.querySelector('meta[name="app-build"]');
+    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+  }
+
+  function getEnv() {
+    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+  }
+
+  function sanitizeEvent(event) {
+    try {
+      if (event && event.request && event.request.url) {
+        event.request.url = event.request.url.split('#')[0].split('?')[0];
+      }
+      if (event && event.request && event.request.headers) {
+        delete event.request.headers.Authorization;
+        delete event.request.headers.authorization;
+        delete event.request.headers.Cookie;
+        delete event.request.headers.cookie;
+      }
+    } catch (e) {}
+    return event;
+  }
+
+  function doInit() {
+    if (!window.Sentry || !window.Sentry.init) return;
+
+    var opts = {
+      release: getRelease(),
+      environment: getEnv(),
+      initialScope: {
+        tags: { page: location.pathname }
+      },
+      beforeSend: sanitizeEvent
+    };
+
+    try {
+      if (window.Sentry.onLoad) {
+        window.Sentry.onLoad(function () {
+          window.Sentry.init(opts);
+        });
+        return;
+      }
+    } catch (e) {}
+
+    window.Sentry.init(opts);
+  }
+
+  doInit();
+})();
+</script>
+
 
   <link rel="stylesheet" href="./tasks/trainer.css?v=2026-01-28-35">
 </head>
