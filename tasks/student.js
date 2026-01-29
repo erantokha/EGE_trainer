@@ -572,6 +572,362 @@ if (statsFiltersToggle && statsControls) {
   const copyBtn = $('#smartHwCopy');
   const openBtn = $('#smartHwOpen');
 
+  // ---------- tabs inside smart HW ----------
+  const tabRecsBtn = $('#smartTabRecsBtn');
+  const tabVar12Btn = $('#smartTabVar12Btn');
+  const tabRecs = $('#smartTabRecs');
+  const tabVar12 = $('#smartTabVar12');
+
+  const LS_TAB_KEY = `smart_hw_tab_v1:${studentId}`;
+
+  function setSmartTab(name) {
+    const t = (name === 'var12') ? 'var12' : 'recs';
+    if (tabRecs) setHidden(tabRecs, t !== 'recs');
+    if (tabVar12) setHidden(tabVar12, t !== 'var12');
+
+    if (tabRecsBtn) tabRecsBtn.classList.toggle('is-active', t === 'recs');
+    if (tabVar12Btn) tabVar12Btn.classList.toggle('is-active', t === 'var12');
+  }
+
+  try {
+    setSmartTab(localStorage.getItem(LS_TAB_KEY) || 'recs');
+  } catch (_) {
+    setSmartTab('recs');
+  }
+
+  if (tabRecsBtn) tabRecsBtn.addEventListener('click', () => {
+    setSmartTab('recs');
+    try { localStorage.setItem(LS_TAB_KEY, 'recs'); } catch (_) {}
+  });
+  if (tabVar12Btn) tabVar12Btn.addEventListener('click', () => {
+    setSmartTab('var12');
+    try { localStorage.setItem(LS_TAB_KEY, 'var12'); } catch (_) {}
+  });
+
+  // ---------- normalize p_source values (html may use self/homework) ----------
+  function normSource(v) {
+    const s = String(v || 'all').trim();
+    if (s === 'homework' || s === 'hw') return 'hw';
+    if (s === 'self' || s === 'test') return 'test';
+    return 'all';
+  }
+
+  // ---------- Variant-12 UI ----------
+  const var12ModeEl = $('#var12Mode');
+  const var12SourceEl = $('#var12Source');
+  const var12TitleEl = $('#var12Title');
+  const var12BuildBtn = $('#var12Build');
+  const var12ClearBtn = $('#var12Clear');
+  const var12CreateBtn = $('#var12Create');
+  const var12StatusEl = $('#var12Status');
+  const var12ListEl = $('#var12List');
+  const var12TopicsEl = $('#var12Topics');
+  const var12TotalEl = $('#var12Total');
+
+  const var12ResultBox = $('#var12Result');
+  const var12LinkEl = $('#var12Link');
+  const var12CopyBtn = $('#var12Copy');
+  const var12OpenBtn = $('#var12Open');
+
+  const LS_VAR12_KEY = `smart_hw_var12_v1:${studentId}`;
+  let var12Rows = [];
+
+  const var12Save = debounce(() => {
+    try {
+      localStorage.setItem(LS_VAR12_KEY, JSON.stringify({
+        mode: String(var12ModeEl?.value || 'uncovered'),
+        source: String(var12SourceEl?.value || 'all'),
+        title: String(var12TitleEl?.value || ''),
+      }));
+    } catch (_) {}
+  }, 150);
+
+  function var12SetStatus(text) {
+    if (var12StatusEl) var12StatusEl.textContent = String(text || '');
+  }
+
+  function var12SetCreateEnabled(ok, hintText = '') {
+    if (var12CreateBtn) var12CreateBtn.disabled = !ok;
+    if (hintText) var12SetStatus(hintText);
+  }
+
+  function var12Render() {
+    if (!var12ListEl) return;
+    var12ListEl.innerHTML = '';
+
+    if (!Array.isArray(var12Rows) || var12Rows.length === 0) {
+      var12ListEl.appendChild(el('div', { class:'muted', text:'Пока ничего не выбрано.' }));
+      if (var12TopicsEl) var12TopicsEl.textContent = '0';
+      if (var12TotalEl) var12TotalEl.textContent = '0';
+      var12SetCreateEnabled(false);
+      return;
+    }
+
+    for (const r of var12Rows) {
+      const badgeText = (r?.mode === 'worst3') ? 'плохая точность' : 'не решал';
+      const badgeCls = (r?.mode === 'worst3') ? 'red' : 'gray';
+
+      const row = el('div', { class:'smart-topic' }, [
+        el('div', { class:'row' }, [
+          el('div', { class:'name', text: `${r.section_id}. ${r.section_title}` }),
+          el('span', { class:`badge ${badgeCls}`, text: badgeText }),
+        ]),
+        el('div', { class:'meta', text: `${r.topic_id} · ${r.topic_title}` }),
+        el('div', { class:'meta', text: String(r.reason || '') }),
+      ]);
+
+      var12ListEl.appendChild(row);
+    }
+
+    if (var12TopicsEl) var12TopicsEl.textContent = String(var12Rows.length);
+    if (var12TotalEl) var12TotalEl.textContent = String(var12Rows.length);
+  }
+
+  function var12Clear() {
+    var12Rows = [];
+    var12Render();
+    setHidden(var12ResultBox, true);
+    if (var12LinkEl) var12LinkEl.value = '';
+    var12SetStatus('');
+    var12Save();
+  }
+
+  async function loadLastKPerTopic({ k = 3, source = 'all', pageSize = 1500, maxPages = 4 } = {}) {
+    const src = normSource(source);
+    const allowedTopics = new Set();
+    try {
+      if (catalog?.topicTitle instanceof Map) {
+        for (const tid of catalog.topicTitle.keys()) allowedTopics.add(String(tid));
+      }
+    } catch (_) {}
+
+    const out = new Map(); // topic_id -> { total, correct }
+    const got = new Map(); // topic_id -> count
+    const coveredSections = new Set();
+
+    const allSections = new Set();
+    try {
+      if (catalog?.topicsBySection instanceof Map) {
+        for (const sid of catalog.topicsBySection.keys()) allSections.add(String(sid));
+      }
+    } catch (_) {}
+
+    for (let page = 0; page < maxPages; page++) {
+      const offset = page * pageSize;
+
+      let qs = `select=topic_id,correct,occurred_at,source&student_id=eq.${encodeURIComponent(studentId)}&order=occurred_at.desc&limit=${pageSize}&offset=${offset}`;
+      if (src === 'hw') qs += '&source=eq.hw';
+      else if (src === 'test') qs += '&source=eq.test';
+      else qs += '&source=in.(hw,test)';
+
+      let rows = [];
+      try {
+        rows = await restSelect(cfg, auth.access_token, 'answer_events', qs);
+      } catch (e) {
+        // если таблица/колонки недоступны по RLS — просто вернем пустое
+        console.warn('variant12: cannot load answer_events', e);
+        return new Map();
+      }
+
+      if (!Array.isArray(rows) || rows.length === 0) break;
+
+      for (const r of rows) {
+        const tid = String(r?.topic_id || '').trim();
+        if (!tid) continue;
+        if (allowedTopics.size && !allowedTopics.has(tid)) continue;
+
+        const cur = got.get(tid) || 0;
+        if (cur >= k) continue;
+
+        const rec = out.get(tid) || { total: 0, correct: 0 };
+        rec.total += 1;
+        rec.correct += (r?.correct ? 1 : 0);
+        out.set(tid, rec);
+        got.set(tid, cur + 1);
+
+        if (cur + 1 >= k) {
+          const sid = tid.split('.')[0];
+          if (sid) coveredSections.add(String(sid));
+        }
+      }
+
+      if (coveredSections.size >= allSections.size && allSections.size) break;
+      if (rows.length < pageSize) break;
+    }
+
+    return out;
+  }
+
+  async function var12Build() {
+    if (!var12BuildBtn) return;
+    var12SetStatus('Подбираем вариант…');
+    var12SetCreateEnabled(false);
+    setHidden(var12ResultBox, true);
+
+    // defaults
+    if (var12TitleEl && !String(var12TitleEl.value || '').trim()) var12TitleEl.value = 'Вариант 12';
+
+    // ensure catalog
+    if (!catalog) {
+      try { catalog = await loadCatalog(); } catch (e) { var12SetStatus('Не удалось загрузить каталог тем.'); return; }
+    }
+
+    const mode = String(var12ModeEl?.value || 'uncovered');
+    const src = normSource(var12SourceEl?.value || 'all');
+
+    let dash = null;
+    try {
+      dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
+        p_student_id: studentId,
+        p_days: 3650,
+        p_source: src,
+      });
+    } catch (e) {
+      console.warn('variant12: dashboard rpc failed', e);
+      var12SetStatus('Не удалось загрузить статистику ученика.');
+      return;
+    }
+
+    let last3 = new Map();
+    if (mode === 'worst3') {
+      var12SetStatus('Считаем точность по последним 3…');
+      last3 = await loadLastKPerTopic({ k: 3, source: src });
+    }
+
+    let mod = null;
+    try { mod = await import(withV('./variant12.js')); } catch (e) {
+      console.warn('variant12: cannot import variant12.js', e);
+      var12SetStatus('Не удалось загрузить модуль варианта 12.');
+      return;
+    }
+
+    const res = mod.buildVariant12Selection({ catalog, dash, lastKMap: last3, mode });
+    var12Rows = Array.isArray(res?.rows) ? res.rows : [];
+    var12Render();
+
+    const ok = (var12Rows.length === 12);
+    if (ok) var12SetStatus('Готово. Можно создать ДЗ (12).');
+    else {
+      const extra = (Array.isArray(res?.issues) && res.issues.length) ? (' ' + res.issues.join(' ')) : '';
+      var12SetStatus(`Не удалось собрать вариант из 12. ${extra}`.trim());
+    }
+    var12SetCreateEnabled(ok);
+    var12Save();
+  }
+
+  async function var12Create() {
+    if (!var12CreateBtn) return;
+    if (!Array.isArray(var12Rows) || var12Rows.length !== 12) {
+      var12SetStatus('Сначала соберите вариант из 12.');
+      return;
+    }
+
+    const title = String(var12TitleEl?.value || '').trim() || 'Вариант 12';
+
+    var12SetStatus('Собираем задачи…');
+    var12CreateBtn.disabled = true;
+    setHidden(var12ResultBox, true);
+
+    let builder = null;
+    let hwApi = null;
+    try {
+      builder = await import(withV('./smart_hw_builder.js'));
+      hwApi = await import(withV('./homework_api.js'));
+    } catch (e) {
+      console.warn('variant12: cannot import builders', e);
+      var12SetStatus('Не удалось загрузить модули создания ДЗ.');
+      var12CreateBtn.disabled = false;
+      return;
+    }
+
+    const topics = {};
+    for (const r of var12Rows) topics[String(r.topic_id)] = 1;
+
+    let frozen = null;
+    try {
+      frozen = await builder.buildFrozenQuestionsForTopics({ catalog, cfg, auth, topics, shuffle: true });
+    } catch (e) {
+      console.warn('variant12: buildFrozen failed', e);
+      var12SetStatus('Не удалось собрать задачи по темам.');
+      var12CreateBtn.disabled = false;
+      return;
+    }
+
+    const totalWanted = 12;
+    const got = safeInt(frozen?.totalPicked, 0);
+    if (got < totalWanted) {
+      const miss = Array.isArray(frozen?.shortages) ? frozen.shortages.slice(0, 6).map((x) => String(x)).join(', ') : '';
+      var12SetStatus(`Не удалось собрать 12 задач. Не хватает: ${miss}`.trim());
+      var12CreateBtn.disabled = false;
+      return;
+    }
+
+    // создаем ДЗ
+    try {
+      const spec = {
+        kind: 'variant12',
+        mode: String(var12ModeEl?.value || 'uncovered'),
+        source: normSource(var12SourceEl?.value || 'all'),
+        student_id: studentId,
+        built_at: new Date().toISOString(),
+        rows: var12Rows.map((r) => ({
+          section_id: r.section_id,
+          topic_id: r.topic_id,
+          reason: r.reason,
+        })),
+        frozen,
+      };
+
+      const created = await hwApi.createHomeworkAndLink(cfg, auth.access_token, {
+        title,
+        attempts_per_student: 1,
+        is_active: true,
+        spec_json: spec,
+      });
+
+      const link = String(created?.student_link || '').trim();
+      if (!link) throw new Error('No student_link from createHomeworkAndLink');
+      if (var12LinkEl) var12LinkEl.value = link;
+      setHidden(var12ResultBox, false);
+      var12SetStatus('ДЗ создано.');
+    } catch (e) {
+      console.warn('variant12: createHomework failed', e);
+      var12SetStatus('Не удалось создать ДЗ.');
+    } finally {
+      var12CreateBtn.disabled = false;
+    }
+  }
+
+  if (var12BuildBtn) var12BuildBtn.addEventListener('click', var12Build);
+  if (var12ClearBtn) var12ClearBtn.addEventListener('click', var12Clear);
+  if (var12CreateBtn) var12CreateBtn.addEventListener('click', var12Create);
+
+  if (var12ModeEl) var12ModeEl.addEventListener('change', var12Save);
+  if (var12SourceEl) var12SourceEl.addEventListener('change', var12Save);
+  if (var12TitleEl) var12TitleEl.addEventListener('input', var12Save);
+
+  if (var12CopyBtn) var12CopyBtn.addEventListener('click', async () => {
+    const v = String(var12LinkEl?.value || '').trim();
+    if (!v) return;
+    try { await navigator.clipboard.writeText(v); var12SetStatus('Скопировано.'); } catch (_) { var12SetStatus('Не удалось скопировать.'); }
+  });
+  if (var12OpenBtn) var12OpenBtn.addEventListener('click', () => {
+    const v = String(var12LinkEl?.value || '').trim();
+    if (!v) return;
+    try { window.open(v, '_blank'); } catch (_) {}
+  });
+
+  // load saved var12 filters
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_VAR12_KEY) || 'null');
+    if (saved && typeof saved === 'object') {
+      if (var12ModeEl && saved.mode) var12ModeEl.value = String(saved.mode);
+      if (var12SourceEl && saved.source) var12SourceEl.value = String(saved.source);
+      if (var12TitleEl && typeof saved.title === 'string') var12TitleEl.value = saved.title;
+    }
+  } catch (_) {}
+
+
   // -------- smart state (filters + plan) --------
   function debounce(fn, ms) {
     let t = null;
@@ -913,7 +1269,7 @@ if (statsFiltersToggle && statsControls) {
       lastDash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
         p_student_id: studentId,
         p_days: days,
-        p_source: source,
+        p_source: normSource(source),
       });
 
       const recMod = await import(withV('./recommendations.js'));
@@ -1106,7 +1462,7 @@ if (statsFiltersToggle && statsControls) {
       const dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
         p_student_id: studentId,
         p_days: days,
-        p_source: source,
+        p_source: normSource(source),
       });
 
       statsUi.hintEl.textContent = '';

@@ -1535,6 +1535,29 @@ body.vs-modal-open{ overflow:hidden; }
   background: rgba(148,163,184,.05);
 }
 
+.smart-tabs{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin: 2px 0 10px;
+}
+
+.smart-tab-btn{
+  padding:8px 10px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background: rgba(148,163,184,.04);
+  color: var(--text);
+  cursor:pointer;
+}
+
+.smart-tab-btn.is-active{
+  background: var(--panel);
+}
+
+.smart-tab-content{ }
+
 .smart-hw-grid{
   display:grid;
   grid-template-columns: 1fr 1fr;

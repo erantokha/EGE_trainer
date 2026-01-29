@@ -82,7 +82,7 @@
   </script>
 
 
-  
+
   <link rel="stylesheet" href="./trainer.css?v=2026-01-30-1">
   <link rel="stylesheet" href="./stats.css?v=2026-01-30-1">
 </head>
@@ -128,6 +128,13 @@
           </div>
 
           <div id="smartHwPanel" class="hidden smart-hw-panel">
+            <div class="smart-tabs">
+              <button id="smartTabRecsBtn" class="smart-tab-btn is-active" type="button">Рекомендации</button>
+              <button id="smartTabVar12Btn" class="smart-tab-btn" type="button">Вариант 12</button>
+            </div>
+
+            <div id="smartTabRecs" class="smart-tab-content">
+
             <div class="stats-controls smart-hw-controls">
               <div class="ctrl">
                 <label>Период</label>
@@ -253,6 +260,63 @@
               </div>
             </div>
           </div>
+            </div>
+
+            <div id="smartTabVar12" class="smart-tab-content hidden">
+              <div class="stats-controls smart-hw-controls">
+                <div class="ctrl">
+                  <label>Фильтр</label>
+                  <select id="var12Mode">
+                    <option value="uncovered" selected>не решал</option>
+                    <option value="worst3">плохая точность (последние 3)</option>
+                  </select>
+                </div>
+
+                <div class="ctrl">
+                  <label>Источник</label>
+                  <select id="var12Source">
+                    <option value="all" selected>всё</option>
+                    <option value="hw">только ДЗ</option>
+                    <option value="test">только тест</option>
+                  </select>
+                </div>
+
+                <div class="ctrl" style="min-width:260px;flex:1">
+                  <label>Название ДЗ</label>
+                  <input id="var12Title" type="text" placeholder="Вариант 12" style="width:100%">
+                </div>
+              </div>
+
+              <div class="stats-actions" style="margin-top:10px; align-items:center">
+                <button id="var12Build" class="btn" type="button">Подобрать вариант (12)</button>
+                <button id="var12Clear" class="btn" type="button">Очистить</button>
+                <button id="var12Create" class="btn" type="button" disabled>Создать ДЗ (12)</button>
+                <span id="var12Status" class="muted"></span>
+              </div>
+
+              <div style="margin-top:12px">
+                <div class="smart-hw-subhead">Выбранные темы (по 1 на каждый раздел)</div>
+                <div id="var12List" class="smart-hw-list"></div>
+
+                <div class="smart-hw-total">
+                  Тем: <span id="var12Topics">0</span> · Всего задач: <span id="var12Total">0</span>
+                </div>
+              </div>
+
+              <div id="var12Result" class="hidden" style="margin-top:12px">
+                <div class="stats-controls">
+                  <div class="ctrl" style="flex:1">
+                    <label>Ссылка для ученика</label>
+                    <input id="var12Link" type="text" readonly style="width:100%">
+                  </div>
+                  <div class="stats-actions">
+                    <button id="var12Copy" class="btn" type="button">Скопировать</button>
+                    <button id="var12Open" class="btn" type="button">Открыть</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
         </div>
 
 
