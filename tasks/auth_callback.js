@@ -117,9 +117,32 @@ function showStatus(text) {
   if (el) el.textContent = String(text || '');
 }
 
-function showHint(html) {
+function clearEl(el) {
+  if (!el) return;
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function showHintText(text) {
   const el = $('#hint');
-  if (el) el.innerHTML = String(html || '');
+  if (!el) return;
+  clearEl(el);
+  el.textContent = String(text || '');
+}
+
+function showHintLink(prefixText, href, linkText, suffixText) {
+  const el = $('#hint');
+  if (!el) return;
+  clearEl(el);
+
+  if (prefixText) el.appendChild(document.createTextNode(String(prefixText)));
+
+  const a = document.createElement('a');
+  a.href = String(href || '#');
+  a.textContent = String(linkText || 'ссылка');
+  a.rel = 'noopener noreferrer';
+  el.appendChild(a);
+
+  if (suffixText) el.appendChild(document.createTextNode(String(suffixText)));
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -140,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const err = url.searchParams.get('error_description') || url.searchParams.get('error') || '';
   if (err) {
     showStatus('Не удалось завершить вход.');
-    showHint('Попробуйте войти ещё раз.');
+    showHintText('Попробуйте войти ещё раз.');
   }
 
   const s = await getSession().catch(() => null);
@@ -170,24 +193,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // предлагаем войти обычным способом.
   if (finalizeResult?.reason === 'otp_invalid_or_expired') {
     showStatus('Ссылка подтверждения недействительна или уже использована.');
-    showHint(
-      'Если вы уже подтверждали почту, просто войдите: ' +
-      `<a href="${loginUrl.toString()}">войти</a>.`
-    );
-    return;
+    showHintLink('Если вы уже подтверждали почту, просто войдите: ', loginUrl.toString(), 'войти', '.');
+return;
   }
 
   // Если токен подтверждения отработал, но сессия не появилась — это нормально
   // (частый кейс: письмо подтвердили на другом устройстве). Просто просим войти.
   if (finalizeResult?.otpVerified && finalizeResult?.reason === 'verified_no_session') {
     showStatus('Почта подтверждена.');
-    showHint(
-      'Теперь можно войти на любом устройстве. ' +
-      `Откройте страницу входа: <a href="${loginUrl.toString()}">войти</a>.`
-    );
-    return;
+    showHintLink('Теперь можно войти на любом устройстве. Откройте страницу входа: ', loginUrl.toString(), 'войти', '.');
+return;
   }
 
   showStatus('Сессия не создана.');
-  showHint(`Откройте страницу входа: <a href="${loginUrl.toString()}">войти</a>.`);
+  showHintLink('Откройте страницу входа: ', loginUrl.toString(), 'войти', '.');
 });

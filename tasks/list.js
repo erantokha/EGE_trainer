@@ -5,11 +5,12 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-29-7';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-29-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-01-29-7';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-29-7';
+import { withBuild } from '../app/build.js?v=2026-01-29-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-29-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-29-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -566,8 +567,7 @@ async function renderTaskList(questions, options = {}) {
   if (!arr.length) {
     $('#summary')?.classList.add('hidden');
     runner.classList.remove('hidden');
-    body.innerHTML =
-      '<div style="opacity:.8;padding:8px 0">Не удалось подобрать задачи. Вернитесь на страницу выбора и проверьте настройки.</div>';
+    writeMsg(body, 'Не удалось подобрать задачи. Вернитесь на страницу выбора и проверьте настройки.');
     return;
   }
 
@@ -604,7 +604,7 @@ async function renderTaskList(questions, options = {}) {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    stem.innerHTML = q.stem;
+    setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -658,6 +658,17 @@ async function renderTaskList(questions, options = {}) {
   }
 }
 
+
+function writeMsg(body, msgText) {
+  if (!body) return;
+  body.textContent = '';
+  const d = document.createElement('div');
+  d.style.opacity = '.8';
+  d.style.padding = '8px 0';
+  d.textContent = String(msgText || '');
+  body.appendChild(d);
+}
+
 // ---------- вспомогательный вывод ошибок ----------
 function showListError(msg) {
   const runner = $('#runner') || $('#summary') || document.body;
@@ -665,7 +676,7 @@ function showListError(msg) {
   const body = panel.querySelector('.run-body') || panel;
   $('#summary')?.classList.add('hidden');
   runner.classList.remove('hidden');
-  body.innerHTML = `<div style="opacity:.8;padding:8px 0">${msg}</div>`;
+  writeMsg(body, msg);
 }
 
 // ---------- утилиты ----------

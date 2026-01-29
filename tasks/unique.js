@@ -35,8 +35,9 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-01-29-7';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-29-7';
+import { withBuild } from '../app/build.js?v=2026-01-29-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-29-4';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-01-29-4';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -394,7 +395,7 @@ function renderUnicTasks(container, tasks) {
 
     const stemEl = document.createElement('div');
     stemEl.className = 'ws-stem';
-    stemEl.innerHTML = t.stem;
+    setStem(stemEl, t.stem);
 
     // Раньше эти элементы не добавлялись в DOM — из-за этого «текст задач пропадал».
     item.appendChild(num);
@@ -426,9 +427,9 @@ function renderUnicTasks(container, tasks) {
       const inlineTrim = String(inlineSvg || '').trim();
 
       if (inlineTrim.startsWith('<svg')) {
-        figWrap.innerHTML = inlineTrim;
+        mountInlineSvg(figWrap, inlineTrim);
       } else if (srcTrim.startsWith('<svg')) {
-        figWrap.innerHTML = srcTrim;
+        mountInlineSvg(figWrap, srcTrim);
       } else if (srcTrim) {
         const img = document.createElement('img');
         img.loading = 'lazy';

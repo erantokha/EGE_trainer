@@ -10,15 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-29-7';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-29-4';
 
-import { CONFIG } from '../app/config.js?v=2026-01-29-7';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-29-7';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-29-7';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-29-7';
+import { CONFIG } from '../app/config.js?v=2026-01-29-4';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-29-4';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-29-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-29-4';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-29-7';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-29-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-29-4';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1240,7 +1241,7 @@ function renderHomeworkList() {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    stem.innerHTML = q.stem;
+    setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -1295,7 +1296,7 @@ function renderCurrent() {
 
   const stemEl = $('#stem');
   if (stemEl) {
-    stemEl.innerHTML = q.stem;
+    setStem(stemEl, q.stem);
     if (window.MathJax) {
       try {
         if (window.MathJax.typesetPromise) {
@@ -1746,7 +1747,7 @@ function renderReviewCards() {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    stem.innerHTML = q.stem;
+    setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {

@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-01-29-7">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-01-29-4">
   <title>Ученик</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
 
@@ -82,8 +83,8 @@
 
 
   
-  <link rel="stylesheet" href="./trainer.css?v=2026-01-29-7">
-  <link rel="stylesheet" href="./stats.css?v=2026-01-29-7">
+  <link rel="stylesheet" href="./trainer.css?v=2026-01-29-4">
+  <link rel="stylesheet" href="./stats.css?v=2026-01-29-4">
 </head>
 <body>
   <main class="container">
@@ -289,7 +290,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-01-29-7" defer></script>
+  <script src="./theme.js?v=2026-01-29-4" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
