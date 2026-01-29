@@ -2,9 +2,20 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-01-29-12">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <meta name="app-build" content="2026-01-29-8">
+    <meta http-equiv="Content-Security-Policy" content="
+default-src 'self';
+base-uri 'self';
+object-src 'none';
+img-src 'self' data: blob: https:;
+font-src 'self' data: https:;
+style-src 'self' 'unsafe-inline' https:;
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com;
+connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net;
+frame-src 'self' https://rutube.ru https://*.rutube.ru;
+worker-src 'self' blob:;
+">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Тренажер ЕГЭ — список задач</title>
   
     <script id="sentry-loader"
@@ -18,7 +29,7 @@
         if (window.__SENTRY_INITED__) return;
         window.__SENTRY_INITED__ = true;
 
-    var buildMeta = document.querySelector('meta[name="app-build"]');
+        var buildMeta = document.querySelector('meta[name="app-build"]');
         var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
         var env = (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
 
@@ -83,8 +94,8 @@
 
 
     
-    <link rel="stylesheet" href="./trainer.css?v=2026-01-29-12" />
-    <script src="./theme.js?v=2026-01-29-12" defer></script>
+    <link rel="stylesheet" href="./trainer.css?v=2026-01-29-8" />
+    <script src="./theme.js?v=2026-01-29-8" defer></script>
 
     <script>
       window.MathJax = {
@@ -128,7 +139,7 @@
           
           </header>
           <script type="module">
-    const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
   const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
   const inTasks = /\/tasks(\/|$)/.test(location.pathname);
   const rel = inTasks ? '../' : './';
@@ -166,6 +177,6 @@
       </section>
     </main>
 
-    <script type="module" src="./list.js?v=2026-01-29-12"></script>
+    <script type="module" src="./list.js?v=2026-01-29-8"></script>
   </body>
 </html>
