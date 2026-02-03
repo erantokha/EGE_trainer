@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-03-3';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-03-3';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-03-3';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-03-3';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-03-3';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-03-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-03-3';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -57,13 +57,6 @@ const INDEX_URL = '../content/tasks/index.json';
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
 
-const DEBUG = (() => {
-  try {
-    return new URL(location.href).searchParams.get('debug') === '1';
-  } catch (_) {
-    return false;
-  }
-})();
 
 function shortText(s, maxLen = 220) {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -79,11 +72,37 @@ function tokenHints(token) {
   return { token_len: len, token_prefix: prefix, token_suffix: suffix };
 }
 
+function makeDiagId() {
+  try {
+    const a = new Uint32Array(2);
+    crypto.getRandomValues(a);
+    const s = (a[0].toString(36) + a[1].toString(36)).toUpperCase();
+    return 'HW-' + s.slice(0, 10);
+  } catch (_) {
+    return 'HW-' + String(Date.now()).slice(-10);
+  }
+}
+
+function getOrCreateDiagId(token) {
+  try {
+    const th = tokenHints(token);
+    const k = `hw:diagid:${th.token_suffix || ''}:${HTML_BUILD || ''}`;
+    const v = sessionStorage.getItem(k);
+    if (v) return v;
+    const id = makeDiagId();
+    sessionStorage.setItem(k, id);
+    return id;
+  } catch (_) {
+    return makeDiagId();
+  }
+}
+
 function buildHwDiag(hwRes, token) {
   const meta = hwRes?.meta || {};
   const errMsg = meta?.message || hwRes?.error?.message || hwRes?.error || '';
   const th = tokenHints(token);
   return {
+    diag_id: getOrCreateDiagId(token),
     kind: meta.kind || 'unknown',
     status: meta.status ?? null,
     code: meta.code ?? null,
@@ -101,15 +120,36 @@ function buildHwDiag(hwRes, token) {
 }
 
 function showDebugInfo(anchorEl, diag) {
-  if (!DEBUG || !anchorEl || !diag) return;
+  if (!anchorEl || !diag) return;
+
+  let wrap = document.getElementById('hwDebugWrap');
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'hwDebugWrap';
+    wrap.style.cssText = 'margin-top:10px;';
+    anchorEl.insertAdjacentElement('afterend', wrap);
+  }
+
+  let btn = document.getElementById('hwDebugCopy');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'hwDebugCopy';
+    btn.type = 'button';
+    btn.textContent = 'Скопировать детали';
+    btn.style.cssText = 'padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.18);background:#fff;font-size:12px;cursor:pointer;';
+    wrap.appendChild(btn);
+  }
+
   let pre = document.getElementById('hwDebugInfo');
   if (!pre) {
     pre = document.createElement('pre');
     pre.id = 'hwDebugInfo';
-    pre.style.cssText = 'margin-top:10px;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.03);font-size:12px;line-height:1.35;white-space:pre-wrap;word-break:break-word;';
-    anchorEl.insertAdjacentElement('afterend', pre);
+    pre.style.cssText = 'margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.03);font-size:12px;line-height:1.35;white-space:pre-wrap;word-break:break-word;';
+    wrap.appendChild(pre);
   }
+
   const lines = [];
+  if (diag.diag_id) lines.push(`id: ${diag.diag_id}`);
   lines.push(`kind: ${diag.kind || ''}`);
   if (diag.status !== null && diag.status !== undefined) lines.push(`status: ${diag.status}`);
   if (diag.code) lines.push(`code: ${diag.code}`);
@@ -119,7 +159,30 @@ function showDebugInfo(anchorEl, diag) {
   lines.push(`build: html=${diag.html_build || ''} js=${diag.js_build || ''}`);
   lines.push(`token: len=${diag.token_len} ${diag.token_prefix}…${diag.token_suffix}`);
   if (diag.message_short) lines.push(`message: ${diag.message_short}`);
-  pre.textContent = lines.join('\n');
+  pre.textContent = lines.join('
+');
+
+  btn.onclick = async () => {
+    const text = pre.textContent || '';
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const r = document.createRange();
+        r.selectNodeContents(pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(r);
+        document.execCommand('copy');
+        sel.removeAllRanges();
+      }
+      const old = btn.textContent;
+      btn.textContent = 'Скопировано';
+      setTimeout(() => { btn.textContent = old; }, 1500);
+    } catch (_) {
+      // ignore
+    }
+  };
 }
 
 function sentryCaptureOnce(eventName, diag, err) {
@@ -139,6 +202,7 @@ function sentryCaptureOnce(eventName, diag, err) {
       S.withScope((scope) => {
         try {
           scope.setTag('page', 'hw');
+          if (diag?.diag_id) scope.setTag('diag_id', String(diag.diag_id));
           if (diag?.kind) scope.setTag('kind', String(diag.kind));
           if (diag?.status !== null && diag?.status !== undefined) scope.setTag('status', String(diag.status));
           scope.setExtra('diag', diag || {});
@@ -345,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const diag = buildHwDiag(hwRes, token);
       sentryCaptureOnce('hw_load_failed', diag, hwRes.error);
       showDebugInfo(msgEl, diag);
-      if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
+      if (msgEl) msgEl.textContent = `Не удалось загрузить домашнее задание. Код ошибки: ${diag.diag_id || ''}. Проверьте ссылку или доступ.`;
       if (startBtn) startBtn.disabled = true;
       return;
     }
