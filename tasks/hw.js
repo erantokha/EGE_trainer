@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-03-9';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-03-9';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-03-9';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-03-9';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-03-9';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-03-9';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-03-9';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -51,6 +51,25 @@ const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el)
 const rmCls  = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.remove(cls); };
 
 let LAST_DIAG_TEXT = '';
+
+let REVIEW_ONLY_WRONG = false;
+
+function syncWrongFilterButton() {
+  const btn = document.getElementById('toggleWrong');
+  if (!btn) return;
+  btn.classList.toggle('active', REVIEW_ONLY_WRONG);
+}
+
+function resetWrongFilter() {
+  REVIEW_ONLY_WRONG = false;
+  syncWrongFilterButton();
+}
+
+function toggleWrongFilter() {
+  REVIEW_ONLY_WRONG = !REVIEW_ONLY_WRONG;
+  syncWrongFilterButton();
+  renderReviewCards();
+}
 
 function hideDiagUI() {
   const pre = $('#hwDiag');
@@ -621,6 +640,18 @@ async function refreshAuthUI() {
 
 
 // ---------- повторный вход: показываем результаты ----------
+function formatHms(ms) {
+  const totalSec = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const parts = [];
+  if (h > 0) parts.push(`${h} ч`);
+  if (m > 0) parts.push(`${m} мин`);
+  parts.push(`${s} с`);
+  return parts.join(' ');
+}
+
 function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
   const t = Number(total ?? 0);
   const c = Number(correct ?? 0);
@@ -634,8 +665,8 @@ function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
     `<div>Всего: ${t}</div>` +
     `<div>Верно: ${c}</div>` +
     `<div>Точность: ${Math.round((100 * c) / Math.max(1, t))}%</div>` +
-    `<div>Время: ${Math.round(d / 1000)} c</div>` +
-    `<div>Среднее: ${Math.round(a / 1000)} c</div>`;
+    `<div>Общее время: ${formatHms(d)}</div>` +
+    `<div>Среднее на задачу: ${formatHms(a)}</div>`;
 }
 
 function parseAttemptPayload(raw) {
@@ -702,6 +733,7 @@ async function showAttemptSummaryFromRow(row) {
   const avg_ms = Math.round(duration_ms / Math.max(1, total));
 
   renderStats({ total, correct, duration_ms, avg_ms });
+  resetWrongFilter();
 
   const restartBtn = $('#restart');
   if (restartBtn) restartBtn.onclick = () => { location.href = HOME_URL; };
@@ -1159,8 +1191,18 @@ function mountRunnerUI() {
         <h2>Отчет и статистика</h2>
       </div>
       <div id="stats" class="stats"></div>
+      <div class="hw-review-controls">
+        <div class="mode-toggle">
+          <button id="toggleWrong" type="button" class="mode-btn">Неверные</button>
+        </div>
+      </div>
       <div class="task-list hw-review-list" id="reviewList"></div>
     </div>`;
+
+  const toggleWrongBtn = $('#toggleWrong', summary);
+  if (toggleWrongBtn) toggleWrongBtn.onclick = () => toggleWrongFilter();
+  syncWrongFilterButton();
+
 }
 
 
@@ -1499,6 +1541,7 @@ async function finishSession() {
   rmCls('#summary', 'hidden');
 
   renderStats({ total, correct, duration_ms, avg_ms });
+  resetWrongFilter();
   renderReviewCards();
 
   const summaryPanel = $('#summary .panel') || $('#summary');
@@ -1702,7 +1745,10 @@ function renderReviewCards() {
   if (!host) return;
   host.innerHTML = '';
 
+  const onlyWrong = REVIEW_ONLY_WRONG;
+
   SESSION.questions.forEach((q, idx) => {
+    if (onlyWrong && q.correct) return;
     const card = document.createElement('div');
     card.className = 'task-card q-card';
 
