@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-03-10';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-03-10';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-03-10';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-03-10';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-03-10';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-03-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-03-10';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -57,6 +57,11 @@ let REVIEW_ONLY_WRONG = false;
 function syncWrongFilterButton() {
   const btn = document.getElementById('toggleWrong');
   if (!btn) return;
+
+  const qs = (typeof SESSION === 'object' && SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
+  const wrong = qs.reduce((s, q) => s + (q && q.correct ? 0 : 1), 0);
+
+  btn.textContent = `Неверные (${wrong})`;
   btn.classList.toggle('active', REVIEW_ONLY_WRONG);
 }
 
@@ -1193,7 +1198,7 @@ function mountRunnerUI() {
       <div id="stats" class="stats"></div>
       <div class="hw-review-controls">
         <div class="mode-toggle">
-          <button id="toggleWrong" type="button" class="mode-btn">Неверные</button>
+          <button id="toggleWrong" type="button" class="mode-btn">Неверные (0)</button>
         </div>
       </div>
       <div class="task-list hw-review-list" id="reviewList"></div>
@@ -1785,7 +1790,7 @@ function renderReviewCards() {
       `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
       `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
       `</div>` +
-      `<div class="hw-ans-line">Правильный: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+      `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
 
     card.appendChild(ans);
 
