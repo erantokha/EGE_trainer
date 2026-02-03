@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-04-1';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-04-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-01-30-2';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-04-1';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-01-30-2';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-04-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-04-1';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-04-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-04-1';
+import { withBuild } from '../app/build.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -128,6 +128,8 @@ let SHUFFLE_TASKS = false; // флаг «перемешать задачи» и�
 let SMART = null;
 let SMART_ACTIVE = false;
 
+let REVIEW_ONLY_WRONG = false;
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
@@ -141,6 +143,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     try { clearSmartMode(); } catch (_) {}
     location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
+
+  const toggleWrongBtn = $('#toggleWrong');
+  if (toggleWrongBtn) {
+    toggleWrongBtn.addEventListener('click', () => {
+      REVIEW_ONLY_WRONG = !REVIEW_ONLY_WRONG;
+      updateWrongButtonState();
+      renderReviewCards();
+    });
+  }
 
   // Прячем интерфейс тренажёра и показываем оверлей загрузки,
   // чтобы не было «мигающего» 1/1 при большом объёме задач.
@@ -1092,6 +1103,37 @@ function saveTimeForCurrent() {
   SESSION.t0 = now;
 }
 
+function formatHms(ms) {
+  const totalSec = Math.max(0, Math.round((ms || 0) / 1000));
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+
+  const parts = [];
+  if (h > 0) parts.push(`${h} ч`);
+  if (m > 0) parts.push(`${m} мин`);
+  parts.push(`${s} с`);
+  return parts.join(' ');
+}
+
+function countWrongQuestions() {
+  const qs = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
+  return qs.reduce((n, q) => n + (q && q.correct ? 0 : 1), 0);
+}
+
+function updateWrongButtonLabel() {
+  const btn = document.getElementById('toggleWrong');
+  if (!btn) return;
+  const n = countWrongQuestions();
+  btn.textContent = `Неверные (${n})`;
+}
+
+function updateWrongButtonState() {
+  const btn = document.getElementById('toggleWrong');
+  if (!btn) return;
+  btn.classList.toggle('active', !!REVIEW_ONLY_WRONG);
+}
+
 // ---------- завершение сессии ----------
 async function finishSession() {
   stopTick();
@@ -1177,9 +1219,14 @@ async function finishSession() {
     `<div>Всего: ${total}</div>` +
     `<div>Верно: ${correct}</div>` +
     `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-    `<div>Среднее время: ${Math.round(avg_ms / 1000)} c</div>`;
+    `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
+    `<div>Среднее время на задачу: ${formatHms(avg_ms)}</div>`;
 
-  renderReviewCards();
+  
+  REVIEW_ONLY_WRONG = false;
+  updateWrongButtonLabel();
+  updateWrongButtonState();
+renderReviewCards();
 
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();
@@ -1209,7 +1256,9 @@ function renderReviewCards() {
   host.innerHTML = '';
 
   const questions = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
-  questions.forEach((q, idx) => {
+  for (let idx = 0; idx < questions.length; idx++) {
+    const q = questions[idx];
+    if (REVIEW_ONLY_WRONG && q && q.correct) continue;
     const card = document.createElement('div');
     card.className = 'task-card q-card';
 
@@ -1246,11 +1295,11 @@ function renderReviewCards() {
       `<div>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></div>` +
       `<span class="video-solution-slot" data-video-proto="${esc(protoId)}">Видео скоро будет</span>` +
       `</div>` +
-      `<div>Правильный: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
+      `<div>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
     card.appendChild(ans);
 
     host.appendChild(card);
-  });
+  }
 
   // Видео-решения (Rutube): подставляем ссылки по prototype_id
   try {
