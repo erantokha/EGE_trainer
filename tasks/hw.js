@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-03-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-03-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-03-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-03-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-03-1';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-03-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-03-1';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -56,6 +56,104 @@ const INDEX_URL = '../content/tasks/index.json';
 
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
+
+const DEBUG = (() => {
+  try {
+    return new URL(location.href).searchParams.get('debug') === '1';
+  } catch (_) {
+    return false;
+  }
+})();
+
+function shortText(s, maxLen = 220) {
+  const t = String(s || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  return t.length > maxLen ? (t.slice(0, maxLen - 1) + '…') : t;
+}
+
+function tokenHints(token) {
+  const t = String(token || '');
+  const len = t.length;
+  const prefix = t.slice(0, 6);
+  const suffix = t.slice(-6);
+  return { token_len: len, token_prefix: prefix, token_suffix: suffix };
+}
+
+function buildHwDiag(hwRes, token) {
+  const meta = hwRes?.meta || {};
+  const errMsg = meta?.message || hwRes?.error?.message || hwRes?.error || '';
+  const th = tokenHints(token);
+  return {
+    kind: meta.kind || 'unknown',
+    status: meta.status ?? null,
+    code: meta.code ?? null,
+    attempts: meta.attempts ?? null,
+    elapsed_ms: meta.elapsed_ms ?? null,
+    online: (typeof navigator !== 'undefined') ? navigator.onLine : null,
+    html_build: HTML_BUILD || null,
+    js_build: JS_BUILD || null,
+    path: (typeof location !== 'undefined') ? location.pathname : '',
+    token_len: th.token_len,
+    token_prefix: th.token_prefix,
+    token_suffix: th.token_suffix,
+    message_short: shortText(errMsg),
+  };
+}
+
+function showDebugInfo(anchorEl, diag) {
+  if (!DEBUG || !anchorEl || !diag) return;
+  let pre = document.getElementById('hwDebugInfo');
+  if (!pre) {
+    pre = document.createElement('pre');
+    pre.id = 'hwDebugInfo';
+    pre.style.cssText = 'margin-top:10px;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.03);font-size:12px;line-height:1.35;white-space:pre-wrap;word-break:break-word;';
+    anchorEl.insertAdjacentElement('afterend', pre);
+  }
+  const lines = [];
+  lines.push(`kind: ${diag.kind || ''}`);
+  if (diag.status !== null && diag.status !== undefined) lines.push(`status: ${diag.status}`);
+  if (diag.code) lines.push(`code: ${diag.code}`);
+  if (diag.attempts !== null && diag.attempts !== undefined) lines.push(`attempts: ${diag.attempts}`);
+  if (diag.elapsed_ms !== null && diag.elapsed_ms !== undefined) lines.push(`elapsed_ms: ${diag.elapsed_ms}`);
+  lines.push(`online: ${diag.online}`);
+  lines.push(`build: html=${diag.html_build || ''} js=${diag.js_build || ''}`);
+  lines.push(`token: len=${diag.token_len} ${diag.token_prefix}…${diag.token_suffix}`);
+  if (diag.message_short) lines.push(`message: ${diag.message_short}`);
+  pre.textContent = lines.join('\n');
+}
+
+function sentryCaptureOnce(eventName, diag, err) {
+  try {
+    // Не дублируем одно и то же событие в рамках одной сессии вкладки
+    const k = `hw:sentry:${eventName}:${diag?.token_suffix || ''}:${HTML_BUILD || ''}`;
+    if (sessionStorage.getItem(k)) return;
+    sessionStorage.setItem(k, '1');
+  } catch (_) {
+    // ignore
+  }
+
+  try {
+    const S = window.Sentry;
+    if (!S) return;
+    if (typeof S.withScope === 'function') {
+      S.withScope((scope) => {
+        try {
+          scope.setTag('page', 'hw');
+          if (diag?.kind) scope.setTag('kind', String(diag.kind));
+          if (diag?.status !== null && diag?.status !== undefined) scope.setTag('status', String(diag.status));
+          scope.setExtra('diag', diag || {});
+          if (err) scope.setExtra('error', { message: shortText(err?.message || err, 400) });
+        } catch (_) {}
+        if (typeof S.captureMessage === 'function') S.captureMessage(eventName);
+        else if (typeof S.captureException === 'function' && err) S.captureException(err);
+      });
+    } else if (typeof S.captureMessage === 'function') {
+      S.captureMessage(eventName);
+    }
+  } catch (_) {
+    // ignore
+  }
+}
 
 function getTeacherAttemptId() {
   try {
@@ -244,6 +342,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const hwRes = await getHomeworkByToken(token);
     if (!hwRes.ok) {
       console.error(hwRes.error);
+      const diag = buildHwDiag(hwRes, token);
+      sentryCaptureOnce('hw_load_failed', diag, hwRes.error);
+      showDebugInfo(msgEl, diag);
       if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
       if (startBtn) startBtn.disabled = true;
       return;
