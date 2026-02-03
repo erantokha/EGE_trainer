@@ -21,6 +21,54 @@ export function normalizeStudentKey(name) {
     .replace(/\s+/g, ' ');
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function nowMs() {
+  try {
+    return performance.now();
+  } catch (_) {
+    return Date.now();
+  }
+}
+
+function extractErrorInfo(err) {
+  const statusRaw = err?.status ?? err?.statusCode ?? err?.status_code ?? null;
+  const status = statusRaw === null || statusRaw === undefined || statusRaw === '' ? null : Number(statusRaw);
+  const code = err?.code === null || err?.code === undefined ? null : String(err.code);
+  const message = String(err?.message || err?.details || err?.error_description || err || '').trim();
+  const name = err?.name ? String(err.name) : '';
+  return { status: Number.isFinite(status) ? status : null, code, message, name };
+}
+
+function classifyError(err, info) {
+  const msg = String(info?.message || '').toLowerCase();
+  const status = info?.status;
+
+  if (isMissingRpcFunction(err) || info?.code === 'PGRST202') return 'missing_function';
+  if (status === 429) return 'rate_limit';
+  if (typeof status === 'number' && status >= 500) return 'server';
+  if (status === 401) return 'auth';
+  if (status === 403) return 'forbidden';
+  if (status === 400) return 'bad_request';
+  if (status === 404) return 'not_found';
+
+  // supabase-js/fetch могут бросать TypeError('Failed to fetch') без status
+  if (!status) {
+    if (info?.name === 'TypeError' && (msg.includes('fetch') || msg.includes('network'))) return 'network';
+    if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('load failed')) return 'network';
+  }
+
+  return 'unknown';
+}
+
+function isRetryable(kind, status) {
+  if (kind === 'network' || kind === 'rate_limit' || kind === 'server') return true;
+  if (status === 0) return true;
+  return false;
+}
+
 function isMissingRpcFunction(error) {
   const msg = String(error?.message || '').toLowerCase();
   return (
@@ -70,16 +118,78 @@ export async function startHomeworkAttempt({ token, student_name } = {}) {
 }
 
 export async function getHomeworkByToken(token) {
-  try {
-    const t = String(token || '').trim();
-    if (!t) return { ok: false, homework: null, error: new Error('token is empty') };
+  const startedAt = nowMs();
+  const t = String(token || '').trim();
+  if (!t) {
+    return {
+      ok: false,
+      homework: null,
+      error: new Error('token is empty'),
+      meta: { kind: 'bad_request', status: null, code: null, message: 'token is empty', attempts: 0, elapsed_ms: 0 },
+    };
+  }
 
-    // RPC (security definer) — доступно anon + authenticated (по grant).
-    const { data, error } = await supabase.rpc('get_homework_by_token', { p_token: t });
-    if (error) return { ok: false, homework: null, error };
+  const maxAttempts = 3;
+  let lastErr = null;
+  let lastInfo = null;
+  let lastKind = 'unknown';
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let data = null;
+    let error = null;
+
+    try {
+      // RPC (security definer) — доступно anon + authenticated (по grant).
+      ({ data, error } = await supabase.rpc('get_homework_by_token', { p_token: t }));
+    } catch (e) {
+      error = e;
+    }
+
+    if (error) {
+      const info = extractErrorInfo(error);
+      const kind = classifyError(error, info);
+      lastErr = error;
+      lastInfo = info;
+      lastKind = kind;
+
+      if (attempt < maxAttempts && isRetryable(kind, info.status)) {
+        const jitter = Math.floor(Math.random() * 151); // 0..150
+        const backoff = 250 * attempt + jitter;
+        await sleep(backoff);
+        continue;
+      }
+
+      return {
+        ok: false,
+        homework: null,
+        error,
+        meta: {
+          kind,
+          status: info.status,
+          code: info.code,
+          message: info.message,
+          attempts: attempt,
+          elapsed_ms: Math.round(nowMs() - startedAt),
+        },
+      };
+    }
 
     const row = Array.isArray(data) ? data[0] : data;
-    if (!row) return { ok: false, homework: null, error: new Error('homework not found') };
+    if (!row) {
+      return {
+        ok: false,
+        homework: null,
+        error: new Error('homework not found'),
+        meta: {
+          kind: 'not_found',
+          status: null,
+          code: null,
+          message: 'homework not found',
+          attempts: attempt,
+          elapsed_ms: Math.round(nowMs() - startedAt),
+        },
+      };
+    }
 
     // Важно: после обновления RPC-таблицы набор полей может отличаться.
     // Берём безопасно с fallback.
@@ -94,10 +204,42 @@ export async function getHomeworkByToken(token) {
       attempts_per_student: row.attempts_per_student ?? 1,
     };
 
-    return { ok: true, homework, error: null };
-  } catch (e) {
-    return { ok: false, homework: null, error: e };
+    // Опционально: некоторые версии RPC возвращают поля ссылки (homework_links).
+    let linkRow = row.link_row ?? row.linkRow ?? null;
+    if (!linkRow && (row.link_id || row.homework_link_id || row.token || row.token_used)) {
+      linkRow = {
+        id: row.link_id ?? row.homework_link_id ?? null,
+        homework_id: row.homework_id ?? row.id ?? null,
+        token: row.token ?? row.token_used ?? t,
+        expires_at: row.expires_at ?? null,
+        is_active: row.is_active ?? row.link_is_active ?? null,
+        owner_id: row.owner_id ?? row.link_owner_id ?? null,
+      };
+    }
+
+    return {
+      ok: true,
+      homework,
+      linkRow,
+      error: null,
+      meta: { kind: 'ok', status: null, code: null, message: '', attempts: attempt, elapsed_ms: Math.round(nowMs() - startedAt) },
+    };
   }
+
+  // На всякий случай (не должно происходить)
+  return {
+    ok: false,
+    homework: null,
+    error: lastErr || new Error('unknown error'),
+    meta: {
+      kind: lastKind,
+      status: lastInfo?.status ?? null,
+      code: lastInfo?.code ?? null,
+      message: lastInfo?.message ?? 'unknown error',
+      attempts: maxAttempts,
+      elapsed_ms: Math.round(nowMs() - startedAt),
+    },
+  };
 }
 
 export async function hasAttempt(token, student_name) {
