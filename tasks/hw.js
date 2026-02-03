@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-03-8';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-03-8';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-03-8';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-03-8';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-03-8';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-03-8';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-03-8';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -50,174 +50,77 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.add(cls); };
 const rmCls  = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.remove(cls); };
 
+let LAST_DIAG_TEXT = '';
+
+function hideDiagUI() {
+  const pre = $('#hwDiag');
+  const btn = $('#copyDetails');
+  if (pre) {
+    pre.textContent = '';
+    pre.classList.add('hidden');
+  }
+  if (btn) btn.classList.add('hidden');
+  LAST_DIAG_TEXT = '';
+}
+
+function showDiagUI(lines) {
+  const pre = $('#hwDiag');
+  const btn = $('#copyDetails');
+  const text = Array.isArray(lines) ? lines.filter(Boolean).join('\n') : String(lines || '');
+  LAST_DIAG_TEXT = text;
+  if (pre) {
+    pre.textContent = text;
+    pre.classList.remove('hidden');
+  }
+  if (btn) btn.classList.remove('hidden');
+}
+
+async function copyDiagToClipboard() {
+  try {
+    const t = String(LAST_DIAG_TEXT || '').trim();
+    if (!t) return;
+    await navigator.clipboard.writeText(t);
+    const msgEl = $('#hwGateMsg');
+    if (msgEl) msgEl.textContent = 'Детали скопированы.';
+  } catch (e) {
+    console.warn('copy clipboard failed', e);
+  }
+}
+
+function tokenHints(token) {
+  const t = String(token || '');
+  return {
+    token_len: t.length,
+    token_prefix: t ? t.slice(0, 6) : '',
+    token_suffix: t ? t.slice(-6) : '',
+  };
+}
+
+function buildInfo() {
+  const b = document.querySelector('meta[name="app-build"]')?.getAttribute('content') || '';
+  return { build: b, online: navigator.onLine };
+}
+
+function formatDiag(obj) {
+  try {
+    const o = obj || {};
+    const lines = [];
+    for (const [k, v] of Object.entries(o)) {
+      if (v === undefined || v === null || v === '') continue;
+      const vv = typeof v === 'string' ? v : JSON.stringify(v);
+      lines.push(`${k}: ${vv}`);
+    }
+    return lines;
+  } catch (_) {
+    return [];
+  }
+}
+
 const HOME_URL = new URL('../', location.href).href;
 
 const INDEX_URL = '../content/tasks/index.json';
 
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
-const STUDENT_NAME_STORAGE_PREFIX = 'hw:student_name:';
-
-
-function shortText(s, maxLen = 220) {
-  const t = String(s || '').replace(/\s+/g, ' ').trim();
-  if (!t) return '';
-  return t.length > maxLen ? (t.slice(0, maxLen - 1) + '…') : t;
-}
-
-function tokenHints(token) {
-  const t = String(token || '');
-  const len = t.length;
-  const prefix = t.slice(0, 6);
-  const suffix = t.slice(-6);
-  return { token_len: len, token_prefix: prefix, token_suffix: suffix };
-}
-
-function makeDiagId() {
-  try {
-    const a = new Uint32Array(2);
-    crypto.getRandomValues(a);
-    const s = (a[0].toString(36) + a[1].toString(36)).toUpperCase();
-    return 'HW-' + s.slice(0, 10);
-  } catch (_) {
-    return 'HW-' + String(Date.now()).slice(-10);
-  }
-}
-
-function getOrCreateDiagId(token) {
-  try {
-    const th = tokenHints(token);
-    const k = `hw:diagid:${th.token_suffix || ''}:${HTML_BUILD || ''}`;
-    const v = sessionStorage.getItem(k);
-    if (v) return v;
-    const id = makeDiagId();
-    sessionStorage.setItem(k, id);
-    return id;
-  } catch (_) {
-    return makeDiagId();
-  }
-}
-
-function buildHwDiag(hwRes, token) {
-  const meta = hwRes?.meta || {};
-  const errMsg = meta?.message || hwRes?.error?.message || hwRes?.error || '';
-  const th = tokenHints(token);
-  return {
-    diag_id: getOrCreateDiagId(token),
-    kind: meta.kind || 'unknown',
-    status: meta.status ?? null,
-    code: meta.code ?? null,
-    attempts: meta.attempts ?? null,
-    elapsed_ms: meta.elapsed_ms ?? null,
-    online: (typeof navigator !== 'undefined') ? navigator.onLine : null,
-    html_build: HTML_BUILD || null,
-    js_build: JS_BUILD || null,
-    path: (typeof location !== 'undefined') ? location.pathname : '',
-    token_len: th.token_len,
-    token_prefix: th.token_prefix,
-    token_suffix: th.token_suffix,
-    message_short: shortText(errMsg),
-  };
-}
-
-function showDebugInfo(anchorEl, diag) {
-  if (!anchorEl || !diag) return;
-
-  let wrap = document.getElementById('hwDebugWrap');
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.id = 'hwDebugWrap';
-    wrap.style.cssText = 'margin-top:10px;';
-    anchorEl.insertAdjacentElement('afterend', wrap);
-  }
-
-  let btn = document.getElementById('hwDebugCopy');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'hwDebugCopy';
-    btn.type = 'button';
-    btn.textContent = 'Скопировать детали';
-    btn.style.cssText = 'padding:8px 10px;border-radius:10px;border:1px solid rgba(0,0,0,.18);background:#fff;font-size:12px;cursor:pointer;';
-    wrap.appendChild(btn);
-  }
-
-  let pre = document.getElementById('hwDebugInfo');
-  if (!pre) {
-    pre = document.createElement('pre');
-    pre.id = 'hwDebugInfo';
-    pre.style.cssText = 'margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(0,0,0,.12);background:rgba(0,0,0,.03);font-size:12px;line-height:1.35;white-space:pre-wrap;word-break:break-word;';
-    wrap.appendChild(pre);
-  }
-
-  const lines = [];
-  if (diag.diag_id) lines.push(`id: ${diag.diag_id}`);
-  lines.push(`kind: ${diag.kind || ''}`);
-  if (diag.status !== null && diag.status !== undefined) lines.push(`status: ${diag.status}`);
-  if (diag.code) lines.push(`code: ${diag.code}`);
-  if (diag.attempts !== null && diag.attempts !== undefined) lines.push(`attempts: ${diag.attempts}`);
-  if (diag.elapsed_ms !== null && diag.elapsed_ms !== undefined) lines.push(`elapsed_ms: ${diag.elapsed_ms}`);
-  lines.push(`online: ${diag.online}`);
-  lines.push(`build: html=${diag.html_build || ''} js=${diag.js_build || ''}`);
-  lines.push(`token: len=${diag.token_len} ${diag.token_prefix}…${diag.token_suffix}`);
-  if (diag.message_short) lines.push(`message: ${diag.message_short}`);
-  pre.textContent = lines.join('\n');
-
-  btn.onclick = async () => {
-    const text = pre.textContent || '';
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const r = document.createRange();
-        r.selectNodeContents(pre);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(r);
-        document.execCommand('copy');
-        sel.removeAllRanges();
-      }
-      const old = btn.textContent;
-      btn.textContent = 'Скопировано';
-      setTimeout(() => { btn.textContent = old; }, 1500);
-    } catch (_) {
-      // ignore
-    }
-  };
-}
-
-function sentryCaptureOnce(eventName, diag, err) {
-  try {
-    // Не дублируем одно и то же событие в рамках одной сессии вкладки
-    const k = `hw:sentry:${eventName}:${diag?.token_suffix || ''}:${HTML_BUILD || ''}`;
-    if (sessionStorage.getItem(k)) return;
-    sessionStorage.setItem(k, '1');
-  } catch (_) {
-    // ignore
-  }
-
-  try {
-    const S = window.Sentry;
-    if (!S) return;
-    if (typeof S.withScope === 'function') {
-      S.withScope((scope) => {
-        try {
-          scope.setTag('page', 'hw');
-          if (diag?.diag_id) scope.setTag('diag_id', String(diag.diag_id));
-          if (diag?.kind) scope.setTag('kind', String(diag.kind));
-          if (diag?.status !== null && diag?.status !== undefined) scope.setTag('status', String(diag.status));
-          scope.setExtra('diag', diag || {});
-          if (err) scope.setExtra('error', { message: shortText(err?.message || err, 400) });
-        } catch (_) {}
-        if (typeof S.captureMessage === 'function') S.captureMessage(eventName);
-        else if (typeof S.captureException === 'function' && err) S.captureException(err);
-      });
-    } else if (typeof S.captureMessage === 'function') {
-      S.captureMessage(eventName);
-    }
-  } catch (_) {
-    // ignore
-  }
-}
-
 function getTeacherAttemptId() {
   try {
     const u = new URL(location.href);
@@ -251,11 +154,7 @@ function normalizeAttemptRowFromRpc(data, attemptId) {
 
 async function showTeacherReport(attemptId) {
   const msgEl = $('#hwGateMsg');
-  const startBtn = $('#startHomework');
-  const nameInput = $('#studentName');
 
-  if (nameInput) nameInput.disabled = true;
-  if (startBtn) startBtn.disabled = true;
   if (msgEl) msgEl.textContent = 'Загружаем отчёт...';
 
   if (!AUTH_SESSION) {
@@ -310,38 +209,12 @@ async function showTeacherReport(attemptId) {
     HOMEWORK_READY = true;
   }
 
+  hideDiagUI();
   RUN_STARTED = true;
   await showAttemptSummaryFromRow(row);
 }
 
-function getStoredStudentName(user) {
-  try {
-    const uid = user?.id ? String(user.id) : '';
-    if (uid) {
-      const v = localStorage.getItem(`${STUDENT_NAME_STORAGE_PREFIX}uid:${uid}`);
-      if (v) return String(v).trim();
-    }
 
-    const email = String(user?.email || '').trim().toLowerCase();
-    if (email) {
-      const v = localStorage.getItem(`${STUDENT_NAME_STORAGE_PREFIX}email:${email}`);
-      if (v) return String(v).trim();
-    }
-  } catch (_) {}
-  return '';
-}
-
-function saveStudentNameForUser(user, name) {
-  const nm = String(name || '').trim();
-  if (!nm) return;
-  try {
-    const uid = user?.id ? String(user.id) : '';
-    if (uid) localStorage.setItem(`${STUDENT_NAME_STORAGE_PREFIX}uid:${uid}`, nm);
-
-    const email = String(user?.email || '').trim().toLowerCase();
-    if (email) localStorage.setItem(`${STUDENT_NAME_STORAGE_PREFIX}email:${email}`, nm);
-  } catch (_) {}
-}
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
 let LINK = null;       // строка homework_links (если вернётся)
 let CATALOG = null;    // массив index.json
@@ -352,11 +225,8 @@ let SESSION = null;
 
 let AUTH_SESSION = null;
 let AUTH_USER = null;
-let NAME_TOUCHED = false;
-let AUTO_START_DONE = false;
 let RUN_STARTED = false;
 let STARTING = false;
-let AUTO_START_TIMER = null;
 let EXISTING_ATTEMPT_INFLIGHT = false;
 let EXISTING_ATTEMPT_SHOWN = false;
 let EXISTING_ATTEMPT_ROW = null;
@@ -367,8 +237,13 @@ let TEACHER_REPORT_DONE = false;
 document.addEventListener('DOMContentLoaded', () => {
   const teacherAttemptId = getTeacherAttemptId();
   const token = getToken();
-  const startBtn = $('#startHomework');
   const msgEl = $('#hwGateMsg');
+
+  // кнопка копирования диагностики (показывается только при ошибке)
+  $('#copyDetails')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    copyDiagToClipboard();
+  });
 
   // UI авторизации (Google)
   initAuthUI().catch((e) => console.error(e));
@@ -376,45 +251,53 @@ document.addEventListener('DOMContentLoaded', () => {
   // Режим учителя: открытие отчёта по attempt_id
   if (teacherAttemptId) {
     TEACHER_REPORT_DONE = false;
-    if (startBtn) startBtn.disabled = true;
     if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
+    // если уже залогинен — откроем сразу
+    maybeProceedFlow('dom').catch(() => {});
     return;
   }
-
-  // Фиксируем ручной ввод имени, чтобы не перезатирать автоподстановкой
-  $('#studentName')?.addEventListener('input', () => {
-    NAME_TOUCHED = true;
-    if (AUTO_START_TIMER) {
-      clearTimeout(AUTO_START_TIMER);
-      AUTO_START_TIMER = null;
-    }
-    updateGateUI();
-  });
 
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    if (startBtn) startBtn.disabled = true;
     return;
   }
 
-  if (startBtn) startBtn.disabled = true;
+  hideDiagUI();
   if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
 
-  // Загрузим описание ДЗ сразу, чтобы показать заголовок до ввода имени.
+  // Загрузим описание ДЗ сразу, чтобы показать заголовок до авторизации.
   (async () => {
     const hwRes = await getHomeworkByToken(token);
     if (!hwRes.ok) {
       console.error(hwRes.error);
-      const diag = buildHwDiag(hwRes, token);
-      sentryCaptureOnce('hw_load_failed', diag, hwRes.error);
-      showDebugInfo(msgEl, diag);
-      if (msgEl) msgEl.textContent = `Не удалось загрузить домашнее задание. Код ошибки: ${diag.diag_id || ''}. Проверьте ссылку или доступ.`;
-      if (startBtn) startBtn.disabled = true;
+
+      const errCode = String(hwRes?.error?.code || '');
+      const errMsg = String(hwRes?.error?.message || hwRes?.error?.details || hwRes?.error || '').trim();
+
+      // Если функция доступна только авторизованным — просим войти.
+      if (!AUTH_SESSION && (errCode === '42501' || errMsg.toLowerCase().includes('permission denied'))) {
+        if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть домашнее задание.';
+        return;
+      }
+
+      if (msgEl) msgEl.textContent = 'Не удалось загрузить домашнее задание. Проверьте ссылку или доступ.';
+
+      const diag = {
+        phase: 'get_homework_by_token',
+        ...buildInfo(),
+        ...tokenHints(token),
+        error_code: errCode,
+        error_message: errMsg,
+        meta: hwRes?.meta || null,
+      };
+      showDiagUI(formatDiag(diag));
       return;
     }
+
     HOMEWORK = hwRes.homework;
     LINK = hwRes.linkRow || null;
     HOMEWORK_READY = true;
+
     // Заголовок
     const t = HOMEWORK.title ? String(HOMEWORK.title) : 'Домашнее задание';
     $('#hwTitle').textContent = t;
@@ -433,56 +316,67 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Каталог нужен для сборки задач
-    await loadCatalog();
-    CATALOG_READY = true;
+    try {
+      await loadCatalog();
+      CATALOG_READY = true;
+    } catch (e) {
+      console.warn('loadCatalog failed', e);
+      if (msgEl) msgEl.textContent = 'Не удалось загрузить контент задач (content/tasks/index.json).';
 
-    updateGateUI();
-    await maybeShowExistingAttempt('load');
-    maybeAutoStart('load');
-})().catch((e) => {
+      const diag = {
+        phase: 'load_catalog',
+        ...buildInfo(),
+        ...tokenHints(token),
+        error_message: String(e?.message || e || ''),
+      };
+      showDiagUI(formatDiag(diag));
+      return;
+    }
+
+    // дальше всё автоматически
+    await maybeProceedFlow('load');
+  })().catch((e) => {
     console.error(e);
     if (msgEl) msgEl.textContent = 'Ошибка загрузки. Откройте ссылку ещё раз.';
-    if (startBtn) startBtn.disabled = true;
+    const diag = { phase: 'unexpected', ...buildInfo(), ...tokenHints(token), error_message: String(e?.message || e || '') };
+    showDiagUI(formatDiag(diag));
   });
-
-  startBtn?.addEventListener('click', onStart);
 });
 
-async function onStart() {
+
+async function startStudentRunAuto(reason = '') {
   if (STARTING || RUN_STARTED) return;
+  if (EXISTING_ATTEMPT_INFLIGHT || EXISTING_ATTEMPT_SHOWN) return;
   STARTING = true;
   try {
     const token = getToken();
-    const nameInput = $('#studentName');
     const msgEl = $('#hwGateMsg');
-    const startBtn = $('#startHomework');
 
-    const studentName = String(nameInput?.value || '').trim();
-    if (!studentName) {
-      if (msgEl) msgEl.textContent = 'Введите имя.';
+    if (!token) {
+      if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
       return;
     }
-    const studentKey = normalizeStudentKey(studentName);
 
     if (!AUTH_SESSION) {
-      if (msgEl) msgEl.textContent = 'Войдите, чтобы начать выполнение.';
-      if (startBtn) startBtn.disabled = true;
+      if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть домашнее задание.';
       return;
     }
 
-    // Запомним имя для этого аккаунта (email/password часто не содержит user_metadata)
-    saveStudentNameForUser(AUTH_USER || AUTH_SESSION?.user, studentName);
-
-    if (!HOMEWORK) {
-      if (msgEl) msgEl.textContent = 'Домашнее задание ещё не загрузилось. Попробуйте ещё раз.';
+    if (!HOMEWORK_READY || !CATALOG_READY || !HOMEWORK) {
+      if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
       return;
     }
+
+    // Имя теперь вычисляем автоматически
+    const studentName = inferNameFromUser(AUTH_USER || AUTH_SESSION?.user);
+    const studentKey = normalizeStudentKey(studentName);
+
+    hideDiagUI();
 
     // Проверка "1 попытка".
-  // Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
-  // Если RPC не настроен — продолжаем без жёсткого ограничения (но напишем в консоль).
+    // Рекомендуемый путь: RPC start_homework_attempt (работает при RLS).
+    // Если RPC не настроен — продолжаем без жёсткого ограничения (но пишем в консоль).
     if (msgEl) msgEl.textContent = 'Проверяем доступ...';
-    if (startBtn) startBtn.disabled = true;
 
     let hwAttemptId = null;
     try {
@@ -491,8 +385,7 @@ async function onStart() {
         hwAttemptId = ares.attempt_id || null;
         if (ares.already_exists) {
           // Попытка уже создана ранее.
-          // Если она УЖЕ завершена — показываем результаты и выходим.
-          // Если не завершена — разрешаем продолжить (не считаем попытку завершённой при перезагрузке страницы).
+          // Если она уже завершена — показываем результаты и выходим.
           try {
             const r = await getHomeworkAttempt({ token, attempt_id: hwAttemptId });
             const pl = parseAttemptPayload(r?.row?.payload ?? null);
@@ -505,7 +398,7 @@ async function onStart() {
           } catch (e) {
             console.warn('getHomeworkAttempt failed', e);
           }
-          // незавершённая попытка: продолжаем обычный старт ниже
+          // Незавершённая попытка: продолжаем обычный старт ниже
         }
       } else {
         console.warn('startHomeworkAttempt failed (RPC). Продолжаем без ограничения попыток.', ares.error);
@@ -532,7 +425,6 @@ async function onStart() {
         const frozenQs = await buildFixedQuestions(frozenRefs);
         questions.push(...frozenQs);
       } else {
-
         // A) фиксированные задачи (в порядке задания)
         const fixedQs = await buildFixedQuestions(fixed);
         questions.push(...fixedQs);
@@ -554,12 +446,7 @@ async function onStart() {
       }
 
       // Скрываем "гейт", показываем тренажёр
-
       RUN_STARTED = true;
-      if (AUTO_START_TIMER) {
-        clearTimeout(AUTO_START_TIMER);
-        AUTO_START_TIMER = null;
-      }
       addCls('#hwGate', 'hidden');
       mountRunnerUI(); // создаёт #summary тоже
 
@@ -575,13 +462,12 @@ async function onStart() {
     } catch (e) {
       console.error(e);
       if (msgEl) msgEl.textContent = 'Ошибка сборки задач. Проверьте настройки домашнего задания.';
-    } finally {
-      if (startBtn) startBtn.disabled = false;
     }
   } finally {
     STARTING = false;
   }
 }
+
 
 function getToken() {
   // 1) сначала читаем токен из URL (чтобы поддержать прямую ссылку)
@@ -684,6 +570,17 @@ async function initAuthUI() {
 
 
 function inferNameFromUser(user) {
+  // 1) Пытаемся взять first_name из кэша profiles (его кладёт header.js)
+  try {
+    const uid = user?.id ? String(user.id) : '';
+    if (uid) {
+      const cached = sessionStorage.getItem(`ege_profile_first_name:${uid}`);
+      const v = String(cached || '').trim();
+      if (v) return v;
+    }
+  } catch (_) {}
+
+  // 2) user_metadata (Google OAuth обычно кладёт сюда имя)
   const md = user?.user_metadata || {};
   const name =
     md.full_name ||
@@ -696,14 +593,14 @@ function inferNameFromUser(user) {
   const direct = String(name || '').trim();
   if (direct) return direct;
 
-  const stored = getStoredStudentName(user);
-  if (stored) return stored;
-
+  // 3) email local-part (стабильный фолбэк)
   const email = String(user?.email || '').trim();
   if (email) return (email.split('@')[0] || '').trim();
 
-  return '';
+  // 4) крайний фолбэк — чтобы не ломать RPC start_homework_attempt
+  return 'Ученик';
 }
+
 
 async function refreshAuthUI() {
   let session = null;
@@ -716,115 +613,11 @@ async function refreshAuthUI() {
   AUTH_SESSION = session;
   AUTH_USER = session?.user || null;
 
-  // Автоподстановка имени (если пользователь ещё не трогал поле)
-  const nameInput = $('#studentName');
-  if (AUTH_USER) {
-    const inferred = inferNameFromUser(AUTH_USER);
-    if (nameInput && inferred && !NAME_TOUCHED && !String(nameInput.value || '').trim()) {
-      nameInput.value = inferred;
-    }
-  }
-
-  updateGateUI();
-
-  // Учительский режим: после входа сразу пробуем открыть отчёт по attempt_id.
-  if (isTeacherReportView()) {
-    const attemptId = getTeacherAttemptId();
-    if (attemptId && AUTH_SESSION && !TEACHER_REPORT_DONE && !RUN_STARTED && !STARTING) {
-      TEACHER_REPORT_DONE = true;
-      try {
-        await showTeacherReport(attemptId);
-      } catch (e) {
-        console.error(e);
-        const m = $('#hwGateMsg');
-        if (m) m.textContent = 'Не удалось загрузить отчёт.';
-      }
-    }
-  }
-
-  // При смене сессии может появиться доступ к уже начатой попытке
-  await maybeShowExistingAttempt('auth');
-  maybeAutoStart('auth');
+  // После смены сессии (вход/выход) просто запускаем автоматический сценарий.
+  await maybeProceedFlow('auth');
 }
 
-function updateGateUI() {
-  if (isTeacherReportView()) return;
-  const token = getToken();
-  const startBtn = $('#startHomework');
-  const msgEl = $('#hwGateMsg');
-  const nameInput = $('#studentName');
 
-  if (!token) {
-    if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
-    if (startBtn) startBtn.disabled = true;
-    return;
-  }
-
-  // пока загружаем ДЗ/каталог
-  if (!HOMEWORK_READY || !CATALOG_READY) {
-    if (startBtn) startBtn.disabled = true;
-    if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
-    return;
-  }
-
-  // обязательная авторизация для записи результата (RPC использует auth.uid())
-  if (!AUTH_SESSION) {
-    if (startBtn) startBtn.disabled = true;
-    if (msgEl) msgEl.textContent = 'Войдите, чтобы начать выполнение.';
-    return;
-  }
-
-  const studentName = String(nameInput?.value || '').trim();
-  if (!studentName) {
-    if (startBtn) startBtn.disabled = true;
-    if (msgEl) msgEl.textContent = 'Введите имя.';
-    return;
-  }
-
-  if (msgEl) msgEl.textContent = 'Нажмите «Начать».';
-  if (startBtn) startBtn.disabled = false;
-}
-
-function maybeAutoStart(reason = '') {
-  if (AUTO_START_DONE || RUN_STARTED || STARTING) return;
-  if (EXISTING_ATTEMPT_INFLIGHT || EXISTING_ATTEMPT_SHOWN) return;
-
-  const token = getToken();
-  if (!token) return;
-
-  // Ждём, пока загрузится ДЗ и каталог (нужны для сборки вопросов)
-  if (!HOMEWORK_READY || !CATALOG_READY) return;
-
-  // Требуем авторизацию (результат привязан к аккаунту)
-  if (!AUTH_SESSION) return;
-
-  // Автостарт только если пользователь не начал менять имя вручную
-  if (NAME_TOUCHED) return;
-
-  const nameInput = $('#studentName');
-  const studentName = String(nameInput?.value || '').trim();
-  if (!studentName) return;
-
-  const msgEl = $('#hwGateMsg');
-  const startBtn = $('#startHomework');
-  if (msgEl) msgEl.textContent = 'Открываем домашнее задание...';
-  if (startBtn) startBtn.disabled = true;
-
-  if (AUTO_START_TIMER) return;
-  AUTO_START_TIMER = setTimeout(() => {
-    AUTO_START_TIMER = null;
-
-    if (AUTO_START_DONE || RUN_STARTED || STARTING) return;
-    if (!AUTH_SESSION || !HOMEWORK_READY || !CATALOG_READY) return;
-    if (NAME_TOUCHED) return;
-
-    const nm = String($('#studentName')?.value || '').trim();
-    if (!nm) return;
-
-    AUTO_START_DONE = true;
-    onStart();
-  }, 150);
-}
 
 
 // ---------- повторный вход: показываем результаты ----------
@@ -860,9 +653,7 @@ async function showAttemptSummaryFromRow(row) {
   if (!saved.length) {
     const m = $('#hwGateMsg');
     if (m) m.textContent = 'Результаты не найдены (попытка была создана, но не завершена).';
-    const b = $('#startHomework');
-    if (b) b.disabled = false;
-    return;
+        return;
   }
 
   // Подтягиваем "условия" из текущего контента, а correctness/time/answers берём из сохранённого payload
@@ -949,49 +740,65 @@ async function maybeShowExistingAttempt(reason = '') {
   }
 }
 
-async function showExistingAttemptSummary({ token, attemptId } = {}) {
-  if (EXISTING_ATTEMPT_SHOWN) return;
+let FLOW_INFLIGHT = false;
+let FLOW_PENDING = false;
 
-  const t = String(token || getToken() || '').trim();
-  if (!t) return;
-
-  // UI гейта
-  const msgEl = $('#hwGateMsg');
-  const startBtn = $('#startHomework');
-  if (msgEl) msgEl.textContent = 'Загружаем результаты...';
-  if (startBtn) startBtn.disabled = true;
-
-  if (!AUTH_SESSION) {
-    if (msgEl) msgEl.textContent = 'Войдите, чтобы увидеть результаты.';
+async function maybeProceedFlow(reason = '') {
+  if (FLOW_INFLIGHT) {
+    FLOW_PENDING = true;
     return;
   }
-
-  if (!HOMEWORK_READY || !CATALOG_READY) {
-    if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
-    return;
-  }
-
-  EXISTING_ATTEMPT_INFLIGHT = true;
+  FLOW_INFLIGHT = true;
   try {
-    const res = EXISTING_ATTEMPT_ROW
-      ? { ok: true, row: EXISTING_ATTEMPT_ROW }
-      : await getHomeworkAttempt({ token: t, attempt_id: attemptId });
-
-    if (res?.ok && res.row) {
-      EXISTING_ATTEMPT_ROW = res.row;
-      EXISTING_ATTEMPT_SHOWN = true;
-      await showAttemptSummaryFromRow(res.row);
+    if (isTeacherReportView()) {
+      const attemptId = getTeacherAttemptId();
+      const msgEl = $('#hwGateMsg');
+      if (!AUTH_SESSION) {
+        if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
+        return;
+      }
+      if (attemptId && !TEACHER_REPORT_DONE && !RUN_STARTED && !STARTING) {
+        TEACHER_REPORT_DONE = true;
+        try {
+          await showTeacherReport(attemptId);
+        } catch (e) {
+          console.error(e);
+          if (msgEl) msgEl.textContent = 'Не удалось загрузить отчёт.';
+        }
+      }
       return;
     }
 
-    if (msgEl) msgEl.textContent = 'Не удалось загрузить результаты. Попробуйте обновить страницу.';
-    if (startBtn) startBtn.disabled = false;
-  } catch (e) {
-    console.error(e);
-    if (msgEl) msgEl.textContent = 'Не удалось загрузить результаты. Попробуйте обновить страницу.';
-    if (startBtn) startBtn.disabled = false;
+    const token = getToken();
+    const msgEl = $('#hwGateMsg');
+
+    if (!token) {
+      if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+      return;
+    }
+
+    // пока загружаем ДЗ/каталог
+    if (!HOMEWORK_READY || !CATALOG_READY) {
+      if (msgEl) msgEl.textContent = 'Загружаем домашнее задание...';
+      return;
+    }
+
+    if (!AUTH_SESSION) {
+      if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть домашнее задание.';
+      return;
+    }
+
+    await maybeShowExistingAttempt(reason);
+    if (RUN_STARTED || EXISTING_ATTEMPT_SHOWN) return;
+
+    await startStudentRunAuto(reason);
   } finally {
-    EXISTING_ATTEMPT_INFLIGHT = false;
+    FLOW_INFLIGHT = false;
+    if (FLOW_PENDING) {
+      FLOW_PENDING = false;
+      // повторный прогон, если пока выполнялся flow, пришло событие auth/load
+      await maybeProceedFlow('rerun');
+    }
   }
 }
 
