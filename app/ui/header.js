@@ -255,6 +255,13 @@ function mountAuthUI(right) {
     btn.setAttribute('aria-expanded', 'false');
     btn.textContent = 'Аккаунт';
 
+    const myHwBellTop = document.createElement('span');
+    myHwBellTop.id = 'myHwBellTop';
+    myHwBellTop.className = 'hw-bell hw-bell--top hidden';
+    myHwBellTop.setAttribute('aria-label', 'Есть несданные ДЗ');
+    myHwBellTop.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2Z"/></svg>';
+    myHwBellTop.style.pointerEvents = 'none';
+
     const menu = document.createElement('div');
     menu.id = 'userMenu';
     menu.className = 'user-menu hidden';
@@ -262,13 +269,20 @@ function mountAuthUI(right) {
     menu.setAttribute('role', 'menu');
 
     menu.innerHTML = `
-      <button id="menuProfile" type="button" class="user-menu-item" role="menuitem">Профиль</button>
+      <button id="menuMyHw" type="button" class="user-menu-item" role="menuitem">
+        <span>Мои ДЗ</span>
+        <span id="menuMyHwBell" class="hw-bell hw-bell--menu hidden" aria-label="Есть несданные ДЗ">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2Z"/></svg>
+        </span>
+      </button>
       <button id="menuStats" type="button" class="user-menu-item" role="menuitem">Статистика</button>
+      <button id="menuProfile" type="button" class="user-menu-item" role="menuitem">Профиль</button>
       <div class="user-menu-sep"></div>
       <button id="menuLogout" type="button" class="user-menu-item danger" role="menuitem">Выйти</button>
     `.trim();
 
     userMenuWrap.appendChild(btn);
+    userMenuWrap.appendChild(myHwBellTop);
     userMenuWrap.appendChild(menu);
     auth.appendChild(userMenuWrap);
   }
@@ -278,9 +292,12 @@ function mountAuthUI(right) {
     loginBtn,
     userMenuWrap,
     userBtn: $('#userMenuBtn', userMenuWrap),
+    myHwBellTop: $('#myHwBellTop', userMenuWrap),
     menu: $('#userMenu', userMenuWrap),
-    menuProfile: $('#menuProfile', userMenuWrap),
+    menuMyHw: $('#menuMyHw', userMenuWrap),
+    menuMyHwBell: $('#menuMyHwBell', userMenuWrap),
     menuStats: $('#menuStats', userMenuWrap),
+    menuProfile: $('#menuProfile', userMenuWrap),
     menuLogout: $('#menuLogout', userMenuWrap),
   };
 }
@@ -395,10 +412,55 @@ export async function initHeader(opts = {}) {
   let currentRole = 'student';
   let currentSession = null;
 
+  let myHwBellSeq = 0;
+
+  const setMyHwBells = (pending) => {
+    const on = Number(pending || 0) > 0;
+    ui.myHwBellTop?.classList.toggle('hidden', !on);
+    ui.menuMyHwBell?.classList.toggle('hidden', !on);
+  };
+
+  const refreshMyHwBells = async () => {
+    if (!currentSession || currentRole !== 'student') {
+      setMyHwBells(0);
+      return;
+    }
+    const seq = ++myHwBellSeq;
+
+    let hwMod = null;
+    try {
+      hwMod = await import(buildWithV('../providers/homework.js'));
+    } catch (e) {
+      // Если провайдер не грузится — просто не показываем колокольчики.
+      return;
+    }
+    if (seq !== myHwBellSeq) return;
+
+    const fn = hwMod?.getStudentMyHomeworksSummary;
+    if (typeof fn !== 'function') {
+      setMyHwBells(0);
+      return;
+    }
+
+    const res = await fn({ limit: 1 });
+    if (seq !== myHwBellSeq) return;
+    if (!res?.ok) return;
+
+    const pending = Number(res?.data?.pending_count ?? 0);
+    setMyHwBells(pending);
+  };
+
+  const refreshMyHwBellsSoon = () => {
+    Promise.resolve().then(() => refreshMyHwBells()).catch(() => {});
+  };
+
   const applyRoleToMenu = (roleRaw) => {
     const r = String(roleRaw || '').trim().toLowerCase();
     currentRole = (r === 'teacher') ? 'teacher' : 'student';
     if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
+    if (ui.menuMyHw) ui.menuMyHw.classList.toggle('hidden', currentRole !== 'student');
+    if (currentRole !== 'student') setMyHwBells(0);
+    else refreshMyHwBellsSoon();
 
     // После того как роль стала известна — можно корректно "прибить" пользователя к нужной главной.
     maybeRedirectLanding();
@@ -441,6 +503,16 @@ export async function initHeader(opts = {}) {
     if (kind === 'student' && currentRole === 'teacher') { toTeacher(); return; }
     if (kind === 'teacher' && currentRole !== 'teacher') { toStudent(); return; }
   };
+
+  ui.menuMyHw?.addEventListener('click', () => {
+    closeMenu();
+    try {
+      const home = computeHomeUrl();
+      location.href = buildWithV(new URL('tasks/my_homeworks.html', home).toString());
+    } catch (_) {
+      location.href = buildWithV(computeHomeUrl() + 'tasks/my_homeworks.html');
+    }
+  });
 
   ui.menuProfile?.addEventListener('click', () => {
     closeMenu();
@@ -537,10 +609,14 @@ export async function initHeader(opts = {}) {
       nameFetchSeq++;
       ui.userBtn.textContent = 'Аккаунт';
       applyRoleToMenu('student');
+      setMyHwBells(0);
     }
 
     // Если мы на landing-страницах, может потребоваться редирект.
     maybeRedirectLanding();
+
+    // Колокольчик "Мои ДЗ" (только для ученика)
+    refreshMyHwBellsSoon();
 
     try {
       window.dispatchEvent(new CustomEvent('app-auth-changed', { detail: { session: session || null } }));
