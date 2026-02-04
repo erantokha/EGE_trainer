@@ -147,7 +147,24 @@ function renderList(items){
 
 function setStatus(text){
   const el = $('#myHwStatus');
-  if (el) el.textContent = String(text || '');
+  if (!el) return;
+  const t = String(text || '');
+  el.textContent = t;
+  el.style.display = t ? '' : 'none';
+}
+
+function setCounters(pending, total){
+  const p = $('#myHwPending');
+  const t = $('#myHwTotal');
+  if (p) p.textContent = (pending === null || pending === undefined || pending === '') ? '' : `Несданные: ${pending}`;
+  if (t) t.textContent = (total === null || total === undefined || total === '') ? '' : `Всего: ${total}`;
+}
+
+function setArchiveLabel(arch){
+  const el = $('#myHwMenuArchive');
+  if (!el) return;
+  const n = Number(arch);
+  el.textContent = Number.isFinite(n) && n > 0 ? `Архив работ (${n})` : 'Архив работ';
 }
 
 async function mapLimit(arr, limit, fn){
@@ -170,6 +187,7 @@ async function mapLimit(arr, limit, fn){
 
 async function load(){
   setStatus('Загрузка…');
+  setCounters('', '');
 
   let mod;
   try{
@@ -224,22 +242,59 @@ async function load(){
   const total = Number(data?.total_count ?? items.length);
   const arch = Number(data?.archive_count ?? Math.max(0, total - items.length));
 
-  const parts = [];
-  if (pending > 0) parts.push(`Несданные: ${pending}`);
-  parts.push(`Всего: ${total}`);
-  setStatus(parts.join(' • '));
+  setCounters(pending, total);
+  setArchiveLabel(arch);
+  setStatus('');
+}
 
-  const archBtn = $('#archiveBtn');
-  if (archBtn){
-    archBtn.textContent = arch > 0 ? `Архив (${arch})` : 'Архив';
+function initMenu(){
+  const wrap = $('#myHwMenuWrap');
+  const btn = $('#myHwMenuBtn');
+  const menu = $('#myHwMenu');
+  const archive = $('#myHwMenuArchive');
+
+  if (!wrap || !btn || !menu) return;
+
+  const close = () => {
+    menu.classList.add('hidden');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  const open = () => {
+    menu.classList.remove('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  };
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const isOpen = !menu.classList.contains('hidden');
+    if (isOpen) close();
+    else open();
+  });
+
+  wrap.addEventListener('click', (e) => e.stopPropagation());
+
+  document.addEventListener('pointerdown', (e) => {
+    if (menu.classList.contains('hidden')) return;
+    if (wrap.contains(e.target)) return;
+    close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+  });
+
+  if (archive){
+    archive.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      location.href = withV('./my_homeworks_archive.html');
+    });
   }
 }
 
 function init(){
-  $('#archiveBtn')?.addEventListener('click', () => {
-    location.href = withV('./my_homeworks_archive.html');
-  });
-
+  initMenu();
   load();
 }
 
