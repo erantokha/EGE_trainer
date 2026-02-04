@@ -1442,6 +1442,21 @@ body.vs-modal-open{ overflow:hidden; }
   background: rgba(148,163,184,.06);
 }
 
+.myhw-card.clickable{
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.myhw-card.clickable:hover{
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(15,23,42,.10);
+}
+
+.myhw-card.clickable:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .myhw-row{
   display: flex;
   align-items: flex-start;
