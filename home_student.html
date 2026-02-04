@@ -3,77 +3,76 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-04-18">
-<title>Тренажер по задачам из банка ФИПИ</title>
+  <meta name="app-build" content="2026-02-04-14">
+  <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
     Главная ученика (/home_student.html).
     Сейчас по дизайну совпадает с / (index.html), но файл отдельный,
     чтобы в дальнейшем можно было развести дизайн.
   -->
-  
+
   <script id="sentry-loader"
-  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
-  crossorigin="anonymous"></script>
-<script>
-(function () {
-  if (window.__SENTRY_INITED__) return;
-  window.__SENTRY_INITED__ = true;
+    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+    crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    if (window.__SENTRY_INITED__) return;
+    window.__SENTRY_INITED__ = true;
 
-  function getRelease() {
-    var m = document.querySelector('meta[name="app-build"]');
-    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
-  }
+    function getRelease() {
+      var m = document.querySelector('meta[name="app-build"]');
+      return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+    }
 
-  function getEnv() {
-    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
-  }
+    function getEnv() {
+      return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+    }
 
-  function sanitizeEvent(event) {
-    try {
-      if (event && event.request && event.request.url) {
-        event.request.url = event.request.url.split('#')[0].split('?')[0];
-      }
-      if (event && event.request && event.request.headers) {
-        delete event.request.headers.Authorization;
-        delete event.request.headers.authorization;
-        delete event.request.headers.Cookie;
-        delete event.request.headers.cookie;
-      }
-    } catch (e) {}
-    return event;
-  }
+    function sanitizeEvent(event) {
+      try {
+        if (event && event.request && event.request.url) {
+          event.request.url = event.request.url.split('#')[0].split('?')[0];
+        }
+        if (event && event.request && event.request.headers) {
+          delete event.request.headers.Authorization;
+          delete event.request.headers.authorization;
+          delete event.request.headers.Cookie;
+          delete event.request.headers.cookie;
+        }
+      } catch (e) {}
+      return event;
+    }
 
-  function doInit() {
-    if (!window.Sentry || !window.Sentry.init) return;
+    function doInit() {
+      if (!window.Sentry || !window.Sentry.init) return;
 
-    var opts = {
-      release: getRelease(),
-      environment: getEnv(),
-      initialScope: {
-        tags: { page: location.pathname }
-      },
-      beforeSend: sanitizeEvent
-    };
+      var opts = {
+        release: getRelease(),
+        environment: getEnv(),
+        initialScope: {
+          tags: { page: location.pathname }
+        },
+        beforeSend: sanitizeEvent
+      };
 
-    try {
-      if (window.Sentry.onLoad) {
-        window.Sentry.onLoad(function () {
-          window.Sentry.init(opts);
-        });
-        return;
-      }
-    } catch (e) {}
+      try {
+        if (window.Sentry.onLoad) {
+          window.Sentry.onLoad(function () {
+            window.Sentry.init(opts);
+          });
+          return;
+        }
+      } catch (e) {}
 
-    window.Sentry.init(opts);
-  }
+      window.Sentry.init(opts);
+    }
 
-  doInit();
-})();
-</script>
+    doInit();
+  })();
+  </script>
 
-
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-18">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-14">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -104,9 +103,9 @@
           </div>
 
           <button id="start" class="start-sum-btn" disabled>Начать · Итого: <span id="sum">0</span></button>
-
         </div>
-<div class="theme-toggle">
+
+        <div class="theme-toggle">
           <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
           <label for="themeToggle" class="theme-toggle-label">
             <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
@@ -139,24 +138,14 @@
             Перемешать задачи
           </label>
         </div>
-</div>
+      </div>
 
       <!-- Ряд 3: аккордеон -->
       <div id="accordion" class="accordion"></div>
-<div class="myhw-actions">
-              <button id="myHwRefresh" class="btn small" type="button">Обновить</button>
-              <a id="myHwArchiveLink" class="btn small" href="./tasks/my_homeworks_archive.html">Архив</a>
-            </div>
-          </div>
-
-          <div id="myHwList" class="myhw-list"></div>
-          <div id="myHwEmpty" class="muted" style="margin-top:10px"></div>
-        </div>
-      </div>
     </section>
   </main>
 
-  <script src="./tasks/theme.js?v=2026-02-04-18" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-04-18"></script>
+  <script src="./tasks/theme.js?v=2026-02-04-14" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-02-04-14"></script>
 </body>
 </html>
