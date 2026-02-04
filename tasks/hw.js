@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-04-2';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-01-30-2';
 
-import { CONFIG } from '../app/config.js?v=2026-02-04-2';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-04-2';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-04-2';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-04-2';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-01-30-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-01-30-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-04-2';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-04-2';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-01-30-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-01-30-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -110,6 +110,277 @@ async function copyDiagToClipboard() {
     console.warn('copy clipboard failed', e);
   }
 }
+
+
+let SUBMIT_INFLIGHT = false;
+
+function hideRetrySaveButton() {
+  const btn = $('#retrySave');
+  if (!btn) return;
+  btn.classList.add('hidden');
+  btn.disabled = false;
+}
+
+function showRetrySaveButton() {
+  const btn = $('#retrySave');
+  if (!btn) return;
+  btn.classList.remove('hidden');
+  btn.disabled = false;
+}
+
+function withTimeout(p, ms) {
+  return Promise.race([
+    Promise.resolve().then(() => p),
+    new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), ms)),
+  ]);
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function makeErrId(prefix = 'HW') {
+  const rnd = Math.random().toString(36).slice(2, 10).toUpperCase();
+  return `${prefix}-${rnd}`;
+}
+
+function extractStatus(err) {
+  const v = err?.status ?? err?.statusCode ?? err?.status_code ?? err?.httpStatus ?? err?.http_status ?? null;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function classifySubmitError(err) {
+  const msg = String(err?.message || err?.details || err || '').toLowerCase();
+  const code = String(err?.code || '');
+  const status = extractStatus(err);
+
+  if (msg.includes('start_timeout') || msg.includes('submit_timeout') || msg.includes('timeout')) {
+    return { kind: 'timeout', retryable: true, status, code };
+  }
+  if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network') || msg.includes('load failed')) {
+    return { kind: 'network', retryable: true, status, code };
+  }
+  if (status === 429 || msg.includes('too many') || msg.includes('rate limit')) {
+    return { kind: 'rate_limit', retryable: true, status: status || 429, code };
+  }
+  if (status && status >= 500) {
+    return { kind: 'server', retryable: true, status, code };
+  }
+  if (status === 401) {
+    return { kind: 'auth', retryable: false, status, code };
+  }
+  if (status === 403 || code === '42501' || msg.includes('permission denied')) {
+    return { kind: 'forbidden', retryable: false, status: status || 403, code: code || '42501' };
+  }
+  if (status && status >= 400 && status < 500) {
+    return { kind: 'bad_request', retryable: false, status, code };
+  }
+
+  // неизвестное: обычно лучше дать пару попыток
+  return { kind: 'unknown', retryable: true, status, code };
+}
+
+function showSavingGate(message) {
+  rmCls('#hwGate', 'hidden');
+  const msgEl = $('#hwGateMsg');
+  if (msgEl) msgEl.textContent = message;
+
+  hideDiagUI();
+  const copyBtn = $('#copyDetails');
+  if (copyBtn) copyBtn.classList.add('hidden');
+  hideRetrySaveButton();
+
+  addCls('#summary', 'hidden');
+  addCls('#runner', 'hidden');
+}
+
+function showSubmitErrorGate(diag, humanMsg) {
+  rmCls('#hwGate', 'hidden');
+  const msgEl = $('#hwGateMsg');
+  if (msgEl) msgEl.textContent = humanMsg;
+
+  addCls('#runner', 'hidden');
+  addCls('#summary', 'hidden');
+
+  const copyBtn = $('#copyDetails');
+  if (copyBtn) copyBtn.classList.remove('hidden');
+  showRetrySaveButton();
+  showDiagUI(formatDiag(diag));
+}
+
+function showSummaryAfterSave({ total, correct, duration_ms, avg_ms } = {}) {
+  addCls('#hwGate', 'hidden');
+  addCls('#runner', 'hidden');
+  rmCls('#summary', 'hidden');
+
+  // на всякий случай: summary может отсутствовать (если вызвали до mountRunnerUI)
+  if (!$('#summary') || !$('#stats')) {
+    mountRunnerUI();
+  }
+
+  renderStats({ total, correct, duration_ms, avg_ms });
+  resetWrongFilter();
+  renderReviewCards();
+
+  const summaryPanel = $('#summary .panel') || $('#summary');
+  if (summaryPanel) {
+    let statusEl = $('#hwSaveStatus', summaryPanel);
+    if (!statusEl) {
+      statusEl = document.createElement('div');
+      statusEl.id = 'hwSaveStatus';
+      statusEl.className = 'muted';
+      statusEl.style.marginTop = '10px';
+      summaryPanel.appendChild(statusEl);
+    }
+    statusEl.textContent = 'Результат сохранён.';
+  }
+}
+
+async function submitPendingAndShowReport() {
+  if (SUBMIT_INFLIGHT) return;
+  SUBMIT_INFLIGHT = true;
+
+  const t0 = Date.now();
+  const pending = SESSION?.meta?.pendingSubmit || null;
+  const token = getToken();
+
+  try {
+    if (!pending) {
+      const id = makeErrId('HW-NO-PENDING');
+      showSubmitErrorGate(
+        { id, phase: 'client', kind: 'client', message: 'pendingSubmit missing' },
+        `Не удалось сохранить результат. Код ошибки: ${id}.`
+      );
+      return;
+    }
+
+    // чистим UI ошибки (если нажали Повторить)
+    hideDiagUI();
+    hideRetrySaveButton();
+    const copyBtn = $('#copyDetails');
+    if (copyBtn) copyBtn.classList.add('hidden');
+
+    const maxAttempts = 3;
+    let lastErr = null;
+    let attemptId = pending.attempt_id || SESSION?.meta?.homeworkAttemptId || null;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      showSavingGate(`Сохраняем результат... (${attempt} из ${maxAttempts})`);
+
+      try {
+        // 1) гарантируем наличие attempt_id
+        if (!attemptId && token && SESSION?.meta?.studentName) {
+          const res = await withTimeout(
+            startHomeworkAttempt({ token, student_name: SESSION.meta.studentName }),
+            8000
+          );
+          if (res?.__timeout) throw new Error('START_TIMEOUT');
+          if (res?.ok && res?.attempt_id) {
+            attemptId = res.attempt_id;
+            SESSION.meta.homeworkAttemptId = attemptId;
+          } else if (res && !res.ok) {
+            throw (res.error || new Error('START_FAILED'));
+          }
+        }
+
+        if (!attemptId) throw new Error('NO_ATTEMPT_ID');
+
+        // 2) отправляем результат
+        const res2 = await withTimeout(
+          submitHomeworkAttempt({
+            attempt_id: attemptId,
+            payload: pending.payload,
+            total: pending.total,
+            correct: pending.correct,
+            duration_ms: pending.duration_ms,
+          }),
+          12000
+        );
+
+        if (res2?.__timeout) throw new Error('SUBMIT_TIMEOUT');
+        if (!res2?.ok) throw (res2?.error || new Error('SUBMIT_FAILED'));
+
+        // фиксируем, чтобы при перезагрузке/повторной попытке было что показать
+        pending.attempt_id = attemptId;
+        SESSION.meta.lastSubmit = {
+          attempt_id: attemptId,
+          total: pending.total,
+          correct: pending.correct,
+          duration_ms: pending.duration_ms,
+        };
+
+        showSummaryAfterSave({
+          total: pending.total,
+          correct: pending.correct,
+          duration_ms: pending.duration_ms,
+          avg_ms: pending.avg_ms,
+        });
+        return;
+      } catch (e) {
+        lastErr = e;
+        const info = classifySubmitError(e);
+
+        const retry = info.retryable && attempt < maxAttempts;
+        if (retry) {
+          const backoff = 500 * Math.pow(2, attempt - 1) + Math.floor(Math.random() * 200);
+          await sleep(backoff);
+          continue;
+        }
+
+        const id = makeErrId('HW-SUBMIT');
+
+        const diag = {
+          id,
+          phase: 'submit_homework_attempt',
+          kind: info.kind,
+          attempt,
+          maxAttempts,
+          elapsed_ms: Date.now() - t0,
+          online: typeof navigator !== 'undefined' ? navigator.onLine : null,
+          build: {
+            html: document.querySelector('meta[name="app-build"]')?.content || null,
+            js: CONFIG?.content?.version || null,
+          },
+          token: tokenHints(token),
+          attempt_id: attemptId ? String(attemptId) : null,
+          error: {
+            status: info.status,
+            code: info.code || String(e?.code || ''),
+            name: String(e?.name || ''),
+            message: String(e?.message || e || ''),
+            details: String(e?.details || ''),
+            hint: String(e?.hint || ''),
+          },
+        };
+
+        showSubmitErrorGate(
+          diag,
+          `Не удалось сохранить результат. Код ошибки: ${id}. Нажмите «Повторить» или попробуйте позже.`
+        );
+        return;
+      }
+    }
+
+    // на всякий случай
+    const id = makeErrId('HW-SUBMIT');
+    showSubmitErrorGate(
+      { id, phase: 'submit_homework_attempt', kind: 'unknown', message: String(lastErr || '') },
+      `Не удалось сохранить результат. Код ошибки: ${id}.`
+    );
+  } finally {
+    SUBMIT_INFLIGHT = false;
+  }
+}
+
+function retrySavePending() {
+  const btn = $('#retrySave');
+  if (btn) btn.disabled = true;
+  submitPendingAndShowReport().finally(() => {
+    if (btn) btn.disabled = false;
+  });
+}
+
 
 function tokenHints(token) {
   const t = String(token || '');
@@ -267,6 +538,12 @@ document.addEventListener('DOMContentLoaded', () => {
   $('#copyDetails')?.addEventListener('click', (e) => {
     e.preventDefault();
     copyDiagToClipboard();
+  });
+
+  // кнопка повтора сохранения (показывается только если не удалось отправить результат)
+  $('#retrySave')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    retrySavePending();
   });
 
   // UI авторизации (Google)
@@ -1491,6 +1768,7 @@ function saveTimeForCurrent() {
   SESSION.t0 = now;
 }
 
+
 // ---------- завершение ----------
 async function finishSession() {
   // защита от двойного клика / повторного вызова
@@ -1541,128 +1819,23 @@ async function finishSession() {
     correct_text: q.correct_text,
   }));
 
-  // UI: показываем результаты сразу (даже если сеть/БД подвиснут)
-  addCls('#runner', 'hidden');
-  rmCls('#summary', 'hidden');
-
-  renderStats({ total, correct, duration_ms, avg_ms });
-  resetWrongFilter();
-  renderReviewCards();
-
-  const summaryPanel = $('#summary .panel') || $('#summary');
-  let statusEl = summaryPanel ? $('#hwSaveStatus', summaryPanel) : null;
-  if (summaryPanel && !statusEl) {
-    statusEl = document.createElement('div');
-    statusEl.id = 'hwSaveStatus';
-    statusEl.className = 'muted';
-    statusEl.style.marginTop = '10px';
-    summaryPanel.appendChild(statusEl);
-  }
-  if (statusEl) statusEl.textContent = 'Сохраняем результат...';
-
-  const withTimeout = (p, ms) => {
-    return Promise.race([
-      Promise.resolve().then(() => p),
-      new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), ms)),
-    ]);
-  };
-
-  const buildSubmitPayload = () => ({
-    homework_id: SESSION.meta?.homeworkId || null,
-    title: SESSION.meta?.title || null,
+  const payload = {
+    homework_id: SESSION.meta?.homeworkId || HOMEWORK?.id || null,
+    title: HOMEWORK?.title || null,
     student_name: SESSION.meta?.studentName || null,
     questions: payloadQuestions,
-  });
-
-  const saveOnce = async () => {
-    // 1) гарантируем наличие attempt_id
-    let attemptId = SESSION.meta?.homeworkAttemptId || null;
-    const token = getToken();
-
-    if (!attemptId && token && SESSION.meta?.studentName) {
-      const res = await withTimeout(
-        startHomeworkAttempt({ token, student_name: SESSION.meta.studentName }),
-        8000
-      );
-      if (res?.__timeout) throw new Error('START_TIMEOUT');
-      if (res?.ok && res?.attempt_id) {
-        attemptId = res.attempt_id;
-        SESSION.meta.homeworkAttemptId = attemptId;
-      } else if (res && !res.ok) {
-        throw (res.error || new Error('START_FAILED'));
-      }
-    }
-
-    if (!attemptId) throw new Error('NO_ATTEMPT_ID');
-
-    // 2) пишем результат в homework_attempts через RPC submit_homework_attempt
-    const payload = buildSubmitPayload();
-    SESSION.meta.lastSubmit = {
-      attempt_id: attemptId,
-      payload,
-      total,
-      correct,
-      duration_ms,
-    };
-
-    const res = await withTimeout(
-      submitHomeworkAttempt({
-        attempt_id: attemptId,
-        payload,
-        total,
-        correct,
-        duration_ms,
-      }),
-      12000
-    );
-
-    if (res?.__timeout) throw new Error('SUBMIT_TIMEOUT');
-    if (!res?.ok) throw (res?.error || new Error('SUBMIT_FAILED'));
-
-    return true;
   };
 
-  const ensureRetryButton = () => {
-    if (!summaryPanel) return null;
-    let btn = $('#hwRetrySave', summaryPanel);
-    if (btn) return btn;
-
-    btn = document.createElement('button');
-    btn.id = 'hwRetrySave';
-    btn.type = 'button';
-    btn.className = 'btn small';
-    btn.textContent = 'Повторить сохранение';
-    btn.style.marginTop = '10px';
-
-    btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      if (statusEl) statusEl.textContent = 'Сохраняем результат...';
-      try {
-        await saveOnce();
-        if (statusEl) statusEl.textContent = 'Результат сохранён.';
-        btn.remove();
-      } catch (e) {
-        console.warn('Homework submit error (retry)', e);
-        if (statusEl) statusEl.textContent = 'Не удалось сохранить результат. Проверьте интернет и попробуйте ещё раз.';
-        btn.disabled = false;
-      }
-    });
-
-    summaryPanel.appendChild(btn);
-    return btn;
+  SESSION.meta.pendingSubmit = {
+    attempt_id: SESSION.meta?.homeworkAttemptId || null,
+    payload,
+    total,
+    correct,
+    duration_ms,
+    avg_ms,
   };
 
-  // сохраняем в фоне, чтобы UI не зависал
-  (async () => {
-    try {
-      await saveOnce();
-      if (statusEl) statusEl.textContent = 'Результат сохранён.';
-    } catch (e) {
-      console.warn('Homework submit error', e);
-      if (statusEl) statusEl.textContent = 'Не удалось сохранить результат. Проверьте интернет и попробуйте ещё раз.';
-      ensureRetryButton();
-    }
-  })();
+  await submitPendingAndShowReport();
 }
 
 
