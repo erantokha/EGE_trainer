@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-04-10">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+    <meta name="app-build" content="2026-02-04-1">
 <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
@@ -73,7 +73,7 @@
 </script>
 
 
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-10">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-1">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -91,6 +91,18 @@
         </script>
       </div>
 
+      <!-- Вкладки главной ученика -->
+      <div class="mode-toggle home-tabs" id="homeTabs" role="tablist" aria-label="Разделы">
+        <button type="button" class="mode-btn active" id="tabTraining" data-view="training" aria-selected="true">Тренировка</button>
+        <button type="button" class="mode-btn" id="tabMyHw" data-view="myhw" aria-selected="false">
+          Мои ДЗ
+          <span id="myHwBell" class="tab-bell hidden" aria-label="Есть несданные ДЗ">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2Z"/></svg>
+          </span>
+        </button>
+      </div>
+
+      <div id="viewTraining">
       <!-- Ряд 1: режим + перемешать (слева), старт (справа) -->
       <div class="controls">
         <div class="controls-left">
@@ -143,10 +155,30 @@
 
       <!-- Ряд 3: аккордеон -->
       <div id="accordion" class="accordion"></div>
+      </div><!-- /viewTraining -->
+
+      <div id="viewMyHw" hidden>
+        <div class="panel" style="margin-top:10px">
+          <div class="myhw-head">
+            <div>
+              <div class="crumb" style="margin-bottom:2px">Мои ДЗ</div>
+              <div id="myHwStatus" class="muted"></div>
+            </div>
+            <div class="myhw-actions">
+              <button id="myHwRefresh" class="btn small" type="button">Обновить</button>
+              <a id="myHwArchiveLink" class="btn small" href="./tasks/my_homeworks_archive.html">Архив</a>
+            </div>
+          </div>
+
+          <div id="myHwList" class="myhw-list"></div>
+          <div id="myHwEmpty" class="muted" style="margin-top:10px"></div>
+        </div>
+      </div>
     </section>
   </main>
 
-  <script src="./tasks/theme.js?v=2026-02-04-10" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-04-10"></script>
+  <script src="./tasks/theme.js?v=2026-02-04-1" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-02-04-1"></script>
+  <script type="module" src="./tasks/my_homeworks.js?v=2026-02-04-1"></script>
 </body>
 </html>
