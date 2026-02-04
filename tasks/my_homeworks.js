@@ -153,7 +153,7 @@ async function load(){
   }
 
   const data = res.data || {};
-  const items = Array.isArray(data?.latest) ? data.latest : (Array.isArray(data) ? data : []);
+  const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data?.latest) ? data.latest : (Array.isArray(data) ? data : []));
   renderList(items);
 
   const pending = Number(data?.pending_count ?? 0);
