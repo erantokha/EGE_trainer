@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-04-7';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-7';
-import { CONFIG } from '../app/config.js?v=2026-02-04-7';
+import { withBuild } from '../app/build.js?v=2026-01-30-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-01-30-2';
+import { CONFIG } from '../app/config.js?v=2026-01-30-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -53,6 +53,88 @@ const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
 
 let _STATS_SEQ = 0;
+
+let _HOME_STATS_LOADING = false;
+
+// Кэш статистики для home_student (stale-while-revalidate):
+// - sessionStorage: быстрый и короткий (для back/forward и табов)
+// - localStorage: более долгий (чтобы при новом заходе не мигало "— 0/0")
+const HOME_LAST10_CACHE_VER = 3;
+const HOME_LAST10_SESSION_TTL_MS = 90_000;
+const HOME_LAST10_LOCAL_TTL_MS = 12 * 60 * 60 * 1000; // 12 часов
+
+function getAppBuildTag() {
+  try {
+    const m = document.querySelector('meta[name="app-build"]');
+    const v = String(m?.getAttribute('content') || '').trim();
+    return v || '0';
+  } catch (_) { return '0'; }
+}
+
+function homeLast10CacheKey(uid, scope) {
+  const u = String(uid || '').trim();
+  if (!u) return '';
+  const build = getAppBuildTag();
+  const sc = (scope === 'local') ? 'local' : 'session';
+  return `home_student:last10:v${HOME_LAST10_CACHE_VER}:${sc}:${u}:${build}`;
+}
+
+function setHomeStatsLoading(isLoading) {
+  if (!IS_STUDENT_PAGE) return;
+  const v = !!isLoading;
+  if (v === _HOME_STATS_LOADING) return;
+  _HOME_STATS_LOADING = v;
+  document.body.classList.toggle('home-stats-loading', v);
+}
+
+function readCache(storage, key) {
+  try {
+    const raw = storage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (!obj || typeof obj !== 'object') return null;
+    return obj;
+  } catch (_) { return null; }
+}
+
+function writeCache(storage, key, obj) {
+  try { storage.setItem(key, JSON.stringify(obj)); } catch (_) {}
+}
+
+function loadHomeLast10Cache(uid, nowMs) {
+  const now = Number(nowMs || Date.now()) || Date.now();
+
+  // 1) новый формат v3 с build
+  const kSession = homeLast10CacheKey(uid, 'session');
+  const kLocal = homeLast10CacheKey(uid, 'local');
+
+  const objS = kSession ? readCache(sessionStorage, kSession) : null;
+  if (objS?.ts && (now - Number(objS.ts)) < HOME_LAST10_SESSION_TTL_MS && objS?.dash) return { dash: objS.dash, source: 'session' };
+
+  const objL = kLocal ? readCache(localStorage, kLocal) : null;
+  if (objL?.ts && (now - Number(objL.ts)) < HOME_LAST10_LOCAL_TTL_MS && objL?.dash) return { dash: objL.dash, source: 'local' };
+
+  // 2) совместимость со старым v2 (только sessionStorage, без build)
+  const legacyKey = `home_student:last10:v2:${uid}`;
+  const objLegacy = readCache(sessionStorage, legacyKey);
+  if (objLegacy?.ts && (now - Number(objLegacy.ts)) < HOME_LAST10_SESSION_TTL_MS && objLegacy?.dash) return { dash: objLegacy.dash, source: 'legacy_v2' };
+
+  return null;
+}
+
+function saveHomeLast10Cache(uid, dash, nowMs) {
+  const now = Number(nowMs || Date.now()) || Date.now();
+  const obj = { ts: now, dash };
+
+  const kSession = homeLast10CacheKey(uid, 'session');
+  if (kSession) writeCache(sessionStorage, kSession, obj);
+
+  const kLocal = homeLast10CacheKey(uid, 'local');
+  if (kLocal) writeCache(localStorage, kLocal, obj);
+
+  // Обновляем legacy, чтобы откат/старый код не мигал.
+  try { sessionStorage.setItem(`home_student:last10:v2:${uid}`, JSON.stringify(obj)); } catch (_) {}
+}
 
 let _LAST10_LIVE_READY = false;
 let _LAST10_KNOWN_UID = null;
@@ -142,6 +224,7 @@ function setHomeStatBadge(badgeEl, period, last10) {
 
 function clearStudentLast10UI() {
   if (!IS_STUDENT_PAGE) return;
+  setHomeStatsLoading(false);
   LAST_DASH = null;
   $$('.node.section .section-title').forEach(resetTitle);
   $$('.node.topic .title').forEach(resetTitle);
@@ -192,6 +275,7 @@ function readSessionFallback() {
   return null;
 }
 
+
 async function refreshStudentLast10(opts = {}) {
   if (!IS_STUDENT_PAGE) return;
 
@@ -200,56 +284,62 @@ async function refreshStudentLast10(opts = {}) {
   void reason; // reserved for debug
 
   const seq = ++_STATS_SEQ;
+  const now = Date.now();
 
-  let session = null;
-  try {
-    session = await getSession({ timeoutMs: 2000, skewSec: 30 });
-  } catch (_) {
-    session = null;
-  }
-  if (!session) session = readSessionFallback();
+  // Быстрый путь: применяем кэш до любых await (чтобы не было мигания "— 0/0").
+  const fb = readSessionFallback();
+  const uidFast = fb?.user?.id || null;
 
-  const uid = session?.user?.id || null;
-  const token = String(session?.access_token || '').trim();
-
-  _LAST10_KNOWN_UID = uid || null;
-
-  if (!uid || !token) {
+  if (!uidFast) {
     clearStudentLast10UI();
     return;
   }
 
-  const cacheKey = `home_student:last10:v2:${uid}`;
-  const now = Date.now();
+  _LAST10_KNOWN_UID = uidFast;
 
   let cacheApplied = false;
-
-  try {
-    const raw = sessionStorage.getItem(cacheKey);
-    if (raw) {
-      const obj = JSON.parse(raw);
-      const ts = Number(obj?.ts || 0) || 0;
-      if (ts && (now - ts) < 90_000 && obj?.dash) {
-        if (seq !== _STATS_SEQ) return;
-        applyDashboardHomeStats(obj.dash);
-        cacheApplied = true;
-        // If not forcing refresh, use cache and stop here.
-        if (!force) return;
-      }
-    }
-  } catch (_) {}
+  const cached = loadHomeLast10Cache(uidFast, now);
+  if (cached?.dash) {
+    // Если кэш пришёл из старого формата — переложим в новый.
+    if (cached.source === 'legacy_v2') saveHomeLast10Cache(uidFast, cached.dash, now);
+    if (seq !== _STATS_SEQ) return;
+    applyDashboardHomeStats(cached.dash);
+    cacheApplied = true;
+    // Если не форсим — кэш уже достаточно свежий для UI.
+    if (!force) return;
+  } else {
+    // Нет кэша: показываем скелетон, пока грузим свежие данные.
+    setHomeStatsLoading(true);
+  }
 
   // Throttle forced refetches (tab flicker/back-forward cache)
   if (force) {
     const dt = now - (_LAST10_LAST_FORCE_AT || 0);
     if (_LAST10_LAST_FORCE_AT && dt < LAST10_FORCE_MIN_INTERVAL_MS) {
-      // Too soon: keep cached UI if we had it, otherwise just keep silent.
-      if (!cacheApplied) {
-        // no-op
-      }
       return;
     }
     _LAST10_LAST_FORCE_AT = now;
+  }
+
+  // Достаём токен. Не блокируем UI надолго: если getSession "задумается", берём fallback.
+  let session = null;
+  try {
+    session = await getSession({ timeoutMs: 350, skewSec: 30 });
+  } catch (_) {
+    session = null;
+  }
+  if (!session) session = fb;
+
+  const uid = session?.user?.id || uidFast;
+  const token = String(session?.access_token || '').trim();
+
+  if (!uid || !token) {
+    // Если уже показали кэш — не трогаем UI. Иначе показываем дефолтное (без скелетона).
+    if (!cacheApplied) {
+      setHomeStatsLoading(false);
+      clearStudentLast10UI();
+    }
+    return;
   }
 
   try {
@@ -257,22 +347,28 @@ async function refreshStudentLast10(opts = {}) {
     if (seq !== _STATS_SEQ) return;
     if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
 
-    try { sessionStorage.setItem(cacheKey, JSON.stringify({ ts: now, dash })); } catch (_) {}
+    saveHomeLast10Cache(uid, dash, now);
 
     applyDashboardHomeStats(dash);
   } catch (e) {
     console.warn('home_student last10 load failed', e);
     // If cache already shown, do not wipe UI.
-    if (!cacheApplied) clearStudentLast10UI();
+    if (!cacheApplied) {
+      setHomeStatsLoading(false);
+      clearStudentLast10UI();
+    }
   }
-}
-
-
-
-function invalidateStudentLast10Cache(uid) {
+}function invalidateStudentLast10Cache(uid) {
   if (!uid) return;
-  const key = `home_student:last10:v2:${uid}`;
-  try { sessionStorage.removeItem(key); } catch (_) {}
+
+  // новый формат v3 с build
+  const kSession = homeLast10CacheKey(uid, 'session');
+  const kLocal = homeLast10CacheKey(uid, 'local');
+  try { if (kSession) sessionStorage.removeItem(kSession); } catch (_) {}
+  try { if (kLocal) localStorage.removeItem(kLocal); } catch (_) {}
+
+  // legacy v2
+  try { sessionStorage.removeItem(`home_student:last10:v2:${uid}`); } catch (_) {}
 }
 
 function scheduleStudentLast10Refresh(opts = {}) {
@@ -338,6 +434,7 @@ function initStudentLast10LiveRefresh() {
 
 function applyDashboardHomeStats(dash) {
   if (!IS_STUDENT_PAGE) return;
+  setHomeStatsLoading(false);
 
   if (!dash || typeof dash !== 'object') {
     LAST_DASH = null;
@@ -624,6 +721,11 @@ function initAuthHeader() {
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   initAuthHeader();
+
+  if (IS_STUDENT_PAGE) {
+    // До рендера аккордеона держим бейджи в скелетоне, чтобы не мигали дефолтные "— 0/0".
+    setHomeStatsLoading(true);
+  }
 
   if (IS_STUDENT_PAGE) {
     CURRENT_MODE = 'test';
