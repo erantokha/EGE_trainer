@@ -233,7 +233,10 @@ function renderItemsAppend(listEl, items){
 }
 
 async function init(){
-  $('#backBtn')?.addEventListener('click', () => history.back());
+  $('#backBtn')?.addEventListener('click', () => {
+    try { location.href = withV('./my_homeworks.html'); }
+    catch (_) { location.href = './my_homeworks.html'; }
+  });
 
   const homeBtn = $('#homeBtn');
   if (homeBtn) homeBtn.href = withV(rel + 'home_student.html');

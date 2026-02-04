@@ -4,22 +4,8 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
   <meta name="app-build" content="2026-02-04-1">
-  <title>Архив ДЗ</title>
+  <title>Мои ДЗ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-
-  <script id="sentry-loader" src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js" crossorigin="anonymous"></script>
-  <script>
-    // Ensure Sentry is loaded before any other scripts
-    window.Sentry && window.Sentry.init({
-      dsn: "https://931c8cc8254b6dcb3de991c6c9844397@o4510787636137984.ingest.sentry.io/4510787640688640",
-      integrations: [
-        window.Sentry.browserTracingIntegration(),
-      ],
-      tracesSampleRate: 0.2,
-      release: document.querySelector('meta[name="app-build"]')?.content || 'dev'
-    });
-  </script>
-
   <link rel="stylesheet" href="./trainer.css?v=2026-02-04-1">
 </head>
 <body>
@@ -28,11 +14,12 @@
       <div class="panel">
         <header id="appHeader" class="page-head">
           <div>
-            <div class="crumb">Архив ДЗ</div>
-            <div id="archStatus" class="muted" style="margin-top:4px"></div>
+            <div class="crumb">Мои ДЗ</div>
+            <div id="myHwStatus" class="muted" style="margin-top:4px"></div>
           </div>
           <div class="myhw-actions">
-            <button id="backBtn" class="btn small" type="button">Мои ДЗ</button>
+            <button id="refreshBtn" class="btn small" type="button">Обновить</button>
+            <a id="archiveLink" class="btn small" href="./my_homeworks_archive.html">Архив</a>
             <a id="homeBtn" class="btn small" href="../home_student.html">Главная</a>
           </div>
         </header>
@@ -43,16 +30,13 @@
           import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false }));
         </script>
 
-        <div id="archList" class="myhw-list" style="margin-top:10px"></div>
-
-        <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-          <button id="loadMore" class="btn small" type="button">Показать ещё</button>
-        </div>
+        <div id="myHwList" class="myhw-list" style="margin-top:10px"></div>
+        <div id="myHwEmpty" class="muted" style="margin-top:10px"></div>
       </div>
     </section>
   </main>
 
   <script src="./theme.js?v=2026-02-04-1" defer></script>
-  <script type="module" src="./my_homeworks_archive.js?v=2026-02-04-1"></script>
+  <script type="module" src="./my_homeworks.js?v=2026-02-04-1"></script>
 </body>
 </html>
