@@ -411,10 +411,6 @@ export async function initHeader(opts = {}) {
     const kind = getLandingKind();
     if (!kind) return;
 
-    // С корня (/) редиректит только tasks/home_router.js. Хедер не должен делать промежуточный редирект
-    // по "временной" роли до того, как роль подтянется из profiles.
-    if (kind === 'root') return;
-
     // На страницах авторизации не лезем в навигацию.
     const pn = String(location.pathname || '');
     if (pn.endsWith('/tasks/auth.html') || pn.endsWith('/tasks/auth_callback.html') || pn.endsWith('/tasks/auth_reset.html')) return;
@@ -436,10 +432,8 @@ export async function initHeader(opts = {}) {
       return;
     }
 
-    // Залогинен — / должен быть "гостевой", поэтому уводим на role-home.
+    // Залогинен — / должен быть гостевой (лендинг), редирект с / делает только home_router.js
     if (kind === 'root') {
-      if (currentRole === 'teacher') toTeacher();
-      else toStudent();
       return;
     }
 
