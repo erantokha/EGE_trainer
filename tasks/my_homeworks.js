@@ -1,5 +1,5 @@
 // tasks/my_homeworks.js
-// MVP: отдельная страница "Мои ДЗ" (последние 10)
+// Страница "Мои ДЗ" (последние 10)
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
@@ -13,7 +13,7 @@ async function api(){
   return mod;
 }
 
-function fmtDate(s){
+function fmtDateTimeRU(s){
   s = String(s || '').trim();
   if (!s) return '';
   const d = new Date(s);
@@ -37,12 +37,49 @@ function isSubmitted(it){
   return false;
 }
 
+function scoreTextOf(it){
+  const c = it?.correct ?? it?.correct_count ?? it?.c;
+  const t = it?.total ?? it?.total_count ?? it?.t;
+  if (c === null || c === undefined) return '';
+  if (t === null || t === undefined) return '';
+  const cc = Number(c);
+  const tt = Number(t);
+  if (!Number.isFinite(cc) || !Number.isFinite(tt)) return '';
+  if (tt <= 0) return '';
+  return `${cc}/${tt}`;
+}
+
 function hwUrl(token){
   if (!token) return '';
   const u = new URL('./hw.html', location.href);
   u.searchParams.set('token', String(token));
   if (BUILD) u.searchParams.set('v', BUILD);
   return u.href;
+}
+
+function bindCardOpen(el, href){
+  if (!el || !href) return;
+  el.classList.add('clickable');
+  el.setAttribute('role', 'button');
+  el.tabIndex = 0;
+
+  const open = () => {
+    try { location.href = href; } catch(_) {}
+  };
+
+  el.addEventListener('click', (e) => {
+    // на всякий случай, если внутри будут кнопки/ссылки
+    const a = e.target?.closest?.('a,button,input,textarea,select,label');
+    if (a) return;
+    open();
+  });
+
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      open();
+    }
+  });
 }
 
 function renderList(items){
@@ -74,13 +111,16 @@ function renderList(items){
 
     const ttl = document.createElement('div');
     ttl.className = 'myhw-title';
-    ttl.textContent = titleOf(it);
+    const score = submitted ? scoreTextOf(it) : '';
+    ttl.textContent = score ? `${titleOf(it)} — ${score}` : titleOf(it);
 
     const meta = document.createElement('div');
     meta.className = 'myhw-meta';
-    const assigned = fmtDate(it?.assigned_at || it?.created_at || '');
-    const submittedAt = fmtDate(it?.submitted_at || it?.finished_at || '');
-    meta.textContent = assigned ? `Назначено: ${assigned}` : '';
+    const assigned = fmtDateTimeRU(it?.assigned_at || it?.created_at || '');
+    const submittedAt = fmtDateTimeRU(it?.submitted_at || it?.finished_at || '');
+    // Для выполненных показываем время сдачи (без лишних подписей, как в "Выполненных работах").
+    // Для невыполненных — дату назначения.
+    meta.textContent = submittedAt ? submittedAt : (assigned ? `Назначено: ${assigned}` : '');
 
     left.appendChild(ttl);
     left.appendChild(meta);
@@ -94,29 +134,12 @@ function renderList(items){
 
     right.appendChild(badge);
 
-    if (submittedAt){
-      const sub = document.createElement('div');
-      sub.className = 'myhw-submitted';
-      sub.textContent = `Сдано: ${submittedAt}`;
-      right.appendChild(sub);
-    }
-
-    const actions = document.createElement('div');
-    actions.className = 'myhw-actions-row';
-
-    const a = document.createElement('a');
-    a.className = 'btn small';
-    a.href = href || '#';
-    a.textContent = submitted ? 'Открыть отчёт' : 'Открыть';
-    if (!href) a.classList.add('disabled');
-
-    actions.appendChild(a);
-
     top.appendChild(left);
     top.appendChild(right);
 
     card.appendChild(top);
-    card.appendChild(actions);
+
+    if (href) bindCardOpen(card, href);
 
     listEl.appendChild(card);
   }
@@ -125,6 +148,24 @@ function renderList(items){
 function setStatus(text){
   const el = $('#myHwStatus');
   if (el) el.textContent = String(text || '');
+}
+
+async function mapLimit(arr, limit, fn){
+  const out = new Array(arr.length);
+  let i = 0;
+
+  async function worker(){
+    while (true){
+      const idx = i++;
+      if (idx >= arr.length) return;
+      try{ out[idx] = await fn(arr[idx], idx); }
+      catch(e){ out[idx] = null; }
+    }
+  }
+
+  const n = Math.max(1, Math.min(limit || 4, arr.length || 1));
+  await Promise.all(Array.from({ length: n }, worker));
+  return out;
 }
 
 async function load(){
@@ -139,7 +180,7 @@ async function load(){
     return;
   }
 
-  const { getStudentMyHomeworksSummary } = mod;
+  const { getStudentMyHomeworksSummary, getHomeworkAttempt } = mod;
   if (typeof getStudentMyHomeworksSummary !== 'function'){
     setStatus('Сервер ещё не обновлён под "Мои ДЗ".');
     return;
@@ -154,6 +195,29 @@ async function load(){
 
   const data = res.data || {};
   const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data?.latest) ? data.latest : (Array.isArray(data) ? data : []));
+
+  // Для выполненных ДЗ подтягиваем correct/total из последней завершённой попытки.
+  // Это те же метрики, что отображаются в блоке "Выполненные работы".
+  if (typeof getHomeworkAttempt === 'function'){
+    const need = items
+      .filter((it) => isSubmitted(it))
+      .filter((it) => !scoreTextOf(it))
+      .filter((it) => (it?.token || it?.hw_token || it?.homework_token));
+
+    if (need.length){
+      await mapLimit(need, 4, async (it) => {
+        const token = it?.token || it?.hw_token || it?.homework_token;
+        const r = await getHomeworkAttempt({ token });
+        if (r?.ok && r.row){
+          if (it.correct === undefined) it.correct = r.row.correct;
+          if (it.total === undefined) it.total = r.row.total;
+          if (!it.submitted_at && r.row.finished_at) it.submitted_at = r.row.finished_at;
+        }
+        return null;
+      });
+    }
+  }
+
   renderList(items);
 
   const pending = Number(data?.pending_count ?? 0);
@@ -165,14 +229,17 @@ async function load(){
   parts.push(`Всего: ${total}`);
   setStatus(parts.join(' • '));
 
-  const archLink = $('#archiveLink');
-  if (archLink){
-    archLink.textContent = arch > 0 ? `Архив (${arch})` : 'Архив';
+  const archBtn = $('#archiveBtn');
+  if (archBtn){
+    archBtn.textContent = arch > 0 ? `Архив (${arch})` : 'Архив';
   }
 }
 
 function init(){
-  $('#refreshBtn')?.addEventListener('click', () => load());
+  $('#archiveBtn')?.addEventListener('click', () => {
+    location.href = withV('./my_homeworks_archive.html');
+  });
+
   load();
 }
 
