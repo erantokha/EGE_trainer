@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-02-04-9';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-9';
-import { createHomework, createHomeworkLink } from '../app/providers/homework.js?v=2026-02-04-9';
+import { CONFIG } from '../app/config.js?v=2026-02-04-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-1';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-04-1';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-02-04-9';
+} from '../app/core/pick.js?v=2026-02-04-1';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
@@ -44,6 +44,98 @@ if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 
 const $ = (sel, root = document) => root.querySelector(sel);
+
+function setAssignStatus(msg){
+  const el = $('#assignStatus');
+  if (el) el.textContent = String(msg || '');
+}
+
+function fmtName(x){ return String(x || '').trim(); }
+
+function emailLocalPart(email){
+  const s = String(email || '').trim();
+  if (!s) return '';
+  const at = s.indexOf('@');
+  if (at <= 0) return s;
+  return s.slice(0, at);
+}
+
+function studentLabel(st){
+  const fn = fmtName(st?.first_name);
+  const ln = fmtName(st?.last_name);
+  const nm = `${fn} ${ln}`.trim();
+  if (nm) return nm;
+  const email = String(st?.email || st?.student_email || '').trim();
+  const local = emailLocalPart(email);
+  return local || String(st?.student_id || st?.id || '').trim() || 'Ученик';
+}
+
+function isMissingRpc(err){
+  try{
+    const m = String(err?.data?.message || err?.message || '');
+    return m.includes('PGRST202') || m.toLowerCase().includes('could not find the function');
+  }catch(_){
+    return false;
+  }
+}
+
+function fmtRpcErr(err){
+  const status = err?.status ?? '—';
+  const msg = err?.data?.message || err?.data?.hint || err?.data?.details || err?.message || JSON.stringify(err);
+  return `HTTP ${status}: ${msg}`;
+}
+
+async function loadAssignStudents(){
+  const sel = $('#assignStudent');
+  if (!sel) return;
+
+  sel.innerHTML = '<option value="">Не назначать</option>';
+  sel.disabled = true;
+  setAssignStatus('');
+
+  const session = await refreshAuthUI();
+  if (!session) {
+    setAssignStatus('Войдите, чтобы выбрать ученика.');
+    return;
+  }
+
+  setAssignStatus('Загружаем учеников...');
+  try{
+    const res = await listMyStudents();
+    if (!res?.ok) {
+      const e = res?.error || {};
+      if (isMissingRpc(e)) {
+        setAssignStatus('Сервер ещё не обновлён для списка учеников.');
+      } else {
+        setAssignStatus('Не удалось загрузить учеников.');
+      }
+      return;
+    }
+
+    const rows = Array.isArray(res.data) ? res.data : [];
+    if (!rows.length) {
+      setAssignStatus('Нет привязанных учеников (страница «Мои ученики»).');
+      sel.disabled = true;
+      return;
+    }
+
+    for (const st of rows){
+      const sid = String(st?.student_id || st?.id || '').trim();
+      if (!sid) continue;
+      const opt = document.createElement('option');
+      opt.value = sid;
+      opt.textContent = studentLabel(st);
+      sel.appendChild(opt);
+    }
+
+    sel.disabled = false;
+    setAssignStatus('');
+  } catch(e){
+    console.warn('loadAssignStudents error', e);
+    setAssignStatus('Не удалось загрузить учеников.');
+  }
+}
+
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -1374,8 +1466,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // auth
   await refreshAuthUI();
+  await loadAssignStudents();
   // обновление статуса при входе/выходе в другой вкладке
-  supabase.auth.onAuthStateChange(() => { refreshAuthUI(); });
+  supabase.auth.onAuthStateChange(() => { refreshAuthUI(); loadAssignStudents(); });
   // список добавленных задач
   setFixedRefs([]);
   // если пришли с главной страницы аккордеона (выбраны количества) — импортируем сразу
@@ -1509,9 +1602,32 @@ if (!hwRes.ok) {
       }
 
       const link = buildStudentLink(token);
-      showStudentLink(link, '');
 
-      flashStatus('Готово.');
+      const sel = $('#assignStudent');
+      const studentId = String(sel?.value || '').trim();
+      const studentName = String(sel?.selectedOptions?.[0]?.textContent || '').trim();
+
+      let linkMeta = '';
+      let okAll = true;
+      if (studentId) {
+        setStatus('Назначаем ученику...');
+        const aRes = await assignHomeworkToStudent({ homework_id, student_id: studentId, token });
+        if (aRes?.ok) {
+          linkMeta = studentName ? `Назначено ученику: ${studentName}` : 'Назначено ученику';
+        } else {
+          okAll = false;
+          const err = aRes?.error || {};
+          if (isMissingRpc(err)) {
+            setStatus('Ссылка создана. Назначение появится после обновления сервера. Пока можно выдать ссылку вручную.');
+          } else {
+            setStatus('Ссылка создана, но не удалось назначить ученику: ' + fmtRpcErr(err));
+          }
+        }
+      }
+
+      showStudentLink(link, linkMeta);
+
+      if (okAll) flashStatus('Готово.');
     } finally {
       $('#createBtn').disabled = false;
     }
