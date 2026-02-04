@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-04-4">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+    <meta name="app-build" content="2026-01-30-2">
 <title>EGE-trainer — тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
@@ -74,7 +74,7 @@
 
 
   
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-4">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-01-30-2">
   
   <style>
     /* Пров */
@@ -100,11 +100,83 @@
     .site-footer a{
       text-decoration:underline;
     }
-  </style>
+  
+
+    /* экран-роутер на / для залогиненных: показывается только когда JS его включает */
+    #rootRouterOverlay{
+      position:fixed;
+      inset:0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      background:var(--bg,#fff);
+      z-index:9999;
+    }
+    #rootRouterOverlay.on{display:flex}
+    #rootRouterCard{
+      width:min(520px,100%);
+      border:1px solid var(--border,#d1d5db);
+      background:var(--panel,#fff);
+      border-radius:16px;
+      padding:16px;
+      box-shadow:var(--shadow,0 8px 20px rgba(15,23,42,.12));
+    }
+    #rootRouterMsg{
+      font-size:16px;
+      margin:0 0 12px 0;
+      color:var(--text,#111827);
+    }
+    #rootRouterBtns{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    #rootRouterBtns button{
+      border:1px solid var(--border,#d1d5db);
+      background:var(--muted,#fff);
+      color:var(--text,#111827);
+      padding:8px 10px;
+      border-radius:10px;
+      cursor:pointer;
+    }
+    #rootRouterRetry{
+      background:var(--accent,#2563eb);
+      border-color:var(--accent,#2563eb);
+      color:#fff;
+    }
+    #rootRouterRetry:hover{filter:brightness(1.05)}
+    #rootRouterCopy:hover{filter:brightness(1.02)}
+    #rootRouterDiag{
+      margin:12px 0 0 0;
+      padding:10px;
+      border:1px solid var(--border,#d1d5db);
+      border-radius:10px;
+      background:var(--muted,#fff);
+      color:var(--text,#111827);
+      max-height:40vh;
+      overflow:auto;
+      font-size:12px;
+      white-space:pre-wrap;
+    }
+
+</style>
   <noscript><style>body{visibility:visible!important}</style></noscript>
 
 </head>
 <body class="gate-pending" data-home-variant="student">
+<div id="rootRouterOverlay" aria-hidden="true">
+  <div id="rootRouterCard">
+    <div id="rootRouterMsg">Определяем роль…</div>
+    <div id="rootRouterBtns">
+      <button id="rootRouterRetry" type="button" style="display:none">Повторить</button>
+      <button id="rootRouterCopy" type="button" style="display:none">Скопировать детали</button>
+    </div>
+    <pre id="rootRouterDiag" style="display:none"></pre>
+  </div>
+</div>
+
 <main class="container">
     <section id="picker">
       <div class="panel">
@@ -194,9 +266,9 @@
     <span class="sep">·</span>
     <a href="mailto:support@ege-trainer.ru">support@ege-trainer.ru</a>
   </footer>
-    <script type="module" src="./tasks/home_router.js?v=2026-02-04-4"></script>
+    <script type="module" src="./tasks/home_router.js?v=2026-01-30-2"></script>
 
-<script src="./tasks/theme.js?v=2026-02-04-4" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-04-4"></script>
+<script src="./tasks/theme.js?v=2026-01-30-2" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-01-30-2"></script>
 </body>
 </html>
