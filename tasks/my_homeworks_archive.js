@@ -10,7 +10,10 @@ const rel = inTasks ? '../' : './';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 async function api(){
-  return import(withV(rel + 'app/providers/homework.js'));
+  // ВАЖНО: dynamic import резолвится относительно URL текущего модуля (/tasks/...),
+  // поэтому относительный './app/..' превращается в '/tasks/app/..' и даёт 404.
+  // Используем абсолютный путь от корня сайта.
+  return import(withV('/app/providers/homework.js'));
 }
 
 function isMissingRpc(err){
