@@ -495,8 +495,7 @@ body[data-home-variant="student"] #accordion .unique-btn{
 
 /* главная ученика: нейтральные плашки названий + отдельный бейдж "10 последних" (как в статистике) */
 body[data-home-variant="student"] #accordion .node.section .section-title{margin-left:0}
-body[data-home-variant="student"] #accordion .node .row .countbox{margin-right:3ch}
-body[data-home-variant="student"] #accordion .node.section > .row > .countbox{margin-right:0}
+body[data-home-variant="student"] #accordion .node .row .countbox{margin-right:12px}
 
 /* главная ученика: названия тем/подтем — как у учителя (без овальных плашек) */
 body[data-home-variant="student"] #accordion .node.topic .title{
@@ -524,58 +523,20 @@ body[data-home-variant="student"] #accordion .home-topic-badge{margin-right:12px
 /* Вариант A: единая grid-сетка для строки заголовков и строк разделов,
    чтобы центры подписи и бейджа совпадали по горизонтали. */
 body[data-home-variant="student"] #accordion{
-  --home-countbox-w:max-content;
-  --home-badge-w:60px; /* ширина бейджей верхнего уровня (процент и покрытие) */
-  --home-gap-cnt-to-badges:3ch; /* 3 пробела */
-  --home-gap-between-badges:12px;
-  --home-gap-after-badges:12px;
+  --home-countbox-w:132px;
+  --home-pct-w:40px;
+  --home-cov-w:60px;
+  --home-cols-gap:12px;
 }
 
 /* строка первого уровня (раздел) + строка с подписями */
 body[data-home-variant="student"] #accordion .node.section > .row,
 body[data-home-variant="student"] #accordion .home-badges-head .row{
   display:grid;
-  /* колонки: счетчик | (3 пробела) | % | (gap) | покрытие | (gap) | заголовок | кнопка */
-  grid-template-columns:
-    var(--home-countbox-w)
-    var(--home-gap-cnt-to-badges)
-    var(--home-badge-w)
-    var(--home-gap-between-badges)
-    var(--home-badge-w)
-    var(--home-gap-after-badges)
-    minmax(0, 1fr)
-    max-content;
-  column-gap:0;
+  grid-template-columns:var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) max-content max-content 1fr;
+  column-gap:var(--home-cols-gap);
   align-items:center;
 }
-
-/* фиксируем размещение по колонкам (чтобы пустые "gap"-колонки не ломали автопоток) */
-body[data-home-variant="student"] #accordion .node.section > .row > .countbox{grid-column:1;}
-body[data-home-variant="student"] #accordion .home-badges-head .row > .countbox-head{grid-column:1;}
-
-body[data-home-variant="student"] #accordion .home-section-pct{grid-column:3;}
-body[data-home-variant="student"] #accordion .home-section-cov{grid-column:5;}
-body[data-home-variant="student"] #accordion .home-badge-label.pct{grid-column:3;}
-body[data-home-variant="student"] #accordion .home-badge-label.cov{grid-column:5;}
-
-body[data-home-variant="student"] #accordion .node.section > .row > .section-title{grid-column:7;}
-body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{grid-column:8;}
-body[data-home-variant="student"] #accordion .home-badges-head .home-badges-head-spacer{grid-column:7 / -1;}
-
-/* в студенческом аккордеоне убираем глобальные фикс-ширины бейджей, чтобы не было налезаний */
-body[data-home-variant="student"] #accordion .badge{width:auto; min-width:unset;}
-
-/* ширина бейджей второго уровня = ширина самого широкого (задается JS) */
-body[data-home-variant="student"] #accordion .home-topic-badge{
-  width:var(--home-topic-badge-w, auto);
-  min-width:var(--home-topic-badge-w, auto);
-  justify-content:center;
-  box-sizing:border-box;
-}
-
-/* лишний flex-spacer в grid-строке только мешает автолэйауту */
-body[data-home-variant="student"] #accordion .node.section > .row > .spacer{display:none;}
-
 
 /* фиксируем ширину countbox, чтобы заголовок и строки не "плавали" из-за авто-ширины input[type=number] */
 body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
@@ -595,8 +556,8 @@ body[data-home-variant="student"] #accordion .home-section-badges{
 
 /* сами бейджи */
 body[data-home-variant="student"] #accordion .home-section-pct{
-  width:var(--home-badge-w);
-  min-width:var(--home-badge-w);
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
   padding:4px 4px;
   gap:0;
   justify-self:center;
@@ -604,8 +565,8 @@ body[data-home-variant="student"] #accordion .home-section-pct{
 }
 body[data-home-variant="student"] #accordion .home-section-pct .small{display:none}
 body[data-home-variant="student"] #accordion .home-section-cov{
-  width:var(--home-badge-w);
-  min-width:var(--home-badge-w);
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
   padding:4px 6px;
   gap:0;
   justify-self:center;
@@ -615,12 +576,7 @@ body[data-home-variant="student"] #accordion .home-section-cov .small{display:no
 
 /* подписи над бейджами верхнего уровня (на главной ученика) */
 body[data-home-variant="student"] #accordion .home-badges-head{
-  padding:3px 0 1px;
-}
-
-/* уменьшаем отступ между подписями и первой строкой аккордеона (ровно в 2 раза: 12px -> 6px) */
-body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
-  padding-top:6px !important;
+  padding:6px 0 2px;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
   visibility:hidden;
@@ -635,12 +591,12 @@ body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label
   justify-self:center;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.pct{
-  width:var(--home-badge-w);
-  min-width:var(--home-badge-w);
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
 }
 body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.cov{
-  width:var(--home-badge-w);
-  min-width:var(--home-badge-w);
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
 }
 body[data-home-variant="student"] #accordion .home-badges-head .spacer{
   grid-column:4/-1;
@@ -2092,3 +2048,95 @@ body.vs-modal-open{ overflow:hidden; }
 .student-menu-item:hover{background:rgba(148,163,184,.12);}
 .student-menu-item:active{background:rgba(148,163,184,.18);}
 .student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
+/* --- Home student: badges layout hard-fix (2026-02-06) ---
+   Цели:
+   - убрать "наезд" бейджей (не полагаться на display:contents)
+   - сделать фиксированный зазор 3ch от countbox до бейджей
+   - уменьшить и стабилизировать вертикальный зазор "Процент/Покрытие" -> аккордеон
+   - убрать рост зазоров при раскрытии (margin-top у .children)
+*/
+body[data-home-variant="student"] #accordion{
+  --home-badge-w: 60px;          /* одинаковая ширина бейджей 1-го уровня */
+  --home-badges-gap: 12px;       /* промежуток между % и покрытием */
+}
+
+/* grid: countbox | spacer(3ch) | badges | title | uniq */
+body[data-home-variant="student"] #accordion .home-badges-head .row,
+body[data-home-variant="student"] #accordion .node.section > .row{
+  display:grid !important;
+  grid-template-columns: max-content 3ch max-content 1fr max-content 1fr !important;
+  column-gap: 0 !important;
+  align-items: center !important;
+}
+
+/* вертикальные отступы: уменьшаем gap "Процент/Покрытие" -> первая строка */
+body[data-home-variant="student"] #accordion .home-badges-head{
+  padding: 2px 0 0 !important;
+}
+body[data-home-variant="student"] #accordion .node.section > .row{
+  padding: 8px 0 !important;
+}
+
+/* countbox: не фиксируем ширину (иначе появляется огромный зазор) */
+body[data-home-variant="student"] #accordion .home-badges-head .row > .countbox,
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
+  grid-column: 1 !important;
+  width: auto !important;
+  margin-right: 0 !important;
+}
+
+/* бейджи/подписи в общей колонке + flex внутри (без display:contents) */
+body[data-home-variant="student"] #accordion .home-badges-head .home-section-badges,
+body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+  grid-column: 3 !important;
+  display:flex !important;
+  gap: var(--home-badges-gap) !important;
+  align-items: center !important;
+  margin-right: 0 !important;
+}
+
+/* подписи в шапке выравниваем по центру над бейджами */
+body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label{
+  width: var(--home-badge-w) !important;
+  min-width: var(--home-badge-w) !important;
+  text-align: center !important;
+  justify-self: auto !important;
+}
+
+/* бейджи 1-го уровня одинаковой ширины */
+body[data-home-variant="student"] #accordion .home-section-pct,
+body[data-home-variant="student"] #accordion .home-section-cov{
+  width: var(--home-badge-w) !important;
+  min-width: var(--home-badge-w) !important;
+  justify-self: auto !important;
+}
+
+/* title / uniq */
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+  grid-column: 4 !important;
+  margin-left: 0 !important;
+}
+body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{
+  grid-column: 5 !important;
+  margin-left: 0 !important;
+}
+
+body[data-home-variant="student"] #accordion .node.section > .row > .spacer{
+  grid-column: 6 !important;
+}
+
+
+/* шапка: spacer занимает остаток строки (чтобы ничего не "плясало") */
+body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{
+  grid-column: 4 / -1 !important;
+}
+
+/* раскрытие: убираем верхний margin у списков, чтобы не "раздувало" расстояния при кликах */
+body[data-home-variant="student"] #accordion .children{
+  margin-top: 0 !important;
+}
+/* 2-й уровень: одинаковая ширина бейджа по самой широкой подписи */
+body[data-home-variant="student"] #accordion .home-topic-badge{
+  width: var(--home-topic-badge-w, auto) !important;
+  min-width: var(--home-topic-badge-w, auto) !important;
+}

@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-06-6';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-6';
-import { CONFIG } from '../app/config.js?v=2026-02-06-6';
+import { withBuild } from '../app/build.js?v=2026-02-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-20';
+import { CONFIG } from '../app/config.js?v=2026-02-04-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1350,21 +1350,37 @@ function syncHomeTopicBadgesWidth(){
   const host = $('#accordion');
   if (!host) return;
 
-  // считаем ширину только по видимым бейджам второго уровня (в раскрытых темах),
-  // т.к. элементы в display:none не измеряются
-  const badges = $$('.node.section.expanded .home-topic-badge', host);
+  const badges = $$('.home-topic-badge', host);
   if (!badges.length) return;
 
-  // сброс — чтобы получить натуральную ширину
+  // Сначала сбрасываем — чтобы бейджи имели натуральную ширину.
+  // В CSS это значение используется как width/min-width.
   host.style.setProperty('--home-topic-badge-w', 'auto');
+
+  // Измеряем ширину по всем бейджам (включая скрытые в display:none),
+  // копируя их содержимое в "измеритель" вне аккордеона.
+  const meas = document.createElement('span');
+  meas.className = 'badge gray home-topic-badge';
+  meas.style.position = 'absolute';
+  meas.style.left = '-99999px';
+  meas.style.top = '0';
+  meas.style.visibility = 'hidden';
+  meas.style.pointerEvents = 'none';
+  meas.style.width = 'auto';
+  meas.style.minWidth = 'auto';
+
+  document.body.appendChild(meas);
 
   requestAnimationFrame(() => {
     let maxW = 0;
-    for (const b of badges){
-      const w = b.getBoundingClientRect().width || 0;
+    for (const b of badges) {
+      meas.innerHTML = b.innerHTML;
+      const w = meas.getBoundingClientRect().width || 0;
       if (w > maxW) maxW = w;
     }
-    if (maxW > 0){
+    meas.remove();
+
+    if (maxW > 0) {
       host.style.setProperty('--home-topic-badge-w', Math.ceil(maxW) + 'px');
     }
   });
