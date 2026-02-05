@@ -235,24 +235,49 @@ async function fetchStudentDashboardSelf(accessToken) {
   const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
   if (!base) throw new Error('Supabase URL is empty');
 
-  const url = `${base}/rest/v1/rpc/student_dashboard_self`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: String(CONFIG?.supabase?.anonKey || ''),
-      Authorization: `Bearer ${accessToken}`,
-    },
-    // параметры должны совпадать с RPC student_dashboard_self(p_days int, p_source text)
-    body: JSON.stringify({ p_days: 30, p_source: 'all' }),
-  });
+  async function callRpc(fnName) {
+    const url = `${base}/rest/v1/rpc/${encodeURIComponent(fnName)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: String(CONFIG?.supabase?.anonKey || ''),
+        Authorization: `Bearer ${accessToken}`,
+      },
+      // параметры должны совпадать с RPC *(p_days int, p_source text)
+      body: JSON.stringify({ p_days: 30, p_source: 'all' }),
+    });
 
-  if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    throw new Error(`student_dashboard_self failed: HTTP ${res.status} ${txt}`);
+    let payload = null;
+    try { payload = txt ? JSON.parse(txt) : null; } catch (_) { payload = txt || null; }
+
+    if (res.ok) return { ok: true, data: payload, status: res.status };
+
+    const code = (payload && typeof payload === 'object') ? String(payload.code || '') : '';
+    const msg = (payload && typeof payload === 'object') ? String(payload.message || '') : String(payload || '');
+    const isMissing =
+      res.status === 404 &&
+      (
+        code === 'PGRST202' ||
+        /could not find the function/i.test(msg) ||
+        (/function/i.test(msg) && /does not exist/i.test(msg))
+      );
+
+    return { ok: false, status: res.status, payload, isMissing, msg: msg || txt };
   }
 
-  return await res.json();
+  // v2 (last3) → v1 fallback
+  const r2 = await callRpc('student_dashboard_self_v2');
+  if (r2.ok) return r2.data;
+
+  if (r2.isMissing) {
+    const r1 = await callRpc('student_dashboard_self');
+    if (r1.ok) return r1.data;
+    throw new Error(`student_dashboard_self failed: HTTP ${r1.status} ${String(r1.msg || '')}`);
+  }
+
+  throw new Error(`student_dashboard_self_v2 failed: HTTP ${r2.status} ${String(r2.msg || '')}`);
 }
 
 function supabaseRefFromUrl(url) {
@@ -444,9 +469,118 @@ function applyDashboardHomeStats(dash) {
 
   LAST_DASH = dash;
 
-  const sections = Array.isArray(dash?.sections) ? dash.sections : [];
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
+  const sections = Array.isArray(dash?.sections) ? dash.sections : [];
 
+  const metaVer = String(dash?.meta?.version || '').toLowerCase();
+  const looksV2 = metaVer.includes('v2') || topics.some(t => t && typeof t === 'object' && ('last3' in t || 'all_time' in t));
+
+  if (looksV2) {
+    // v2: last3 по подтемам; по темам (section) — среднее по решённым подтемам.
+    const topMap = new Map(); // topic_id -> {total, correct}
+    for (const t of topics) {
+      const tid = String(t?.topic_id || '').trim();
+      if (!tid) continue;
+      const l3 = t?.last3 || null;
+      const total = Math.max(0, Number(l3?.total || 0) || 0);
+      const correct = Math.max(0, Number(l3?.correct || 0) || 0);
+      topMap.set(tid, { total, correct });
+    }
+
+    const secAgg = new Map(); // section_id -> {avg, used, totalTopics}
+    for (const sec of (SECTIONS || [])) {
+      const sid = String(sec?.id || '').trim();
+      if (!sid) continue;
+      const list = Array.isArray(sec?.topics) ? sec.topics : [];
+      const totalTopics = list.length;
+
+      let used = 0;
+      let sumPct = 0;
+
+      for (const tp of list) {
+        const tid = String(tp?.id || '').trim();
+        if (!tid) continue;
+        const st = topMap.get(tid);
+        if (!st || !(st.total > 0)) continue;
+
+        const p = pct(st.total, st.correct);
+        if (p === null) continue;
+
+        used += 1;
+        sumPct += p;
+      }
+
+      const avg = used ? Math.round(sumPct / used) : null;
+      secAgg.set(sid, { avg, used, totalTopics });
+    }
+
+    $$('.node.section').forEach(node => {
+      const sid = String(node?.dataset?.id || '').trim();
+      const title = node.querySelector('.section-title');
+      resetTitle(title);
+
+      const badge = node.querySelector('.home-last10-badge');
+      if (!badge) return;
+
+      const a = secAgg.get(sid) || { avg: null, used: 0, totalTopics: 0 };
+      const cls = badgeClassByPct(a.avg);
+
+      badge.classList.remove(...BADGE_COLOR_CLASSES);
+      badge.classList.add(cls);
+
+      const b = badge.querySelector('b');
+      if (b) b.textContent = fmtPct(a.avg);
+
+      const small = badge.querySelector('.small');
+      if (small) {
+        const total = Math.max(0, Number(a.totalTopics || 0) || 0);
+        const used = Math.max(0, Number(a.used || 0) || 0);
+        small.textContent = total ? `${used}/${total}` : '0/0';
+      }
+
+      // подсказка при наведении
+      try {
+        badge.title = a.used
+          ? `Среднее по решённым подтемам (последние 3 задачи в каждой): ${fmtPct(a.avg)}`
+          : 'По этой теме ещё нет решённых задач в подтемах (серый — не учитывается).';
+      } catch (_) {}
+    });
+
+    $$('.node.topic').forEach(node => {
+      const tid = String(node?.dataset?.id || '').trim();
+      const title = node.querySelector('.title');
+      resetTitle(title);
+
+      const badge = node.querySelector('.home-last10-badge');
+      if (!badge) return;
+
+      const st = topMap.get(tid) || { total: 0, correct: 0 };
+
+      const has = st.total > 0;
+      const p = has ? pct(st.total, st.correct) : null;
+      const cls = badgeClassByPct(p);
+
+      badge.classList.remove(...BADGE_COLOR_CLASSES);
+      badge.classList.add(cls);
+
+      const b = badge.querySelector('b');
+      if (b) b.textContent = fmtPct(p);
+
+      const small = badge.querySelector('.small');
+      if (small) small.textContent = has ? fmtCnt(st.total, st.correct) : '—';
+
+      try {
+        badge.title = has
+          ? `Последние 3 задачи: ${fmtCnt(st.total, st.correct)} (${fmtPct(p)})`
+          : 'По этой подтеме ещё нет решённых задач (серый — не учитывается).';
+      } catch (_) {}
+    });
+
+    updateSmartHint();
+    return;
+  }
+
+  // v1 (legacy): period + last10 приходит с сервера
   const secMap = new Map();
   for (const s of sections) {
     const sid = String(s?.section_id || '').trim();
@@ -971,11 +1105,21 @@ async function tryBuildSmartSelection(n) {
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
   const ranked = topics
     .map((t) => {
-      const id = String(t?.topic_id || '').trim();
-      const per = t?.period || { total: 0, correct: 0 };
-      const total = Math.max(0, Number(per?.total || 0) || 0);
-      const correct = Math.max(0, Number(per?.correct || 0) || 0);
-      const p = total ? (correct / total) : -1; // -1 = не решал
+      const id = String(t?.topic_id || '').trim();      const l3 = t?.last3 || null;
+      const per = t?.period || null;
+      const all = t?.all_time || null;
+      const l10 = t?.last10 || null;
+
+      const src =
+        (l3 && Number(l3?.total || 0) > 0) ? l3 :
+        (per && Number(per?.total || 0) > 0) ? per :
+        (all && Number(all?.total || 0) > 0) ? all :
+        (l10 && Number(l10?.total || 0) > 0) ? l10 :
+        (l3 || per || all || l10 || { total: 0, correct: 0 });
+
+      const total = Math.max(0, Number(src?.total || 0) || 0);
+      const correct = Math.max(0, Number(src?.correct || 0) || 0);
+      const p = total ? (correct / total) : -1; // -1 = не решал // -1 = не решал
       return { id, total, correct, p };
     })
     .filter((x) => x.id && validTopicIds.has(x.id))
