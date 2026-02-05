@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-05-4';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-05-4';
-import { CONFIG } from '../app/config.js?v=2026-02-05-4';
+import { withBuild } from '../app/build.js?v=2026-02-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-20';
+import { CONFIG } from '../app/config.js?v=2026-02-04-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1347,10 +1347,37 @@ function renderAccordion() {
   if (!host) return;
   host.innerHTML = '';
 
+  // На главной ученика показываем подписи над бейджами верхнего уровня,
+  // чтобы без наведения было понятно, что означают 2 колонки.
+  if (IS_STUDENT_PAGE) {
+    host.appendChild(renderSectionBadgesHead());
+  }
+
   for (const sec of SECTIONS) {
     host.appendChild(renderSectionNode(sec));
   }
   refreshTotalSum();
+}
+
+function renderSectionBadgesHead() {
+  const node = document.createElement('div');
+  node.className = 'home-badges-head';
+
+  node.innerHTML = `
+    <div class="row">
+      <div class="countbox countbox-head" aria-hidden="true">
+        <button class="btn minus" type="button" tabindex="-1">−</button>
+        <input class="count" type="number" value="0" disabled tabindex="-1">
+        <button class="btn plus" type="button" tabindex="-1">+</button>
+      </div>
+      <span class="home-section-badges home-section-badges-head">
+        <span class="home-badge-label pct">Процент</span>
+        <span class="home-badge-label cov">Покрытие</span>
+      </span>
+      <div class="spacer"></div>
+    </div>
+  `;
+  return node;
 }
 
 function renderSectionNode(sec) {

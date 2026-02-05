@@ -525,6 +525,40 @@ body[data-home-variant="student"] #accordion .home-section-pct{width:40px;min-wi
 body[data-home-variant="student"] #accordion .home-section-pct .small{display:none}
 body[data-home-variant="student"] #accordion .home-section-cov{width:60px;min-width:60px;padding:4px 6px;gap:0}
 body[data-home-variant="student"] #accordion .home-section-cov .small{display:none}
+/* подписи над бейджами верхнего уровня (на главной ученика) */
+body[data-home-variant="student"] #accordion .home-badges-head{
+  padding:6px 0 2px;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  display:flex;
+  align-items:flex-end;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
+  visibility:hidden;
+  pointer-events:none;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .home-section-badges{
+  margin-right:12px;
+  display:inline-flex;
+  gap:6px;
+  flex:0 0 auto;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label{
+  font-size:11px;
+  line-height:1;
+  color:var(--text-dim);
+  text-align:center;
+  user-select:none;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.pct{
+  width:40px;
+  min-width:40px;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.cov{
+  width:60px;
+  min-width:60px;
+}
+
 body[data-home-variant="student"] #accordion .badge{
   display:inline-flex;
   align-items:center;
