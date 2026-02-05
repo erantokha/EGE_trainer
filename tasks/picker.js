@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-05-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-05-3';
-import { CONFIG } from '../app/config.js?v=2026-02-05-3';
+import { withBuild } from '../app/build.js?v=2026-02-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-20';
+import { CONFIG } from '../app/config.js?v=2026-02-04-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -216,44 +216,52 @@ function setHomeBadge(badgeEl, p, total, correct, title) {
 
 function setHomeTopicBadge(badgeEl, st) {
   const t3 = st?.last3 || null;
-  const at = st?.all_time || null;
-
   const t = Math.max(0, Number(t3?.total || 0) || 0);
   const c = Math.max(0, Number(t3?.correct || 0) || 0);
 
   if (!t) {
-    setHomeBadge(badgeEl, null, 0, 0, 'Нет решённых задач по этой подтеме');
+    setHomeBadge(badgeEl, null, 0, 0, 'Последние 3 задачи');
     return;
   }
 
   const p = pct(t, c);
-
-  const atT = Math.max(0, Number(at?.total || 0) || 0);
-  const atC = Math.max(0, Number(at?.correct || 0) || 0);
-  const atP = pct(atT, atC);
-
-  const title = [
-    `Последние 3: ${fmtPct(p)} (${c}/${t})`,
-    atT ? `Все время: ${fmtPct(atP)} (${atC}/${atT})` : null,
-  ].filter(Boolean).join('\n');
-
-  setHomeBadge(badgeEl, p, t, c, title);
+  setHomeBadge(badgeEl, p, t, c, 'Последние 3 задачи');
 }
 
-function setHomeSectionBadge(badgeEl, sectionPct, usedTopics, totalTopics) {
+function setHomeSectionBadge(badgeEl, sectionPct, _usedTopics, _totalTopics) {
+  if (sectionPct === null || sectionPct === undefined) {
+    setHomeBadge(badgeEl, null, 0, 0, 'Процент правильных ответов');
+    return;
+  }
+  const p = Number(sectionPct);
+  if (!Number.isFinite(p)) {
+    setHomeBadge(badgeEl, null, 0, 0, 'Процент правильных ответов');
+    return;
+  }
+  setHomeBadge(badgeEl, p, 0, 0, 'Процент правильных ответов');
+}
+
+function setHomeCoverageBadge(badgeEl, usedTopics, totalTopics) {
+  if (!badgeEl) return;
   const used = Math.max(0, Number(usedTopics || 0) || 0);
   const all = Math.max(0, Number(totalTopics || 0) || 0);
 
-  if (sectionPct === null || sectionPct === undefined) {
-    setHomeBadge(badgeEl, null, 0, 0, all ? `Нет решённых задач в разделе (0/${all} подтем)` : 'Нет решённых задач в разделе');
-    return;
-  }
+  // Если покрытие 0 — показываем серым (как «нет данных»)
+  const p = (all > 0 && used > 0) ? Math.round((used / all) * 100) : null;
+  const cls = badgeClassByPct(p);
 
-  const p = Number(sectionPct);
-  const title = all ? `Среднее по подтемам (последние 3): ${fmtPct(p)}\nПодтемы с решениями: ${used}/${all}` : `Среднее по подтемам (последние 3): ${fmtPct(p)}`;
+  BADGE_COLOR_CLASSES.forEach((c) => badgeEl.classList.remove(c));
+  badgeEl.classList.add(cls);
 
-  setHomeBadge(badgeEl, p, 0, 0, title);
+  const b = badgeEl.querySelector('b');
+  if (b) b.textContent = all ? `${used}/${all}` : '—';
+
+  const small = badgeEl.querySelector('.small');
+  if (small) small.textContent = '';
+
+  badgeEl.setAttribute('title', 'Покрытие тем');
 }
+
 
 // Таблица перевода первичных -> вторичных (первая часть, 12 заданий по 1 баллу)
 const SECONDARY_BY_PRIMARY = Object.freeze({
@@ -335,12 +343,20 @@ function clearStudentLast10UI() {
   $$('.node.topic .title').forEach(resetTitle);
 
   $$('.node.section').forEach((node) => {
-    const badge = node.querySelector('.home-last10-badge');
-    setHomeSectionBadge(badge, null, 0, 0);
+    const sid = String(node?.dataset?.id || '').trim();
+    const badgePct = node.querySelector('.home-last10-badge');
+    const badgeCov = node.querySelector('.home-coverage-badge');
+
+    const sec = (Array.isArray(SECTIONS) ? SECTIONS.find(s => String(s?.id || '').trim() === sid) : null) || null;
+    const totalTopics = Math.max(0, Number(sec?.topics?.length || 0) || 0);
+
+    setHomeSectionBadge(badgePct, null, 0, totalTopics);
+    setHomeCoverageBadge(badgeCov, 0, totalTopics);
   });
 
   $$('.node.topic').forEach((node) => {
-    const badge = node.querySelector('.home-last10-badge');
+    const badgePct = node.querySelector('.home-last10-badge');
+    const badgeCov = node.querySelector('.home-coverage-badge');
     setHomeTopicBadge(badge, null);
   });
 
@@ -608,14 +624,16 @@ function applyDashboardHomeStats(dash) {
     const title = node.querySelector('.section-title');
     resetTitle(title);
 
-    const badge = node.querySelector('.home-last10-badge');
+    const badgePct = node.querySelector('.home-last10-badge');
+    const badgeCov = node.querySelector('.home-coverage-badge');
 
     const sec = (Array.isArray(SECTIONS) ? SECTIONS.find(s => String(s?.id || '').trim() === sid) : null) || null;
     const totalTopics = Math.max(0, Number(sec?.topics?.length || 0) || 0);
     const usedTopics = Math.max(0, Number(sectionAgg.get(sid)?.nTopics || 0) || 0);
     const p = sectionPctById.has(sid) ? sectionPctById.get(sid) : null;
 
-    setHomeSectionBadge(badge, p, usedTopics, totalTopics);
+    setHomeSectionBadge(badgePct, p, usedTopics, totalTopics);
+    setHomeCoverageBadge(badgeCov, usedTopics, totalTopics);
   });
 
   $$('.node.topic').forEach((node) => {
@@ -1348,7 +1366,12 @@ function renderSectionNode(sec) {
           value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-section-badge"><b>—</b></span>' : ''}
+      ${IS_STUDENT_PAGE ? `
+      <span class="home-section-badges">
+        <span class="badge gray home-last10-badge home-section-pct" title="Процент правильных ответов"><b>—</b></span>
+        <span class="badge gray home-coverage-badge home-section-cov" title="Покрытие тем"><b>0/0</b></span>
+      </span>
+      ` : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button">Уникальные прототипы</button>
       <div class="spacer"></div>
@@ -1430,7 +1453,7 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-section-badge"><b>—</b></span>' : ''}
+      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-topic-badge" title="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       

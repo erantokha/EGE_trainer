@@ -517,7 +517,14 @@ body[data-home-variant="student"] #accordion .section-title{
 }
 
 /* отдельный бейдж "10 последних" — точь-в-точь как на странице статистики */
-body[data-home-variant="student"] #accordion .home-last10-badge{margin-right:12px;flex:0 0 auto}
+body[data-home-variant="student"] #accordion .home-last10-badge{flex:0 0 auto}
+body[data-home-variant="student"] #accordion .home-topic-badge{margin-right:12px}
+body[data-home-variant="student"] #accordion .home-section-badges{margin-right:12px;display:inline-flex;gap:6px;flex:0 0 auto}
+body[data-home-variant="student"] #accordion .home-section-badges .badge{margin-right:0}
+body[data-home-variant="student"] #accordion .home-section-pct{width:40px;min-width:40px;padding:4px 4px;gap:0}
+body[data-home-variant="student"] #accordion .home-section-pct .small{display:none}
+body[data-home-variant="student"] #accordion .home-section-cov{width:60px;min-width:60px;padding:4px 6px;gap:0}
+body[data-home-variant="student"] #accordion .home-section-cov .small{display:none}
 body[data-home-variant="student"] #accordion .badge{
   display:inline-flex;
   align-items:center;
@@ -537,13 +544,6 @@ body[data-home-variant="student"] #accordion .badge{
 }
 body[data-home-variant="student"] #accordion .badge b{font-weight:600}
 body[data-home-variant="student"] #accordion .badge .small{font-size:10px;color:var(--text-dim)}
-body[data-home-variant="student"] #accordion .node.section .badge{
-  width:40px;
-  min-width:40px;
-  padding:4px 4px;
-  gap:0;
-}
-body[data-home-variant="student"] #accordion .node.section .badge .small{display:none}
 
 body[data-home-variant="student"] #accordion .badge.gray{background:rgba(148,163,184,.10)}
 body[data-home-variant="student"] #accordion .badge.green{background:rgba(16,185,129,.12)}
