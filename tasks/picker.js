@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-05-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-05-2';
-import { CONFIG } from '../app/config.js?v=2026-02-05-2';
+import { withBuild } from '../app/build.js?v=2026-02-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-20';
+import { CONFIG } from '../app/config.js?v=2026-02-04-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -193,91 +193,182 @@ function resetTitle(el) {
 }
 
 
-function setHomeStatBadge(badgeEl, period, last10) {
+function setHomeBadge(badgeEl, p, total, correct, title) {
   if (!badgeEl) return;
 
-  const pt = Math.max(0, Number(period?.total || 0) || 0);
-  const pc = Math.max(0, Number(period?.correct || 0) || 0);
-  const pp = pct(pt, pc);
-  const cls = badgeClassByPct(pp);
-
+  const cls = badgeClassByPct(p);
   badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
   badgeEl.classList.add(cls);
 
   const b = badgeEl.querySelector('b');
-  if (b) b.textContent = fmtPct(pp);
-  const small = badgeEl.querySelector('.small');
-  if (small) small.textContent = fmtCnt(pt, pc);
+  if (b) b.textContent = fmtPct(p);
 
-  const lt = Math.max(0, Number(last10?.total || 0) || 0);
-  const lc = Math.max(0, Number(last10?.correct || 0) || 0);
-  const lp = pct(lt, lc);
+  const small = badgeEl.querySelector('.small');
+  if (small) {
+    const t = Math.max(0, Number(total || 0) || 0);
+    const c = Math.max(0, Number(correct || 0) || 0);
+    small.textContent = t ? `${c}/${t}` : '';
+  }
+
+  if (title) badgeEl.setAttribute('title', String(title));
+  else badgeEl.removeAttribute('title');
+}
+
+function setHomeTopicBadge(badgeEl, st) {
+  const t3 = st?.last3 || null;
+  const at = st?.all_time || null;
+
+  const t = Math.max(0, Number(t3?.total || 0) || 0);
+  const c = Math.max(0, Number(t3?.correct || 0) || 0);
+
+  if (!t) {
+    setHomeBadge(badgeEl, null, 0, 0, 'Нет решённых задач по этой подтеме');
+    return;
+  }
+
+  const p = pct(t, c);
+
+  const atT = Math.max(0, Number(at?.total || 0) || 0);
+  const atC = Math.max(0, Number(at?.correct || 0) || 0);
+  const atP = pct(atT, atC);
 
   const title = [
-    `30 дней: ${fmtPct(pp)} (${fmtCnt(pt, pc)})`,
-    `10 последних: ${fmtPct(lp)} (${fmtCnt(lt, lc)})`,
-  ].join('\n');
+    `Последние 3: ${fmtPct(p)} (${c}/${t})`,
+    atT ? `Все время: ${fmtPct(atP)} (${atC}/${atT})` : null,
+  ].filter(Boolean).join('\n');
 
-  badgeEl.setAttribute('title', title);
+  setHomeBadge(badgeEl, p, t, c, title);
 }
+
+function setHomeSectionBadge(badgeEl, sectionPct, usedTopics, totalTopics) {
+  const used = Math.max(0, Number(usedTopics || 0) || 0);
+  const all = Math.max(0, Number(totalTopics || 0) || 0);
+
+  if (sectionPct === null || sectionPct === undefined) {
+    setHomeBadge(badgeEl, null, 0, 0, all ? `Нет решённых задач в разделе (0/${all} подтем)` : 'Нет решённых задач в разделе');
+    return;
+  }
+
+  const p = Number(sectionPct);
+  const title = all ? `Среднее по подтемам (последние 3): ${fmtPct(p)}\nПодтемы с решениями: ${used}/${all}` : `Среднее по подтемам (последние 3): ${fmtPct(p)}`;
+
+  setHomeBadge(badgeEl, p, 0, 0, title);
+}
+
+// Таблица перевода первичных -> вторичных (первая часть, 12 заданий по 1 баллу)
+const SECONDARY_BY_PRIMARY = Object.freeze({
+  0: 0,
+  1: 6,
+  2: 11,
+  3: 17,
+  4: 22,
+  5: 27,
+  6: 34,
+  7: 40,
+  8: 46,
+  9: 52,
+  10: 58,
+  11: 64,
+  12: 70,
+});
+
+function secondaryFromPrimary(primaryRounded) {
+  const p = Math.max(0, Math.min(12, Number(primaryRounded || 0) || 0));
+  const k = Math.round(p);
+  return (k in SECONDARY_BY_PRIMARY) ? SECONDARY_BY_PRIMARY[k] : 0;
+}
+
+function fmtPrimaryExact(x) {
+  if (x === null || x === undefined) return '—';
+  const v = Number(x);
+  if (!isFinite(v)) return '—';
+  return v.toFixed(2).replace('.', ',');
+}
+
+function updateScoreForecast(sectionPctById, opts = {}) {
+  if (!IS_STUDENT_PAGE) return;
+
+  const elP = document.getElementById('sfPrimaryExact');
+  const elS = document.getElementById('sfSecondary');
+  const elN = document.getElementById('sfNote');
+
+  if (!elP || !elS) return;
+
+  const signedIn = opts?.signedIn !== false;
+
+  if (!signedIn) {
+    elP.textContent = '—';
+    elS.textContent = '—';
+    if (elN) { elN.hidden = true; elN.textContent = ''; }
+    return;
+  }
+
+  let sum = 0;
+  for (let i = 1; i <= 12; i++) {
+    const key = String(i);
+    const p = sectionPctById && (sectionPctById.get ? sectionPctById.get(key) : sectionPctById[key]);
+    const v = (p === null || p === undefined) ? 0 : Number(p);
+    if (isFinite(v) && v > 0) sum += (v / 100);
+  }
+
+  const primaryExact = sum;
+  const primaryRounded = Math.round(primaryExact);
+  const secondary = secondaryFromPrimary(primaryRounded);
+
+  elP.textContent = fmtPrimaryExact(primaryExact);
+  elS.textContent = String(secondary);
+
+  if (elN) {
+    elN.hidden = false;
+    elN.textContent = `Округление: ${primaryRounded} перв. → ${secondary} втор.`;
+  }
+}
+
 
 
 function clearStudentLast10UI() {
   if (!IS_STUDENT_PAGE) return;
   setHomeStatsLoading(false);
   LAST_DASH = null;
+
   $$('.node.section .section-title').forEach(resetTitle);
   $$('.node.topic .title').forEach(resetTitle);
-  $$('.home-last10-badge').forEach((b) => setHomeStatBadge(b, { total: 0, correct: 0 }, { total: 0, correct: 0 }));
+
+  $$('.node.section').forEach((node) => {
+    const badge = node.querySelector('.home-last10-badge');
+    setHomeSectionBadge(badge, null, 0, 0);
+  });
+
+  $$('.node.topic').forEach((node) => {
+    const badge = node.querySelector('.home-last10-badge');
+    setHomeTopicBadge(badge, null);
+  });
+
+  updateScoreForecast(null, { signedIn: false });
 }
 
 async function fetchStudentDashboardSelf(accessToken) {
   const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
   if (!base) throw new Error('Supabase URL is empty');
 
-  async function callRpc(fnName) {
-    const url = `${base}/rest/v1/rpc/${encodeURIComponent(fnName)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: String(CONFIG?.supabase?.anonKey || ''),
-        Authorization: `Bearer ${accessToken}`,
-      },
-      // параметры должны совпадать с RPC *(p_days int, p_source text)
-      body: JSON.stringify({ p_days: 30, p_source: 'all' }),
-    });
+  const url = `${base}/rest/v1/rpc/student_dashboard_self_v2`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: String(CONFIG?.supabase?.anonKey || ''),
+      Authorization: `Bearer ${accessToken}`,
+    },
+    // параметры должны совпадать с RPC student_dashboard_self_v2(p_days int, p_source text)
+    body: JSON.stringify({ p_days: 30, p_source: 'all' }),
+  });
 
+  if (!res.ok) {
     const txt = await res.text().catch(() => '');
-    let payload = null;
-    try { payload = txt ? JSON.parse(txt) : null; } catch (_) { payload = txt || null; }
-
-    if (res.ok) return { ok: true, data: payload, status: res.status };
-
-    const code = (payload && typeof payload === 'object') ? String(payload.code || '') : '';
-    const msg = (payload && typeof payload === 'object') ? String(payload.message || '') : String(payload || '');
-    const isMissing =
-      res.status === 404 &&
-      (
-        code === 'PGRST202' ||
-        /could not find the function/i.test(msg) ||
-        (/function/i.test(msg) && /does not exist/i.test(msg))
-      );
-
-    return { ok: false, status: res.status, payload, isMissing, msg: msg || txt };
+    throw new Error(`student_dashboard_self failed: HTTP ${res.status} ${txt}`);
   }
 
-  // v2 (last3) → v1 fallback
-  const r2 = await callRpc('student_dashboard_self_v2');
-  if (r2.ok) return r2.data;
-
-  if (r2.isMissing) {
-    const r1 = await callRpc('student_dashboard_self');
-    if (r1.ok) return r1.data;
-    throw new Error(`student_dashboard_self failed: HTTP ${r1.status} ${String(r1.msg || '')}`);
-  }
-
-  throw new Error(`student_dashboard_self_v2 failed: HTTP ${r2.status} ${String(r2.msg || '')}`);
+  return await res.json();
 }
 
 function supabaseRefFromUrl(url) {
@@ -470,157 +561,79 @@ function applyDashboardHomeStats(dash) {
   LAST_DASH = dash;
 
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
-  const sections = Array.isArray(dash?.sections) ? dash.sections : [];
-
-  const metaVer = String(dash?.meta?.version || '').toLowerCase();
-  const looksV2 = metaVer.includes('v2') || topics.some(t => t && typeof t === 'object' && ('last3' in t || 'all_time' in t));
-
-  if (looksV2) {
-    // v2: last3 по подтемам; по темам (section) — среднее по решённым подтемам.
-    const topMap = new Map(); // topic_id -> {total, correct}
-    for (const t of topics) {
-      const tid = String(t?.topic_id || '').trim();
-      if (!tid) continue;
-      const l3 = t?.last3 || null;
-      const total = Math.max(0, Number(l3?.total || 0) || 0);
-      const correct = Math.max(0, Number(l3?.correct || 0) || 0);
-      topMap.set(tid, { total, correct });
-    }
-
-    const secAgg = new Map(); // section_id -> {avg, used, totalTopics}
-    for (const sec of (SECTIONS || [])) {
-      const sid = String(sec?.id || '').trim();
-      if (!sid) continue;
-      const list = Array.isArray(sec?.topics) ? sec.topics : [];
-      const totalTopics = list.length;
-
-      let used = 0;
-      let sumPct = 0;
-
-      for (const tp of list) {
-        const tid = String(tp?.id || '').trim();
-        if (!tid) continue;
-        const st = topMap.get(tid);
-        if (!st || !(st.total > 0)) continue;
-
-        const p = pct(st.total, st.correct);
-        if (p === null) continue;
-
-        used += 1;
-        sumPct += p;
-      }
-
-      const avg = used ? Math.round(sumPct / used) : null;
-      secAgg.set(sid, { avg, used, totalTopics });
-    }
-
-    $$('.node.section').forEach(node => {
-      const sid = String(node?.dataset?.id || '').trim();
-      const title = node.querySelector('.section-title');
-      resetTitle(title);
-
-      const badge = node.querySelector('.home-last10-badge');
-      if (!badge) return;
-
-      const a = secAgg.get(sid) || { avg: null, used: 0, totalTopics: 0 };
-      const cls = badgeClassByPct(a.avg);
-
-      badge.classList.remove(...BADGE_COLOR_CLASSES);
-      badge.classList.add(cls);
-
-      const b = badge.querySelector('b');
-      if (b) b.textContent = fmtPct(a.avg);
-
-      const small = badge.querySelector('.small');
-      if (small) {
-        const total = Math.max(0, Number(a.totalTopics || 0) || 0);
-        const used = Math.max(0, Number(a.used || 0) || 0);
-        small.textContent = total ? `${used}/${total}` : '0/0';
-      }
-
-      // подсказка при наведении
-      try {
-        badge.title = a.used
-          ? `Среднее по решённым подтемам (последние 3 задачи в каждой): ${fmtPct(a.avg)}`
-          : 'По этой теме ещё нет решённых задач в подтемах (серый — не учитывается).';
-      } catch (_) {}
-    });
-
-    $$('.node.topic').forEach(node => {
-      const tid = String(node?.dataset?.id || '').trim();
-      const title = node.querySelector('.title');
-      resetTitle(title);
-
-      const badge = node.querySelector('.home-last10-badge');
-      if (!badge) return;
-
-      const st = topMap.get(tid) || { total: 0, correct: 0 };
-
-      const has = st.total > 0;
-      const p = has ? pct(st.total, st.correct) : null;
-      const cls = badgeClassByPct(p);
-
-      badge.classList.remove(...BADGE_COLOR_CLASSES);
-      badge.classList.add(cls);
-
-      const b = badge.querySelector('b');
-      if (b) b.textContent = fmtPct(p);
-
-      const small = badge.querySelector('.small');
-      if (small) small.textContent = has ? fmtCnt(st.total, st.correct) : '—';
-
-      try {
-        badge.title = has
-          ? `Последние 3 задачи: ${fmtCnt(st.total, st.correct)} (${fmtPct(p)})`
-          : 'По этой подтеме ещё нет решённых задач (серый — не учитывается).';
-      } catch (_) {}
-    });
-
-    updateSmartHint();
-    return;
-  }
-
-  // v1 (legacy): period + last10 приходит с сервера
-  const secMap = new Map();
-  for (const s of sections) {
-    const sid = String(s?.section_id || '').trim();
-    if (!sid) continue;
-    secMap.set(sid, {
-      period: s?.period || { total: 0, correct: 0 },
-      last10: s?.last10 || { total: 0, correct: 0 },
-    });
-  }
 
   const topMap = new Map();
+  const sectionAgg = new Map(); // section_id -> { sumPct, nTopics }
+
   for (const t of topics) {
     const tid = String(t?.topic_id || '').trim();
     if (!tid) continue;
-    topMap.set(tid, {
-      period: t?.period || { total: 0, correct: 0 },
-      last10: t?.last10 || { total: 0, correct: 0 },
-    });
+
+    const sid = String(t?.section_id || '').trim();
+
+    const st = {
+      topic_id: tid,
+      section_id: sid,
+      last_seen_at: t?.last_seen_at || null,
+      all_time: t?.all_time || { total: 0, correct: 0 },
+      last3: t?.last3 || { total: 0, correct: 0 },
+    };
+
+    topMap.set(tid, st);
+
+    const t3 = st.last3 || {};
+    const total = Math.max(0, Number(t3.total || 0) || 0);
+    const correct = Math.max(0, Number(t3.correct || 0) || 0);
+
+    if (sid && total > 0) {
+      const p = pct(total, correct);
+      if (p !== null && p !== undefined) {
+        const a = sectionAgg.get(sid) || { sumPct: 0, nTopics: 0 };
+        a.sumPct += Number(p);
+        a.nTopics += 1;
+        sectionAgg.set(sid, a);
+      }
+    }
   }
 
-  $$('.node.section').forEach(node => {
+  const sectionPctById = new Map();
+  sectionAgg.forEach((a, sid) => {
+    if (!sid) return;
+    if (!a || !a.nTopics) return;
+    sectionPctById.set(String(sid), Math.round(a.sumPct / a.nTopics));
+  });
+
+  $$('.node.section').forEach((node) => {
     const sid = String(node?.dataset?.id || '').trim();
     const title = node.querySelector('.section-title');
     resetTitle(title);
+
     const badge = node.querySelector('.home-last10-badge');
-    const st = secMap.get(sid) || { period: { total: 0, correct: 0 }, last10: { total: 0, correct: 0 } };
-    setHomeStatBadge(badge, st.period, st.last10);
+
+    const sec = (Array.isArray(SECTIONS) ? SECTIONS.find(s => String(s?.id || '').trim() === sid) : null) || null;
+    const totalTopics = Math.max(0, Number(sec?.topics?.length || 0) || 0);
+    const usedTopics = Math.max(0, Number(sectionAgg.get(sid)?.nTopics || 0) || 0);
+    const p = sectionPctById.has(sid) ? sectionPctById.get(sid) : null;
+
+    setHomeSectionBadge(badge, p, usedTopics, totalTopics);
   });
 
-  $$('.node.topic').forEach(node => {
+  $$('.node.topic').forEach((node) => {
     const tid = String(node?.dataset?.id || '').trim();
     const title = node.querySelector('.title');
     resetTitle(title);
+
     const badge = node.querySelector('.home-last10-badge');
-    const st = topMap.get(tid) || { period: { total: 0, correct: 0 }, last10: { total: 0, correct: 0 } };
-    setHomeStatBadge(badge, st.period, st.last10);
+    const st = topMap.get(tid) || null;
+
+    setHomeTopicBadge(badge, st);
   });
+
+  updateScoreForecast(sectionPctById, { signedIn: true });
 
   updateSmartHint();
 }
+
 
 
 function cleanRedirectUrl() {
@@ -1105,21 +1118,11 @@ async function tryBuildSmartSelection(n) {
   const topics = Array.isArray(dash?.topics) ? dash.topics : [];
   const ranked = topics
     .map((t) => {
-      const id = String(t?.topic_id || '').trim();      const l3 = t?.last3 || null;
-      const per = t?.period || null;
-      const all = t?.all_time || null;
-      const l10 = t?.last10 || null;
-
-      const src =
-        (l3 && Number(l3?.total || 0) > 0) ? l3 :
-        (per && Number(per?.total || 0) > 0) ? per :
-        (all && Number(all?.total || 0) > 0) ? all :
-        (l10 && Number(l10?.total || 0) > 0) ? l10 :
-        (l3 || per || all || l10 || { total: 0, correct: 0 });
-
-      const total = Math.max(0, Number(src?.total || 0) || 0);
-      const correct = Math.max(0, Number(src?.correct || 0) || 0);
-      const p = total ? (correct / total) : -1; // -1 = не решал // -1 = не решал
+      const id = String(t?.topic_id || '').trim();
+      const per = t?.period || t?.all_time || { total: 0, correct: 0 };
+      const total = Math.max(0, Number(per?.total || 0) || 0);
+      const correct = Math.max(0, Number(per?.correct || 0) || 0);
+      const p = total ? (correct / total) : -1; // -1 = не решал
       return { id, total, correct, p };
     })
     .filter((x) => x.id && validTopicIds.has(x.id))
@@ -1345,7 +1348,7 @@ function renderSectionNode(sec) {
           value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge"><b>—</b><span class="small">0/0</span></span>' : ''}
+      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-section-badge"><b>—</b></span>' : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button">Уникальные прототипы</button>
       <div class="spacer"></div>
@@ -1427,7 +1430,7 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge"><b>—</b><span class="small">0/0</span></span>' : ''}
+      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-section-badge"><b>—</b></span>' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       

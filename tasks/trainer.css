@@ -170,6 +170,45 @@ a:hover{text-decoration:underline}
   --btn-gap:8px;
   --row-gap:var(--btn-gap);
 }
+/* Главная ученика: 2 колонки (аккордеон + прогноз баллов) */
+body[data-home-variant="student"] #picker .picker-grid{
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+}
+body[data-home-variant="student"] #picker .picker-left{flex:1 1 auto; min-width:0}
+body[data-home-variant="student"] #picker .picker-right{flex:0 0 260px; width:260px}
+body[data-home-variant="student"] #picker .score-forecast{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(148,163,184,.06);
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:6px 0;
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-label{
+  font-size:12px;
+  color:var(--text-dim);
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-value{
+  font-size:18px;
+  font-variant-numeric:tabular-nums;
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-note{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--text-dim);
+}
+@media (max-width: 900px){
+  body[data-home-variant="student"] #picker .picker-grid{flex-direction:column}
+  body[data-home-variant="student"] #picker .picker-right{width:auto; flex:0 0 auto}
+}
+
 #picker .sub-controls{
   display:flex;
   align-items:center;
@@ -225,7 +264,46 @@ a:hover{text-decoration:underline}
     justify-content:flex-start;
     flex-wrap:wrap;
   }
-  #picker .sub-controls{
+  /* Главная ученика: 2 колонки (аккордеон + прогноз баллов) */
+body[data-home-variant="student"] #picker .picker-grid{
+  display:flex;
+  align-items:flex-start;
+  gap:16px;
+}
+body[data-home-variant="student"] #picker .picker-left{flex:1 1 auto; min-width:0}
+body[data-home-variant="student"] #picker .picker-right{flex:0 0 260px; width:260px}
+body[data-home-variant="student"] #picker .score-forecast{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(148,163,184,.06);
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  padding:6px 0;
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-label{
+  font-size:12px;
+  color:var(--text-dim);
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-value{
+  font-size:18px;
+  font-variant-numeric:tabular-nums;
+}
+body[data-home-variant="student"] #picker .score-forecast .sf-note{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--text-dim);
+}
+@media (max-width: 900px){
+  body[data-home-variant="student"] #picker .picker-grid{flex-direction:column}
+  body[data-home-variant="student"] #picker .picker-right{width:auto; flex:0 0 auto}
+}
+
+#picker .sub-controls{
     justify-content:flex-start;
   }
 }
@@ -459,6 +537,14 @@ body[data-home-variant="student"] #accordion .badge{
 }
 body[data-home-variant="student"] #accordion .badge b{font-weight:600}
 body[data-home-variant="student"] #accordion .badge .small{font-size:10px;color:var(--text-dim)}
+body[data-home-variant="student"] #accordion .node.section .badge{
+  width:40px;
+  min-width:40px;
+  padding:4px 4px;
+  gap:0;
+}
+body[data-home-variant="student"] #accordion .node.section .badge .small{display:none}
+
 body[data-home-variant="student"] #accordion .badge.gray{background:rgba(148,163,184,.10)}
 body[data-home-variant="student"] #accordion .badge.green{background:rgba(16,185,129,.12)}
 body[data-home-variant="student"] #accordion .badge.lime{background:rgba(132,204,22,.14)}
