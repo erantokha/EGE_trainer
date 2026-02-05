@@ -618,8 +618,6 @@ body[data-home-variant="student"] #accordion .badge{
   gap:4px;
   line-height:1;
   white-space:nowrap;
-  width:80px;
-  min-width:80px;
   overflow:visible;
   font-variant-numeric:tabular-nums;
 }
