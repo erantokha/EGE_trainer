@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-02-05-1">
+  <meta name="app-build" content="2026-02-04-20">
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
@@ -72,7 +72,7 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-05-1">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-04-20">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -140,12 +140,29 @@
         </div>
       </div>
 
-      <!-- Ряд 3: аккордеон -->
-      <div id="accordion" class="accordion"></div>
+      <!-- Ряд 3: аккордеон + прогноз баллов -->
+      <div class="picker-grid">
+        <div class="picker-left">
+          <div id="accordion" class="accordion"></div>
+        </div>
+        <aside class="picker-right" aria-label="Прогноз баллов">
+          <div class="score-forecast" id="scoreForecast">
+            <div class="sf-row">
+              <div class="sf-label">Первичные (до округления)</div>
+              <div class="sf-value" id="sfPrimaryExact">—</div>
+            </div>
+            <div class="sf-row">
+              <div class="sf-label">Вторичные</div>
+              <div class="sf-value" id="sfSecondary">—</div>
+            </div>
+            <div class="sf-note" id="sfNote" hidden></div>
+          </div>
+        </aside>
+      </div>
     </section>
   </main>
 
-  <script src="./tasks/theme.js?v=2026-02-05-1" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-05-1"></script>
+  <script src="./tasks/theme.js?v=2026-02-04-20" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-02-04-20"></script>
 </body>
 </html>
