@@ -519,29 +519,66 @@ body[data-home-variant="student"] #accordion .section-title{
 /* отдельный бейдж "10 последних" — точь-в-точь как на странице статистики */
 body[data-home-variant="student"] #accordion .home-last10-badge{flex:0 0 auto}
 body[data-home-variant="student"] #accordion .home-topic-badge{margin-right:12px}
-body[data-home-variant="student"] #accordion .home-section-badges{margin-right:12px;display:inline-flex;gap:6px;flex:0 0 auto}
-body[data-home-variant="student"] #accordion .home-section-badges .badge{margin-right:0}
-body[data-home-variant="student"] #accordion .home-section-pct{width:40px;min-width:40px;padding:4px 4px;gap:0}
+
+/* Вариант A: единая grid-сетка для строки заголовков и строк разделов,
+   чтобы центры подписи и бейджа совпадали по горизонтали. */
+body[data-home-variant="student"] #accordion{
+  --home-countbox-w:132px;
+  --home-pct-w:40px;
+  --home-cov-w:60px;
+  --home-cols-gap:12px;
+}
+
+/* строка первого уровня (раздел) + строка с подписями */
+body[data-home-variant="student"] #accordion .node.section > .row,
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  display:grid;
+  grid-template-columns:var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) max-content max-content 1fr;
+  column-gap:var(--home-cols-gap);
+  align-items:center;
+}
+
+/* фиксируем ширину countbox, чтобы заголовок и строки не "плавали" из-за авто-ширины input[type=number] */
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
+  margin-right:0;
+  width:var(--home-countbox-w);
+}
+body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
+  margin-right:0;
+  width:var(--home-countbox-w);
+}
+
+/* бейджи в гриде: убираем обёртку из потока layout (дети занимают колонки 2 и 3) */
+body[data-home-variant="student"] #accordion .home-section-badges{
+  margin-right:0;
+  display:contents;
+}
+
+/* сами бейджи */
+body[data-home-variant="student"] #accordion .home-section-pct{
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
+  padding:4px 4px;
+  gap:0;
+  justify-self:center;
+}
 body[data-home-variant="student"] #accordion .home-section-pct .small{display:none}
-body[data-home-variant="student"] #accordion .home-section-cov{width:60px;min-width:60px;padding:4px 6px;gap:0}
+body[data-home-variant="student"] #accordion .home-section-cov{
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
+  padding:4px 6px;
+  gap:0;
+  justify-self:center;
+}
 body[data-home-variant="student"] #accordion .home-section-cov .small{display:none}
+
 /* подписи над бейджами верхнего уровня (на главной ученика) */
 body[data-home-variant="student"] #accordion .home-badges-head{
   padding:6px 0 2px;
 }
-body[data-home-variant="student"] #accordion .home-badges-head .row{
-  display:flex;
-  align-items:flex-end;
-}
 body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
   visibility:hidden;
   pointer-events:none;
-}
-body[data-home-variant="student"] #accordion .home-badges-head .home-section-badges{
-  margin-right:12px;
-  display:inline-flex;
-  gap:6px;
-  flex:0 0 auto;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label{
   font-size:11px;
@@ -549,15 +586,23 @@ body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label
   color:var(--text-dim);
   text-align:center;
   user-select:none;
+  justify-self:center;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.pct{
-  width:40px;
-  min-width:40px;
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
 }
 body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label.cov{
-  width:60px;
-  min-width:60px;
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
 }
+body[data-home-variant="student"] #accordion .home-badges-head .spacer{
+  grid-column:4/-1;
+}
+
+/* в гриде дополнительный margin-left у заголовка раздела не нужен */
+body[data-home-variant="student"] #accordion .node.section .section-title{margin-left:0}
+
 
 body[data-home-variant="student"] #accordion .badge{
   display:inline-flex;
