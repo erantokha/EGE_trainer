@@ -561,6 +561,7 @@ body[data-home-variant="student"] #accordion .home-section-pct{
   padding:4px 4px;
   gap:0;
   justify-self:center;
+  box-sizing:border-box;
 }
 body[data-home-variant="student"] #accordion .home-section-pct .small{display:none}
 body[data-home-variant="student"] #accordion .home-section-cov{
@@ -569,6 +570,7 @@ body[data-home-variant="student"] #accordion .home-section-cov{
   padding:4px 6px;
   gap:0;
   justify-self:center;
+  box-sizing:border-box;
 }
 body[data-home-variant="student"] #accordion .home-section-cov .small{display:none}
 
