@@ -614,7 +614,12 @@ body[data-home-variant="student"] #accordion .home-section-cov .small{display:no
 
 /* подписи над бейджами верхнего уровня (на главной ученика) */
 body[data-home-variant="student"] #accordion .home-badges-head{
-  padding:6px 0 2px;
+  padding:3px 0 1px;
+}
+
+/* уменьшаем отступ между подписями и первой строкой аккордеона (ровно в 2 раза: 12px -> 6px) */
+body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
+  padding-top:6px;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
   visibility:hidden;
