@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-06-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-2';
-import { CONFIG } from '../app/config.js?v=2026-02-06-2';
+import { withBuild } from '../app/build.js?v=2026-02-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-04-20';
+import { CONFIG } from '../app/config.js?v=2026-02-04-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -650,6 +650,8 @@ function applyDashboardHomeStats(dash) {
   updateScoreForecast(sectionPctById, { signedIn: true });
 
   updateSmartHint();
+
+  if (IS_STUDENT_PAGE) syncHomeTopicBadgesWidth();
 }
 
 
@@ -1342,6 +1344,32 @@ async function loadCatalog() {
 }
 
 // ---------- Аккордеон ----------
+
+function syncHomeTopicBadgesWidth(){
+  if (!IS_STUDENT_PAGE) return;
+  const host = $('#accordion');
+  if (!host) return;
+
+  // считаем ширину только по видимым бейджам второго уровня (в раскрытых темах),
+  // т.к. элементы в display:none не измеряются
+  const badges = $$('.node.section.expanded .home-topic-badge', host);
+  if (!badges.length) return;
+
+  // сброс — чтобы получить натуральную ширину
+  host.style.setProperty('--home-topic-badge-w', 'auto');
+
+  requestAnimationFrame(() => {
+    let maxW = 0;
+    for (const b of badges){
+      const w = b.getBoundingClientRect().width || 0;
+      if (w > maxW) maxW = w;
+    }
+    if (maxW > 0){
+      host.style.setProperty('--home-topic-badge-w', Math.ceil(maxW) + 'px');
+    }
+  });
+}
+
 function renderAccordion() {
   const host = $('#accordion');
   if (!host) return;
@@ -1424,6 +1452,8 @@ function renderSectionNode(sec) {
     if (!wasExpanded) {
       node.classList.add('expanded', 'show-uniq');
     }
+
+    syncHomeTopicBadgesWidth();
   });
 
   const uniqBtn = $('.unique-btn', node);
