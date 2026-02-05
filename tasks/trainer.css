@@ -496,6 +496,7 @@ body[data-home-variant="student"] #accordion .unique-btn{
 /* главная ученика: нейтральные плашки названий + отдельный бейдж "10 последних" (как в статистике) */
 body[data-home-variant="student"] #accordion .node.section .section-title{margin-left:0}
 body[data-home-variant="student"] #accordion .node .row .countbox{margin-right:3ch}
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox{margin-right:0}
 
 /* главная ученика: названия тем/подтем — как у учителя (без овальных плашек) */
 body[data-home-variant="student"] #accordion .node.topic .title{
@@ -523,7 +524,7 @@ body[data-home-variant="student"] #accordion .home-topic-badge{margin-right:12px
 /* Вариант A: единая grid-сетка для строки заголовков и строк разделов,
    чтобы центры подписи и бейджа совпадали по горизонтали. */
 body[data-home-variant="student"] #accordion{
-  --home-countbox-w:132px;
+  --home-countbox-w:max-content;
   --home-badge-w:60px; /* ширина бейджей верхнего уровня (процент и покрытие) */
   --home-gap-cnt-to-badges:3ch; /* 3 пробела */
   --home-gap-between-badges:12px;
@@ -619,7 +620,7 @@ body[data-home-variant="student"] #accordion .home-badges-head{
 
 /* уменьшаем отступ между подписями и первой строкой аккордеона (ровно в 2 раза: 12px -> 6px) */
 body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
-  padding-top:6px;
+  padding-top:6px !important;
 }
 body[data-home-variant="student"] #accordion .home-badges-head .countbox-head{
   visibility:hidden;
