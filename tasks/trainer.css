@@ -2209,3 +2209,27 @@ body[data-home-variant="student"] #accordion .node.section > .row > .section-tit
   justify-self:start !important;
   box-sizing:border-box !important;
 }
+
+
+/* --- Home student: fix vertical gaps + compact outlined section titles (2026-02-06b) --- */
+body[data-home-variant="student"] #accordion .home-badges-head{
+  padding:0 !important;
+  margin:0 !important;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  padding:0 !important;
+  margin:0 !important;
+}
+/* minimize gap between "Процент/Покрытие" row and the first section */
+body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
+  padding-top:0 !important;
+}
+
+/* outlined section title sized to text, but compact (do not increase row spacing) */
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+  border:1px solid var(--border) !important;
+  border-radius:12px !important;
+  padding:2px 8px !important;
+  background:transparent !important;
+  line-height:1.2 !important;
+}
