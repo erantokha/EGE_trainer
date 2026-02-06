@@ -2161,3 +2161,28 @@ body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
   padding-top:6px !important;
 }
 
+/* --- Home student: tighter gaps v2 (2026-02-06) --- */
+body[data-home-variant="student"] #accordion{
+  --home-hgap: 1.5ch;
+}
+
+/* countbox | gap | badges | gap | title | uniq */
+body[data-home-variant="student"] #accordion .node.section > .row,
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  grid-template-columns: max-content var(--home-hgap) max-content var(--home-hgap) 1fr max-content !important;
+}
+
+/* placements */
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox{grid-column:1 !important}
+body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{grid-column:3 !important}
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title{grid-column:5 !important}
+body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{grid-column:6 !important}
+
+body[data-home-variant="student"] #accordion .home-badges-head .row > .countbox{grid-column:1 !important}
+body[data-home-variant="student"] #accordion .home-badges-head .row > .home-section-badges-head{grid-column:3 !important}
+body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{grid-column:5 / -1 !important}
+
+/* less vertical gap: controls -> accordion and labels -> first row */
+body[data-home-variant="student"] #picker .accordion{margin-top:4px !important}
+body[data-home-variant="student"] #accordion .home-badges-head{padding:0 0 1px !important}
+body[data-home-variant="student"] #accordion .home-badges-head .row{padding:1px 0 0 0 !important}
