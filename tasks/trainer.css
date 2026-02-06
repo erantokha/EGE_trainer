@@ -2140,3 +2140,24 @@ body[data-home-variant="student"] #accordion .home-topic-badge{
   width: var(--home-topic-badge-w, auto) !important;
   min-width: var(--home-topic-badge-w, auto) !important;
 }
+
+
+/* --- Home student: spacing corrections (2026-02-06) ---
+   Причины:
+   1) в предыдущем фиксе для grid-строк был задан padding на .node.section > .row (увеличивал расстояние между темами);
+   2) у блока заголовков и первой секции суммировались паддинги (давали большой зазор после "Процент/Покрытие").
+*/
+body[data-home-variant="student"] #accordion .node.section > .row{
+  padding:0 !important;
+}
+body[data-home-variant="student"] #accordion .home-badges-head{
+  padding:0 !important;
+  margin:0 !important;
+}
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  padding:0 !important;
+}
+body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
+  padding-top:6px !important;
+}
+
