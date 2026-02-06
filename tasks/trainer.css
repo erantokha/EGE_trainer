@@ -2186,3 +2186,26 @@ body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{gr
 body[data-home-variant="student"] #picker .accordion{margin-top:4px !important}
 body[data-home-variant="student"] #accordion .home-badges-head{padding:0 0 1px !important}
 body[data-home-variant="student"] #accordion .home-badges-head .row{padding:1px 0 0 0 !important}
+
+
+/* --- Home student: tighter labels gap + section title outline (2026-02-06) --- */
+body[data-home-variant="student"] #accordion .home-badges-head{
+  padding-bottom:0 !important;
+  margin-bottom:0 !important;
+}
+/* gap between "Процент/Покрытие" row and the first section */
+body[data-home-variant="student"] #accordion .home-badges-head + .node.section{
+  padding-top:3px !important;
+}
+
+/* top-level section title: restore outlined button sized to text */
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+  border:1px solid var(--border) !important;
+  border-radius:14px !important;
+  padding:6px 10px !important;
+  background:rgba(148,163,184,.06) !important;
+  width:fit-content !important;
+  max-width:100% !important;
+  justify-self:start !important;
+  box-sizing:border-box !important;
+}
