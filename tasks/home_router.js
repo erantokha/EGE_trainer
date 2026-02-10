@@ -101,7 +101,7 @@
 
   async function loadSupabase() {
     const m = await import(withV(rel + 'app/providers/supabase.js'));
-    return { supabase: m?.supabase };
+    return { supabase: m?.supabase, getSession: m?.getSession };
   }
 
   async function getConfirmedUser(supabase, timeoutMs) {
@@ -205,9 +205,9 @@
       return;
     }
 
-    let supabase;
+    let supabase, getSession;
     try {
-      ({ supabase } = await loadSupabase());
+      ({ supabase, getSession } = await loadSupabase());
       if (!supabase) throw new Error('no supabase');
     } catch (err) {
       inflight = false;
@@ -216,11 +216,18 @@
       return;
     }
 
-    // Подтверждаем пользователя через getUser. Если user=null — это гость (не редиректим).
+    // Подтверждаем сессию. Если session=null — это гость (не редиректим).
     const t0 = Date.now();
-    const confirmed = await getConfirmedUser(supabase, 2200);
+    let session = null;
+    try {
+      session = await (getSession ? getSession({ timeoutMs: 1200, skewSec: 30 }) : null);
+    } catch (_) {
+      session = null;
+    }
 
-    if (confirmed?.user == null) {
+    const userId = session?.user?.id || null;
+
+    if (!userId) {
       // Гость или нет сессии — показываем главную.
       inflight = false;
       hideOverlay();
@@ -228,7 +235,15 @@
       return;
     }
 
-    const userId = confirmed.user.id;
+    // Если роль уже есть в sessionStorage — редиректим сразу, без запросов в БД.
+    try {
+      const cachedRole = String(sessionStorage.getItem(`ege_profile_role:${userId}`) || '').trim().toLowerCase();
+      if (cachedRole === 'teacher' || cachedRole === 'student') {
+        inflight = false;
+        go(cachedRole === 'teacher' ? './home_teacher.html' : './home_student.html');
+        return;
+      }
+    } catch (_) {}
 
     // Залогинен — показываем оверлей и определяем роль.
     showOverlay('Определяем роль…');
@@ -275,7 +290,7 @@
       if (!supabase?.auth?.onAuthStateChange) return;
       supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); return; }
-        if (event === 'SIGNED_IN') { run(); return; }
+        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') { run(); return; }
       });
     });
   } catch (_) {}
