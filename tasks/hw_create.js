@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-02-10-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-10-3';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-10-3';
+import { CONFIG } from '../app/config.js?v=2026-02-06-12';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-12';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-06-12';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-02-10-3';
+} from '../app/core/pick.js?v=2026-02-06-12';
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
@@ -1632,4 +1632,7 @@ if (!hwRes.ok) {
       $('#createBtn').disabled = false;
     }
   });
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });

@@ -183,4 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (btn) btn.disabled = false;
     }
   });
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });

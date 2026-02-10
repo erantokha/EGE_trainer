@@ -508,6 +508,9 @@ const run = () => {
     setStatus('Ошибка загрузки профиля. Откройте Console.', true);
     showBox(false);
   });
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 };
 
 // profile.js подключается через dynamic import, который не блокирует DOMContentLoaded.

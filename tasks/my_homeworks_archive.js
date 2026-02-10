@@ -245,6 +245,9 @@ async function init(){
 
   // первая загрузка
   await loadMore();
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -375,4 +375,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // стартовая загрузка
   await loadAll();
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });

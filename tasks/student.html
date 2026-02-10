@@ -3,9 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-02-10-3">
+  <meta name="app-build" content="2026-02-06-12">
   <title>Ученик</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="../app/diag_bootstrap.js?v=2026-02-06-12"></script>
+
 
   <script id="sentry-loader"
     src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
@@ -83,8 +85,8 @@
 
 
 
-  <link rel="stylesheet" href="./trainer.css?v=2026-02-10-3">
-  <link rel="stylesheet" href="./stats.css?v=2026-02-10-3">
+  <link rel="stylesheet" href="./trainer.css?v=2026-02-06-12">
+  <link rel="stylesheet" href="./stats.css?v=2026-02-06-12">
 </head>
 <body>
   <main class="container">
@@ -354,7 +356,7 @@
     </section>
   </main>
 
-  <script src="./theme.js?v=2026-02-10-3" defer></script>
+  <script src="./theme.js?v=2026-02-06-12" defer></script>
   <script type="module">
     const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
     const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;

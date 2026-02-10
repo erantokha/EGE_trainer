@@ -207,4 +207,7 @@ return;
 
   showStatus('Сессия не создана.');
   showHintLink('Откройте страницу входа: ', loginUrl.toString(), 'войти', '.');
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });

@@ -35,9 +35,9 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-02-10-3';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-10-3';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-10-3';
+import { withBuild } from '../app/build.js?v=2026-02-06-12';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-06-12';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-06-12';
 
 const INDEX_URL = '../content/tasks/index.json';
 
@@ -188,6 +188,9 @@ async function init() {
     }
   };
   schedule(() => computeSectionUnicCount(topics, sectionCountEl));
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 }
 
 // ---------- загрузка каталога ----------

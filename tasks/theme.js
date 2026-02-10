@@ -60,7 +60,10 @@
     toggle.addEventListener('change', () => {
       applyTheme('light');
     });
-  }
+  
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
+}
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

@@ -382,4 +382,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // старт
   showPanel('login');
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });

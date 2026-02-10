@@ -159,6 +159,7 @@
   function showErrorUI(humanText, diagObj) {
     const code = makeCode();
     showOverlay(`${humanText} Код: ${code}`);
+    try { window.__EGE_DIAG__?.show?.('E_ROOT_ROUTER', humanText, { code, ...diagObj }); } catch (_) {}
     try {
       if (ui.retry) ui.retry.style.display = 'inline-block';
       if (ui.copy) ui.copy.style.display = 'inline-block';
@@ -205,10 +206,11 @@
       return;
     }
 
-    let supabase, getSession;
+    let supabase;
+    let getSession;
     try {
       ({ supabase, getSession } = await loadSupabase());
-      if (!supabase) throw new Error('no supabase');
+      if (!supabase || typeof getSession !== 'function') throw new Error('no supabase');
     } catch (err) {
       inflight = false;
       hideOverlay();
@@ -216,36 +218,38 @@
       return;
     }
 
-    // Подтверждаем сессию. Если session=null — это гость (не редиректим).
+        // Определяем наличие сессии через getSession (внутри есть таймаут + fallback + refresh).
     const t0 = Date.now();
     let session = null;
     try {
-      session = await (getSession ? getSession({ timeoutMs: 1200, skewSec: 30 }) : null);
-    } catch (_) {
+      session = await getSession({ timeoutMs: 1200, skewSec: 30 });
+    } catch (e) {
+      // Если getSession упал — считаем это гостем (не редиректим), но фиксируем диагностику.
+      try { window.__EGE_DIAG__?.show?.('E_SUPABASE_NET', 'Не удалось получить сессию.', { err: String(e && (e.message || e)) }); } catch (_) {}
       session = null;
     }
 
-    const userId = session?.user?.id || null;
-
-    if (!userId) {
+    if (!session || !session.user || !session.user.id) {
       // Гость или нет сессии — показываем главную.
       inflight = false;
       hideOverlay();
       reveal();
+      try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
       return;
     }
 
-    // Если роль уже есть в sessionStorage — редиректим сразу, без запросов в БД.
+    const userId = session.user.id;
+
+    // Быстрый редирект по кэшу роли (в рамках вкладки)
     try {
-      const cachedRole = String(sessionStorage.getItem(`ege_profile_role:${userId}`) || '').trim().toLowerCase();
-      if (cachedRole === 'teacher' || cachedRole === 'student') {
+      const cached = sessionStorage.getItem(`ege_profile_role:${userId}`);
+      if (cached === 'teacher' || cached === 'student') {
         inflight = false;
-        go(cachedRole === 'teacher' ? './home_teacher.html' : './home_student.html');
+        goTo(cached);
         return;
       }
     } catch (_) {}
-
-    // Залогинен — показываем оверлей и определяем роль.
+// Залогинен — показываем оверлей и определяем роль.
     showOverlay('Определяем роль…');
 
     const { role, error } = await readRoleWithRetry(
@@ -289,8 +293,9 @@
     loadSupabase().then(({ supabase }) => {
       if (!supabase?.auth?.onAuthStateChange) return;
       supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); return; }
-        if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') { run(); return; }
+        if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {} return; }
+        // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED и прочие — пробуем заново.
+        run();
       });
     });
   } catch (_) {}

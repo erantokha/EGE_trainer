@@ -296,6 +296,9 @@ function initMenu(){
 function init(){
   initMenu();
   load();
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

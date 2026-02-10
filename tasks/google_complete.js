@@ -237,4 +237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setStatus(raw, true);
     }
   });
+
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });
