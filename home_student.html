@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-02-12-1">
+  <meta name="app-build" content="2026-02-06-12">
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <!--
@@ -72,8 +72,8 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-12-1">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-02-12-1">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-06-12">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-02-06-12">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -89,6 +89,21 @@
           const rel = inTasks ? '../' : './';
           import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
         </script>
+      </div>
+      <!-- Градусник готовности (мобилка): между шапкой и режимами -->
+      <div id="scoreThermoSlot" class="score-thermo-slot" aria-label="Готовность по первой части">
+        <div id="scoreThermo" class="score-thermo" data-color="gray">
+          <div class="score-thermo__track">
+            <div id="scoreThermoFill" class="score-thermo__fill"></div>
+            <div class="score-thermo__content">
+              <div class="score-thermo__label">Готовность по первой части</div>
+              <div class="score-thermo__values">
+                <span id="scoreThermoSecondary" class="score-thermo__secondary">—</span>
+                <span id="scoreThermoPrimary" class="score-thermo__primary">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Ряд 1: режим + перемешать (слева), старт (справа) -->
@@ -163,7 +178,7 @@
     </section>
   </main>
 
-  <script src="./tasks/theme.js?v=2026-02-12-1" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-12-1"></script>
+  <script src="./tasks/theme.js?v=2026-02-06-12" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-02-06-12"></script>
 </body>
 </html>
