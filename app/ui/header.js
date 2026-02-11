@@ -247,44 +247,57 @@ function mountAuthUI(right) {
     userMenuWrap.id = 'userMenuWrap';
     userMenuWrap.className = 'user-menu-wrap hidden';
 
-    const btn = document.createElement('button');
-    btn.id = 'userMenuBtn';
-    btn.type = 'button';
-    btn.className = 'btn small user-menu-btn';
-    btn.setAttribute('aria-haspopup', 'menu');
-    btn.setAttribute('aria-expanded', 'false');
-    btn.textContent = 'Аккаунт';
+    const bellSrc = buildWithV(new URL('tasks/img/hw_bell.png', computeHomeUrl()).toString());
 
-    const myHwBellTop = document.createElement('span');
-    myHwBellTop.id = 'myHwBellTop';
-    myHwBellTop.className = 'hw-bell hw-bell--top hidden';
-    myHwBellTop.setAttribute('aria-label', 'Есть несданные ДЗ');
-    myHwBellTop.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2Z"/></svg>';
-    myHwBellTop.style.pointerEvents = 'none';
+const btn = document.createElement('button');
+btn.id = 'userMenuBtn';
+btn.type = 'button';
+btn.className = 'btn small user-menu-btn';
+btn.setAttribute('aria-haspopup', 'menu');
+btn.setAttribute('aria-expanded', 'false');
 
-    const menu = document.createElement('div');
-    menu.id = 'userMenu';
-    menu.className = 'user-menu hidden';
-    menu.hidden = true;
-    menu.setAttribute('role', 'menu');
+const label = document.createElement('span');
+label.className = 'user-menu-btn-label';
+label.textContent = 'Аккаунт';
+btn.appendChild(label);
 
-    menu.innerHTML = `
-      <button id="menuMyHw" type="button" class="user-menu-item" role="menuitem">
-        <span>Мои ДЗ</span>
-        <span id="menuMyHwBell" class="hw-bell hw-bell--menu hidden" aria-label="Есть несданные ДЗ">
-          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm6-6V11a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2Z"/></svg>
-        </span>
-      </button>
-      <button id="menuStats" type="button" class="user-menu-item" role="menuitem">Статистика</button>
-      <button id="menuProfile" type="button" class="user-menu-item" role="menuitem">Профиль</button>
-      <div class="user-menu-sep"></div>
-      <button id="menuLogout" type="button" class="user-menu-item danger" role="menuitem">Выйти</button>
-    `.trim();
+const myHwBellTop = document.createElement('span');
+myHwBellTop.id = 'myHwBellTop';
+myHwBellTop.className = 'hw-bell hw-bell--top hidden';
+myHwBellTop.setAttribute('aria-label', 'Есть несданные ДЗ');
+myHwBellTop.style.pointerEvents = 'none';
 
-    userMenuWrap.appendChild(btn);
-    userMenuWrap.appendChild(myHwBellTop);
-    userMenuWrap.appendChild(menu);
-    auth.appendChild(userMenuWrap);
+const bellImgTop = document.createElement('img');
+bellImgTop.alt = '';
+bellImgTop.setAttribute('aria-hidden', 'true');
+bellImgTop.decoding = 'async';
+bellImgTop.src = bellSrc;
+myHwBellTop.appendChild(bellImgTop);
+
+btn.appendChild(myHwBellTop);
+
+const menu = document.createElement('div');
+menu.id = 'userMenu';
+menu.className = 'user-menu hidden';
+menu.hidden = true;
+menu.setAttribute('role', 'menu');
+
+menu.innerHTML = `
+  <button id="menuMyHw" type="button" class="user-menu-item" role="menuitem">
+    <span>Мои ДЗ</span>
+    <span id="menuMyHwBell" class="hw-bell hw-bell--menu hidden" aria-label="Есть несданные ДЗ">
+      <img src="${bellSrc}" alt="" aria-hidden="true" decoding="async">
+    </span>
+  </button>
+  <button id="menuStats" type="button" class="user-menu-item" role="menuitem">Статистика</button>
+  <button id="menuProfile" type="button" class="user-menu-item" role="menuitem">Профиль</button>
+  <div class="user-menu-sep"></div>
+  <button id="menuLogout" type="button" class="user-menu-item danger" role="menuitem">Выйти</button>
+`.trim();
+
+userMenuWrap.appendChild(btn);
+userMenuWrap.appendChild(menu);
+auth.appendChild(userMenuWrap);
   }
 
   return {
@@ -292,6 +305,7 @@ function mountAuthUI(right) {
     loginBtn,
     userMenuWrap,
     userBtn: $('#userMenuBtn', userMenuWrap),
+    userBtnLabel: $('#userMenuBtn .user-menu-btn-label', userMenuWrap),
     myHwBellTop: $('#myHwBellTop', userMenuWrap),
     menu: $('#userMenu', userMenuWrap),
     menuMyHw: $('#menuMyHw', userMenuWrap),
@@ -569,6 +583,12 @@ export async function initHeader(opts = {}) {
   let isSigningOut = false;
   let nameFetchSeq = 0;
 
+  const setUserName = (name) => {
+    const nm = String(name || '').trim();
+    if (ui.userBtnLabel) ui.userBtnLabel.textContent = nm || 'Аккаунт';
+    else ui.userBtn.textContent = nm || 'Аккаунт';
+  };
+
   const applySessionToUI = (session) => {
     try { closeMenu(); } catch (_) {}
 
@@ -581,7 +601,7 @@ export async function initHeader(opts = {}) {
     // Имя в шапке: приоритет — first_name из анкеты (profiles), затем user_metadata, затем email.
     if (authed) {
       const uid = session?.user?.id || null;
-      ui.userBtn.textContent = inferFirstName(session.user || null);
+      setUserName(inferFirstName(session.user || null));
 
       // Роль (учитель/ученик) — из profiles.role (кэшируем).
       try {
@@ -597,7 +617,7 @@ export async function initHeader(opts = {}) {
         fetchProfileFirstName(supabase, uid).then((nm) => {
           if (seq !== nameFetchSeq) return;
           const name = String(nm || '').trim();
-          if (name) ui.userBtn.textContent = name;
+          if (name) setUserName(name);
         });
 
         fetchProfileRole(supabase, uid).then((r) => {
@@ -607,7 +627,7 @@ export async function initHeader(opts = {}) {
       }
     } else {
       nameFetchSeq++;
-      ui.userBtn.textContent = 'Аккаунт';
+      setUserName('Аккаунт');
       applyRoleToMenu('student');
       setMyHwBells(0);
     }
