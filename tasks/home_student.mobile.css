@@ -1,8 +1,27 @@
 /* Mobile-only tweaks for /home_student.html.
    Loaded after trainer.css, so it can safely override styles without touching desktop. */
 
-@media (max-width: 420px) {
-  /* Make the first screen more informative */
+/* 1) Micro-overrides for small screens (where trainer.css switches number inputs to width:56px) */
+@media (max-width: 640px) {
+  /* Compact stepper (+ 0 -) in accordion */
+  body[data-home-variant="student"] #accordion .countbox{
+    gap:4px;
+  }
+
+  body[data-home-variant="student"] #accordion .countbox input[type="number"],
+  body[data-home-variant="student"] #accordion .countbox .count{
+    width:44px !important;  /* override trainer.css mobile width:56px */
+    height:28px;
+    padding:0 6px;
+    font-size:13px;
+    border-radius:8px;
+    box-sizing:border-box;
+  }
+}
+
+/* 2) Full phone layout (portrait) */
+@media (max-width: 520px) {
+  /* Layout density */
   body[data-home-variant="student"] .container {
     margin: 14px auto;
     padding: 0 12px;
@@ -12,13 +31,58 @@
     padding: 12px 12px;
   }
 
-  body[data-home-variant="student"] .page-head h1 {
-    font-size: 20px;
-    line-height: 1.15;
-    overflow-wrap: anywhere;
+  /* Header: row 1 = account (right), row 2 = short title */
+  body[data-home-variant="student"] #appHeader.page-head{
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    gap:8px;
   }
 
-  /* Controls: keep touch-friendly but a bit tighter */
+  body[data-home-variant="student"] #appHeader.page-head .page-head-right{
+    order:0;
+    width:100%;
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+  }
+
+  body[data-home-variant="student"] #appHeader.page-head .page-head-left{
+    order:1;
+    width:100%;
+    min-width:0;
+  }
+
+  /* Replace the long title with a short one (CSS-only, without touching HTML). */
+  body[data-home-variant="student"] #appHeader.page-head .page-head-left h1{
+    font-size:0;
+    line-height:0;
+    margin:0;
+    overflow-wrap:anywhere;
+  }
+  body[data-home-variant="student"] #appHeader.page-head .page-head-left h1::after{
+    content:"Тренажер ФИПИ";
+    display:block;
+    font-size:20px;
+    line-height:1.15;
+  }
+
+  body[data-home-variant="student"] #appHeader .user-menu-btn{
+    max-width:55vw;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* Prevent account dropdown from going out of the viewport */
+  body[data-home-variant="student"] #appHeader .user-menu{
+    max-width:calc(100vw - 24px);
+    min-width:min(240px, calc(100vw - 24px));
+    max-height:70vh;
+    overflow:auto;
+  }
+
+  /* Controls: keep touch-friendly but tighter */
   body[data-home-variant="student"] #picker .controls {
     gap: 8px;
     margin-top: 6px;
@@ -92,66 +156,94 @@
     font-size: 16px;
   }
 
-  /* Accordion layout tuning for 360px */
-  body[data-home-variant="student"] #accordion {
-    --home-countbox-w: 114px;
-    --home-pct-w: 38px;
-    --home-cov-w: 56px;
-    --home-cols-gap: 8px;
+  /* Compact stepper buttons */
+  body[data-home-variant="student"] #accordion .countbox .btn{
+    width:28px;
+    height:28px;
+    padding:0;
+    border-radius:8px;
   }
 
-  /* Section row: put title into a flexible column, move unique button to the next row */
-  body[data-home-variant="student"] #accordion .node.section > .row {
-    grid-template-columns: var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) 1fr;
-    grid-template-rows: auto auto;
-    row-gap: 6px;
+  /* Accordion layout for phones: title on row 1, badges under title, unique on row 3 */
+  body[data-home-variant="student"] #accordion{
+    --home-countbox-w:112px;
   }
 
-  /* Head row (labels above badges): keep single row */
-  body[data-home-variant="student"] #accordion .home-badges-head .row {
-    grid-template-columns: var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) 1fr;
+  /* Hide the "Процент / Покрытие" header row on mobile */
+  body[data-home-variant="student"] #accordion .home-badges-head{
+    display:none !important;
   }
 
-  body[data-home-variant="student"] #accordion .node.section > .row > .section-title {
-    grid-column: 4;
-    grid-row: 1;
-    justify-self: stretch;
-    margin-left: 0;
+  body[data-home-variant="student"] #accordion .node.section > .row{
+    display:grid !important;
+    grid-template-columns: var(--home-countbox-w) 1fr 1fr !important;
+    grid-template-rows: auto auto auto !important;
+    column-gap: 10px !important;
+    row-gap: 6px !important;
+    align-items:center !important;
   }
 
-  /* Allow readable titles (up to 2 lines) */
-  body[data-home-variant="student"] #accordion .section-title {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    white-space: normal;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.2;
+  body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
+    grid-column: 1 !important;
+    grid-row: 1 / span 3 !important;
+    width: var(--home-countbox-w) !important;
+    margin-right: 0 !important;
+    align-self:center !important;
   }
 
-  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn {
-    grid-column: 4;
-    grid-row: 2;
-    justify-self: start;
-    margin-left: 0;
+  body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+    grid-column: 2 / span 2 !important;
+    grid-row: 1 !important;
+    margin-left: 0 !important;
+
+    width: auto !important;               /* override "fit-content" fixes */
+    justify-self: stretch !important;
+
+    /* allow 2 lines */
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical !important;
+    -webkit-line-clamp: 2 !important;
+    white-space: normal !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.2 !important;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+    grid-column: 2 / span 2 !important;
+    grid-row: 2 !important;
+    display:flex !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+    margin-right: 0 !important;
+  }
+
+  /* Rounded rectangles for badges (not pills) */
+  body[data-home-variant="student"] #accordion .node.section .home-section-pct,
+  body[data-home-variant="student"] #accordion .node.section .home-section-cov{
+    flex: 1 1 0;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    font-size: 13px !important;
+    line-height: 1.1 !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{
+    grid-column: 2 / span 2 !important;
+    grid-row: 3 !important;
+    justify-self: start !important;
+    margin-left: 0 !important;
     font-size: 12px;
     padding: 6px 10px;
     border-radius: 12px;
     max-width: 100%;
   }
 
-  body[data-home-variant="student"] #accordion .node.section > .row > .spacer {
-    display: none;
-  }
-
-  /* Slightly smaller header labels above badges */
-  body[data-home-variant="student"] #accordion .home-badge-label {
-    font-size: 12px;
-  }
-
-  /* Make the "unique" button spacing less aggressive in student mode */
-  body[data-home-variant="student"] #accordion .unique-btn {
-    margin-left: 0;
+  body[data-home-variant="student"] #accordion .node.section > .row > .spacer{
+    display:none !important;
   }
 }
