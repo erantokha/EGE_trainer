@@ -23,17 +23,23 @@
     /* container around title + chips */
     --hs-card-radius:clamp(14px, 2.2vw, 18px);
     --hs-card-pad-x:clamp(10px, 2.2vw, 14px);
-    --hs-card-pad-top:clamp(10px, 2.0vw, 12px);
-    --hs-card-pad-bot:clamp(8px, 1.8vw, 12px);
+    --hs-card-pad-top:clamp(8px, 1.6vw, 10px);
+    --hs-card-pad-bot:clamp(6px, 1.4vw, 9px);
 
     /* layout gaps */
-    --hs-row-gap:clamp(4px, 1.2vw, 8px);
+    --hs-row-gap:clamp(3px, 0.9vw, 6px);
     --hs-col-gap:clamp(10px, 1.6vw, 14px);
   }
 
   /* Hide the "Процент / Покрытие" header row – chips live inside the title container */
   body[data-home-variant="student"] #accordion .home-badges-head{
     display:none !important;
+  }
+
+  /* Tighter spacing between sections (closer to home_teacher density) */
+  body[data-home-variant="student"] #accordion .node.section{
+    padding:clamp(6px, 1.1vw, 8px) 0 !important;
+    border-bottom:none !important;
   }
 
   /* Compact stepper (+ 0 -) */
@@ -76,62 +82,59 @@
     align-self:center !important;
   }
 
-  /* Rounded container behind (title + chips) */
-  body[data-home-variant="student"] #accordion .node.section > .row::before{
-    content:"";
-    grid-column:2 !important;
-    grid-row:1 / span 2 !important;
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:var(--hs-card-radius);
-    pointer-events:none;
-    z-index:0;
-  }
 
-  body[data-home-variant="student"] #accordion .node.section > .row > .section-title,
-  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
-    position:relative;
-    z-index:1;
-  }
+/* Remove previous ::before container (it could collapse to a thin line on some layouts) */
+body[data-home-variant="student"] #accordion .node.section > .row::before{
+  content:none !important;
+  display:none !important;
+}
 
-  /* Title inside the rounded container */
-  body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
-    grid-column:2 !important;
-    grid-row:1 !important;
-    margin-left:0 !important;
-    width:auto !important;
-    justify-self:stretch !important;
+/* Make title + chips look like one rounded container (two stacked blocks with shared border/bg) */
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+  grid-column:2 !important;
+  grid-row:1 !important;
+  margin-left:0 !important;
+  width:100% !important;
+  justify-self:stretch !important;
+  box-sizing:border-box !important;
 
-    /* kill any own "pill" styling; the container is drawn by ::before */
-    background:transparent !important;
-    border:none !important;
-    border-radius:0 !important;
+  border:1px solid var(--border) !important;
+  border-bottom:none !important;
+  border-radius:var(--hs-card-radius) var(--hs-card-radius) 0 0 !important;
+  background:rgba(148,163,184,.06) !important;
 
-    padding:var(--hs-card-pad-top) var(--hs-card-pad-x) 0 var(--hs-card-pad-x) !important;
+  padding:var(--hs-card-pad-top) var(--hs-card-pad-x) clamp(2px, 0.6vw, 4px) var(--hs-card-pad-x) !important;
 
-    /* allow 2 lines */
-    display:-webkit-box !important;
-    -webkit-box-orient:vertical !important;
-    -webkit-line-clamp:2 !important;
-    white-space:normal !important;
-    overflow:hidden !important;
-    text-overflow:ellipsis !important;
-    line-height:1.2 !important;
-  }
+  /* allow up to 2 lines */
+  display:-webkit-box !important;
+  -webkit-box-orient:vertical !important;
+  -webkit-line-clamp:2 !important;
+  white-space:normal !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+  line-height:1.2 !important;
+}
 
-  /* Chips row inside the same rounded container */
-  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
-    grid-column:2 !important;
-    grid-row:2 !important;
-    display:flex !important;
-    align-items:center !important;
-    justify-content:flex-start !important;
-    gap:clamp(6px, 1.4vw, 10px) !important;
-    padding:0 var(--hs-card-pad-x) var(--hs-card-pad-bot) var(--hs-card-pad-x) !important;
-    margin-right:0 !important;
-  }
+body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+  grid-column:2 !important;
+  grid-row:2 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:clamp(6px, 1.2vw, 8px) !important;
+  width:100% !important;
+  box-sizing:border-box !important;
 
-  /* Small rounded chips (about x2 smaller than previous stickers) */
+  border:1px solid var(--border) !important;
+  border-top:none !important;
+  border-radius:0 0 var(--hs-card-radius) var(--hs-card-radius) !important;
+  background:rgba(148,163,184,.06) !important;
+
+  padding:0 var(--hs-card-pad-x) var(--hs-card-pad-bot) var(--hs-card-pad-x) !important;
+  margin-right:0 !important;
+}
+
+/* Small rounded chips (about x2 smaller than previous stickers) */
   body[data-home-variant="student"] #accordion .node.section .home-section-pct,
   body[data-home-variant="student"] #accordion .node.section .home-section-cov{
     flex:0 0 auto !important;
