@@ -1,6 +1,12 @@
 /* Responsive tweaks for /home_student.html (phones + tablets).
    Loaded after trainer.css, so it can safely override styles without touching desktop. */
 
+
+
+/* Score thermometer (mobile only) */
+body[data-home-variant="student"] .score-thermo-slot{
+  display:none;
+}
 /* A) Phones + tablets: make sizing responsive (no absolute tiny badges on tablets) */
 @media (max-width: 1024px) {
   /* Responsive sizing tokens (scale with viewport, but stay within sane bounds) */
@@ -186,6 +192,100 @@ body[data-home-variant="student"] #accordion .node.section > .row > .home-sectio
   }
 
   body[data-home-variant="student"] #accordion .node.section > .row > .spacer{
+    display:none !important;
+  }
+
+
+  /* Thermometer: horizontal bar between header and mode toggle */
+  body[data-home-variant="student"] .score-thermo-slot{
+    display:block;
+    margin:clamp(8px, 1.6vw, 12px) 0 clamp(6px, 1.2vw, 10px);
+  }
+
+  body[data-home-variant="student"] .score-thermo{
+    --st-h:clamp(52px, 8vw, 64px);
+    --st-radius:clamp(16px, 3.0vw, 22px);
+    --st-pad-x:clamp(10px, 2.6vw, 14px);
+
+    /* match badge tints from trainer.css */
+    --st-gray:rgba(148,163,184,.10);
+    --st-red:rgba(239,68,68,.14);
+    --st-yellow:rgba(245,158,11,.16);
+    --st-lime:rgba(132,204,22,.14);
+    --st-green:rgba(16,185,129,.12);
+
+    --st-track-bg:rgba(148,163,184,.06);
+  }
+
+  body[data-home-variant="student"] .score-thermo__track{
+    position:relative;
+    height:var(--st-h);
+    border:1px solid var(--border);
+    border-radius:var(--st-radius);
+    background:var(--st-track-bg);
+    overflow:hidden;
+  }
+
+  body[data-home-variant="student"] .score-thermo__fill{
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:0%;
+    background:var(--st-gray);
+    transition:width 220ms ease, background-color 220ms ease;
+  }
+  body[data-home-variant="student"] .score-thermo[data-color="gray"] .score-thermo__fill{background:var(--st-gray);}
+  body[data-home-variant="student"] .score-thermo[data-color="red"] .score-thermo__fill{background:var(--st-red);}
+  body[data-home-variant="student"] .score-thermo[data-color="yellow"] .score-thermo__fill{background:var(--st-yellow);}
+  body[data-home-variant="student"] .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
+  body[data-home-variant="student"] .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
+
+  body[data-home-variant="student"] .score-thermo__content{
+    position:absolute;
+    inset:0;
+    padding:0 var(--st-pad-x);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    pointer-events:none;
+  }
+
+  body[data-home-variant="student"] .score-thermo__label{
+    font-size:clamp(11px, 2.6vw, 13px);
+    line-height:1.1;
+    color:var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+
+  body[data-home-variant="student"] .score-thermo__values{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:clamp(6px, 1.6vw, 10px);
+    margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  body[data-home-variant="student"] .score-thermo__secondary{
+    font-size:clamp(16px, 4.4vw, 22px);
+    line-height:1;
+  }
+
+  body[data-home-variant="student"] .score-thermo__primary{
+    font-size:clamp(11px, 2.9vw, 14px);
+    line-height:1;
+    color:var(--text-dim);
+    white-space:nowrap;
+  }
+
+  /* On mobile, hide the old text forecast block (it moves to the bottom) */
+  body[data-home-variant="student"] #picker .picker-right{
     display:none !important;
   }
 }

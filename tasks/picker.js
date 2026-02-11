@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-12-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-12-2';
-import { CONFIG } from '../app/config.js?v=2026-02-12-2';
+import { withBuild } from '../app/build.js?v=2026-02-06-12';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-12';
+import { CONFIG } from '../app/config.js?v=2026-02-06-12';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -299,6 +299,50 @@ function fmtPrimaryExact(x) {
   return v.toFixed(2).replace('.', ',');
 }
 
+
+function thermoColorByPrimary(primaryRounded) {
+  const v = Number(primaryRounded || 0);
+  if (!isFinite(v)) return 'gray';
+  const p = Math.max(0, Math.min(12, Math.round(v)));
+  if (p <= 4) return 'red';
+  if (p <= 7) return 'yellow';
+  if (p <= 10) return 'lime';
+  return 'green';
+}
+
+function updateScoreThermo(primaryRounded, secondary, opts = {}) {
+  if (!IS_STUDENT_PAGE) return;
+
+  const root = document.getElementById('scoreThermo');
+  const fill = document.getElementById('scoreThermoFill');
+  const elS = document.getElementById('scoreThermoSecondary');
+  const elP = document.getElementById('scoreThermoPrimary');
+
+  if (!root || !fill || !elS || !elP) return;
+
+  const signedIn = opts?.signedIn !== false;
+  if (!signedIn) {
+    root.dataset.color = 'gray';
+    fill.style.width = '0%';
+    elS.textContent = '—';
+    elP.textContent = '—';
+    root.setAttribute('aria-label', 'Готовность по первой части');
+    return;
+  }
+
+  const v = Number(primaryRounded || 0);
+  const p = Math.max(0, Math.min(12, Math.round(isFinite(v) ? v : 0)));
+  const s = Math.max(0, Number(secondary || 0) || 0);
+
+  root.dataset.color = thermoColorByPrimary(p);
+  fill.style.width = `${(p / 12) * 100}%`;
+
+  elS.textContent = `${s} втор.`;
+  elP.textContent = `${p} перв.`;
+
+  root.setAttribute('aria-label', `Готовность по первой части: ${p} первичных, ${s} вторичных`);
+}
+
 function updateScoreForecast(sectionPctById, opts = {}) {
   if (!IS_STUDENT_PAGE) return;
 
@@ -314,6 +358,7 @@ function updateScoreForecast(sectionPctById, opts = {}) {
     elP.textContent = '—';
     elS.textContent = '—';
     if (elN) { elN.hidden = true; elN.textContent = ''; }
+    updateScoreThermo(0, 0, { signedIn: false });
     return;
   }
 
@@ -336,6 +381,8 @@ function updateScoreForecast(sectionPctById, opts = {}) {
     elN.hidden = false;
     elN.textContent = `Округление: ${primaryRounded} перв. → ${secondary} втор.`;
   }
+
+  updateScoreThermo(primaryRounded, secondary, { signedIn: true });
 }
 
 
