@@ -38,7 +38,7 @@
 
   /* Tighter spacing between sections (closer to home_teacher density) */
   body[data-home-variant="student"] #accordion .node.section{
-    padding:clamp(6px, 1.1vw, 8px) 0 !important;
+    padding:clamp(4px, 0.9vw, 6px) 0 !important;
     border-bottom:none !important;
   }
 
@@ -89,21 +89,40 @@ body[data-home-variant="student"] #accordion .node.section > .row::before{
   display:none !important;
 }
 
-/* Make title + chips look like one rounded container (two stacked blocks with shared border/bg) */
+/* Section "card": one rounded container (title + chips) without seams.
+   We draw the container on .section-title (spans 2 rows) and place chips on top of it. */
+
+/* Remove any old background container pseudo-elements (avoid thin "lines") */
+body[data-home-variant="student"] #accordion .node.section > .row::before{
+  content:none !important;
+  display:none !important;
+}
+
+/* No visual seam between title row and chips row */
+body[data-home-variant="student"] #accordion .node.section > .row{
+  row-gap:0 !important;
+}
+
+/* The clickable title button becomes the unified rounded container */
 body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
   grid-column:2 !important;
-  grid-row:1 !important;
+  grid-row:1 / span 2 !important;
   margin-left:0 !important;
   width:100% !important;
   justify-self:stretch !important;
   box-sizing:border-box !important;
 
+  position:relative !important;
+  z-index:1 !important;
+
   border:1px solid var(--border) !important;
-  border-bottom:none !important;
-  border-radius:var(--hs-card-radius) var(--hs-card-radius) 0 0 !important;
+  border-radius:var(--hs-card-radius) !important;
   background:rgba(148,163,184,.06) !important;
 
-  padding:var(--hs-card-pad-top) var(--hs-card-pad-x) clamp(2px, 0.6vw, 4px) var(--hs-card-pad-x) !important;
+  /* Reserve space at bottom for chips that are separate DOM nodes */
+  padding:var(--hs-card-pad-top) var(--hs-card-pad-x)
+          calc(var(--hs-card-pad-bot) + var(--hs-chip-h) + clamp(6px, 1.4vw, 10px))
+          var(--hs-card-pad-x) !important;
 
   /* allow up to 2 lines */
   display:-webkit-box !important;
@@ -115,9 +134,14 @@ body[data-home-variant="student"] #accordion .node.section > .row > .section-tit
   line-height:1.2 !important;
 }
 
+/* Chips live "inside" the rounded container (visually). */
 body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
   grid-column:2 !important;
   grid-row:2 !important;
+
+  position:relative !important;
+  z-index:2 !important;
+
   display:flex !important;
   align-items:center !important;
   justify-content:flex-start !important;
@@ -125,15 +149,16 @@ body[data-home-variant="student"] #accordion .node.section > .row > .home-sectio
   width:100% !important;
   box-sizing:border-box !important;
 
-  border:1px solid var(--border) !important;
-  border-top:none !important;
-  border-radius:0 0 var(--hs-card-radius) var(--hs-card-radius) !important;
-  background:rgba(148,163,184,.06) !important;
+  /* transparent: the container is the title button */
+  border:none !important;
+  background:transparent !important;
+  border-radius:0 !important;
 
   padding:0 var(--hs-card-pad-x) var(--hs-card-pad-bot) var(--hs-card-pad-x) !important;
   margin-right:0 !important;
 }
 
+/* On touch devices, make chips click-through so the whole card toggles on tap */
 /* Small rounded chips (about x2 smaller than previous stickers) */
   body[data-home-variant="student"] #accordion .node.section .home-section-pct,
   body[data-home-variant="student"] #accordion .node.section .home-section-cov{
@@ -269,5 +294,12 @@ body[data-home-variant="student"] #accordion .node.section > .row > .home-sectio
     display:flex;
     flex-direction:column;
     gap: 10px;
+  }
+}
+
+
+@media (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+    pointer-events:none !important;
   }
 }

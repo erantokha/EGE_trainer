@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-11-6';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-11-6';
-import { CONFIG } from '../app/config.js?v=2026-02-11-6';
+import { withBuild } from '../app/build.js?v=2026-02-06-12';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-12';
+import { CONFIG } from '../app/config.js?v=2026-02-06-12';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -930,9 +930,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     saveSelectionAndGo();
   });
-
-
-  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });
 
 // ---------- Чтение предыдущего выбора ----------
@@ -1474,6 +1471,19 @@ function renderSectionNode(sec) {
 
     syncHomeTopicBadgesWidth();
   });
+
+
+  // На компактных экранах бейджи находятся внутри "карточки" темы и должны тоже раскрывать/сворачивать секцию.
+  const badges = $('.home-section-badges', node);
+  if (badges) {
+    badges.addEventListener('click', (e) => {
+      if (!window.matchMedia('(max-width: 1024px)').matches) return;
+      e.preventDefault();
+      e.stopPropagation();
+      titleBtn.click();
+    });
+  }
+
 
   const uniqBtn = $('.unique-btn', node);
   uniqBtn.addEventListener('click', () => {
