@@ -12,6 +12,24 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
+// ---------- diag readiness (avoid false E_INIT_TIMEOUT overlays) ----------
+let __diagReadyCalled = false;
+function diagMarkReady() {
+  if (__diagReadyCalled) return;
+  __diagReadyCalled = true;
+  try {
+    if (window.__EGE_DIAG__?.markReady) { window.__EGE_DIAG__.markReady(); return; }
+  } catch (_) {}
+  let tries = 0;
+  const t = setInterval(() => {
+    tries++;
+    try {
+      if (window.__EGE_DIAG__?.markReady) { window.__EGE_DIAG__.markReady(); clearInterval(t); }
+    } catch (_) {}
+    if (tries >= 10) clearInterval(t);
+  }, 200);
+}
+
 let __cfgGlobal = null;
 
 // Служебные подсказки: показываем 5 секунд и скрываем (если не указано sticky).
@@ -676,6 +694,8 @@ async function removeStudent(cfg, accessToken, studentId) {
 async function main() {
   const pageStatus = $('#pageStatus');
 
+  diagMarkReady();
+
   const searchInput = $('#searchStudents');
   const addBtn = $('#addStudentInlineBtn');
 
@@ -798,6 +818,7 @@ async function main() {
   } catch (e) {
     console.error(e);
     setStatus(pageStatus, 'Ошибка инициализации страницы.', { sticky: true });
+    diagMarkReady();
     if ($('#addStudentInlineBtn')) $('#addStudentInlineBtn').disabled = true;
   }
 }

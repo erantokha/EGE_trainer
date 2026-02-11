@@ -14,6 +14,25 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
+// ---------- diag readiness (avoid false E_INIT_TIMEOUT overlays) ----------
+let __diagReadyCalled = false;
+function diagMarkReady() {
+  if (__diagReadyCalled) return;
+  __diagReadyCalled = true;
+  try {
+    if (window.__EGE_DIAG__?.markReady) { window.__EGE_DIAG__.markReady(); return; }
+  } catch (_) {}
+  // diag may load slightly позже; попробуем несколько раз
+  let tries = 0;
+  const t = setInterval(() => {
+    tries++;
+    try {
+      if (window.__EGE_DIAG__?.markReady) { window.__EGE_DIAG__.markReady(); clearInterval(t); }
+    } catch (_) {}
+    if (tries >= 10) clearInterval(t);
+  }, 200);
+}
+
 // ---------- auth (localStorage sb-<ref>-auth-token) ----------
 let __cfgGlobal = null;
 let __authCache = null;
@@ -452,9 +471,11 @@ async function main() {
     console.error(e);
     const status = document.getElementById('pageStatus');
     if (status) status.textContent = 'Ошибка загрузки интерфейса статистики.';
+    diagMarkReady();
     return;
   }
   initBackButton();
+  diagMarkReady();
 
   const studentId = getStudentId();
   if (!studentId) {
@@ -1555,6 +1576,7 @@ async function loadWorks() {
 
 main().catch((e) => {
   console.error(e);
+  diagMarkReady();
   const status = document.getElementById('pageStatus');
   if (status) status.textContent = 'Ошибка. Откройте страницу ещё раз.';
 });
