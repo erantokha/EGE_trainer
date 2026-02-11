@@ -1,25 +1,168 @@
-/* Mobile-only tweaks for /home_student.html.
+/* Responsive tweaks for /home_student.html (phones + tablets).
    Loaded after trainer.css, so it can safely override styles without touching desktop. */
 
-/* 1) Micro-overrides for small screens (where trainer.css switches number inputs to width:56px) */
-@media (max-width: 640px) {
-  /* Compact stepper (+ 0 -) in accordion */
+/* A) Phones + tablets: make sizing responsive (no absolute tiny badges on tablets) */
+@media (max-width: 1024px) {
+  /* Responsive sizing tokens (scale with viewport, but stay within sane bounds) */
+  body[data-home-variant="student"] #accordion{
+    /* keep countbox width compact on phones, default-ish on tablets */
+    --home-countbox-w:clamp(112px, 20vw, 132px);
+
+    /* stepper */
+    --hs-step-btn:clamp(28px, 3.2vw, 32px);
+    --hs-step-input:clamp(30px, 5.0vw, 40px); /* ~1/3 narrower than old 44px on phones */
+    --hs-step-radius:clamp(8px, 1.6vw, 10px);
+
+    /* "chips" (pct/cov) under the title, inside the same rounded container */
+    --hs-chip-h:clamp(16px, 2.2vw, 22px);
+    --hs-chip-w:clamp(56px, 13vw, 96px);
+    --hs-chip-pad-x:clamp(6px, 1.2vw, 10px);
+    --hs-chip-radius:clamp(10px, 1.8vw, 12px);
+    --hs-chip-fs:clamp(11px, 2.6vw, 12px);
+
+    /* container around title + chips */
+    --hs-card-radius:clamp(14px, 2.2vw, 18px);
+    --hs-card-pad-x:clamp(10px, 2.2vw, 14px);
+    --hs-card-pad-top:clamp(10px, 2.0vw, 12px);
+    --hs-card-pad-bot:clamp(8px, 1.8vw, 12px);
+
+    /* layout gaps */
+    --hs-row-gap:clamp(4px, 1.2vw, 8px);
+    --hs-col-gap:clamp(10px, 1.6vw, 14px);
+  }
+
+  /* Hide the "Процент / Покрытие" header row – chips live inside the title container */
+  body[data-home-variant="student"] #accordion .home-badges-head{
+    display:none !important;
+  }
+
+  /* Compact stepper (+ 0 -) */
   body[data-home-variant="student"] #accordion .countbox{
-    gap:4px;
+    gap:clamp(4px, 1.2vw, 6px);
+  }
+
+  body[data-home-variant="student"] #accordion .countbox .btn{
+    width:var(--hs-step-btn);
+    height:var(--hs-step-btn);
+    padding:0;
+    border-radius:var(--hs-step-radius);
   }
 
   body[data-home-variant="student"] #accordion .countbox input[type="number"],
   body[data-home-variant="student"] #accordion .countbox .count{
-    width:44px !important;  /* override trainer.css mobile width:56px */
-    height:28px;
-    padding:0 6px;
-    font-size:13px;
-    border-radius:8px;
+    width:var(--hs-step-input) !important; /* override trainer.css mobile width:56px */
+    height:var(--hs-step-btn);
+    padding:0 var(--hs-chip-pad-x);
+    font-size:clamp(12px, 2.8vw, 14px);
+    border-radius:var(--hs-step-radius);
     box-sizing:border-box;
+  }
+
+  /* Section row layout: countbox (left) + content (right) */
+  body[data-home-variant="student"] #accordion .node.section > .row{
+    display:grid !important;
+    grid-template-columns:var(--home-countbox-w) 1fr !important;
+    grid-template-rows:auto auto auto !important;
+    column-gap:var(--hs-col-gap) !important;
+    row-gap:var(--hs-row-gap) !important;
+    align-items:start !important;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
+    grid-column:1 !important;
+    grid-row:1 / span 3 !important;
+    width:var(--home-countbox-w) !important;
+    margin-right:0 !important;
+    align-self:center !important;
+  }
+
+  /* Rounded container behind (title + chips) */
+  body[data-home-variant="student"] #accordion .node.section > .row::before{
+    content:"";
+    grid-column:2 !important;
+    grid-row:1 / span 2 !important;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--hs-card-radius);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .section-title,
+  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+    position:relative;
+    z-index:1;
+  }
+
+  /* Title inside the rounded container */
+  body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
+    grid-column:2 !important;
+    grid-row:1 !important;
+    margin-left:0 !important;
+    width:auto !important;
+    justify-self:stretch !important;
+
+    /* kill any own "pill" styling; the container is drawn by ::before */
+    background:transparent !important;
+    border:none !important;
+    border-radius:0 !important;
+
+    padding:var(--hs-card-pad-top) var(--hs-card-pad-x) 0 var(--hs-card-pad-x) !important;
+
+    /* allow 2 lines */
+    display:-webkit-box !important;
+    -webkit-box-orient:vertical !important;
+    -webkit-line-clamp:2 !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    line-height:1.2 !important;
+  }
+
+  /* Chips row inside the same rounded container */
+  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+    grid-column:2 !important;
+    grid-row:2 !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:clamp(6px, 1.4vw, 10px) !important;
+    padding:0 var(--hs-card-pad-x) var(--hs-card-pad-bot) var(--hs-card-pad-x) !important;
+    margin-right:0 !important;
+  }
+
+  /* Small rounded chips (about x2 smaller than previous stickers) */
+  body[data-home-variant="student"] #accordion .node.section .home-section-pct,
+  body[data-home-variant="student"] #accordion .node.section .home-section-cov{
+    flex:0 0 auto !important;
+    width:var(--hs-chip-w) !important;
+    min-width:var(--hs-chip-w) !important;
+    height:var(--hs-chip-h) !important;
+    padding:0 var(--hs-chip-pad-x) !important;
+    border-radius:var(--hs-chip-radius) !important;
+    font-size:var(--hs-chip-fs) !important;
+    line-height:1 !important;
+    box-sizing:border-box !important;
+    justify-content:center !important;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{
+    grid-column:2 !important;
+    grid-row:3 !important;
+    justify-self:start !important;
+    margin-left:0 !important;
+    font-size:clamp(11px, 2.4vw, 12px);
+    padding:6px 10px;
+    border-radius:12px;
+    max-width:100%;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .spacer{
+    display:none !important;
   }
 }
 
-/* 2) Full phone layout (portrait) */
+/* B) Phones (portrait): density + header + always-accessible Start */
 @media (max-width: 520px) {
   /* Layout density */
   body[data-home-variant="student"] .container {
@@ -31,26 +174,25 @@
     padding: 12px 12px;
   }
 
-  /* Header: row 1 = account (right), row 2 = short title */
+  /* Header: single row (title left, account right). No wrapping. */
   body[data-home-variant="student"] #appHeader.page-head{
     display:flex;
-    flex-direction:column;
-    align-items:stretch;
-    gap:8px;
-  }
-
-  body[data-home-variant="student"] #appHeader.page-head .page-head-right{
-    order:0;
-    width:100%;
-    display:flex;
-    justify-content:flex-end;
+    flex-direction:row;
     align-items:center;
+    justify-content:space-between;
+    gap:10px;
   }
 
   body[data-home-variant="student"] #appHeader.page-head .page-head-left{
-    order:1;
-    width:100%;
+    flex:1 1 auto;
     min-width:0;
+  }
+
+  body[data-home-variant="student"] #appHeader.page-head .page-head-right{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
   }
 
   /* Replace the long title with a short one (CSS-only, without touching HTML). */
@@ -58,17 +200,17 @@
     font-size:0;
     line-height:0;
     margin:0;
-    overflow-wrap:anywhere;
   }
   body[data-home-variant="student"] #appHeader.page-head .page-head-left h1::after{
     content:"Тренажер ФИПИ";
     display:block;
-    font-size:20px;
-    line-height:1.15;
+    font-size:clamp(12px, 4.4vw, 18px); /* shrink on narrower screens, keep single line */
+    line-height:1.1;
+    white-space:nowrap;
   }
 
   body[data-home-variant="student"] #appHeader .user-menu-btn{
-    max-width:55vw;
+    max-width:44vw;
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
@@ -88,162 +230,41 @@
     margin-top: 6px;
   }
 
-  body[data-home-variant="student"] #picker .controls-left {
-    gap: 8px;
-  }
-
-  body[data-home-variant="student"] #picker .mode-toggle {
-    width: 100%;
-  }
-
-  body[data-home-variant="student"] #picker .mode-btn {
-    flex: 1 1 50%;
-    font-size: 13px;
-    padding: 8px 10px;
-  }
-
   /* Make Start always accessible */
-  body[data-home-variant="student"] #start.start-sum-btn {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(10px + env(safe-area-inset-bottom));
-    z-index: 60;
-    width: auto;
-    max-width: none;
-    border-radius: 14px;
-    padding: 12px 14px;
-    font-size: 14px;
+  body[data-home-variant="student"] #picker #start{
+    position:fixed;
+    left:12px;
+    right:12px;
+    bottom:calc(10px + env(safe-area-inset-bottom));
+    z-index:60;
+    width:auto;
+    max-width:none;
+    border-radius:14px;
+    padding:12px 14px;
+    font-size:14px;
   }
 
   /* Prevent fixed Start from covering the content */
-  body[data-home-variant="student"] #picker {
-    padding-bottom: 96px;
+  body[data-home-variant="student"] #picker{
+    padding-bottom:96px;
   }
 
   /* Bulk controls: two columns + shuffle on its own line */
-  body[data-home-variant="student"] #picker .bulk-controls {
-    display: grid;
+  body[data-home-variant="student"] #picker .bulk-controls{
+    display:grid;
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-    align-items: center;
+    align-items:center;
   }
 
-  body[data-home-variant="student"] #picker .bulk-controls .shuffle {
+  body[data-home-variant="student"] #picker .bulk-controls .bulk-shuffle{
     grid-column: 1 / -1;
   }
 
   /* Stack accordion + forecast on small screens */
-  body[data-home-variant="student"] #picker .picker-grid {
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  body[data-home-variant="student"] #picker .picker-right {
-    width: 100% !important;
-    flex: 0 0 auto !important;
-  }
-
-  body[data-home-variant="student"] #picker .score-forecast {
-    padding: 10px 12px;
-  }
-
-  body[data-home-variant="student"] #picker .score-forecast .sf-label {
-    font-size: 12px;
-  }
-
-  body[data-home-variant="student"] #picker .score-forecast .sf-value {
-    font-size: 16px;
-  }
-
-  /* Compact stepper buttons */
-  body[data-home-variant="student"] #accordion .countbox .btn{
-    width:28px;
-    height:28px;
-    padding:0;
-    border-radius:8px;
-  }
-
-  /* Accordion layout for phones: title on row 1, badges under title, unique on row 3 */
-  body[data-home-variant="student"] #accordion{
-    --home-countbox-w:112px;
-  }
-
-  /* Hide the "Процент / Покрытие" header row on mobile */
-  body[data-home-variant="student"] #accordion .home-badges-head{
-    display:none !important;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row{
-    display:grid !important;
-    grid-template-columns: var(--home-countbox-w) 1fr 1fr !important;
-    grid-template-rows: auto auto auto !important;
-    column-gap: 10px !important;
-    row-gap: 6px !important;
-    align-items:center !important;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row > .countbox{
-    grid-column: 1 !important;
-    grid-row: 1 / span 3 !important;
-    width: var(--home-countbox-w) !important;
-    margin-right: 0 !important;
-    align-self:center !important;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row > .section-title{
-    grid-column: 2 / span 2 !important;
-    grid-row: 1 !important;
-    margin-left: 0 !important;
-
-    width: auto !important;               /* override "fit-content" fixes */
-    justify-self: stretch !important;
-
-    /* allow 2 lines */
-    display: -webkit-box !important;
-    -webkit-box-orient: vertical !important;
-    -webkit-line-clamp: 2 !important;
-    white-space: normal !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    line-height: 1.2 !important;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
-    grid-column: 2 / span 2 !important;
-    grid-row: 2 !important;
-    display:flex !important;
-    gap: 10px !important;
-    align-items: stretch !important;
-    margin-right: 0 !important;
-  }
-
-  /* Rounded rectangles for badges (not pills) */
-  body[data-home-variant="student"] #accordion .node.section .home-section-pct,
-  body[data-home-variant="student"] #accordion .node.section .home-section-cov{
-    flex: 1 1 0;
-    width: auto !important;
-    min-width: 0 !important;
-    padding: 10px 12px !important;
-    border-radius: 14px !important;
-    font-size: 13px !important;
-    line-height: 1.1 !important;
-    justify-content: center !important;
-    box-sizing: border-box !important;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn{
-    grid-column: 2 / span 2 !important;
-    grid-row: 3 !important;
-    justify-self: start !important;
-    margin-left: 0 !important;
-    font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 12px;
-    max-width: 100%;
-  }
-
-  body[data-home-variant="student"] #accordion .node.section > .row > .spacer{
-    display:none !important;
+  body[data-home-variant="student"] #picker .main-row{
+    display:flex;
+    flex-direction:column;
+    gap: 10px;
   }
 }
