@@ -1,0 +1,157 @@
+/* Mobile-only tweaks for /home_student.html.
+   Loaded after trainer.css, so it can safely override styles without touching desktop. */
+
+@media (max-width: 420px) {
+  /* Make the first screen more informative */
+  body[data-home-variant="student"] .container {
+    margin: 14px auto;
+    padding: 0 12px;
+  }
+
+  body[data-home-variant="student"] .panel {
+    padding: 12px 12px;
+  }
+
+  body[data-home-variant="student"] .page-head h1 {
+    font-size: 20px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+
+  /* Controls: keep touch-friendly but a bit tighter */
+  body[data-home-variant="student"] #picker .controls {
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  body[data-home-variant="student"] #picker .controls-left {
+    gap: 8px;
+  }
+
+  body[data-home-variant="student"] #picker .mode-toggle {
+    width: 100%;
+  }
+
+  body[data-home-variant="student"] #picker .mode-btn {
+    flex: 1 1 50%;
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  /* Make Start always accessible */
+  body[data-home-variant="student"] #start.start-sum-btn {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 60;
+    width: auto;
+    max-width: none;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  /* Prevent fixed Start from covering the content */
+  body[data-home-variant="student"] #picker {
+    padding-bottom: 96px;
+  }
+
+  /* Bulk controls: two columns + shuffle on its own line */
+  body[data-home-variant="student"] #picker .bulk-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  body[data-home-variant="student"] #picker .bulk-controls .shuffle {
+    grid-column: 1 / -1;
+  }
+
+  /* Stack accordion + forecast on small screens */
+  body[data-home-variant="student"] #picker .picker-grid {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  body[data-home-variant="student"] #picker .picker-right {
+    width: 100% !important;
+    flex: 0 0 auto !important;
+  }
+
+  body[data-home-variant="student"] #picker .score-forecast {
+    padding: 10px 12px;
+  }
+
+  body[data-home-variant="student"] #picker .score-forecast .sf-label {
+    font-size: 12px;
+  }
+
+  body[data-home-variant="student"] #picker .score-forecast .sf-value {
+    font-size: 16px;
+  }
+
+  /* Accordion layout tuning for 360px */
+  body[data-home-variant="student"] #accordion {
+    --home-countbox-w: 114px;
+    --home-pct-w: 38px;
+    --home-cov-w: 56px;
+    --home-cols-gap: 8px;
+  }
+
+  /* Section row: put title into a flexible column, move unique button to the next row */
+  body[data-home-variant="student"] #accordion .node.section > .row {
+    grid-template-columns: var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) 1fr;
+    grid-template-rows: auto auto;
+    row-gap: 6px;
+  }
+
+  /* Head row (labels above badges): keep single row */
+  body[data-home-variant="student"] #accordion .home-badges-head .row {
+    grid-template-columns: var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) 1fr;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .section-title {
+    grid-column: 4;
+    grid-row: 1;
+    justify-self: stretch;
+    margin-left: 0;
+  }
+
+  /* Allow readable titles (up to 2 lines) */
+  body[data-home-variant="student"] #accordion .section-title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn {
+    grid-column: 4;
+    grid-row: 2;
+    justify-self: start;
+    margin-left: 0;
+    font-size: 12px;
+    padding: 6px 10px;
+    border-radius: 12px;
+    max-width: 100%;
+  }
+
+  body[data-home-variant="student"] #accordion .node.section > .row > .spacer {
+    display: none;
+  }
+
+  /* Slightly smaller header labels above badges */
+  body[data-home-variant="student"] #accordion .home-badge-label {
+    font-size: 12px;
+  }
+
+  /* Make the "unique" button spacing less aggressive in student mode */
+  body[data-home-variant="student"] #accordion .unique-btn {
+    margin-left: 0;
+  }
+}
