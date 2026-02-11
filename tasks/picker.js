@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-11-7';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-11-7';
-import { CONFIG } from '../app/config.js?v=2026-02-11-7';
+import { withBuild } from '../app/build.js?v=2026-02-06-12';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-06-12';
+import { CONFIG } from '../app/config.js?v=2026-02-06-12';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -141,6 +141,12 @@ let _LAST10_KNOWN_UID = null;
 let _LAST10_DEBOUNCE_T = 0;
 let _LAST10_LAST_FORCE_AT = 0;
 const LAST10_FORCE_MIN_INTERVAL_MS = 5000;
+
+let _LAST10_BOOT_RETRIES_LEFT = 0;
+let _LAST10_BOOT_DEADLINE_AT = 0;
+let _LAST10_BOOT_RETRY_T = 0;
+const LAST10_BOOT_RETRY_MAX = 3;
+const LAST10_BOOT_DEADLINE_MS = 6000;
 
 function pct(total, correct) {
   const t = Number(total || 0) || 0;
@@ -357,7 +363,7 @@ function clearStudentLast10UI() {
   $$('.node.topic').forEach((node) => {
     const badgePct = node.querySelector('.home-last10-badge');
     const badgeCov = node.querySelector('.home-coverage-badge');
-    setHomeTopicBadge(badge, null);
+    setHomeTopicBadge(badgePct, null);
   });
 
   updateScoreForecast(null, { signedIn: false });
@@ -413,39 +419,81 @@ async function refreshStudentLast10(opts = {}) {
 
   const force = !!opts.force;
   const reason = String(opts.reason || '');
+  const bypassThrottle = !!opts.bypassThrottle;
   void reason; // reserved for debug
 
   const seq = ++_STATS_SEQ;
   const now = Date.now();
 
+  const isBoot = (reason === 'boot' || reason === 'boot_retry');
+
+  if (reason === 'boot') {
+    _LAST10_BOOT_RETRIES_LEFT = LAST10_BOOT_RETRY_MAX;
+    _LAST10_BOOT_DEADLINE_AT = now + LAST10_BOOT_DEADLINE_MS;
+    if (_LAST10_BOOT_RETRY_T) {
+      clearTimeout(_LAST10_BOOT_RETRY_T);
+      _LAST10_BOOT_RETRY_T = 0;
+    }
+  }
+
+  const scheduleBootRetry = () => {
+    if (!isBoot) return false;
+    if (now >= (_LAST10_BOOT_DEADLINE_AT || 0)) return false;
+    if ((_LAST10_BOOT_RETRIES_LEFT || 0) <= 0) return false;
+
+    _LAST10_BOOT_RETRIES_LEFT -= 1;
+
+    // небольшой джиттер, чтобы избежать "одновременных" ретраев после холодного старта
+    const delay = 700 + Math.floor(Math.random() * 500);
+
+    if (_LAST10_BOOT_RETRY_T) {
+      clearTimeout(_LAST10_BOOT_RETRY_T);
+      _LAST10_BOOT_RETRY_T = 0;
+    }
+
+    _LAST10_BOOT_RETRY_T = setTimeout(() => {
+      refreshStudentLast10({ force: true, reason: 'boot_retry', bypassThrottle: true });
+    }, delay);
+
+    return true;
+  };
+
   // Быстрый путь: применяем кэш до любых await (чтобы не было мигания "— 0/0").
   const fb = readSessionFallback();
   const uidFast = fb?.user?.id || null;
 
-  if (!uidFast) {
-    clearStudentLast10UI();
-    return;
-  }
-
-  _LAST10_KNOWN_UID = uidFast;
-
   let cacheApplied = false;
-  const cached = loadHomeLast10Cache(uidFast, now);
-  if (cached?.dash) {
-    // Если кэш пришёл из старого формата — переложим в новый.
-    if (cached.source === 'legacy_v2') saveHomeLast10Cache(uidFast, cached.dash, now);
-    if (seq !== _STATS_SEQ) return;
-    applyDashboardHomeStats(cached.dash);
-    cacheApplied = true;
-    // Если не форсим — кэш уже достаточно свежий для UI.
-    if (!force) return;
+
+  if (uidFast) {
+    _LAST10_KNOWN_UID = uidFast;
+
+    const cached = loadHomeLast10Cache(uidFast, now);
+    if (cached?.dash) {
+      // Если кэш пришёл из старого формата — переложим в новый.
+      if (cached.source === 'legacy_v2') saveHomeLast10Cache(uidFast, cached.dash, now);
+      if (seq !== _STATS_SEQ) return;
+      applyDashboardHomeStats(cached.dash);
+      cacheApplied = true;
+      // Если не форсим — кэш уже достаточно свежий для UI.
+      if (!force) return;
+    } else {
+      // Нет кэша: показываем скелетон, пока грузим свежие данные.
+      setHomeStatsLoading(true);
+    }
   } else {
-    // Нет кэша: показываем скелетон, пока грузим свежие данные.
-    setHomeStatsLoading(true);
+    // В Telegram WebView localStorage может быть пустым или "появляться" не сразу.
+    // На boot держим скелетон и попробуем дождаться восстановления сессии.
+    if (isBoot) {
+      setHomeStatsLoading(true);
+    } else {
+      clearStudentLast10UI();
+      return;
+    }
   }
 
   // Throttle forced refetches (tab flicker/back-forward cache)
-  if (force) {
+  // Для boot-ретраев throttle отключаем, чтобы успеть восстановиться в WebView.
+  if (force && !bypassThrottle && !isBoot) {
     const dt = now - (_LAST10_LAST_FORCE_AT || 0);
     if (_LAST10_LAST_FORCE_AT && dt < LAST10_FORCE_MIN_INTERVAL_MS) {
       return;
@@ -453,10 +501,10 @@ async function refreshStudentLast10(opts = {}) {
     _LAST10_LAST_FORCE_AT = now;
   }
 
-  // Достаём токен. Не блокируем UI надолго: если getSession "задумается", берём fallback.
+  // Достаём токен. На boot даём больше времени — в WebView (Telegram) восстановление сессии может быть медленным.
   let session = null;
   try {
-    session = await getSession({ timeoutMs: 350, skewSec: 30 });
+    session = await getSession({ timeoutMs: isBoot ? 1600 : 350, skewSec: 30 });
   } catch (_) {
     session = null;
   }
@@ -466,6 +514,8 @@ async function refreshStudentLast10(opts = {}) {
   const token = String(session?.access_token || '').trim();
 
   if (!uid || !token) {
+    if (scheduleBootRetry()) return;
+
     // Если уже показали кэш — не трогаем UI. Иначе показываем дефолтное (без скелетона).
     if (!cacheApplied) {
       setHomeStatsLoading(false);
@@ -473,6 +523,8 @@ async function refreshStudentLast10(opts = {}) {
     }
     return;
   }
+
+  _LAST10_KNOWN_UID = uid;
 
   try {
     const dash = await fetchStudentDashboardSelf(token);
@@ -484,13 +536,20 @@ async function refreshStudentLast10(opts = {}) {
     applyDashboardHomeStats(dash);
   } catch (e) {
     console.warn('home_student last10 load failed', e);
+
+    // Если это boot и сеть/сессия "просыпаются" — попробуем ещё раз в пределах дедлайна.
+    if (scheduleBootRetry()) return;
+
     // If cache already shown, do not wipe UI.
     if (!cacheApplied) {
       setHomeStatsLoading(false);
       clearStudentLast10UI();
     }
   }
-}function invalidateStudentLast10Cache(uid) {
+}
+
+
+function invalidateStudentLast10Cache(uid) {
   if (!uid) return;
 
   // новый формат v3 с build
@@ -540,12 +599,30 @@ function initStudentLast10LiveRefresh() {
   try {
     supabase.auth.onAuthStateChange((event, session) => {
       const ev = String(event || '');
+
       if (ev === 'SIGNED_OUT') {
+        if (_LAST10_BOOT_RETRY_T) {
+          clearTimeout(_LAST10_BOOT_RETRY_T);
+          _LAST10_BOOT_RETRY_T = 0;
+        }
+        _LAST10_BOOT_RETRIES_LEFT = 0;
+        _LAST10_BOOT_DEADLINE_AT = 0;
+
         if (_LAST10_KNOWN_UID) invalidateStudentLast10Cache(_LAST10_KNOWN_UID);
         _LAST10_KNOWN_UID = null;
         clearStudentLast10UI();
         return;
       }
+
+      // В WebView (Telegram) восстановление существующей сессии часто приходит как INITIAL_SESSION.
+      if (ev === 'INITIAL_SESSION') {
+        const uid = session?.user?.id || null;
+        if (uid) invalidateStudentLast10Cache(uid);
+        _LAST10_KNOWN_UID = uid;
+        scheduleStudentLast10Refresh({ force: true, reason: 'initial_session' });
+        return;
+      }
+
       if (ev === 'SIGNED_IN') {
         const uid = session?.user?.id || null;
         if (uid) invalidateStudentLast10Cache(uid);
@@ -553,6 +630,7 @@ function initStudentLast10LiveRefresh() {
         scheduleStudentLast10Refresh({ force: true, reason: 'signed_in' });
         return;
       }
+
       if (ev === 'TOKEN_REFRESHED' || ev === 'USER_UPDATED') {
         scheduleStudentLast10Refresh({ force: false, reason: 'auth_update' });
       }
@@ -1471,19 +1549,6 @@ function renderSectionNode(sec) {
 
     syncHomeTopicBadgesWidth();
   });
-
-
-  // На компактных экранах бейджи находятся внутри "карточки" темы и должны тоже раскрывать/сворачивать секцию.
-  const badges = $('.home-section-badges', node);
-  if (badges) {
-    badges.addEventListener('click', (e) => {
-      if (!window.matchMedia('(max-width: 1024px)').matches) return;
-      e.preventDefault();
-      e.stopPropagation();
-      titleBtn.click();
-    });
-  }
-
 
   const uniqBtn = $('.unique-btn', node);
   uniqBtn.addEventListener('click', () => {
