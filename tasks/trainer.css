@@ -1547,9 +1547,18 @@ body.vs-modal-open{ overflow:hidden; }
 
 /* hw_create: меню аккаунта */
 .user-menu-btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   white-space: nowrap;
-  position: relative;
-  padding-right: 24px;
+}
+
+.user-menu-btn-label{
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-menu-wrap{
@@ -1585,10 +1594,11 @@ body.vs-modal-open{ overflow:hidden; }
 }
 
 .hw-bell--top{
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  transform: none;
+  margin-left: 2px;
+  flex: 0 0 auto;
+  pointer-events: none; /* клик по иконке открывает меню как по кнопке */
 }
 
 .hw-bell--menu{
