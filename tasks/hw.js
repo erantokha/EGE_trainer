@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-10-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-06-12';
 
-import { CONFIG } from '../app/config.js?v=2026-02-10-4';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-10-4';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-10-4';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-10-4';
+import { CONFIG } from '../app/config.js?v=2026-02-06-12';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-06-12';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-06-12';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-06-12';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-10-4';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-10-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-06-12';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-06-12';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1072,15 +1072,22 @@ async function maybeProceedFlow(reason = '') {
       const msgEl = $('#hwGateMsg');
       if (!AUTH_SESSION) {
         if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
+        // В teacher-режиме страница может оставаться на экране «Войдите…».
+        // Это нормальное состояние — не считаем его «зависанием» watchdog'а.
+        try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
         return;
       }
       if (attemptId && !TEACHER_REPORT_DONE && !RUN_STARTED && !STARTING) {
         TEACHER_REPORT_DONE = true;
         try {
           await showTeacherReport(attemptId);
+          // Отчёт успешно отрисован (или показано понятное сообщение) — страница «готова».
+          try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
         } catch (e) {
           console.error(e);
           if (msgEl) msgEl.textContent = 'Не удалось загрузить отчёт.';
+          // Ошибка уже показана пользователю; не накрываем её ложным E_INIT_TIMEOUT.
+          try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
         }
       }
       return;
