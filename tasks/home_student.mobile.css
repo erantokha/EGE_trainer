@@ -306,7 +306,8 @@ body[data-home-variant="student"] #accordion .node.section > .row > .home-sectio
   body[data-home-variant="student"] #appHeader.page-head{
     display:flex;
     flex-direction:row;
-    align-items:center;
+    /* Keep the account button pinned to the top even if the title grows */
+    align-items:flex-start;
     justify-content:space-between;
     gap:10px;
   }
@@ -319,7 +320,7 @@ body[data-home-variant="student"] #accordion .node.section > .row > .home-sectio
   body[data-home-variant="student"] #appHeader.page-head .page-head-right{
     flex:0 0 auto;
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     justify-content:flex-end;
   }
 

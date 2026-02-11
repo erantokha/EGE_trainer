@@ -1056,6 +1056,52 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   gap:8px;
   flex-wrap:wrap;
 }
+
+/* Mobile/tablet header layout: left title/content + account button pinned to the top-right.
+   Keep desktop untouched by scoping to small widths. */
+@media (max-width: 1024px) {
+  header#appHeader.page-head{
+    display:grid;
+    grid-template-columns:minmax(0, 1fr) auto;
+    align-items:start;
+    gap:10px;
+  }
+
+  header#appHeader.page-head .page-head-left{
+    min-width:0;
+  }
+
+  /* Right column stacks controls so the account stays at the very top. */
+  header#appHeader.page-head .page-head-right{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    justify-content:flex-start;
+    gap:6px;
+    flex-wrap:nowrap;
+  }
+
+  /* Auth block ("Антон" / "Войти") should always be first. */
+  header#appHeader.page-head .page-head-right .auth-mini{ order:-20; }
+  header#appHeader.page-head .page-head-right #homeBtn{ order:-10; }
+  header#appHeader.page-head .page-head-right [data-header-extra="1"]{ order:0; }
+
+  /* Prevent the account button from pushing layout on narrow screens. */
+  header#appHeader.page-head .user-menu-btn{ max-width:52vw; }
+  header#appHeader.page-head .user-menu-btn-label{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
+  /* Ensure dropdown never goes out of the viewport. */
+  header#appHeader.page-head .user-menu{
+    max-width:calc(100vw - 24px);
+    min-width:min(240px, calc(100vw - 24px));
+    max-height:70vh;
+    overflow:auto;
+  }
+}
 .btn.small {
   padding:6px 10px;
   font-size:13px;
