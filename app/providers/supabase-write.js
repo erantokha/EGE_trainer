@@ -4,8 +4,8 @@
 // supabase-js операции сессии/lock'и иногда «подвисают» при нескольких вкладках/расширениях.
 // Для записи статистики нам нужен только access_token, поэтому пишем напрямую в /rest/v1.
 
-import { CONFIG } from '../config.js?v=2026-02-12-10';
-import { getSession } from './supabase.js?v=2026-02-12-10';
+import { CONFIG } from '../config.js?v=2026-02-12-11';
+import { getSession } from './supabase.js?v=2026-02-12-11';
 
 function inferDisplayName(session) {
   const um = session?.user?.user_metadata || {};
