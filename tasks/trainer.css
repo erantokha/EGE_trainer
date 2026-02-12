@@ -1083,7 +1083,7 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 
   /* Auth block ("Антон" / "Войти") should always be first. */
   header#appHeader.page-head .page-head-right .auth-mini{ order:-20; }
-  header#appHeader.page-head .page-head-right #homeBtn{ order:-10; }
+  header#appHeader.page-head .page-head-right > #homeBtn{ order:-10; }
   header#appHeader.page-head .page-head-right [data-header-extra="1"]{ order:0; }
 
   /* Prevent the account button from pushing layout on narrow screens. */
@@ -1219,6 +1219,39 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 
 
 .auth-mini { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; position:relative; }
+/* Кнопка "На главную": на десктопе остаётся текстовой, на мобилке превращается в иконку справа от "Антон". */
+.home-icon-btn{ display:inline-flex; align-items:center; gap:6px; }
+.home-icon-btn .home-icon-img{ display:none; width:18px; height:18px; }
+.home-icon-btn .home-icon-label{ display:inline; }
+
+@media (max-width: 1024px) {
+  header#appHeader.page-head .page-head-right .auth-mini{
+    flex-wrap:nowrap;
+    gap:6px;
+  }
+
+  header#appHeader.page-head .home-icon-btn{
+    width:clamp(30px, 8vw, 36px);
+    height:clamp(30px, 8vw, 36px);
+    padding:0;
+    border:none;
+    background:transparent;
+    box-shadow:none;
+    border-radius:999px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  header#appHeader.page-head .home-icon-btn:hover{ background:transparent; }
+  header#appHeader.page-head .home-icon-btn:focus-visible{
+    outline:none;
+    box-shadow:0 0 0 2px rgba(59,130,246,.35);
+  }
+
+  header#appHeader.page-head .home-icon-btn .home-icon-img{ display:block; width:100%; height:100%; }
+  header#appHeader.page-head .home-icon-btn .home-icon-label{ display:none; }
+}
+
 .auth-email { opacity:.85; }
 
 .editable-wrap { display:flex; flex-direction:column; gap:6px; }
