@@ -2129,6 +2129,36 @@ body.vs-modal-open{ overflow:hidden; }
 .profile-menu-item:active{background:rgba(148,163,184,.18);}
 .profile-menu-item:disabled{opacity:.55;cursor:not-allowed;}
 
+/* profile: мобильная адаптация (не давать тексту вылезать за рамки) */
+@media (max-width: 1024px){
+  #profileGrid{
+    grid-template-columns: clamp(110px, 34vw, 160px) 1fr !important;
+  }
+  #profileGrid > div{
+    min-width:0;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .profile-titlebar{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .profile-titlebar h1{
+    min-width:0;
+  }
+}
+@media (max-width: 520px){
+  #profileGrid{
+    grid-template-columns: 1fr !important;
+    gap: 6px 0 !important;
+  }
+  #profileGrid > div:nth-child(2n+1){
+    margin-top: 10px;
+  }
+}
+
+
+
 
 /* ===== my_students: панель действий и модалка добавления ===== */
 .students-head{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}

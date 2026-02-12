@@ -106,8 +106,14 @@ function cacheFirstName(userId, firstName) {
 function updateHeaderName(firstName) {
   const name = String(firstName || '').trim();
   if (!name) return;
+
   const btn = document.getElementById('userMenuBtn');
-  if (btn) btn.textContent = name;
+  if (!btn) return;
+
+  // userMenuBtn может содержать вложенные элементы (лейбл + иконки).
+  const label = btn.querySelector('.user-menu-btn-label');
+  if (label) label.textContent = name;
+  else btn.textContent = name;
 }
 
 function mountActions({ onEdit, onSave, onCancel, onDelete }) {
@@ -508,9 +514,6 @@ const run = () => {
     setStatus('Ошибка загрузки профиля. Откройте Console.', true);
     showBox(false);
   });
-
-
-  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 };
 
 // profile.js подключается через dynamic import, который не блокирует DOMContentLoaded.
