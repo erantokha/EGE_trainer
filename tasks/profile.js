@@ -6,6 +6,35 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
 const withV = (p) => (BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p);
 
+// ---- diag_bootstrap compatibility ----
+// На некоторых страницах (особенно при медленном Supabase) watchdog диагностики
+// показывает E_INIT_TIMEOUT, если страница не сообщила, что инициализация завершена.
+// Здесь мы помечаем страницу "готовой" сразу после старта скрипта, чтобы оверлей
+// не перекрывал уже работающий интерфейс.
+let __diagReadyDone = false;
+let __diagReadyAttempts = 0;
+
+function diagMarkReady() {
+  if (__diagReadyDone) return;
+  __diagReadyAttempts++;
+
+  try {
+    const d = window.__EGE_DIAG__;
+    if (d && typeof d.markReady === 'function') {
+      d.markReady();
+      __diagReadyDone = true;
+      return;
+    }
+  } catch (_) {}
+
+  // Диагностика может подгрузиться чуть позже — сделаем несколько попыток.
+  if (__diagReadyAttempts < 5) {
+    const delays = [0, 150, 600, 1500, 3500];
+    const t = delays[Math.min(__diagReadyAttempts, delays.length - 1)];
+    setTimeout(diagMarkReady, t);
+  }
+}
+
 function inTasksDir() {
   return /\/tasks(\/|$)/.test(location.pathname);
 }
@@ -107,13 +136,16 @@ function updateHeaderName(firstName) {
   const name = String(firstName || '').trim();
   if (!name) return;
 
-  const btn = document.getElementById('userMenuBtn');
-  if (!btn) return;
+  // Если кнопка аккаунта имеет вложенную разметку (label + иконки),
+  // обновляем только label, чтобы не "сносить" дочерние элементы.
+  const label = document.querySelector('#userMenuBtn .user-menu-btn-label');
+  if (label) {
+    label.textContent = name;
+    return;
+  }
 
-  // userMenuBtn может содержать вложенные элементы (лейбл + иконки).
-  const label = btn.querySelector('.user-menu-btn-label');
-  if (label) label.textContent = name;
-  else btn.textContent = name;
+  const btn = document.getElementById('userMenuBtn');
+  if (btn) btn.textContent = name;
 }
 
 function mountActions({ onEdit, onSave, onCancel, onDelete }) {
@@ -361,7 +393,8 @@ async function main() {
   if (!userId) {
     setStatus('Не удалось определить пользователя.', true);
     showBox(false);
-    return;
+  diagMarkReady();
+  return;
   }
 
   let row = null;
@@ -371,7 +404,8 @@ async function main() {
     console.warn('Profile load error', e);
     setStatus('Не удалось загрузить профиль. Откройте Console/Network.', true);
     showBox(false);
-    return;
+  diagMarkReady();
+  return;
   }
 
   const grid = $('#profileGrid');
@@ -505,12 +539,15 @@ async function main() {
   setStatus('');
   showBox(true);
   render();
+  diagMarkReady();
 }
 
 
 const run = () => {
+  diagMarkReady();
   main().catch((e) => {
     console.error(e);
+    diagMarkReady();
     setStatus('Ошибка загрузки профиля. Откройте Console.', true);
     showBox(false);
   });
