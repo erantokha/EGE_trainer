@@ -30,7 +30,7 @@
 
   const showOverlay = (text) => {
     // Важно: gate-pending скрывает весь body, поэтому сначала делаем body видимым.
-    reveal();
+        reveal();
     try {
       if (ui.overlay) {
         ui.overlay.classList.add('on');
@@ -101,10 +101,30 @@
 
   async function loadSupabase() {
     const m = await import(withV(rel + 'app/providers/supabase.js'));
-    return { supabase: m?.supabase, getSession: m?.getSession };
+    return { supabase: m?.supabase };
   }
 
-  async function getConfirmedUser(supabase, timeoutMs) {
+  
+async function getLocalSession(supabase, timeoutMs) {
+  let timerId = null;
+  try {
+    const timeoutP = new Promise((resolve) => {
+      timerId = setTimeout(() => resolve({ timedOut: true }), Math.max(100, timeoutMs || 350));
+    });
+    const sessP = supabase.auth.getSession()
+      .then((res) => ({ res }))
+      .catch((err) => ({ err }));
+    const r = await Promise.race([sessP, timeoutP]);
+    if (r?.timedOut) return { error: new Error('getSession timeout'), timedOut: true, session: null };
+    if (r?.err) return { error: r.err, session: null };
+    if (r?.res?.error) return { error: r.res.error, session: null };
+    return { session: r?.res?.data?.session || null, error: null };
+  } finally {
+    try { if (timerId) clearTimeout(timerId); } catch (_) {}
+  }
+}
+
+async function getConfirmedUser(supabase, timeoutMs) {
     let timerId = null;
     try {
       const timeoutP = new Promise((resolve) => {
@@ -159,7 +179,6 @@
   function showErrorUI(humanText, diagObj) {
     const code = makeCode();
     showOverlay(`${humanText} Код: ${code}`);
-    try { window.__EGE_DIAG__?.show?.('E_ROOT_ROUTER', humanText, { code, ...diagObj }); } catch (_) {}
     try {
       if (ui.retry) ui.retry.style.display = 'inline-block';
       if (ui.copy) ui.copy.style.display = 'inline-block';
@@ -187,10 +206,19 @@
 
   async function run() {
     if (inflight) return;
-    inflight = true;
+        inflight = true;
 
     const params = new URLSearchParams(location.search);
     const as = params.get('as');
+
+    const landing = params.get('landing');
+    if (landing === '1' || landing === 'true') {
+      // Режим просмотра лендинга даже при активной сессии.
+      inflight = false;
+      hideOverlay();
+      reveal();
+      return;
+    }
 
     // Режимы для дизайна/отладки.
     if (as === 'teacher') {
@@ -207,10 +235,9 @@
     }
 
     let supabase;
-    let getSession;
     try {
-      ({ supabase, getSession } = await loadSupabase());
-      if (!supabase || typeof getSession !== 'function') throw new Error('no supabase');
+      ({ supabase } = await loadSupabase());
+      if (!supabase) throw new Error('no supabase');
     } catch (err) {
       inflight = false;
       hideOverlay();
@@ -218,38 +245,32 @@
       return;
     }
 
-        // Определяем наличие сессии через getSession (внутри есть таймаут + fallback + refresh).
+    // Быстро проверяем локальную сессию (без сети). Если session=null — это гость (не редиректим).
     const t0 = Date.now();
-    let session = null;
-    try {
-      session = await getSession({ timeoutMs: 1200, skewSec: 30 });
-    } catch (e) {
-      // Если getSession упал — считаем это гостем (не редиректим), но фиксируем диагностику.
-      try { window.__EGE_DIAG__?.show?.('E_SUPABASE_NET', 'Не удалось получить сессию.', { err: String(e && (e.message || e)) }); } catch (_) {}
-      session = null;
-    }
+    const sess = await getLocalSession(supabase, 450);
 
-    if (!session || !session.user || !session.user.id) {
-      // Гость или нет сессии — показываем главную.
+    if (!sess?.session) {
       inflight = false;
       hideOverlay();
       reveal();
-      try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
       return;
     }
 
-    const userId = session.user.id;
+    let userId = sess.session?.user?.id || null;
 
-    // Быстрый редирект по кэшу роли (в рамках вкладки)
-    try {
-      const cached = sessionStorage.getItem(`ege_profile_role:${userId}`);
-      if (cached === 'teacher' || cached === 'student') {
+    // Если uid не удалось получить из session (редкий случай) — подтверждаем через getUser.
+    if (!userId) {
+      const confirmed = await getConfirmedUser(supabase, 1800);
+      if (confirmed?.user == null) {
         inflight = false;
-        goTo(cached);
+        hideOverlay();
+        reveal();
         return;
       }
-    } catch (_) {}
-// Залогинен — показываем оверлей и определяем роль.
+      userId = confirmed.user.id;
+    }
+
+    // Залогинен — показываем оверлей и определяем роль.
     showOverlay('Определяем роль…');
 
     const { role, error } = await readRoleWithRetry(
@@ -277,6 +298,8 @@
       online: !!navigator.onLine,
       build: BUILD || null,
       elapsed_ms: Date.now() - t0,
+      sess_timed_out: !!sess?.timedOut,
+      sess_error: sess?.error ? { message: String(sess.error.message || sess.error), code: sess.error.code, status: sess.error.status } : null,
       error: error ? { message: String(error.message || error), code: error.code, status: error.status } : null,
     };
 
@@ -293,9 +316,8 @@
     loadSupabase().then(({ supabase }) => {
       if (!supabase?.auth?.onAuthStateChange) return;
       supabase.auth.onAuthStateChange((event) => {
-        if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {} return; }
-        // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED и прочие — пробуем заново.
-        run();
+        if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); return; }
+        if (event === 'SIGNED_IN') { run(); return; }
       });
     });
   } catch (_) {}

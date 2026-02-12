@@ -172,6 +172,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPasswordToggles();
   initSignupRoleSwitching();
 
+  // Поддержка параметров из лендинга: panel=login|signup|reset, role=student|teacher
+  try {
+    const sp = new URL(location.href).searchParams;
+    const panel = String(sp.get('panel') || '').trim().toLowerCase();
+    if (panel === 'login' || panel === 'signup' || panel === 'reset') {
+      showPanel(panel);
+    }
+
+    const role = String(sp.get('role') || '').trim().toLowerCase();
+    if (role === 'student' || role === 'teacher') {
+      const r = document.querySelector(`input[name=\"signupRole\"][value=\"${role}\"]`);
+      if (r) {
+        r.checked = true;
+        applySignupRoleUI();
+      }
+    }
+  } catch (_) {}
+
   const next = sanitizeNext(new URL(location.href).searchParams.get('next'));
 
   // Если уже вошли — сразу возвращаем.
@@ -382,7 +400,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // старт
   showPanel('login');
-
-
-  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });
