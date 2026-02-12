@@ -3,107 +3,74 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-12-13">
-<title>EGE-trainer — тренажер по задачам из банка ФИПИ</title>
+  <meta name="app-build" content="2026-02-06-12">
+  <title>EGE-trainer — тренажёр ЕГЭ по математике (ФИПИ)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="./app/diag_bootstrap.js?v=2026-02-12-13"></script>
 
-  <!--
-    Главная страница сайта (/): это "вход" в тренажёр.
-    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
-    подключаем стили и скрипты с корректными путями.
-  -->
-  
   <script id="sentry-loader"
-  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
-  crossorigin="anonymous"></script>
-<script>
-(function () {
-  if (window.__SENTRY_INITED__) return;
-  window.__SENTRY_INITED__ = true;
+    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+    crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    if (window.__SENTRY_INITED__) return;
+    window.__SENTRY_INITED__ = true;
 
-  function getRelease() {
-    var m = document.querySelector('meta[name="app-build"]');
-    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
-  }
+    function getRelease() {
+      var m = document.querySelector('meta[name="app-build"]');
+      return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+    }
 
-  function getEnv() {
-    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
-  }
+    function getEnv() {
+      return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+    }
 
-  function sanitizeEvent(event) {
-    try {
-      if (event && event.request && event.request.url) {
-        event.request.url = event.request.url.split('#')[0].split('?')[0];
-      }
-      if (event && event.request && event.request.headers) {
-        delete event.request.headers.Authorization;
-        delete event.request.headers.authorization;
-        delete event.request.headers.Cookie;
-        delete event.request.headers.cookie;
-      }
-    } catch (e) {}
-    return event;
-  }
+    function sanitizeEvent(event) {
+      try {
+        if (event && event.request && event.request.url) {
+          event.request.url = event.request.url.split('#')[0].split('?')[0];
+        }
+        if (event && event.request && event.request.headers) {
+          delete event.request.headers.Authorization;
+          delete event.request.headers.authorization;
+          delete event.request.headers.Cookie;
+          delete event.request.headers.cookie;
+        }
+      } catch (e) {}
+      return event;
+    }
 
-  function doInit() {
-    if (!window.Sentry || !window.Sentry.init) return;
+    function doInit() {
+      if (!window.Sentry || !window.Sentry.init) return;
 
-    var opts = {
-      release: getRelease(),
-      environment: getEnv(),
-      initialScope: {
-        tags: { page: location.pathname }
-      },
-      beforeSend: sanitizeEvent
-    };
+      var opts = {
+        release: getRelease(),
+        environment: getEnv(),
+        initialScope: {
+          tags: { page: location.pathname }
+        },
+        beforeSend: sanitizeEvent
+      };
 
-    try {
-      if (window.Sentry.onLoad) {
-        window.Sentry.onLoad(function () {
-          window.Sentry.init(opts);
-        });
-        return;
-      }
-    } catch (e) {}
+      try {
+        if (window.Sentry.onLoad) {
+          window.Sentry.onLoad(function () {
+            window.Sentry.init(opts);
+          });
+          return;
+        }
+      } catch (e) {}
 
-    window.Sentry.init(opts);
-  }
+      window.Sentry.init(opts);
+    }
 
-  doInit();
-})();
-</script>
+    doInit();
+  })();
+  </script>
 
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-06-12">
+  <link rel="stylesheet" href="./tasks/landing.css?v=2026-02-06-12">
 
-  
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-12-13">
-  
   <style>
-    /* Пров */
-    /* Чтобы учитель не видел "мигание" ученической главной до редиректа */
-    body.gate-pending { visibility: hidden; }
-
-    /* Требования Google OAuth branding verification:
-       1) На главной странице должно быть явно указано имя приложения (EGE-trainer).
-       2) Должна быть видимая ссылка на политику конфиденциальности. */
-    .app-brand{
-      font-size:14px;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-      opacity:.75;
-      margin:0 0 6px 0;
-    }
-    .site-footer{
-      margin:18px 0 28px;
-      padding:10px 12px;
-      font-size:14px;
-      opacity:.9;
-    }
-    .site-footer a{
-      text-decoration:underline;
-    }
-  
-
     /* экран-роутер на / для залогиненных: показывается только когда JS его включает */
     #rootRouterOverlay{
       position:fixed;
@@ -162,115 +129,114 @@
       font-size:12px;
       white-space:pre-wrap;
     }
-
-</style>
-  <noscript><style>body{visibility:visible!important}</style></noscript>
-
+  </style>
 </head>
-<body class="gate-pending">
-<div id="rootRouterOverlay" aria-hidden="true">
-  <div id="rootRouterCard">
-    <div id="rootRouterMsg">Определяем роль…</div>
-    <div id="rootRouterBtns">
-      <button id="rootRouterRetry" type="button" style="display:none">Повторить</button>
-      <button id="rootRouterCopy" type="button" style="display:none">Скопировать детали</button>
+<body>
+  <div id="rootRouterOverlay" aria-hidden="true">
+    <div id="rootRouterCard">
+      <div id="rootRouterMsg">Определяем роль…</div>
+      <div id="rootRouterBtns">
+        <button id="rootRouterRetry" type="button" style="display:none">Повторить</button>
+        <button id="rootRouterCopy" type="button" style="display:none">Скопировать детали</button>
+      </div>
+      <pre id="rootRouterDiag" style="display:none"></pre>
     </div>
-    <pre id="rootRouterDiag" style="display:none"></pre>
   </div>
-</div>
 
-<main class="container">
-    <section id="picker">
-      <div class="panel">
-        <header id="appHeader" class="page-head">
-  <div class="app-brand">EGE-trainer</div>
-  <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
-</header>
-<script type="module">
-  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
-  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
-  const rel = inTasks ? '../' : './';
-  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
-</script>
+  <main class="landing">
+    <header class="landing-top">
+      <div class="landing-brand">
+        <div class="app-brand">EGE-trainer</div>
+        <div class="landing-brand-title">Тренажёр ЕГЭ по математике</div>
+      </div>
+      <nav class="landing-nav" aria-label="Навигация">
+        <a class="landing-link" href="./privacy.html">Политика</a>
+        <a class="landing-link" href="./terms.html">Условия</a>
+        <a class="btn" id="landingLoginBtn" href="./tasks/auth.html?next=/">Войти</a>
+      </nav>
+    </header>
 
-</div>
+    <section class="landing-hero" aria-label="О сервисе">
+      <div class="landing-hero-left">
+        <h1 class="landing-h1">Подготовка к ЕГЭ по задачам из банка ФИПИ</h1>
+        <p class="landing-sub">
+          Ученику — тренировки и прогресс по темам. Учителю — домашние задания, отчёты и контроль без ручной рутины.
+        </p>
 
-        <!-- Ряд 1: режим + перемешать (слева), старт (справа) -->
-        <div class="controls">
-          <div class="controls-left">
-            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-              <button
-                type="button"
-                class="mode-btn active"
-                id="modeList"
-                data-mode="list"
-                aria-selected="true"
-              >
-                Список задач
-              </button>
-              <button
-                type="button"
-                class="mode-btn"
-                id="modeTest"
-                data-mode="test"
-                aria-selected="false"
-              >
-                Тестирование
-              </button>
-            </div>
+        <ul class="landing-bullets">
+          <li>структура по темам, покрытие и проценты</li>
+          <li>домашки и отчёты по каждому ученику</li>
+          <li>работает на телефоне и компьютере</li>
+        </ul>
 
-            <label class="shuffle">
-              <input type="checkbox" id="shuffleToggle">
-              Перемешать задачи
-            </label>
+        <div class="landing-hero-actions">
+          <div class="landing-seg" role="tablist" aria-label="Кому показывать преимущества">
+            <button id="roleStudent" class="landing-seg-btn active" type="button" role="tab" aria-selected="true" data-role="student">Для ученика</button>
+            <button id="roleTeacher" class="landing-seg-btn" type="button" role="tab" aria-selected="false" data-role="teacher">Для учителя</button>
           </div>
 
-          <div class="controls-actions-right">
-            <button id="start" disabled>Начать</button>
-
-          </div>
-
-          <div class="theme-toggle">
-            <input
-              type="checkbox"
-              id="themeToggle"
-              class="theme-toggle-input"
-              aria-label="Переключить тему"
-            >
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-            </label>
+          <a class="btn primary" id="landingStartBtn" href="./tasks/auth.html?next=/&panel=signup&role=student">Начать как ученик</a>
+          <div class="landing-mini">
+            Уже есть аккаунт? <a class="landing-mini-link" href="./tasks/auth.html?next=/&panel=login">Войти</a>
           </div>
         </div>
+      </div>
 
-        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
-        <div class="sub-controls">
-          <div class="bulk-controls" id="bulkControls">
-            <button id="bulkPickAll" type="button">Выбрать все</button>
-            <button id="bulkResetAll" type="button">Сбросить все</button>
-          </div>
-
-          <div class="sum">Итого: <span id="sum">0</span></div>
+      <div class="landing-hero-right" aria-hidden="true">
+        <div class="landing-mock" id="landingMock">
+          <div class="landing-mock-title">Пример экрана</div>
+          <div class="landing-mock-text" id="landingMockText">Главная ученика: темы, проценты, покрытие, готовность.</div>
         </div>
-
-        <!-- Ряд 3: аккордеон -->
-        <div id="accordion" class="accordion"></div>
       </div>
     </section>
+
+    <section class="landing-section" aria-label="Как это работает">
+      <h2 class="landing-h2">Как это работает</h2>
+      <ol class="landing-steps" id="landingSteps"></ol>
+    </section>
+
+    <section class="landing-section" aria-label="Преимущества">
+      <h2 class="landing-h2" id="landingBenefitsTitle">Преимущества</h2>
+      <div class="landing-grid" id="landingBenefits"></div>
+    </section>
+
+    <section class="landing-section" aria-label="Отзывы">
+      <h2 class="landing-h2">Отзывы первых пользователей</h2>
+      <div class="landing-note">
+        Сейчас отзывы собираются. Ниже — пример формата карточек (можно заменить реальными).
+      </div>
+      <div class="landing-quotes" id="landingQuotes"></div>
+    </section>
+
+    <section class="landing-section landing-cta" aria-label="Начать">
+      <div class="landing-cta-card">
+        <div class="landing-cta-left">
+          <div class="landing-cta-title">Готовы попробовать?</div>
+          <div class="landing-cta-sub" id="landingCtaSub">Выберите роль и начните.</div>
+        </div>
+        <div class="landing-cta-right">
+          <div class="landing-seg small" role="tablist" aria-label="Кому показывать преимущества (внизу)">
+            <button id="roleStudent2" class="landing-seg-btn active" type="button" role="tab" aria-selected="true" data-role="student">Ученик</button>
+            <button id="roleTeacher2" class="landing-seg-btn" type="button" role="tab" aria-selected="false" data-role="teacher">Учитель</button>
+          </div>
+          <a class="btn primary" id="landingStartBtn2" href="./tasks/auth.html?next=/&panel=signup&role=student">Начать</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="landing-footer" aria-label="Подвал">
+      <div class="landing-footer-row">
+        <div class="landing-footer-brand">EGE-trainer</div>
+        <div class="landing-footer-links">
+          <a href="./privacy.html">Политика конфиденциальности</a>
+          <span>·</span>
+          <a href="./terms.html">Пользовательское соглашение</a>
+        </div>
+      </div>
+    </footer>
   </main>
 
-  <footer class="site-footer" role="contentinfo">
-    <a href="/privacy.html">Политика конфиденциальности</a>
-    <span class="sep">·</span>
-    <a href="/terms.html">Условия использования</a>
-    <span class="sep">·</span>
-    <a href="mailto:support@ege-trainer.ru">support@ege-trainer.ru</a>
-  </footer>
-    <script type="module" src="./tasks/home_router.js?v=2026-02-12-13"></script>
-
-<script src="./tasks/theme.js?v=2026-02-12-13" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-12-13"></script>
+  <script type="module" src="./tasks/home_router.js?v=2026-02-06-12"></script>
+  <script type="module" src="./tasks/landing.js?v=2026-02-06-12"></script>
 </body>
 </html>
