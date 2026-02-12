@@ -316,26 +316,98 @@ auth.appendChild(userMenuWrap);
   };
 }
 
-function mountHomeButton(right, isHome) {
-  let homeBtn = $('#homeBtn', right);
+function mountHomeButton(right, isHome, authEl, headerEl) {
+  const root = headerEl || document;
+
+  // Если это главная — кнопку удаляем (включая возможную "старую" в разметке).
+  const existingAny = root.querySelector('#homeBtn');
   if (isHome) {
-    if (homeBtn) homeBtn.remove();
+    if (existingAny) existingAny.remove();
     return null;
   }
+
+  const container = authEl || right;
+
+  // Если кнопка уже есть, но лежит НЕ там (например в левой части разметки) — убираем,
+  // чтобы не было дублей id и чтобы на мобилке иконка была рядом с «Антон».
+  let homeBtn = root.querySelector('#homeBtn');
+  if (homeBtn && container && !container.contains(homeBtn)) {
+    try { homeBtn.remove(); } catch (_) {}
+    homeBtn = null;
+  }
+
+  const homeHref = buildWithV(computeHomeUrl());
+  const iconSrc = buildWithV(new URL('tasks/img/home_nav.png', computeHomeUrl()).toString());
+
+  const ensureContent = (el) => {
+    // Единый контент: [иконка] [текст] (чистим старый текст/детей, чтобы не было дублей)
+    try { el.replaceChildren(); } catch (_) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+    const img = document.createElement('img');
+    img.className = 'home-icon-img';
+    img.alt = '';
+    img.setAttribute('aria-hidden', 'true');
+    img.decoding = 'async';
+    img.src = iconSrc;
+
+    const label = document.createElement('span');
+    label.className = 'home-icon-label';
+    label.textContent = 'На главную';
+
+    el.appendChild(img);
+    el.appendChild(label);
+  };
 
   if (!homeBtn) {
     homeBtn = document.createElement('button');
     homeBtn.id = 'homeBtn';
-    homeBtn.className = 'btn';
+    homeBtn.className = 'btn small home-icon-btn';
     homeBtn.type = 'button';
-    homeBtn.textContent = 'На главную';
+    homeBtn.title = 'На главную';
+    homeBtn.setAttribute('aria-label', 'На главную');
+
+    ensureContent(homeBtn);
+
+    // Клик по кнопке = переход на "дом" (../ или ./)
     homeBtn.addEventListener('click', () => {
-      location.href = buildWithV(computeHomeUrl());
+      location.href = homeHref;
     });
-    right.appendChild(homeBtn);
+
+    if (container) {
+      // Вставляем рядом с «Антон» (после userMenuWrap), чтобы на мобилке иконка была правее.
+      const wrap = container.querySelector('#userMenuWrap');
+      if (wrap && wrap.parentElement === container) wrap.after(homeBtn);
+      else container.appendChild(homeBtn);
+    } else {
+      right.appendChild(homeBtn);
+    }
+  } else {
+    // Уже существует (например, пришёл из разметки) — приводим к единому виду.
+    homeBtn.classList.add('btn', 'small', 'home-icon-btn');
+    homeBtn.title = 'На главную';
+    homeBtn.setAttribute('aria-label', 'На главную');
+    ensureContent(homeBtn);
+
+    if (homeBtn.tagName === 'A') {
+      try { homeBtn.href = homeHref; } catch (_) {}
+    } else if (homeBtn.dataset.homeWired !== '1') {
+      homeBtn.dataset.homeWired = '1';
+      homeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        location.href = homeHref;
+      });
+    }
+
+    if (container && !container.contains(homeBtn)) {
+      const wrap = container.querySelector('#userMenuWrap');
+      if (wrap && wrap.parentElement === container) wrap.after(homeBtn);
+      else container.appendChild(homeBtn);
+    }
   }
+
   return homeBtn;
 }
+
 
 function setupMenuInteractions(userBtn, menu) {
   const WIRED_KEY = 'menuWired';
@@ -418,7 +490,7 @@ export async function initHeader(opts = {}) {
   const isHome = Boolean(opts.isHome);
   const hideLogin = Boolean(opts.hideLogin);
 
-  mountHomeButton(right, isHome);
+  mountHomeButton(right, isHome, ui.auth, headerEl);
 
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
 
