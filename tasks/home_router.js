@@ -245,9 +245,43 @@ async function getConfirmedUser(supabase, timeoutMs) {
       return;
     }
 
-    // Быстро проверяем локальную сессию (без сети). Если session=null — это гость (не редиректим).
+    // Быстро проверяем локальную сессию (без сети).
+    // На "холодном" первом открытии supabase.auth.getSession() иногда отвечает медленнее,
+    // чем короткий таймаут, поэтому делаем более мягкую проверку + ретрай, если похоже,
+    // что пользователь уже залогинен (есть auth-token в localStorage).
     const t0 = Date.now();
-    const sess = await getLocalSession(supabase, 450);
+
+    const hasAuthToken = () => {
+      try {
+        // Supabase v2 хранит сессию в ключе вида: sb-<projectRef>-auth-token
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (!k) continue;
+          if (k.startsWith('sb-') && k.endsWith('-auth-token')) return true;
+        }
+      } catch (_) {}
+      return false;
+    };
+
+    let sessAttempts = 1;
+    let sess = await getLocalSession(supabase, 700);
+    let sessTimedOutAny = !!sess?.timedOut;
+    const hadToken = hasAuthToken();
+
+    if (!sess?.session && sess?.timedOut && hadToken) {
+      showOverlay('Загружаем сессию…');
+
+      // Ретраим несколько раз с небольшими паузами.
+      for (let i = 0; i < 6 && !sess?.session; i++) {
+        await sleep(200);
+        sessAttempts++;
+        sess = await getLocalSession(supabase, 2500);
+        sessTimedOutAny = sessTimedOutAny || !!sess?.timedOut;
+
+        // Если получили "окончательный" ответ (не таймаут) — больше не ждём.
+        if (!sess?.timedOut) break;
+      }
+    }
 
     if (!sess?.session) {
       inflight = false;
@@ -299,6 +333,9 @@ async function getConfirmedUser(supabase, timeoutMs) {
       build: BUILD || null,
       elapsed_ms: Date.now() - t0,
       sess_timed_out: !!sess?.timedOut,
+      sess_timed_out_any: !!sessTimedOutAny,
+      sess_attempts: sessAttempts,
+      has_auth_token: hadToken,
       sess_error: sess?.error ? { message: String(sess.error.message || sess.error), code: sess.error.code, status: sess.error.status } : null,
       error: error ? { message: String(error.message || error), code: error.code, status: error.status } : null,
     };
