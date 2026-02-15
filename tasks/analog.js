@@ -2,11 +2,11 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-5';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-5';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-5';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-5';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-5';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -486,7 +486,6 @@ function mountRunnerUI() {
   if (!host) return;
 
   host.classList.remove('hidden');
-  host.parentElement?.classList.remove('hidden');
 
   host.innerHTML = `
     <div class="run-body">
@@ -535,13 +534,11 @@ function hideSummaryShowRunner() {
   if (summary) summary.classList.add('hidden');
   const runner = $('#runner');
   if (runner) runner.classList.remove('hidden');
-  if (runner?.parentElement) runner.parentElement.classList.remove('hidden');
 }
 
 function showSummaryHideRunner() {
   const runner = $('#runner');
   if (runner) runner.classList.add('hidden');
-  if (runner?.parentElement) runner.parentElement.classList.add('hidden');
   const summary = $('#summary');
   if (summary) summary.classList.remove('hidden');
 }
