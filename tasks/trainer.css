@@ -1549,6 +1549,38 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 }
 .video-solution-btn:hover{ filter:brightness(.97); }
 
+
+/* контейнер для кнопок справа в строке ответа */
+.hw-actions{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  white-space:nowrap;
+}
+/* переопределяем старое margin-left:auto, чтобы слот не "растягивал" контейнер */
+.hw-actions .video-solution-slot{ margin-left:0 !important; }
+
+/* Кнопка "Решить аналог" в итогах ДЗ */
+.analog-btn{
+  border:none;
+  background:var(--success);
+  color:#fff;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:500;
+  box-shadow:0 0 0 1px rgba(5,150,105,.55);
+  cursor:pointer;
+  white-space:nowrap;
+}
+.analog-btn:hover{ filter:brightness(.97); }
+.analog-btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+  box-shadow:none;
+}
+
+
 /* Модалка видео-решения (Rutube iframe) */
 body.vs-modal-open{ overflow:hidden; }
 

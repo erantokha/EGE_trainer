@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-13-4';
 
-import { CONFIG } from '../app/config.js?v=2026-02-16-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-16-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-16-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-1';
+import { CONFIG } from '../app/config.js?v=2026-02-13-4';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-13-4';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-1';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1971,7 +1971,12 @@ function renderReviewCards() {
     ans.innerHTML =
       `<div class="hw-ans-line">` +
       `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
+      `<span class="hw-actions">` +
       `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
+      `${(String(q.topic_id || '').trim() && protoId)
+        ? `<button type="button" class="analog-btn" data-topic-id="${escHtml(String(q.topic_id || '').trim())}" data-base-proto="${escHtml(protoId)}">Решить аналог</button>`
+        : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`}` +
+      `</span>` +
       `</div>` +
       `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
 
@@ -1988,6 +1993,10 @@ function renderReviewCards() {
     console.warn('video solutions init failed', e);
   }
 
+
+  // Аналоги: кнопка "Решить аналог" (делегирование кликов)
+  try { wireAnalogButtons(host); } catch (e) { console.warn('analog buttons init failed', e); }
+
   if (window.MathJax) {
     try {
       if (window.MathJax.typesetPromise) {
@@ -1999,6 +2008,42 @@ function renderReviewCards() {
       console.error('MathJax error', e);
     }
   }
+}
+
+
+
+const ANALOG_REQUEST_KEY = 'analog_request_v1';
+
+function wireAnalogButtons(host) {
+  if (!host || host.dataset.analogWired === '1') return;
+  host.dataset.analogWired = '1';
+
+  host.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('.analog-btn') : null;
+    if (!btn || btn.disabled) return;
+
+    const topic_id = String(btn.getAttribute('data-topic-id') || '').trim();
+    const base_question_id = String(btn.getAttribute('data-base-proto') || '').trim();
+    if (!topic_id || !base_question_id) return;
+
+    const req = {
+      v: 1,
+      topic_id,
+      base_question_id,
+      return_url: location.href,
+      ts: Date.now(),
+      seed: Math.floor(Math.random() * 1e9),
+    };
+
+    try { sessionStorage.setItem(ANALOG_REQUEST_KEY, JSON.stringify(req)); } catch (_) {}
+
+    // /tasks/hw.html -> /tasks/analog.html
+    try {
+      location.href = new URL('./analog.html', location.href).toString();
+    } catch (_) {
+      location.href = './analog.html';
+    }
+  });
 }
 
 function toCsv(questions) {
