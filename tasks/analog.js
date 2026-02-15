@@ -2,11 +2,11 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-4';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-4';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-4';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-4';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-4';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -506,9 +506,8 @@ function mountRunnerUI() {
     summary = document.createElement('div');
     summary.id = 'summary';
     summary.className = 'hidden';
-    summary.style.marginTop = '14px';
-
-    const place = host.parentElement?.parentElement || host.parentElement || document.body;
+    // как в hw.js: summary живёт рядом с runner внутри той же панели
+    const place = host.parentElement || document.body;
     place.appendChild(summary);
   }
 
@@ -743,39 +742,19 @@ function renderReviewCards() {
   }
 }
 
-function ensureSummaryStatusAndNav(savedText) {
-  const summary = $('#summary');
-  const summaryPanel = $('#summary .panel') || summary;
+function ensureSaveStatusInSummary(savedText) {
+  const summaryPanel = $('#summary .panel') || $('#summary');
   if (!summaryPanel) return;
 
-  let statusEl = $('#analogSaveStatus', summaryPanel);
+  let statusEl = $('#hwSaveStatus', summaryPanel);
   if (!statusEl) {
     statusEl = document.createElement('div');
-    statusEl.id = 'analogSaveStatus';
+    statusEl.id = 'hwSaveStatus';
     statusEl.className = 'muted';
     statusEl.style.marginTop = '10px';
     summaryPanel.appendChild(statusEl);
   }
-  statusEl.textContent = savedText || 'Результат обработан.';
-
-  let nav = $('#analogNav', summaryPanel);
-  if (!nav) {
-    nav = document.createElement('div');
-    nav.id = 'analogNav';
-    nav.style.marginTop = '10px';
-    summaryPanel.appendChild(nav);
-  }
-
-  const backHref = SESSION.return_url ? escHtml(SESSION.return_url) : '../tasks/my_homeworks.html';
-  nav.innerHTML = `
-    <button id="nextAnalog" type="button" class="analog-btn" style="margin-right:10px">Решить ещё аналог</button>
-    <a class="muted" href="${backHref}">← Назад</a>
-    <span class="muted" style="margin:0 10px">·</span>
-    <a class="muted" href="../tasks/stats.html">Статистика</a>
-  `;
-
-  const nextBtn = $('#nextAnalog', nav);
-  if (nextBtn) nextBtn.onclick = () => startNextAnalog();
+  statusEl.textContent = savedText || 'Результат сохранён.';
 }
 
 function showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText } = {}) {
@@ -784,7 +763,7 @@ function showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText
   renderStats({ total, correct, duration_ms, avg_ms });
   resetWrongFilter();
   renderReviewCards();
-  ensureSummaryStatusAndNav(savedText);
+  ensureSaveStatusInSummary(savedText);
 
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
 }
@@ -889,8 +868,8 @@ async function finishAnalog() {
       savedText = 'Результат подсчитан, но не удалось сохранить в статистику.';
     } else {
       const res = r.__value;
-      if (res && res.skipped) savedText = 'Результат не сохранён в статистику (нужен вход в аккаунт).';
-      else savedText = 'Результат сохранён в статистику.';
+      if (res && res.skipped) savedText = 'Результат не сохранён (нужен вход в аккаунт).';
+      else savedText = '';
     }
   } catch (e) {
     console.warn('insertAttempt failed', e);
