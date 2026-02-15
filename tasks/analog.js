@@ -2,10 +2,11 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-2';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-2';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-2';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-2';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -16,17 +17,29 @@ let SESSION = {
   started_at: null,
   topic_id: '',
   base_question_id: '',
-  question: null,
-  answer_spec: null,
-  chosen_text: '',
-  result: null,
+  return_url: '',
+  questions: [],
+  meta: {},
 };
 
+let REVIEW_ONLY_WRONG = false;
+
+function diagReady() {
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  main().catch((e) => {
-    console.error(e);
-    showMsg('Ошибка: ' + (e && e.message ? e.message : String(e)));
-  });
+  // Важно: убираем ложный E_INIT_TIMEOUT, если страница уже интерактивна.
+  diagReady();
+
+  main()
+    .catch((e) => {
+      console.error(e);
+      showMsg('Ошибка: ' + (e && e.message ? e.message : String(e)));
+    })
+    .finally(() => {
+      diagReady();
+    });
 });
 
 function showMsg(text) {
@@ -335,98 +348,112 @@ function checkFree(spec, raw) {
 }
 
 // ---------- UI ----------
-function mountUI() {
-  const runner = $('#runner');
-  if (!runner) return;
+function mountRunnerUI() {
+  const host = $('#runner');
+  if (!host) return;
 
-  runner.classList.remove('hidden');
-  runner.innerHTML = `
-    <div class="task-list" id="taskList"></div>
+  // runner живёт внутри уже существующего .panel в analog.html
+  host.classList.remove('hidden');
+  host.parentElement?.classList.remove('hidden');
 
-    <div class="panel" style="margin-top:14px">
-      <div class="hw-answer-row">
-        <input id="answerInput" type="text" placeholder="Ответ" autocomplete="off">
-        <button id="finishBtn" type="button">Завершить</button>
+  host.innerHTML = `
+    <div class="run-body">
+      <div class="list-meta" id="analogMeta"></div>
+
+      <div class="task-list" id="taskList"></div>
+
+      <div class="hw-bottom">
+        <button id="finishAnalog" type="button">Завершить</button>
       </div>
-      <div id="resultBox" class="hidden" style="margin-top:10px"></div>
-      <div id="saveBox" class="muted" style="margin-top:8px"></div>
-      <div id="navBox" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap"></div>
     </div>
   `;
 
-  renderQuestion();
+  // summary создаём рядом с панелью runner (как в hw.html: div#summary с panel внутри)
+  let summary = $('#summary');
+  if (!summary) {
+    summary = document.createElement('div');
+    summary.id = 'summary';
+    summary.className = 'hidden';
+    summary.style.marginTop = '14px';
 
-  const input = $('#answerInput');
-  if (input) {
-    input.addEventListener('input', () => {
-      SESSION.chosen_text = String(input.value ?? '');
-    });
-    // фокус сразу
-    try { input.focus(); } catch (_) {}
+    const place = host.parentElement?.parentElement || host.parentElement || document.body;
+    place.appendChild(summary);
   }
 
-  const finish = $('#finishBtn');
-  if (finish) finish.addEventListener('click', finishAnalog);
+  summary.innerHTML = `
+    <div class="panel">
+      <div class="hw-summary-head">
+        <h2>Отчет и статистика</h2>
+      </div>
+      <div id="stats" class="stats"></div>
+      <div class="hw-review-controls">
+        <div class="mode-toggle">
+          <button id="toggleWrong" type="button" class="mode-btn">Неверные (0)</button>
+        </div>
+      </div>
+      <div class="task-list hw-review-list" id="reviewList"></div>
+    </div>`;
 
-  const nav = $('#navBox');
-  if (nav) {
-    const backUrl = SESSION.return_url || '';
-    if (backUrl) {
-      const a = document.createElement('a');
-      a.href = backUrl;
-      a.textContent = 'Назад к отчёту';
-      nav.appendChild(a);
-    }
-    const statsLink = document.createElement('a');
-    statsLink.href = './stats.html';
-    statsLink.textContent = 'Статистика';
-    nav.appendChild(statsLink);
-  }
+  const toggleWrongBtn = $('#toggleWrong', summary);
+  if (toggleWrongBtn) toggleWrongBtn.onclick = () => toggleWrongFilter();
+  syncWrongFilterButton();
 }
 
-function renderQuestion() {
+function renderTaskList() {
   const listEl = $('#taskList');
-  if (!listEl || !SESSION.question) return;
+  if (!listEl) return;
   listEl.innerHTML = '';
 
-  const q = SESSION.question;
+  const qs = Array.isArray(SESSION.questions) ? SESSION.questions : [];
+  qs.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
 
-  const card = document.createElement('div');
-  card.className = 'task-card q-card';
+    const head = document.createElement('div');
+    head.className = 'hw-task-head';
 
-  const head = document.createElement('div');
-  head.className = 'hw-task-head';
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    head.appendChild(num);
+    card.appendChild(head);
 
-  const num = document.createElement('div');
-  num.className = 'task-num';
-  num.textContent = '1';
-  head.appendChild(num);
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem);
+    card.appendChild(stem);
 
-  // маленькая подпись подтемы
-  const meta = document.createElement('div');
-  meta.className = 'muted';
-  meta.style.marginLeft = '10px';
-  meta.textContent = q.type_title ? ('Подтема: ' + q.type_title) : '';
-  head.appendChild(meta);
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
 
-  card.appendChild(head);
+    const ansRow = document.createElement('div');
+    ansRow.className = 'hw-answer-row';
 
-  const stem = document.createElement('div');
-  stem.className = 'task-stem';
-  setStem(stem, q.stem);
-  card.appendChild(stem);
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Ответ';
+    input.autocomplete = 'off';
+    input.dataset.idx = String(idx);
 
-  if (q.figure?.img) {
-    const figWrap = document.createElement('div');
-    figWrap.className = 'task-fig';
-    const img = document.createElement('img');
-    img.src = asset(q.figure.img);
-    img.alt = q.figure.alt || '';
-    figWrap.appendChild(img);
-    card.appendChild(figWrap);
-  }
+    input.addEventListener('input', () => {
+      const i = Number(input.dataset.idx);
+      const qq = SESSION.questions[i];
+      if (!qq) return;
+      qq.chosen_text = String(input.value ?? '');
+    });
 
-  listEl.appendChild(card);
+    ansRow.appendChild(input);
+    card.appendChild(ansRow);
+
+    listEl.appendChild(card);
+  });
 
   if (window.MathJax) {
     try {
@@ -436,40 +463,228 @@ function renderQuestion() {
         window.MathJax.typeset([listEl]);
       }
     } catch (e) {
-      console.warn('MathJax typeset failed', e);
+      console.error('MathJax error', e);
     }
   }
 }
 
-async function finishAnalog() {
-  const btn = $('#finishBtn');
-  if (btn) btn.disabled = true;
+// ---------- отчёт (как после ДЗ) ----------
+function syncWrongFilterButton() {
+  const btn = document.getElementById('toggleWrong');
+  if (!btn) return;
 
-  const q = SESSION.question;
-  if (!q || !q.answer) {
-    if (btn) btn.disabled = false;
-    return;
+  const qs = (typeof SESSION === 'object' && SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
+  const wrong = qs.reduce((s, q) => s + (q && q.correct ? 0 : 1), 0);
+
+  btn.textContent = `Неверные (${wrong})`;
+  btn.classList.toggle('active', REVIEW_ONLY_WRONG);
+}
+
+function resetWrongFilter() {
+  REVIEW_ONLY_WRONG = false;
+  syncWrongFilterButton();
+}
+
+function toggleWrongFilter() {
+  REVIEW_ONLY_WRONG = !REVIEW_ONLY_WRONG;
+  syncWrongFilterButton();
+  renderReviewCards();
+}
+
+function formatHms(ms) {
+  const s = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad = (x) => String(x).padStart(2, '0');
+  if (hh) return `${hh}:${pad(mm)}:${pad(ss)}`;
+  return `${mm}:${pad(ss)}`;
+}
+
+function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
+  const t = Number(total ?? 0);
+  const c = Number(correct ?? 0);
+  const d = Number(duration_ms ?? 0);
+  const a = Number(avg_ms ?? Math.round(d / Math.max(1, t)));
+
+  const statsEl = $('#stats');
+  if (!statsEl) return;
+
+  statsEl.innerHTML =
+    `<div>Всего: ${t}</div>` +
+    `<div>Верно: ${c}</div>` +
+    `<div>Точность: ${Math.round((100 * c) / Math.max(1, t))}%</div>` +
+    `<div>Общее время: ${formatHms(d)}</div>` +
+    `<div>Среднее на задачу: ${formatHms(a)}</div>`;
+}
+
+function renderReviewCards() {
+  const host = $('#reviewList');
+  if (!host) return;
+  host.innerHTML = '';
+
+  const onlyWrong = REVIEW_ONLY_WRONG;
+  const qs = Array.isArray(SESSION.questions) ? SESSION.questions : [];
+
+  qs.forEach((q, idx) => {
+    if (onlyWrong && q.correct) return;
+
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
+
+    const head = document.createElement('div');
+    head.className = 'hw-review-head';
+
+    const num = document.createElement('div');
+    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
+    num.textContent = String(idx + 1);
+
+    head.appendChild(num);
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem);
+    card.appendChild(stem);
+
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ans = document.createElement('div');
+    ans.className = 'hw-review-answers';
+    const protoId = String(q.question_id || q.id || '').trim();
+
+    ans.innerHTML =
+      `<div class="hw-ans-line">` +
+      `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
+      `<span class="hw-actions">` +
+      `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
+      `</span>` +
+      `</div>` +
+      `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+
+    card.appendChild(ans);
+    host.appendChild(card);
+  });
+
+  // Видео-решения (Rutube): превращаем слоты в кнопки и включаем модалку
+  try {
+    hydrateVideoLinks(host, { mode: 'modal', missingText: 'Видео скоро будет' });
+    wireVideoSolutionModal(host);
+  } catch (e) {
+    console.warn('video solutions init failed', e);
   }
 
-  const t0 = SESSION.started_at ? +SESSION.started_at : Date.now();
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([host]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
+    }
+  }
+}
+
+function showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText } = {}) {
+  const runner = $('#runner');
+  if (runner) runner.classList.add('hidden');
+  if (runner?.parentElement) runner.parentElement.classList.add('hidden');
+
+  const summary = $('#summary');
+  if (summary) summary.classList.remove('hidden');
+
+  renderStats({ total, correct, duration_ms, avg_ms });
+  resetWrongFilter();
+  renderReviewCards();
+
+  const summaryPanel = $('#summary .panel') || summary;
+  if (summaryPanel) {
+    let statusEl = $('#analogSaveStatus', summaryPanel);
+    if (!statusEl) {
+      statusEl = document.createElement('div');
+      statusEl.id = 'analogSaveStatus';
+      statusEl.className = 'muted';
+      statusEl.style.marginTop = '10px';
+      summaryPanel.appendChild(statusEl);
+    }
+    statusEl.textContent = savedText || 'Результат обработан.';
+
+    // быстрые ссылки
+    let nav = $('#analogNav', summaryPanel);
+    if (!nav) {
+      nav = document.createElement('div');
+      nav.id = 'analogNav';
+      nav.style.marginTop = '10px';
+      nav.innerHTML = `
+        <a class="muted" href="${SESSION.return_url ? escHtml(SESSION.return_url) : '../tasks/my_homeworks.html'}">← Назад</a>
+        <span class="muted" style="margin:0 10px">·</span>
+        <a class="muted" href="../tasks/stats.html">Статистика</a>
+      `;
+      summaryPanel.appendChild(nav);
+    }
+  }
+
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+}
+
+function withTimeout(promise, ms) {
+  let t = null;
+  const timer = new Promise((resolve) => {
+    t = setTimeout(() => resolve({ __timeout: true }), Math.max(0, ms || 0));
+  });
+  return Promise.race([promise.then((v) => ({ __value: v })).catch((e) => ({ __error: e })), timer]).finally(() => {
+    if (t) clearTimeout(t);
+  });
+}
+
+async function finishAnalog() {
+  // защита от двойного клика / повторного вызова
+  SESSION.meta = SESSION.meta || {};
+  if (SESSION.meta.finishing) return;
+  SESSION.meta.finishing = true;
+
+  const btn = $('#finishAnalog');
+  if (btn) btn.disabled = true;
+
+  // считываем ответы из полей
+  document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
+    const i = Number(el.dataset.idx);
+    const q = SESSION.questions[i];
+    if (!q) return;
+    q.chosen_text = String(el.value ?? '');
+  });
+
+  const q = SESSION.questions[0];
+  if (!q) return;
+
+  const t0 = SESSION.started_at || Date.now();
   const duration_ms = Math.max(0, Date.now() - t0);
 
   const spec = q.answer_spec || q.answer;
-  const check = checkFree(spec, SESSION.chosen_text);
+  const raw = q.chosen_text ?? '';
+  const check = checkFree(spec, raw);
 
-  SESSION.result = check;
+  q.correct = !!check.correct;
+  q.chosen_text = check.chosen_text;
+  q.normalized_text = check.normalized_text;
+  q.correct_text = check.correct_text;
+  q.time_ms = duration_ms;
 
-  // Показываем результат
-  const box = $('#resultBox');
-  if (box) {
-    box.classList.remove('hidden');
-    box.innerHTML =
-      `<div class="hw-ans-line"><span>Ваш ответ: <span class="muted">${escHtml(check.chosen_text)}</span></span></div>` +
-      `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(check.correct_text)}</span></div>` +
-      `<div class="hw-ans-line">${check.correct ? '<span class="badge ok">Верно</span>' : '<span class="badge bad">Неверно</span>'}</div>`;
-  }
+  const total = 1;
+  const correct = q.correct ? 1 : 0;
+  const avg_ms = duration_ms;
 
-  // Пишем в статистику (как "tasks")
+  // отправка в статистику (если пользователь авторизован)
   const payloadQuestions = [{
     topic_id: q.topic_id,
     question_id: q.question_id,
@@ -488,7 +703,7 @@ async function finishAnalog() {
     mode: 'tasks',
     topic_ids: [q.topic_id],
     total: 1,
-    correct: check.correct ? 1 : 0,
+    correct,
     avg_ms: duration_ms,
     duration_ms,
     started_at: startedIso,
@@ -506,23 +721,23 @@ async function finishAnalog() {
 
   let savedText = '';
   try {
-    const res = await insertAttempt(attemptRow);
-    if (res && res.skipped) {
-      savedText = 'Результат не сохранён в статистику (нужен вход в аккаунт).';
+    const r = await withTimeout(insertAttempt(attemptRow), 10000);
+    if (r?.__timeout) {
+      savedText = 'Результат подсчитан, но сохранение в статистику заняло слишком много времени.';
+    } else if (r?.__error) {
+      console.warn('insertAttempt failed', r.__error);
+      savedText = 'Результат подсчитан, но не удалось сохранить в статистику.';
     } else {
-      savedText = 'Результат сохранён в статистику.';
+      const res = r.__value;
+      if (res && res.skipped) savedText = 'Результат не сохранён в статистику (нужен вход в аккаунт).';
+      else savedText = 'Результат сохранён в статистику.';
     }
   } catch (e) {
     console.warn('insertAttempt failed', e);
-    savedText = 'Не удалось сохранить результат в статистику.';
+    savedText = 'Результат подсчитан, но не удалось сохранить в статистику.';
   }
 
-  const saveBox = $('#saveBox');
-  if (saveBox) saveBox.textContent = savedText;
-
-  // блокируем ввод после завершения
-  const input = $('#answerInput');
-  if (input) input.disabled = true;
+  showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText });
 
   // запрос можно очистить, чтобы не висел
   try { sessionStorage.removeItem(REQ_KEY); } catch (_) {}
@@ -544,11 +759,30 @@ async function main() {
 
   showMsg('Подбираем аналог...');
 
+  // помечаем страницу как "готовую", чтобы не всплывал E_INIT_TIMEOUT во время загрузки контента
+  diagReady();
+
   const picked = await pickAnalogQuestion(req);
   const q = picked.analog;
-  SESSION.question = q;
+  q.chosen_text = '';
+  SESSION.questions = [q];
 
   showMsg('');
 
-  mountUI();
+  mountRunnerUI();
+
+  // meta (подтема)
+  const meta = $('#analogMeta');
+  if (meta) {
+    const title = (q.type_id || q.type_title) ? `${q.type_id}. ${q.type_title || ''}` : '';
+    meta.textContent = title ? `Подтема: ${title}` : '';
+  }
+
+  renderTaskList();
+
+  const btn = $('#finishAnalog');
+  if (btn) btn.onclick = () => finishAnalog();
+
+  // Важно: снимаем таймер диагностического таймаута после первой отрисовки
+  diagReady();
 }
