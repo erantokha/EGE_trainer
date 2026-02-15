@@ -2,16 +2,21 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-3';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-3';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-3';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-3';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const INDEX_URL = '../content/tasks/index.json';
 const REQ_KEY = 'analog_request_v1';
+const SESSION_KEY = 'analog_session_v1';
+
+// Внутрисессионное состояние (живёт на странице; дублируем в sessionStorage для bfcache/refresh)
+let REQ = null;
+let ASESSION = null;
 
 let SESSION = {
   started_at: null,
@@ -29,7 +34,7 @@ function diagReady() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Важно: убираем ложный E_INIT_TIMEOUT, если страница уже интерактивна.
+  // Убираем ложный E_INIT_TIMEOUT, если страница уже интерактивна.
   diagReady();
 
   main()
@@ -115,15 +120,103 @@ function hash32(str) {
   return h >>> 0;
 }
 
+function readAnalogSession(req) {
+  // Храним только для текущего "запуска" (ts из request). Если пришёл новый request — сбрасываем used.
+  let raw = '';
+  try { raw = sessionStorage.getItem(SESSION_KEY) || ''; } catch (_) {}
+  if (!raw) {
+    return {
+      v: 1,
+      req_ts: req.ts || 0,
+      topic_id: req.topic_id,
+      base_question_id: req.base_question_id,
+      type_id: '',
+      type_title: '',
+      used_proto_ids: [],
+    };
+  }
+
+  let s = null;
+  try { s = JSON.parse(raw); } catch (_) { s = null; }
+
+  if (!s || typeof s !== 'object') {
+    return {
+      v: 1,
+      req_ts: req.ts || 0,
+      topic_id: req.topic_id,
+      base_question_id: req.base_question_id,
+      type_id: '',
+      type_title: '',
+      used_proto_ids: [],
+    };
+  }
+
+  const same =
+    String(s.topic_id || '') === req.topic_id &&
+    String(s.base_question_id || '') === req.base_question_id &&
+    Number(s.req_ts || 0) === Number(req.ts || 0);
+
+  if (!same) {
+    return {
+      v: 1,
+      req_ts: req.ts || 0,
+      topic_id: req.topic_id,
+      base_question_id: req.base_question_id,
+      type_id: '',
+      type_title: '',
+      used_proto_ids: [],
+    };
+  }
+
+  return {
+    v: 1,
+    req_ts: Number(s.req_ts || 0),
+    topic_id: req.topic_id,
+    base_question_id: req.base_question_id,
+    type_id: String(s.type_id || ''),
+    type_title: String(s.type_title || ''),
+    used_proto_ids: Array.isArray(s.used_proto_ids) ? s.used_proto_ids.map(x => String(x || '')).filter(Boolean) : [],
+  };
+}
+
+function saveAnalogSession(s) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (_) {}
+}
+
+// ----- Интерполяция stem_template / stem -----
+// В манифестах встречаются как числовые параметры, так и строковые (например LaTeX-выражения).
+// Важно: строковые параметры нельзя пытаться "вычислять" через eval — иначе получаем пустые вставки ("вектора .").
+//
+// Правило:
+// - ${a} -> если a есть в vars, подставляем как есть (number|string)
+// - ${a+b} -> пробуем посчитать только в контексте ЧИСЛОВЫХ vars (числа + строки, похожие на числа).
 function interpolate(template, vars) {
-  const V = vars || {};
+  const V = (vars && typeof vars === 'object') ? vars : {};
+  const numericCtx = {};
+  for (const [k, v] of Object.entries(V)) {
+    if (typeof v === 'number' && Number.isFinite(v)) numericCtx[k] = v;
+    else if (typeof v === 'string') {
+      const s = v.trim().replace(',', '.');
+      const num = Number(s);
+      if (Number.isFinite(num) && s !== '') numericCtx[k] = num;
+    }
+  }
+
   return String(template ?? '').replace(/\$\{([^}]+)\}/g, (_, expr) => {
-    try {
-      const e = String(expr || '').trim();
-      // безопасно считаем выражение в контексте vars
-      const v = safeEvalExpr(e, V);
+    const e = String(expr || '').trim();
+    if (!e) return '';
+
+    // простой идентификатор -> прямой доступ (включая LaTeX-строки)
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(e) && Object.prototype.hasOwnProperty.call(V, e)) {
+      const v = V[e];
       return (v == null) ? '' : String(v);
-    } catch (e) {
+    }
+
+    // выражение -> считаем только на numericCtx
+    try {
+      const v = safeEvalExpr(e, numericCtx);
+      return (v == null) ? '' : String(v);
+    } catch (_) {
       return '';
     }
   });
@@ -163,7 +256,6 @@ function buildQuestion(manifest, type, proto) {
 
   // Фолбэк для старых манифестов без answer_spec
   if (!answerSpec.type) {
-    // пробуем сделать "number" если это похоже на число
     const rawText =
       (valSource && typeof valSource === 'object' && valSource.text != null) ? String(valSource.text) :
       (typeof valSource === 'string') ? valSource :
@@ -220,8 +312,16 @@ function buildQuestion(manifest, type, proto) {
   };
 }
 
+// ---- Загрузка и подбор аналога ----
+const _MANIFEST_CACHE = new Map(); // url -> manifest json
+async function loadManifest(url) {
+  if (_MANIFEST_CACHE.has(url)) return _MANIFEST_CACHE.get(url);
+  const man = await fetchJson(url);
+  _MANIFEST_CACHE.set(url, man);
+  return man;
+}
 
-async function pickAnalogQuestion(req) {
+async function pickAnalogQuestion(req, sessionState) {
   const catalog = await fetchJson(INDEX_URL);
   const topicNode = Array.isArray(catalog) ? catalog.find((x) => x && x.id === req.topic_id) : null;
   if (!topicNode) {
@@ -236,52 +336,85 @@ async function pickAnalogQuestion(req) {
     throw new Error('Для темы нет path/paths в index.json: ' + req.topic_id);
   }
 
-  let base = null;
+  // Загружаем все манифесты темы (кэшируем)
+  const manifests = [];
+  for (const p of paths) {
+    const u = asset(p);
+    const man = await loadManifest(u);
+    if (man && Array.isArray(man.types)) manifests.push(man);
+  }
+  if (!manifests.length) {
+    throw new Error('Не удалось загрузить манифесты темы: ' + req.topic_id);
+  }
+
   let baseManifest = null;
   let baseType = null;
   let baseProto = null;
 
-  // Загружаем манифесты темы и ищем базовый прототип
-  for (const p of paths) {
-    const u = asset(p);
-    const man = await fetchJson(u);
-
-    if (!man || !Array.isArray(man.types)) continue;
-    for (const t of man.types) {
-      if (!t || !Array.isArray(t.prototypes)) continue;
-      for (const pr of t.prototypes) {
-        if (pr && String(pr.id || '').trim() === req.base_question_id) {
-          baseManifest = man;
-          baseType = t;
-          baseProto = pr;
-          base = buildQuestion(man, t, pr);
-          break;
+  // Если type_id неизвестен — ищем базовый прототип и фиксируем type_id
+  if (!sessionState.type_id) {
+    for (const man of manifests) {
+      for (const t of (man.types || [])) {
+        if (!t || !Array.isArray(t.prototypes)) continue;
+        for (const pr of (t.prototypes || [])) {
+          if (pr && String(pr.id || '').trim() === req.base_question_id) {
+            baseManifest = man;
+            baseType = t;
+            baseProto = pr;
+            break;
+          }
         }
+        if (baseProto) break;
       }
-      if (base) break;
+      if (baseProto) break;
     }
-    if (base) break;
+
+    if (!baseProto || !baseType || !baseManifest) {
+      throw new Error('Не удалось найти базовую задачу в манифестах темы. proto=' + req.base_question_id);
+    }
+
+    sessionState.type_id = String(baseType.id || '');
+    sessionState.type_title = String(baseType.title || '');
+    saveAnalogSession(sessionState);
+  } else {
+    // type_id известен: для "базы" нам ничего не нужно
   }
 
-  if (!base || !baseType || !baseProto || !baseManifest) {
-    throw new Error('Не удалось найти базовую задачу в манифестах темы. proto=' + req.base_question_id);
+  const typeId = String(sessionState.type_id || '').trim();
+  if (!typeId) {
+    throw new Error('Не удалось определить подтему (type_id) для аналога.');
   }
 
-  const candidates = (baseType.prototypes || []).filter((p) => String(p && p.id || '').trim() && String(p.id).trim() !== req.base_question_id);
+  // Собираем кандидатов из ВСЕХ манифестов по этому type_id (в теме могут быть несколько paths)
+  const exclude = new Set([req.base_question_id, ...(sessionState.used_proto_ids || [])]);
+
+  const candidates = [];
+  for (const man of manifests) {
+    for (const t of (man.types || [])) {
+      if (!t || String(t.id || '') !== typeId) continue;
+      for (const pr of (t.prototypes || [])) {
+        const id = String(pr && pr.id || '').trim();
+        if (!id) continue;
+        if (exclude.has(id)) continue;
+        candidates.push({ man, t, pr });
+      }
+    }
+  }
+
   if (!candidates.length) {
-    throw new Error('В этой подтеме нет других прототипов для аналога.');
+    return { analog: null, type_id: typeId, type_title: sessionState.type_title || '' };
   }
 
-  const seed = (req.seed || 1) ^ hash32(req.base_question_id);
-  const rnd = mulberry32(seed >>> 0);
-  const pick = candidates[Math.floor(rnd() * candidates.length)];
+  // seed меняется при каждом новом аналоге в рамках одного request за счёт used.length
+  const baseSeed = (req.seed || 1) ^ hash32(req.base_question_id);
+  const stepSeed = hash32(String((sessionState.used_proto_ids || []).length));
+  const seed = (baseSeed ^ stepSeed) >>> 0;
+  const rnd = mulberry32(seed);
 
-  const q = buildQuestion(baseManifest, baseType, pick);
+  const picked = candidates[Math.floor(rnd() * candidates.length)];
+  const q = buildQuestion(picked.man, picked.t, picked.pr);
 
-  return {
-    base,
-    analog: q,
-  };
+  return { analog: q, type_id: typeId, type_title: sessionState.type_title || '' };
 }
 
 // ---------- Проверка ответа (как в hw.js) ----------
@@ -325,26 +458,26 @@ function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
   const norm = normalize(chosen_text, spec.normalize || []);
 
-  if (spec.type === 'string' && spec.format === 'ege_decimal') {
-    const expected = String(spec.text != null ? spec.text : spec.value != null ? spec.value : '');
-    const ok = norm === expected;
-    return { correct: ok, chosen_text, normalized_text: norm, correct_text: expected };
-  }
-
-  if (spec.type === 'number') {
-    const x = parseNumber(norm);
-    const v = Number(spec.value);
-    const ok = compareNumber(x, v, spec.tolerance || { abs: 0 });
-    return { correct: ok, chosen_text, normalized_text: String(x), correct_text: String(v) };
-  } else {
+  if (spec.type === 'string') {
     const ok = matchText(norm, spec);
     return {
       correct: ok,
       chosen_text,
       normalized_text: norm,
-      correct_text: (spec.accept?.map?.((p) => p.regex || p.exact)?.join(' | ')) || '',
+      correct_text: spec.correct_text || (spec.accept && spec.accept[0] && spec.accept[0].exact) || '',
     };
   }
+
+  // number
+  const x = parseNumber(norm);
+  const v = (typeof spec.value === 'number') ? spec.value : Number(String(spec.correct_text || '').replace(',', '.'));
+  const ok = compareNumber(x, v, spec.tolerance);
+  return {
+    correct: ok,
+    chosen_text,
+    normalized_text: norm,
+    correct_text: spec.correct_text || (Number.isFinite(v) ? String(v) : ''),
+  };
 }
 
 // ---------- UI ----------
@@ -352,7 +485,6 @@ function mountRunnerUI() {
   const host = $('#runner');
   if (!host) return;
 
-  // runner живёт внутри уже существующего .panel в analog.html
   host.classList.remove('hidden');
   host.parentElement?.classList.remove('hidden');
 
@@ -397,6 +529,22 @@ function mountRunnerUI() {
   const toggleWrongBtn = $('#toggleWrong', summary);
   if (toggleWrongBtn) toggleWrongBtn.onclick = () => toggleWrongFilter();
   syncWrongFilterButton();
+}
+
+function hideSummaryShowRunner() {
+  const summary = $('#summary');
+  if (summary) summary.classList.add('hidden');
+  const runner = $('#runner');
+  if (runner) runner.classList.remove('hidden');
+  if (runner?.parentElement) runner.parentElement.classList.remove('hidden');
+}
+
+function showSummaryHideRunner() {
+  const runner = $('#runner');
+  if (runner) runner.classList.add('hidden');
+  if (runner?.parentElement) runner.parentElement.classList.add('hidden');
+  const summary = $('#summary');
+  if (summary) summary.classList.remove('hidden');
 }
 
 function renderTaskList() {
@@ -595,44 +743,48 @@ function renderReviewCards() {
   }
 }
 
-function showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText } = {}) {
-  const runner = $('#runner');
-  if (runner) runner.classList.add('hidden');
-  if (runner?.parentElement) runner.parentElement.classList.add('hidden');
-
+function ensureSummaryStatusAndNav(savedText) {
   const summary = $('#summary');
-  if (summary) summary.classList.remove('hidden');
+  const summaryPanel = $('#summary .panel') || summary;
+  if (!summaryPanel) return;
+
+  let statusEl = $('#analogSaveStatus', summaryPanel);
+  if (!statusEl) {
+    statusEl = document.createElement('div');
+    statusEl.id = 'analogSaveStatus';
+    statusEl.className = 'muted';
+    statusEl.style.marginTop = '10px';
+    summaryPanel.appendChild(statusEl);
+  }
+  statusEl.textContent = savedText || 'Результат обработан.';
+
+  let nav = $('#analogNav', summaryPanel);
+  if (!nav) {
+    nav = document.createElement('div');
+    nav.id = 'analogNav';
+    nav.style.marginTop = '10px';
+    summaryPanel.appendChild(nav);
+  }
+
+  const backHref = SESSION.return_url ? escHtml(SESSION.return_url) : '../tasks/my_homeworks.html';
+  nav.innerHTML = `
+    <button id="nextAnalog" type="button" class="analog-btn" style="margin-right:10px">Решить ещё аналог</button>
+    <a class="muted" href="${backHref}">← Назад</a>
+    <span class="muted" style="margin:0 10px">·</span>
+    <a class="muted" href="../tasks/stats.html">Статистика</a>
+  `;
+
+  const nextBtn = $('#nextAnalog', nav);
+  if (nextBtn) nextBtn.onclick = () => startNextAnalog();
+}
+
+function showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText } = {}) {
+  showSummaryHideRunner();
 
   renderStats({ total, correct, duration_ms, avg_ms });
   resetWrongFilter();
   renderReviewCards();
-
-  const summaryPanel = $('#summary .panel') || summary;
-  if (summaryPanel) {
-    let statusEl = $('#analogSaveStatus', summaryPanel);
-    if (!statusEl) {
-      statusEl = document.createElement('div');
-      statusEl.id = 'analogSaveStatus';
-      statusEl.className = 'muted';
-      statusEl.style.marginTop = '10px';
-      summaryPanel.appendChild(statusEl);
-    }
-    statusEl.textContent = savedText || 'Результат обработан.';
-
-    // быстрые ссылки
-    let nav = $('#analogNav', summaryPanel);
-    if (!nav) {
-      nav = document.createElement('div');
-      nav.id = 'analogNav';
-      nav.style.marginTop = '10px';
-      nav.innerHTML = `
-        <a class="muted" href="${SESSION.return_url ? escHtml(SESSION.return_url) : '../tasks/my_homeworks.html'}">← Назад</a>
-        <span class="muted" style="margin:0 10px">·</span>
-        <a class="muted" href="../tasks/stats.html">Статистика</a>
-      `;
-      summaryPanel.appendChild(nav);
-    }
-  }
+  ensureSummaryStatusAndNav(savedText);
 
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
 }
@@ -648,7 +800,6 @@ function withTimeout(promise, ms) {
 }
 
 async function finishAnalog() {
-  // защита от двойного клика / повторного вызова
   SESSION.meta = SESSION.meta || {};
   if (SESSION.meta.finishing) return;
   SESSION.meta.finishing = true;
@@ -683,6 +834,15 @@ async function finishAnalog() {
   const total = 1;
   const correct = q.correct ? 1 : 0;
   const avg_ms = duration_ms;
+
+  // обновляем used_proto_ids (чтобы следующий аналог не повторялся)
+  if (ASESSION && q.question_id) {
+    const id = String(q.question_id).trim();
+    if (id && !ASESSION.used_proto_ids.includes(id)) {
+      ASESSION.used_proto_ids.push(id);
+      saveAnalogSession(ASESSION);
+    }
+  }
 
   // отправка в статистику (если пользователь авторизован)
   const payloadQuestions = [{
@@ -738,9 +898,70 @@ async function finishAnalog() {
   }
 
   showSummaryAfterFinish({ total, correct, duration_ms, avg_ms, savedText });
+}
 
-  // запрос можно очистить, чтобы не висел
-  try { sessionStorage.removeItem(REQ_KEY); } catch (_) {}
+async function startAnalogSolve() {
+  if (!REQ) return;
+
+  showMsg('Подбираем аналог...');
+  diagReady();
+
+  // Сброс флагов, чтобы можно было решать многократно на одной странице
+  SESSION.meta = SESSION.meta || {};
+  SESSION.meta.finishing = false;
+
+  mountRunnerUI();
+  hideSummaryShowRunner();
+
+  const picked = await pickAnalogQuestion(REQ, ASESSION);
+  const q = picked.analog;
+
+  if (!q) {
+    // аналоги закончились
+    showMsg('В этой подтеме больше нет доступных аналогов (все варианты уже решены или отсутствуют).');
+    showSummaryAfterFinish({ total: 0, correct: 0, duration_ms: 0, avg_ms: 0, savedText: 'Аналоги закончились.' });
+    return;
+  }
+
+  SESSION.started_at = Date.now();
+  SESSION.topic_id = REQ.topic_id;
+  SESSION.base_question_id = REQ.base_question_id;
+  SESSION.return_url = REQ.return_url || '';
+  SESSION.questions = [Object.assign(q, { chosen_text: '' })];
+
+  showMsg('');
+
+  // meta (подтема)
+  const meta = $('#analogMeta');
+  if (meta) {
+    const title = (picked.type_id || picked.type_title) ? `${picked.type_id}. ${picked.type_title || ''}` : '';
+    meta.textContent = title ? `Подтема: ${title}` : '';
+  }
+
+  renderTaskList();
+
+  const btn = $('#finishAnalog');
+  if (btn) {
+    btn.disabled = false;
+    btn.onclick = () => finishAnalog();
+  }
+
+  diagReady();
+}
+
+async function startNextAnalog() {
+  // кнопка доступна только в summary, после finish
+  if (!REQ) return;
+
+  // Если до этого была попытка — уже записали used в finishAnalog.
+  // Здесь просто запускаем новый подбор и сбрасываем UI.
+  try {
+    await startAnalogSolve();
+    try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) {}
+  } catch (e) {
+    console.error(e);
+    showMsg('Ошибка подбора аналога: ' + (e && e.message ? e.message : String(e)));
+  }
 }
 
 async function main() {
@@ -752,37 +973,12 @@ async function main() {
     return;
   }
 
-  SESSION.started_at = Date.now();
-  SESSION.topic_id = req.topic_id;
-  SESSION.base_question_id = req.base_question_id;
-  SESSION.return_url = req.return_url || '';
+  REQ = req;
+  ASESSION = readAnalogSession(req);
+  saveAnalogSession(ASESSION);
 
-  showMsg('Подбираем аналог...');
-
-  // помечаем страницу как "готовую", чтобы не всплывал E_INIT_TIMEOUT во время загрузки контента
+  // на всякий случай: снимаем сторожевой таймер до подгрузки контента
   diagReady();
 
-  const picked = await pickAnalogQuestion(req);
-  const q = picked.analog;
-  q.chosen_text = '';
-  SESSION.questions = [q];
-
-  showMsg('');
-
-  mountRunnerUI();
-
-  // meta (подтема)
-  const meta = $('#analogMeta');
-  if (meta) {
-    const title = (q.type_id || q.type_title) ? `${q.type_id}. ${q.type_title || ''}` : '';
-    meta.textContent = title ? `Подтема: ${title}` : '';
-  }
-
-  renderTaskList();
-
-  const btn = $('#finishAnalog');
-  if (btn) btn.onclick = () => finishAnalog();
-
-  // Важно: снимаем таймер диагностического таймаута после первой отрисовки
-  diagReady();
+  await startAnalogSolve();
 }
