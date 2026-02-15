@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-15-1';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-15-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-13-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-15-1';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-13-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-15-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-15-1';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-15-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-15-1';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -850,7 +850,7 @@ async function startTestSession(arr) {
 
   SESSION = {
     questions,
-    idx: 0,
+    idx: 0,              // сохраняем для совместимости (в режиме "лист" не используется)
     started_at: Date.now(),
     timerId: null,
     total_ms: 0,
@@ -862,12 +862,121 @@ async function startTestSession(arr) {
 
   $('#topicTitle').textContent = 'Подборка задач';
   $('#total').textContent = SESSION.questions.length;
-  $('#idx').textContent = 1;
 
-  renderCurrent();
+  const metaEl = $('#sessionMeta');
+  if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
+
+  renderSheetList();
+  updateSheetProgress();
+
   startTimer();
-  wireRunner();
+  wireRunnerSheet();
 }
+
+function wireRunnerSheet() {
+  const finishBtn = document.getElementById('finish');
+  if (finishBtn) finishBtn.onclick = () => finishSession();
+}
+
+function updateSheetProgress() {
+  const idxEl = document.getElementById('idx');
+  const totalEl = document.getElementById('total');
+  if (totalEl && SESSION?.questions) totalEl.textContent = String(SESSION.questions.length);
+
+  if (!idxEl || !SESSION?.questions) return;
+  let answered = 0;
+  for (const q of SESSION.questions) {
+    if (q && String(q.chosen_text ?? '').trim() !== '') answered++;
+  }
+  idxEl.textContent = String(answered);
+}
+
+function pullAnswersFromSheet() {
+  const list = document.getElementById('taskList');
+  if (!list || !SESSION?.questions) return;
+  const inputs = list.querySelectorAll('input[data-idx]');
+  for (const el of inputs) {
+    const i = Number(el.dataset.idx);
+    if (!Number.isFinite(i)) continue;
+    const q = SESSION.questions[i];
+    if (!q) continue;
+    q.chosen_text = String(el.value ?? '');
+  }
+}
+
+function renderSheetList() {
+  const listEl = document.getElementById('taskList');
+  if (!listEl || !SESSION?.questions) return;
+
+  listEl.innerHTML = '';
+
+  SESSION.questions.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card q-card';
+
+    const head = document.createElement('div');
+    head.className = 'hw-task-head';
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    head.appendChild(num);
+    card.appendChild(head);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem || '');
+    card.appendChild(stem);
+
+    if (q.figure && q.figure.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ansRow = document.createElement('div');
+    ansRow.className = 'hw-answer-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'Ответ';
+    input.autocomplete = 'off';
+    input.dataset.idx = String(idx);
+
+    input.value = (q.chosen_text != null) ? String(q.chosen_text) : '';
+
+    input.addEventListener('input', () => {
+      const i = Number(input.dataset.idx);
+      const qq = SESSION.questions[i];
+      if (!qq) return;
+      qq.chosen_text = String(input.value ?? '');
+      updateSheetProgress();
+    });
+
+    ansRow.appendChild(input);
+    card.appendChild(ansRow);
+
+    listEl.appendChild(card);
+  });
+
+  // MathJax: типографим всё разом
+  if (window.MathJax) {
+    try {
+      if (window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise([listEl]).catch(err => console.error(err));
+      } else if (window.MathJax.typeset) {
+        window.MathJax.typeset([listEl]);
+      }
+    } catch (e) {
+      console.error('MathJax error', e);
+    }
+  }
+}
+
 
 function renderCurrent() {
   const q = SESSION.questions[SESSION.idx];
@@ -1140,21 +1249,12 @@ function updateWrongButtonState() {
 // ---------- завершение сессии ----------
 async function finishSession() {
   stopTick();
-  saveTimeForCurrent();
 
-  if (SMART_ACTIVE) {
-    smartSyncProgress();
-    renderSmartPanel();
-  }
+  // На всякий случай: подтянуть ответы из DOM (если кто-то отключил обработчик input)
+  try { pullAnswersFromSheet(); } catch (_) {}
 
-  // Считываем ответ из поля текущего вопроса (если пользователь не нажал "Проверить")
-  try {
-    const qcur = SESSION.questions[SESSION.idx];
-    if (qcur && qcur.correct == null) {
-      const el = $('#answer');
-      qcur.chosen_text = String(el ? el.value : '');
-    }
-  } catch (_) {}
+  // В режиме "лист" у нас нет переключения по вопросам: считаем только общее время
+  SESSION.total_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
 
   // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный"
   for (const q of SESSION.questions) {
@@ -1173,6 +1273,17 @@ async function finishSession() {
     0,
   );
   const avg_ms = Math.round(SESSION.total_ms / Math.max(1, total));
+
+  // В старой реализации время считалось "на вопрос". Здесь распределяем равномерно,
+  // чтобы не ломать аналитику/экспорт.
+  for (const q of SESSION.questions) {
+    if (!q.time_ms) q.time_ms = avg_ms;
+  }
+
+  if (SMART_ACTIVE) {
+    smartSyncProgress();
+    renderSmartPanel();
+  }
 
   const payloadQuestions = SESSION.questions.map(q => ({
     topic_id: q.topic_id,
@@ -1225,11 +1336,10 @@ async function finishSession() {
     `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
     `<div>Среднее время на задачу: ${formatHms(avg_ms)}</div>`;
 
-  
   REVIEW_ONLY_WRONG = false;
   updateWrongButtonLabel();
   updateWrongButtonState();
-renderReviewCards();
+  renderReviewCards();
 
   $('#exportCsv').onclick = (e) => {
     e.preventDefault();

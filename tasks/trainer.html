@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-15-1">
+    <meta name="app-build" content="2026-02-13-4">
 <title>Тренажер по задачам из банка ФИПИ — сессия</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="../app/diag_bootstrap.js?v=2026-02-15-1"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-02-13-4"></script>
 
 
   <script id="sentry-loader"
@@ -85,8 +85,8 @@
 
 
   
-  <link rel="stylesheet" href="./trainer.css?v=2026-02-15-1">
-  <script src="./theme.js?v=2026-02-15-1" defer></script>
+  <link rel="stylesheet" href="./trainer.css?v=2026-02-13-4">
+  <script src="./theme.js?v=2026-02-13-4" defer></script>
 
   <script>
     window.MathJax = {
@@ -99,7 +99,7 @@
 <body>
   <main class="container">
     <section id="runner">
-      <div class="panel">
+      <div class="panel hw-panel">
         <header id="appHeader" class="page-head">
           <div class="crumb">
             <span id="topicTitle"></span>
@@ -136,29 +136,12 @@
 
 
         <div class="run-body">
-          <article class="task-card q-card">
-            <div class="task-stem">
-              <div class="qwrap">
-                <div class="qtext" id="stem"></div>
-                <div class="qfig task-fig">
-                  <img id="figure" alt="">
-                </div>
-              </div>
-            </div>
-          </article>
+          <div class="list-meta" id="sessionMeta"></div>
 
-          <div class="answer-row">
-            <input id="answer" type="text" placeholder="Ответ" autocomplete="off">
-            <button id="check">Проверить</button>
-          </div>
+          <div class="task-list" id="taskList"></div>
 
-          <div class="result" id="result"></div>
-
-          <div class="nav">
-            <button id="prev">Назад</button>
-            <button id="skip">Пропустить</button>
-            <button id="next">Далее</button>
-            <button id="finish">Завершить</button>
+          <div class="hw-bottom">
+            <button id="finish" type="button">Завершить</button>
           </div>
         </div>
       </div>
@@ -180,6 +163,6 @@
     </section>
   </main>
 
-  <script type="module" src="./trainer.js?v=2026-02-15-1"></script>
+  <script type="module" src="./trainer.js?v=2026-02-13-4"></script>
 </body>
 </html>
