@@ -2,11 +2,11 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-6';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-6';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-6';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-6';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-6';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -527,6 +527,7 @@ function mountRunnerUI() {
   const toggleWrongBtn = $('#toggleWrong', summary);
   if (toggleWrongBtn) toggleWrongBtn.onclick = () => toggleWrongFilter();
   syncWrongFilterButton();
+  wireNextAnalogInSummary(summary);
 }
 
 function hideSummaryShowRunner() {
@@ -541,6 +542,38 @@ function showSummaryHideRunner() {
   if (runner) runner.classList.add('hidden');
   const summary = $('#summary');
   if (summary) summary.classList.remove('hidden');
+}
+
+
+
+function wireNextAnalogInSummary(summaryRoot) {
+  if (!summaryRoot) return;
+  try {
+    if (summaryRoot.dataset && summaryRoot.dataset.nextAnalogWired === '1') return;
+    if (summaryRoot.dataset) summaryRoot.dataset.nextAnalogWired = '1';
+  } catch (_) {}
+
+  summaryRoot.addEventListener('click', (e) => {
+    const t = e && e.target ? e.target : null;
+    const btn = t && t.closest ? t.closest('button.analog-btn[data-action="next-analog"]') : null;
+    if (!btn) return;
+
+    try { e.preventDefault(); } catch (_) {}
+    try { e.stopPropagation(); } catch (_) {}
+
+    if (btn.disabled) return;
+
+    const prevText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Подбираем...';
+
+    Promise.resolve(startNextAnalog())
+      .catch((err) => console.error(err))
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = prevText || 'Решить аналог';
+      });
+  });
 }
 
 function renderTaskList() {
@@ -710,6 +743,9 @@ function renderReviewCards() {
       `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
       `<span class="hw-actions">` +
       `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
+      `${(REQ && ASESSION)
+        ? `<button type="button" class="analog-btn" data-action="next-analog" data-topic-id="${escHtml(String(REQ.topic_id || '').trim())}" data-base-proto="${escHtml(String(REQ.base_question_id || '').trim())}">Решить аналог</button>`
+        : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`}` +
       `</span>` +
       `</div>` +
       `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
