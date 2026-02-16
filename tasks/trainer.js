@@ -1,20 +1,23 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-14';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-14';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-13-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-16-14';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-13-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-16-14';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-14';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-14';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-14';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
 const INDEX_URL = '../content/tasks/index.json';
+
+// Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
+const SHEET_MODE = !new URLSearchParams(location.search).has('step');
 
 // ---------- PERF-диагностика (включается ?perf=1 или localStorage.tasks_perf=1) ----------
 const PERF =
@@ -864,9 +867,17 @@ async function startTestSession(arr) {
   $('#total').textContent = SESSION.questions.length;
   $('#idx').textContent = 1;
 
-  renderCurrent();
-  startTimer();
-  wireRunner();
+  if (SHEET_MODE) {
+    // в режиме листа заменяем панель на список задач с полями ответов
+    mountSheetUI();
+    renderSheetList();
+    startTimer();
+    wireRunner();
+  } else {
+    renderCurrent();
+    startTimer();
+    wireRunner();
+  }
 }
 
 function renderCurrent() {
@@ -911,14 +922,116 @@ function renderCurrent() {
   }
 }
 
-function wireRunner() {
-  $('#check').onclick = onCheck;
-  $('#skip').onclick = () => skipCurrent();
-  $('#next').onclick = () => goto(+1);
-  $('#prev').onclick = () => goto(-1);
-  $('#finish').onclick = finishSession;
+
+// ---------- Режим листа (как ДЗ): все задачи на одном экране ----------
+function mountSheetUI() {
+  // делаем panel визуально как на странице ДЗ
+  const panel = document.querySelector('#runner .panel');
+  if (panel) panel.classList.add('hw-panel');
+
+  // обновляем заголовок прогресса
+  const prog = document.querySelector('#runner .progress');
+  if (prog) prog.textContent = `Задач: ${SESSION.questions.length}`;
+
+  // перестраиваем тело раннера под список
+  const runBody = document.querySelector('#runner .run-body');
+  if (!runBody) return;
+
+  // сохраняем smart panel (если был) и переносим вниз
+  const smartPanel = document.getElementById('smartPanel');
+  if (smartPanel) smartPanel.remove();
+
+  runBody.innerHTML = `
+    <div class="list-meta" id="sessionMeta"></div>
+    <div class="task-list" id="taskList"></div>
+    <div class="hw-bottom" id="hwBottom">
+      <button id="finish" type="button">Завершить</button>
+    </div>
+  `;
+
+  if (smartPanel) runBody.appendChild(smartPanel);
 }
 
+function renderSheetList() {
+  const metaEl = $('#sessionMeta');
+  if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
+
+  const listEl = $('#taskList');
+  if (!listEl) return;
+  listEl.innerHTML = '';
+
+  SESSION.questions.forEach((q, i) => {
+    const card = document.createElement('div');
+    card.className = 'task-card';
+    card.dataset.qi = String(i);
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(i + 1);
+    card.appendChild(num);
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem || '');
+    card.appendChild(stem);
+
+    if (q.figure) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+
+      const img = document.createElement('img');
+      img.alt = 'figure';
+      img.loading = 'lazy';
+      img.referrerPolicy = 'no-referrer';
+      img.src = asset(q.figure);
+
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    const ansRow = document.createElement('div');
+    ansRow.className = 'hw-answer-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.inputMode = 'text';
+    input.autocomplete = 'off';
+    input.placeholder = 'Ответ';
+    input.value = q.chosen_text || '';
+    input.addEventListener('input', () => {
+      q.chosen_text = input.value;
+    });
+
+    ansRow.appendChild(input);
+    card.appendChild(ansRow);
+
+    listEl.appendChild(card);
+  });
+
+  // если MathJax включён — перерисуем формулы
+  try {
+    if (window.MathJax?.typesetPromise) window.MathJax.typesetPromise();
+  } catch (_) {}
+}
+
+function wireRunner() {
+  const finishBtn = document.getElementById('finish');
+  if (finishBtn) finishBtn.onclick = finishSession;
+
+  if (SHEET_MODE) return;
+
+  const checkBtn = document.getElementById('check');
+  if (checkBtn) checkBtn.onclick = onCheck;
+
+  const skipBtn = document.getElementById('skip');
+  if (skipBtn) skipBtn.onclick = () => skipCurrent();
+
+  const nextBtn = document.getElementById('next');
+  if (nextBtn) nextBtn.onclick = () => goto(+1);
+
+  const prevBtn = document.getElementById('prev');
+  if (prevBtn) prevBtn.onclick = () => goto(-1);
+}
 function skipCurrent() {
   stopTick();
   saveTimeForCurrent();
@@ -1174,11 +1287,14 @@ async function finishSession() {
   }
 
   // Считываем ответ из поля текущего вопроса (если пользователь не нажал "Проверить")
+  // В режиме листа ответы уже лежат в q.chosen_text (в полях внутри карточек), поэтому ничего не трогаем.
   try {
-    const qcur = SESSION.questions[SESSION.idx];
-    if (qcur && qcur.correct == null) {
-      const el = $('#answer');
-      qcur.chosen_text = String(el ? el.value : '');
+    if (!SHEET_MODE) {
+      const qcur = SESSION.questions[SESSION.idx];
+      if (qcur && qcur.correct == null) {
+        const el = document.getElementById('answer');
+        if (el) qcur.chosen_text = String(el.value || '');
+      }
     }
   } catch (_) {}
 
