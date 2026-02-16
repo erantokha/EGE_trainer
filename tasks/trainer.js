@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-11';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-11';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-13-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-16-11';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-13-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-16-11';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-11';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-11';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-11';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1245,11 +1245,14 @@ function updateWrongButtonLabel() {
 }
 
 function updateWrongButtonState() {
-  const btn = document.getElementById('toggleWrong');
+  const btn = $('#toggleWrong');
   if (!btn) return;
-  const wrongCount = questions.filter(q => q && q.state === 'done' && !q.correct).length;
-  btn.textContent = `Неверные (${wrongCount})`;
-  btn.classList.toggle('active', !!REVIEW_ONLY_WRONG);
+
+  const qs = Array.isArray(SESSION?.questions) ? SESSION.questions : [];
+  const wrongCount = qs.reduce((acc, q) => acc + (q && q.question_id && !q.correct ? 1 : 0), 0);
+
+  btn.disabled = wrongCount === 0;
+  btn.classList.toggle('active', REVIEW_ONLY_WRONG);
 }
 
 // ---------- завершение сессии ----------
@@ -1410,146 +1413,106 @@ function startAnalogFromQuestion(q) {
   }
 }
 
+function escHtml(s) {
+  return String(s ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function renderReviewCards() {
-  const list = document.getElementById('reviewList');
-  if (!list) return;
-  list.innerHTML = '';
+  const host = $('#reviewList');
+  if (!host) return;
 
-  const onlyWrong = !!REVIEW_ONLY_WRONG;
-  const items = SESSION.questions
-    .filter(q => q && q.state === 'done')
-    .filter(q => !onlyWrong || !q.correct);
+  const qs = Array.isArray(SESSION?.questions) ? SESSION.questions : [];
+  host.innerHTML = '';
 
-  items.forEach((q, idx) => {
+  for (let idx = 0; idx < qs.length; idx++) {
+    const q = qs[idx];
+    if (!q || !q.question_id) continue;
+    if (REVIEW_ONLY_WRONG && q.correct) continue;
+
     const card = document.createElement('div');
-    card.className = 'task-card';
+    card.className = 'task-card q-card';
+    card.dataset.qid = q.question_id;
 
-    const badge = document.createElement('div');
-    badge.className = 'num-badge' + (q.correct ? '' : ' wrong');
-    badge.textContent = String(idx + 1);
+    const head = document.createElement('div');
+    head.className = 'hw-review-head';
 
-    const main = document.createElement('div');
-    main.className = 'task-main';
-
-    const stemEl = document.createElement('div');
-    stemEl.className = 'task-stem';
-    stemEl.innerHTML = q.stem_html || '';
-
-    // фигура (если есть)
-    if (q.figure && q.figure.kind) {
-      const figWrap = document.createElement('div');
-      figWrap.className = 'q-figure';
-      figWrap.appendChild(createFigure(q.figure));
-      stemEl.appendChild(figWrap);
-    }
-
-    const answers = document.createElement('div');
-    answers.className = 'hw-review-answers';
-
-    const chosen = (q.chosen_text && String(q.chosen_text).trim()) ? String(q.chosen_text).trim() : '—';
-    const correct = (q.correct_text && String(q.correct_text).trim()) ? String(q.correct_text).trim() : '—';
-
-    const line1 = document.createElement('div');
-    line1.className = 'hw-ans-line';
-
-    const left1 = document.createElement('span');
-    left1.textContent = `Ваш ответ: ${chosen}`;
+    const num = document.createElement('div');
+    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
+    num.textContent = String(idx + 1);
+    head.appendChild(num);
 
     const actions = document.createElement('span');
     actions.className = 'hw-actions';
 
-    const videoSlot = document.createElement('span');
-    videoSlot.className = 'video-solution-slot';
-    videoSlot.dataset.videoProto = q.question_id;
+    // Видео-решение
+    const videoUrl = (q.video_url || '').trim();
+    if (videoUrl) {
+      const vbtn = document.createElement('button');
+      vbtn.type = 'button';
+      vbtn.className = 'video-btn';
+      vbtn.textContent = 'Видео-решение';
+      vbtn.setAttribute('data-video-url', videoUrl);
+      actions.appendChild(vbtn);
+    } else {
+      const spacer = document.createElement('span');
+      spacer.className = 'hw-actions-spacer';
+      actions.appendChild(spacer);
+    }
 
-    const analogBtn = document.createElement('button');
-    analogBtn.type = 'button';
-    analogBtn.className = 'analog-btn';
-    analogBtn.textContent = 'Решить аналог';
-    analogBtn.addEventListener('click', () => startAnalogFromQuestion(q));
+    // Решить аналог (как в ДЗ-отчете)
+    if (q.topic_id) {
+      const abtn = document.createElement('button');
+      abtn.type = 'button';
+      abtn.className = 'analog-btn';
+      abtn.textContent = 'Решить аналог';
+      abtn.addEventListener('click', () => startAnalogFromQuestion(q));
+      actions.appendChild(abtn);
+    }
 
-    actions.appendChild(videoSlot);
-    actions.appendChild(analogBtn);
+    head.appendChild(actions);
+    card.appendChild(head);
 
-    line1.appendChild(left1);
-    line1.appendChild(actions);
+    // Условие (без raw HTML)
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem || '');
+    card.appendChild(stem);
 
-    const line2 = document.createElement('div');
-    line2.className = 'hw-ans-line';
-    const left2 = document.createElement('span');
-    left2.textContent = `Правильный ответ: ${correct}`;
-    line2.appendChild(left2);
+    // Рисунок (если есть)
+    if (q.figure && q.figure.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
 
-    answers.appendChild(line1);
-    answers.appendChild(line2);
+    // Ответы
+    const answers = document.createElement('div');
+    answers.className = 'task-answers';
+    const chosen = (q.chosen_text ?? '').toString().trim();
+    const correct = (q.correct_text ?? '').toString().trim();
+    answers.innerHTML =
+      `<div class="ans-row"><span class="ans-label">Ваш ответ:</span> <span class="ans-val">${escHtml(chosen)}</span></div>` +
+      `<div class="ans-row"><span class="ans-label">Правильный ответ:</span> <span class="ans-val">${escHtml(correct)}</span></div>`;
+    card.appendChild(answers);
 
-    main.appendChild(stemEl);
-    main.appendChild(answers);
-
-    card.appendChild(badge);
-    card.appendChild(main);
-
-    list.appendChild(card);
-  });
-
-  // Подключаем видео-решения
-  const mj = window.MathJax;
-  if (mj && typeof mj.typesetPromise === 'function') {
-    mj.typesetPromise([list]).catch(() => {});
+    host.appendChild(card);
   }
 
-  const summaryEl = document.getElementById('summary') || document;
-  hydrateVideoLinks(summaryEl, {
-    getVideoUrl: (protoId) => getVideoSolutionUrl(protoId),
-    missingText: 'Видео скоро будет'
-  });
-}
+  // Видео-решение
+  hydrateVideoLinks();
+  wireVideoSolutionModal();
 
-
-
-function compareId(a, b) {
-  const as = String(a).split('.').map(Number);
-  const bs = String(b).split('.').map(Number);
-  const L = Math.max(as.length, bs.length);
-  for (let i = 0; i < L; i++) {
-    const ai = as[i] ?? 0;
-    const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
-
-// преобразование "content/..." в абсолютный путь от /tasks/
-function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
-    ? '../' + p
-    : p;
-}
-
-function toCsv(questions) {
-  const rows = questions.map(q => ({
-    question_id: q.question_id,
-    topic_id: q.topic_id,
-    stem: q.stem,
-    correct: q.correct,
-    time_ms: q.time_ms,
-    chosen_text: q.chosen_text,
-    correct_text: q.correct_text,
-  }));
-  const cols = Object.keys(rows[0] || { question_id: 1 });
-  const escCell = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
-  return [
-    cols.join(','),
-    ...rows.map(r => cols.map(c => escCell(r[c])).join(',')),
-  ].join('\n');
-}
-
-function download(name, text) {
-  const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
+  // MathJax, если доступен
+  try {
+    if (window.MathJax && MathJax.typesetPromise) MathJax.typesetPromise([host]);
+  } catch (_) {}
 }
