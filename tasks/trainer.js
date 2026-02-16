@@ -128,6 +128,9 @@ let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из ses
 let SESSION = null;
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
+const TASKS_SESSION_KEY = 'tasks_session_v1';
+let SELECTION_KEY = '';
+
 let SMART = null;
 let SMART_ACTIVE = false;
 
@@ -143,6 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       smart = !!JSON.parse(raw || '{}')?.smart;
     } catch (_) {}
     sessionStorage.removeItem('tasks_selection_v1');
+    sessionStorage.removeItem(TASKS_SESSION_KEY);
     try { clearSmartMode(); } catch (_) {}
     location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
@@ -217,6 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // флаг «перемешать задачи» (по умолчанию false, если поле отсутствует)
   SHUFFLE_TASKS = !!sel.shuffle;
 
+
+  SELECTION_KEY = computeSelectionKey(sel);
+
   // Активируем smart-режим только если:
   // - selection помечен как smart
   // - в sessionStorage есть корректный smart_mode
@@ -234,9 +241,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       questions = await getOrCreateSmartQuestions();
       perfMark('pickSmart:done');
     } else {
-      perfMark('pickPrototypes:start');
-      questions = await pickPrototypes();
-      perfMark('pickPrototypes:done');
+      perfMark('restoreSession:start');
+      questions = await restoreQuestionsFromTasksSession(SELECTION_KEY);
+      perfMark(questions ? 'restoreSession:hit' : 'restoreSession:miss');
+
+      if (!questions || !questions.length) {
+        perfMark('pickPrototypes:start');
+        questions = await pickPrototypes();
+        perfMark('pickPrototypes:done');
+      }
+
+      // сохраняем/обновляем сессию, чтобы refresh не менял набор задач
+      try { saveTasksSession(SELECTION_KEY, questions); } catch (_) {}
     }
 
     perfMark('startTestSession:start');
@@ -431,6 +447,57 @@ async function buildQuestionsFromSmartRefs(refs) {
   return out;
 }
 
+
+// ---------- Patch: устойчивость к обновлению страницы (не smart) ----------
+function computeSelectionKey(sel) {
+  const normPairs = (obj) =>
+    Object.entries(obj || {})
+      .map(([k, v]) => [String(k), Number(v) || 0])
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => {
+        const d = compareId(a[0], b[0]);
+        return Number.isFinite(d) ? d : String(a[0]).localeCompare(String(b[0]));
+      });
+
+  const keyObj = {
+    v: 1,
+    mode: String(sel?.mode || 'test'),
+    shuffle: !!sel?.shuffle,
+    smart: !!sel?.smart,
+    topics: normPairs(sel?.topics),
+    sections: normPairs(sel?.sections),
+  };
+  return JSON.stringify(keyObj);
+}
+
+function loadTasksSession() {
+  try {
+    const raw = sessionStorage.getItem(TASKS_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveTasksSession(selection_key, questions) {
+  if (!selection_key || !Array.isArray(questions) || !questions.length) return;
+  const refs = questions.map(q => ({ topic_id: q.topic_id, question_id: q.question_id }));
+  const payload = { selection_key, refs, saved_at: Date.now() };
+  try { sessionStorage.setItem(TASKS_SESSION_KEY, JSON.stringify(payload)); } catch (_) {}
+}
+
+async function restoreQuestionsFromTasksSession(selection_key) {
+  if (!selection_key) return null;
+  const st = loadTasksSession();
+  if (!st || st.selection_key !== selection_key) return null;
+  const refs = Array.isArray(st.refs) ? st.refs : [];
+  if (!refs.length) return null;
+  const restored = await buildQuestionsFromSmartRefs(refs);
+  return (restored.length === refs.length) ? restored : null;
+}
+
+// ---------- конец patch ----------
+
 async function getOrCreateSmartQuestions() {
   SMART = ensureSmartDefaults(SMART);
 
@@ -545,6 +612,7 @@ function renderSmartPanel() {
   btnReset.textContent = 'Сбросить';
   btnReset.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
+    sessionStorage.removeItem(TASKS_SESSION_KEY);
     clearSmartMode();
     location.href = new URL('./stats.html', location.href).toString();
   });
@@ -973,17 +1041,17 @@ function renderSheetList() {
     const stem = document.createElement('div');
     stem.className = 'task-stem';
     setStem(stem, q.stem || '');
-    card.appendChild(stem);
-
-    if (q.figure) {
+    card.appendChild(stem);    const fig = q.figure;
+    const figSrc = asset((fig && typeof fig === 'object') ? fig.img : fig);
+    if (typeof figSrc === 'string' && figSrc) {
       const figWrap = document.createElement('div');
       figWrap.className = 'task-fig';
 
       const img = document.createElement('img');
-      img.alt = 'figure';
+      img.alt = (fig && typeof fig === 'object' && fig.alt) ? String(fig.alt) : 'figure';
       img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
-      img.src = asset(q.figure);
+      img.src = figSrc;
 
       figWrap.appendChild(img);
       card.appendChild(figWrap);
@@ -1510,6 +1578,11 @@ function compareId(a, b) {
 
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
+  // иногда figure приходит как объект { img, alt }
+  if (p && typeof p === 'object') {
+    if (typeof p.img === 'string') p = p.img;
+    else return '';
+  }
   return (typeof p === 'string' && p.startsWith('content/'))
     ? '../' + p
     : p;
