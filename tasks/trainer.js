@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-3';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-3';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-15';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-15';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-3';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-16-15';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-17-3';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-3';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-3';
+import { withBuild } from '../app/build.js?v=2026-02-16-15';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -128,8 +128,38 @@ let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из ses
 let SESSION = null;
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
-const TASKS_SESSION_KEY = 'tasks_session_v1';
-let SELECTION_KEY = '';
+let SELECTION_KEY = null; // сырой JSON selection (используем как ключ для восстановления сессии в режиме листа)
+
+function loadSavedSession() {
+  try {
+    const raw = sessionStorage.getItem('tasks_session_v1');
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveSessionQuestions(questions) {
+  try {
+    if (!SELECTION_KEY) return;
+    const refs = (questions || []).map(q => ({ topic_id: q.topic_id, question_id: q.question_id }));
+    sessionStorage.setItem('tasks_session_v1', JSON.stringify({ key: SELECTION_KEY, refs, created_at: Date.now() }));
+  } catch (_) {}
+}
+
+async function restoreSessionQuestions() {
+  try {
+    if (!SELECTION_KEY) return null;
+    const saved = loadSavedSession();
+    if (!saved || saved.key !== SELECTION_KEY) return null;
+    const refs = Array.isArray(saved.refs) ? saved.refs : [];
+    if (!refs.length) return null;
+    const restored = await buildQuestionsFromSmartRefs(refs);
+    return restored.length === refs.length ? restored : null;
+  } catch (_) {
+    return null;
+  }
+}
 
 let SMART = null;
 let SMART_ACTIVE = false;
@@ -146,7 +176,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       smart = !!JSON.parse(raw || '{}')?.smart;
     } catch (_) {}
     sessionStorage.removeItem('tasks_selection_v1');
-    sessionStorage.removeItem(TASKS_SESSION_KEY);
+    sessionStorage.removeItem('tasks_session_v1');
     try { clearSmartMode(); } catch (_) {}
     location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
@@ -218,11 +248,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   CHOICE_TOPICS = sel.topics || {};
   CHOICE_SECTIONS = sel.sections || {};
 
+  SELECTION_KEY = rawSel;
+
   // флаг «перемешать задачи» (по умолчанию false, если поле отсутствует)
   SHUFFLE_TASKS = !!sel.shuffle;
-
-
-  SELECTION_KEY = computeSelectionKey(sel);
 
   // Активируем smart-режим только если:
   // - selection помечен как smart
@@ -241,18 +270,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       questions = await getOrCreateSmartQuestions();
       perfMark('pickSmart:done');
     } else {
-      perfMark('restoreSession:start');
-      questions = await restoreQuestionsFromTasksSession(SELECTION_KEY);
-      perfMark(questions ? 'restoreSession:hit' : 'restoreSession:miss');
-
-      if (!questions || !questions.length) {
+      // В режиме листа сохраняем список выбранных задач, чтобы refresh не менял набор.
+      const restored = await restoreSessionQuestions();
+      if (restored) {
+        questions = restored;
+      } else {
         perfMark('pickPrototypes:start');
         questions = await pickPrototypes();
         perfMark('pickPrototypes:done');
+        saveSessionQuestions(questions);
       }
-
-      // сохраняем/обновляем сессию, чтобы refresh не менял набор задач
-      try { saveTasksSession(SELECTION_KEY, questions); } catch (_) {}
     }
 
     perfMark('startTestSession:start');
@@ -447,57 +474,6 @@ async function buildQuestionsFromSmartRefs(refs) {
   return out;
 }
 
-
-// ---------- Patch: устойчивость к обновлению страницы (не smart) ----------
-function computeSelectionKey(sel) {
-  const normPairs = (obj) =>
-    Object.entries(obj || {})
-      .map(([k, v]) => [String(k), Number(v) || 0])
-      .filter(([, v]) => v > 0)
-      .sort((a, b) => {
-        const d = compareId(a[0], b[0]);
-        return Number.isFinite(d) ? d : String(a[0]).localeCompare(String(b[0]));
-      });
-
-  const keyObj = {
-    v: 1,
-    mode: String(sel?.mode || 'test'),
-    shuffle: !!sel?.shuffle,
-    smart: !!sel?.smart,
-    topics: normPairs(sel?.topics),
-    sections: normPairs(sel?.sections),
-  };
-  return JSON.stringify(keyObj);
-}
-
-function loadTasksSession() {
-  try {
-    const raw = sessionStorage.getItem(TASKS_SESSION_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function saveTasksSession(selection_key, questions) {
-  if (!selection_key || !Array.isArray(questions) || !questions.length) return;
-  const refs = questions.map(q => ({ topic_id: q.topic_id, question_id: q.question_id }));
-  const payload = { selection_key, refs, saved_at: Date.now() };
-  try { sessionStorage.setItem(TASKS_SESSION_KEY, JSON.stringify(payload)); } catch (_) {}
-}
-
-async function restoreQuestionsFromTasksSession(selection_key) {
-  if (!selection_key) return null;
-  const st = loadTasksSession();
-  if (!st || st.selection_key !== selection_key) return null;
-  const refs = Array.isArray(st.refs) ? st.refs : [];
-  if (!refs.length) return null;
-  const restored = await buildQuestionsFromSmartRefs(refs);
-  return (restored.length === refs.length) ? restored : null;
-}
-
-// ---------- конец patch ----------
-
 async function getOrCreateSmartQuestions() {
   SMART = ensureSmartDefaults(SMART);
 
@@ -612,7 +588,7 @@ function renderSmartPanel() {
   btnReset.textContent = 'Сбросить';
   btnReset.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
-    sessionStorage.removeItem(TASKS_SESSION_KEY);
+    sessionStorage.removeItem('tasks_session_v1');
     clearSmartMode();
     location.href = new URL('./stats.html', location.href).toString();
   });
@@ -993,36 +969,55 @@ function renderCurrent() {
 
 // ---------- Режим листа (как ДЗ): все задачи на одном экране ----------
 function mountSheetUI() {
-  // делаем panel визуально как на странице ДЗ
-  const panel = document.querySelector('#runner .panel');
-  if (panel) panel.classList.add('hw-panel');
-
-  // обновляем заголовок прогресса
-  const prog = document.querySelector('#runner .progress');
-  if (prog) prog.textContent = `Задач: ${SESSION.questions.length}`;
-
-  // перестраиваем тело раннера под список
+  const outerPanel = document.querySelector('#runner .panel');
   const runBody = document.querySelector('#runner .run-body');
-  if (!runBody) return;
+  if (!outerPanel || !runBody) return;
+
+  // Внешний panel = шапка + оболочка. Внутренний panel = контент (как в ДЗ).
+  outerPanel.classList.remove('hw-panel');
+
+  // Прячем прогресс в шапке: счётчик показываем во втором контейнере.
+  const prog = document.querySelector('#runner .progress');
+  if (prog) prog.style.display = 'none';
+
+  // Таймер переносим во второй контейнер.
+  const headerTimer = document.querySelector('#runner #appHeader .timer');
 
   // сохраняем smart panel (если был) и переносим вниз
   const smartPanel = document.getElementById('smartPanel');
   if (smartPanel) smartPanel.remove();
 
+  // создаём/находим внутренний panel и переносим туда run-body
+  let inner = document.getElementById('sheetPanel');
+  if (!inner) {
+    inner = document.createElement('div');
+    inner.id = 'sheetPanel';
+    inner.className = 'panel hw-panel sheet-panel';
+    outerPanel.insertBefore(inner, runBody);
+  }
+  if (runBody.parentElement !== inner) inner.appendChild(runBody);
+
   runBody.innerHTML = `
-    <div class="list-meta" id="sessionMeta"></div>
+    <div class="list-meta" id="sessionMeta">
+      <div class="list-meta-left" id="sessionMetaLeft"></div>
+      <div class="list-meta-right" id="sessionMetaRight"></div>
+    </div>
     <div class="task-list" id="taskList"></div>
     <div class="hw-bottom" id="hwBottom">
       <button id="finish" type="button">Завершить</button>
     </div>
   `;
 
+  // таймер — справа на строке sessionMeta
+  const metaRight = document.getElementById('sessionMetaRight');
+  if (metaRight && headerTimer) metaRight.appendChild(headerTimer);
+
   if (smartPanel) runBody.appendChild(smartPanel);
 }
 
 function renderSheetList() {
-  const metaEl = $('#sessionMeta');
-  if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
+  const metaLeft = $('#sessionMetaLeft');
+  if (metaLeft) metaLeft.textContent = `Всего задач: ${SESSION.questions.length}`;
 
   const listEl = $('#taskList');
   if (!listEl) return;
@@ -1041,20 +1036,32 @@ function renderSheetList() {
     const stem = document.createElement('div');
     stem.className = 'task-stem';
     setStem(stem, q.stem || '');
-    card.appendChild(stem);    const fig = q.figure;
-    const figSrc = asset((fig && typeof fig === 'object') ? fig.img : fig);
-    if (typeof figSrc === 'string' && figSrc) {
+    card.appendChild(stem);
+
+    if (q.figure) {
       const figWrap = document.createElement('div');
       figWrap.className = 'task-fig';
 
       const img = document.createElement('img');
-      img.alt = (fig && typeof fig === 'object' && fig.alt) ? String(fig.alt) : 'figure';
+
+      let figSrc = null;
+      let figAlt = 'figure';
+      if (typeof q.figure === 'string') {
+        figSrc = q.figure;
+      } else if (q.figure && typeof q.figure === 'object') {
+        figSrc = q.figure.img || q.figure.src || null;
+        figAlt = q.figure.alt || figAlt;
+      }
+
+      img.alt = figAlt;
       img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
-      img.src = figSrc;
+      if (figSrc) img.src = asset(figSrc);
 
-      figWrap.appendChild(img);
-      card.appendChild(figWrap);
+      if (figSrc) {
+        figWrap.appendChild(img);
+        card.appendChild(figWrap);
+      }
     }
 
     const ansRow = document.createElement('div');
@@ -1578,11 +1585,6 @@ function compareId(a, b) {
 
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
-  // иногда figure приходит как объект { img, alt }
-  if (p && typeof p === 'object') {
-    if (typeof p.img === 'string') p = p.img;
-    else return '';
-  }
   return (typeof p === 'string' && p.startsWith('content/'))
     ? '../' + p
     : p;

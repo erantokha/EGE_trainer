@@ -813,20 +813,28 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
   margin:4px 0 8px;
   font-size:13px;
   color:var(--text-dim);
-}
 
-
-/* --- trainer: режим листа (как ДЗ) — внутренний контейнер --- */
-.sheet-panel{ margin-top:14px; }
-
-/* строка метаданных (слева всего задач, справа таймер) */
-.list-meta.list-meta-row{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:12px;
 }
-.list-meta.list-meta-row .timer{ margin-left:0; }
+
+.list-meta-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+}
+
+.list-meta-right .timer{
+  margin-left:0;
+  font-variant-numeric:tabular-nums;
+}
+
+/* внутренний контейнер как в ДЗ */
+.sheet-panel{
+  margin-top:14px;
+}
 /* общий вариант — на всех страницах с раннером */
 #runner{
   padding-bottom:40px;
