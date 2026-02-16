@@ -815,6 +815,18 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
   color:var(--text-dim);
 }
 
+
+/* --- trainer: режим листа (как ДЗ) — внутренний контейнер --- */
+.sheet-panel{ margin-top:14px; }
+
+/* строка метаданных (слева всего задач, справа таймер) */
+.list-meta.list-meta-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.list-meta.list-meta-row .timer{ margin-left:0; }
 /* общий вариант — на всех страницах с раннером */
 #runner{
   padding-bottom:40px;
