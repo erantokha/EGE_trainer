@@ -2,11 +2,11 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-02-16-8';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-8';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-8';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-8';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-8';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -290,9 +290,25 @@ function buildQuestion(manifest, type, proto) {
 
   const figure = (proto && proto.figure) || (type && type.figure) || null;
 
+  // Текст правильного ответа для отчёта (в манифестах обычно лежит в proto.answer.text).
+  // Ранее correct_text заполнялся только в фолбэке "без answer_spec", из-за чего в отчёте мог быть пустым.
+  const correctText =
+    (answerSpec && answerSpec.correct_text != null) ? String(answerSpec.correct_text) :
+    (valSource && typeof valSource === 'object' && valSource.text != null) ? String(valSource.text) :
+    (answerSpec && answerSpec.text != null) ? String(answerSpec.text) :
+    (valSource && typeof valSource === 'object' && valSource.value != null) ? String(valSource.value) :
+    (answerSpec && answerSpec.value != null) ? String(answerSpec.value) :
+    (typeof valSource === 'string') ? valSource :
+    '';
+
+  if (correctText && !answerSpec.correct_text) {
+    answerSpec.correct_text = correctText;
+  }
+
   return {
     id: proto && proto.id ? proto.id : '',
     question_id: proto && proto.id ? proto.id : '',
+    correct_text: correctText,
     topic_id: manifest.topic,
     title,
     type_id: type && type.id ? type.id : '',
@@ -458,25 +474,64 @@ function checkFree(spec, raw) {
   const chosen_text = String(raw ?? '').trim();
   const norm = normalize(chosen_text, spec.normalize || []);
 
+  function bestCorrectText() {
+    const c = spec && spec.correct_text != null ? String(spec.correct_text).trim() : '';
+    if (c) return c;
+
+    const t = spec && spec.text != null ? String(spec.text).trim() : '';
+    if (t) return t;
+
+    if (spec && spec.value != null) {
+      const v = String(spec.value).trim();
+      if (v) return v;
+    }
+
+    const a0 =
+      spec && spec.accept && spec.accept[0] && spec.accept[0].exact != null
+        ? String(spec.accept[0].exact).trim()
+        : '';
+    if (a0) return a0;
+
+    return '';
+  }
+
   if (spec.type === 'string') {
     const ok = matchText(norm, spec);
     return {
       correct: ok,
       chosen_text,
       normalized_text: norm,
-      correct_text: spec.correct_text || (spec.accept && spec.accept[0] && spec.accept[0].exact) || '',
+      correct_text: bestCorrectText(),
     };
   }
 
   // number
   const x = parseNumber(norm);
-  const v = (typeof spec.value === 'number') ? spec.value : Number(String(spec.correct_text || '').replace(',', '.'));
-  const ok = compareNumber(x, v, spec.tolerance);
+
+  let v = null;
+  if (typeof spec.value === 'number') {
+    v = spec.value;
+  } else if (spec.value != null) {
+    const n = Number(String(spec.value).replace(',', '.'));
+    if (Number.isFinite(n)) v = n;
+  }
+
+  if (v == null) {
+    const cand =
+      spec.correct_text != null ? spec.correct_text :
+      (spec.text != null ? spec.text : '');
+    const n = Number(String(cand).replace(',', '.'));
+    if (Number.isFinite(n)) v = n;
+  }
+
+  const ok = Number.isFinite(v) ? compareNumber(x, v, spec.tolerance) : false;
+
+  const ct = bestCorrectText() || (Number.isFinite(v) ? String(v) : '');
   return {
     correct: ok,
     chosen_text,
     normalized_text: norm,
-    correct_text: spec.correct_text || (Number.isFinite(v) ? String(v) : ''),
+    correct_text: ct,
   };
 }
 
@@ -840,7 +895,7 @@ async function finishAnalog() {
   q.correct = !!check.correct;
   q.chosen_text = check.chosen_text;
   q.normalized_text = check.normalized_text;
-  q.correct_text = check.correct_text;
+  q.correct_text = (check.correct_text && String(check.correct_text).trim()) ? check.correct_text : (q.correct_text || '');
   q.time_ms = duration_ms;
 
   const total = 1;
