@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-10';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-10';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-13-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-13-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-16-10';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-13-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-16-10';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-10';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-10';
+import { withBuild } from '../app/build.js?v=2026-02-13-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-13-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-13-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-13-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -132,17 +132,18 @@ let REVIEW_ONLY_WRONG = false;
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
-  // кнопка «Новая сессия» – возвращаемся к выбору задач
-  $('#restart')?.addEventListener('click', () => {
+
+  // ссылка «Назад» в отчете (для умной тренировки ведем в статистику)
+  const backLink = $('#backLink');
+  if (backLink) {
     let smart = false;
     try {
       const raw = sessionStorage.getItem('tasks_selection_v1');
       smart = !!JSON.parse(raw || '{}')?.smart;
     } catch (_) {}
-    sessionStorage.removeItem('tasks_selection_v1');
-    try { clearSmartMode(); } catch (_) {}
-    location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
-  });
+    backLink.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
+  }
+
 
   const toggleWrongBtn = $('#toggleWrong');
   if (toggleWrongBtn) {
@@ -152,6 +153,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderReviewCards();
     });
   }
+
+  // Видео-решения: обработчик один раз (подходит для динамически добавленных кнопок)
+  wireVideoSolutionModal(document);
 
   // Прячем интерфейс тренажёра и показываем оверлей загрузки,
   // чтобы не было «мигающего» 1/1 при большом объёме задач.
@@ -1243,6 +1247,8 @@ function updateWrongButtonLabel() {
 function updateWrongButtonState() {
   const btn = document.getElementById('toggleWrong');
   if (!btn) return;
+  const wrongCount = questions.filter(q => q && q.state === 'done' && !q.correct).length;
+  btn.textContent = `Неверные (${wrongCount})`;
   btn.classList.toggle('active', !!REVIEW_ONLY_WRONG);
 }
 
@@ -1256,16 +1262,27 @@ async function finishSession() {
   // В режиме "лист" у нас нет переключения по вопросам: считаем только общее время
   SESSION.total_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
 
-  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный"
+  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был «Правильный»
   for (const q of SESSION.questions) {
-    const raw = q.chosen_text ?? '';
+    const raw = (q.chosen_text ?? '').toString();
     const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer || {}, raw);
-    q.correct = correct;
-    q.chosen_text = chosen_text;
-    q.normalized_text = normalized_text;
-    q.correct_text = correct_text;
+
+    q.correct = !!correct;
+
+    const chosenSafe = (chosen_text && String(chosen_text).trim()) ? String(chosen_text) : raw;
+    q.chosen_text = chosenSafe;
+
+    q.normalized_text = normalized_text || '';
+
+    const corrSafe =
+      (correct_text && String(correct_text).trim())
+        ? String(correct_text)
+        : (q.correct_text || (q.answer && q.answer.text) || '');
+    q.correct_text = corrSafe;
+
     q.time_ms = q.time_ms || 0;
   }
+
 
   const total = SESSION.questions.length;
   const correct = SESSION.questions.reduce(
@@ -1334,18 +1351,29 @@ async function finishSession() {
     `<div>Верно: ${correct}</div>` +
     `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
     `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
-    `<div>Среднее время на задачу: ${formatHms(avg_ms)}</div>`;
+    `<div>Среднее на задачу: ${formatHms(avg_ms)}</div>`;
 
   REVIEW_ONLY_WRONG = false;
   updateWrongButtonLabel();
   updateWrongButtonState();
   renderReviewCards();
 
-  $('#exportCsv').onclick = (e) => {
-    e.preventDefault();
-    const csv = toCsv(SESSION.questions);
-    download('tasks_session.csv', csv);
-  };
+
+  const exportBtn = document.getElementById('exportCsv');
+  if (exportBtn) {
+    exportBtn.onclick = (e) => {
+      e.preventDefault();
+      const csv = toCsv(SESSION.questions);
+      download('tasks_session.csv', csv);
+    };
+  }
+
+  const saveStatus = document.getElementById('saveStatus');
+  if (saveStatus) {
+    saveStatus.style.display = 'block';
+    saveStatus.textContent = ok ? 'Результат сохранён в статистику.' : 'Не удалось сохранить результат в статистику.';
+  }
+
 
   if (!ok) {
     console.warn('Supabase insert error', error);
@@ -1363,87 +1391,121 @@ async function finishSession() {
 
 
 
-function renderReviewCards() {
-  const host = document.getElementById('reviewList');
-  if (!host) return;
-  host.innerHTML = '';
-
-  const questions = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
-  for (let idx = 0; idx < questions.length; idx++) {
-    const q = questions[idx];
-    if (REVIEW_ONLY_WRONG && q && q.correct) continue;
-    const card = document.createElement('div');
-    card.className = 'task-card q-card';
-
-    const head = document.createElement('div');
-    head.className = 'hw-review-head';
-
-    const num = document.createElement('div');
-    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
-    num.textContent = String(idx + 1);
-
-    head.appendChild(num);
-    card.appendChild(head);
-
-    const stem = document.createElement('div');
-    stem.className = 'task-stem';
-    setStem(stem, q.stem || '');
-    card.appendChild(stem);
-
-    if (q.figure && q.figure.img) {
-      const figWrap = document.createElement('div');
-      figWrap.className = 'task-fig';
-      const img = document.createElement('img');
-      img.src = asset(q.figure.img);
-      img.alt = q.figure.alt || '';
-      figWrap.appendChild(img);
-      card.appendChild(figWrap);
-    }
-
-    const ans = document.createElement('div');
-    ans.className = 'hw-review-answers';
-    const protoId = String(q.question_id || q.id || '').trim();
-    ans.innerHTML =
-      `<div class="answer-row">` +
-      `<div>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></div>` +
-      `<span class="video-solution-slot" data-video-proto="${esc(protoId)}">Видео скоро будет</span>` +
-      `</div>` +
-      `<div>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
-    card.appendChild(ans);
-
-    host.appendChild(card);
-  }
-
-  // Видео-решения (Rutube): подставляем ссылки по prototype_id
+function startAnalogFromQuestion(q) {
   try {
-    void hydrateVideoLinks(host, { mode: 'modal', missingText: 'Видео скоро будет' });
-    wireVideoSolutionModal(host);
+    if (!q || !q.topic_id || !q.question_id) return;
+    const req = {
+      v: 1,
+      topic_id: q.topic_id,
+      base_question_id: q.question_id,
+      return_url: location.href,
+      seed: ((Date.now() ^ Math.floor(Math.random() * 1e9)) | 0),
+      ts: Date.now()
+    };
+    sessionStorage.setItem('analog_request_v1', JSON.stringify(req));
+    location.href = './analog.html';
   } catch (e) {
-    console.warn('hydrateVideoLinks failed', e);
+    console.warn('analog open failed', e);
+    alert('Не удалось открыть аналог. Попробуйте обновить страницу.');
   }
+}
 
-  if (window.MathJax) {
-    try {
-      if (window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([host]).catch(err => console.error(err));
-      } else if (window.MathJax.typeset) {
-        window.MathJax.typeset([host]);
-      }
-    } catch (e) {
-      console.error('MathJax error', e);
+function renderReviewCards() {
+  const list = document.getElementById('reviewList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const onlyWrong = !!REVIEW_ONLY_WRONG;
+  const items = SESSION.questions
+    .filter(q => q && q.state === 'done')
+    .filter(q => !onlyWrong || !q.correct);
+
+  items.forEach((q, idx) => {
+    const card = document.createElement('div');
+    card.className = 'task-card';
+
+    const badge = document.createElement('div');
+    badge.className = 'num-badge' + (q.correct ? '' : ' wrong');
+    badge.textContent = String(idx + 1);
+
+    const main = document.createElement('div');
+    main.className = 'task-main';
+
+    const stemEl = document.createElement('div');
+    stemEl.className = 'task-stem';
+    stemEl.innerHTML = q.stem_html || '';
+
+    // фигура (если есть)
+    if (q.figure && q.figure.kind) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'q-figure';
+      figWrap.appendChild(createFigure(q.figure));
+      stemEl.appendChild(figWrap);
     }
+
+    const answers = document.createElement('div');
+    answers.className = 'hw-review-answers';
+
+    const chosen = (q.chosen_text && String(q.chosen_text).trim()) ? String(q.chosen_text).trim() : '—';
+    const correct = (q.correct_text && String(q.correct_text).trim()) ? String(q.correct_text).trim() : '—';
+
+    const line1 = document.createElement('div');
+    line1.className = 'hw-ans-line';
+
+    const left1 = document.createElement('span');
+    left1.textContent = `Ваш ответ: ${chosen}`;
+
+    const actions = document.createElement('span');
+    actions.className = 'hw-actions';
+
+    const videoSlot = document.createElement('span');
+    videoSlot.className = 'video-solution-slot';
+    videoSlot.dataset.videoProto = q.question_id;
+
+    const analogBtn = document.createElement('button');
+    analogBtn.type = 'button';
+    analogBtn.className = 'analog-btn';
+    analogBtn.textContent = 'Решить аналог';
+    analogBtn.addEventListener('click', () => startAnalogFromQuestion(q));
+
+    actions.appendChild(videoSlot);
+    actions.appendChild(analogBtn);
+
+    line1.appendChild(left1);
+    line1.appendChild(actions);
+
+    const line2 = document.createElement('div');
+    line2.className = 'hw-ans-line';
+    const left2 = document.createElement('span');
+    left2.textContent = `Правильный ответ: ${correct}`;
+    line2.appendChild(left2);
+
+    answers.appendChild(line1);
+    answers.appendChild(line2);
+
+    main.appendChild(stemEl);
+    main.appendChild(answers);
+
+    card.appendChild(badge);
+    card.appendChild(main);
+
+    list.appendChild(card);
+  });
+
+  // Подключаем видео-решения
+  const mj = window.MathJax;
+  if (mj && typeof mj.typesetPromise === 'function') {
+    mj.typesetPromise([list]).catch(() => {});
   }
+
+  const summaryEl = document.getElementById('summary') || document;
+  hydrateVideoLinks(summaryEl, {
+    getVideoUrl: (protoId) => getVideoSolutionUrl(protoId),
+    missingText: 'Видео скоро будет'
+  });
 }
 
-// ---------- утилиты ----------
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-  })[m]);
-}
+
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
