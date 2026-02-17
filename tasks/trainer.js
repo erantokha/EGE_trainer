@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-6';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-6';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-6';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-17-6';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-6';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-6';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-6';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -907,6 +907,19 @@ async function startTestSession(arr) {
   $('#runner')?.classList.remove('hidden');
   $('#summary')?.classList.add('hidden');
 
+// На случай возврата со страницы отчёта (bfcache/refresh): показываем основную часть
+const runBody = document.querySelector('#runner .run-body');
+if (runBody) runBody.classList.remove('hidden');
+const sheetPanel = document.getElementById('sheetPanel');
+if (sheetPanel) sheetPanel.classList.remove('hidden');
+const smartPanel = document.getElementById('smartPanel');
+if (smartPanel) smartPanel.classList.remove('hidden');
+
+const header = document.getElementById('appHeader');
+header?.querySelector('.progress')?.classList.remove('hidden');
+header?.querySelector('.timer')?.classList.remove('hidden');
+header?.querySelector('.theme-toggle')?.classList.remove('hidden');
+
   $('#topicTitle').textContent = 'Подборка задач';
   $('#total').textContent = SESSION.questions.length;
   $('#idx').textContent = 1;
@@ -1307,31 +1320,42 @@ function formatHms(ms) {
   return parts.join(' ');
 }
 
-function startAnalog(topicId, baseQuestionId) {
-  const t = String(topicId || '').trim();
-  const b = String(baseQuestionId || '').trim();
-  if (!t || !b) return;
-  try {
-    const req = { topic_id: t, base_question_id: b, return_url: location.href };
-    sessionStorage.setItem('analog_request_v1', JSON.stringify(req));
-    location.href = './analog.html';
-  } catch (e) {
-    console.warn('Failed to start analog', e);
-  }
-}
+
+
+
+const ANALOG_REQUEST_KEY = 'analog_request_v1';
 
 function wireAnalogButtons(host) {
-  if (!host) return;
-  if (host.dataset && host.dataset.analogWired === '1') return;
-  if (host.dataset) host.dataset.analogWired = '1';
+  if (!host || host.dataset.analogWired === '1') return;
+  host.dataset.analogWired = '1';
+
   host.addEventListener('click', (e) => {
     const btn = e.target && e.target.closest ? e.target.closest('.analog-btn') : null;
-    if (!btn) return;
-    e.preventDefault();
-    startAnalog(btn.getAttribute('data-analog-topic'), btn.getAttribute('data-analog-base'));
+    if (!btn || btn.disabled) return;
+
+    const topic_id = String(btn.getAttribute('data-topic-id') || '').trim();
+    const base_question_id = String(btn.getAttribute('data-base-proto') || '').trim();
+    if (!topic_id || !base_question_id) return;
+
+    const req = {
+      v: 1,
+      topic_id,
+      base_question_id,
+      return_url: location.href,
+      ts: Date.now(),
+      seed: Math.floor(Math.random() * 1e9),
+    };
+
+    try { sessionStorage.setItem(ANALOG_REQUEST_KEY, JSON.stringify(req)); } catch (_) {}
+
+    // /tasks/trainer.html -> /tasks/analog.html
+    try {
+      location.href = new URL('./analog.html', location.href).toString();
+    } catch (_) {
+      location.href = './analog.html';
+    }
   });
 }
-
 
 function countWrongQuestions() {
   const qs = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions : [];
@@ -1432,55 +1456,45 @@ async function finishSession() {
     error = e;
   }
 
-  $('#runner').classList.add('hidden');
-  $('#summary').classList.remove('hidden');
 
-  $('#stats').innerHTML =
-    `<div>Всего: ${total}</div>` +
-    `<div>Верно: ${correct}</div>` +
-    `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-    `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
-    `<div>Среднее время на задачу: ${formatHms(avg_ms)}</div>`;
+// Переключаемся на отчёт, не пряча шапку (как в ДЗ)
+const runBody = document.querySelector('#runner .run-body');
+const sheetPanel = document.getElementById('sheetPanel');
+if (sheetPanel) sheetPanel.classList.add('hidden');
+if (runBody) runBody.classList.add('hidden');
 
-  
-  REVIEW_ONLY_WRONG = false;
-  updateWrongButtonLabel();
-  updateWrongButtonState();
+const smartPanel = document.getElementById('smartPanel');
+// В листовом режиме smartPanel переезжает внутрь runBody — он уже скрыт.
+if (smartPanel && !sheetPanel) smartPanel.classList.add('hidden');
+
+const header = document.getElementById('appHeader');
+header?.querySelector('.progress')?.classList.add('hidden');
+header?.querySelector('.timer')?.classList.add('hidden');
+header?.querySelector('.theme-toggle')?.classList.add('hidden');
+
+$('#summary')?.classList.remove('hidden');
+
+$('#stats').innerHTML =
+  `<div>Всего: ${total}</div>` +
+  `<div>Верно: ${correct}</div>` +
+  `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+  `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
+  `<div>Среднее на задачу: ${formatHms(avg_ms)}</div>`;
+
+REVIEW_ONLY_WRONG = false;
+updateWrongButtonLabel();
+updateWrongButtonState();
 renderReviewCards();
 
-  $('#exportCsv').onclick = (e) => {
-    e.preventDefault();
-    const csv = toCsv(SESSION.questions);
-    download('tasks_session.csv', csv);
-  };
+$('#exportCsv').onclick = (e) => {
+  e.preventDefault();
+  const csv = toCsv(SESSION.questions);
+  download('tasks_session.csv', csv);
+};
 
-  if (!ok) {
-    console.warn('Supabase insert error', error);
-    const summaryPanel = $('#summary .panel') || $('#summary');
-    if (summaryPanel) {
-      const warn = document.createElement('div');
-      warn.style.color = '#ff6b6b';
-      warn.style.marginTop = '8px';
-      warn.textContent =
-        'Внимание: запись в Supabase не выполнена. Проверьте RLS и ключи в app/config.js.';
-      summaryPanel.appendChild(warn);
-    }
-  }
-
-  if (ok) {
-    const summaryPanel = $('#summary .panel') || $('#summary');
-    if (summaryPanel) {
-      let note = summaryPanel.querySelector('.save-note');
-      if (!note) {
-        note = document.createElement('div');
-        note.className = 'save-note';
-        note.style.marginTop = '8px';
-        note.style.color = '#6c757d';
-        summaryPanel.appendChild(note);
-      }
-      note.textContent = 'Результат сохранён в статистику.';
-    }
-  }
+if (!ok) {
+  console.warn('Supabase insert error', error);
+}
 }
 
 
@@ -1496,7 +1510,7 @@ function renderReviewCards() {
     const q = questions[idx];
     if (REVIEW_ONLY_WRONG && q && q.correct) continue;
     const card = document.createElement('div');
-    card.className = 'task-card q-card';
+    card.className = 'task-card hw-review-item';
 
     const head = document.createElement('div');
     head.className = 'hw-review-head';
@@ -1523,18 +1537,26 @@ function renderReviewCards() {
       card.appendChild(figWrap);
     }
 
-    const ans = document.createElement('div');
-    ans.className = 'hw-review-answers';
-    const protoId = String(q.question_id || q.id || '').trim();
-    const analogTopicId = String(q.topic_id || '').trim();
-    ans.innerHTML =
-      `<div class="answer-row">` +
-      `<div>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></div>` +
-      `<span class="video-solution-slot" data-video-proto="${esc(protoId)}">Видео скоро будет</span>` +
-      (analogTopicId ? `<button type="button" class="analog-btn" data-analog-topic="${esc(analogTopicId)}" data-analog-base="${esc(protoId)}">Решить аналог</button>` : ``) +
-      `</div>` +
-      `<div>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
-    card.appendChild(ans);
+const ans = document.createElement('div');
+ans.className = 'hw-review-answers';
+
+const topicId = String(q.topic_id || '').trim();
+const protoId = String(q.question_id || q.id || '').trim();
+const analogBtnHtml = (topicId && protoId)
+  ? `<button type="button" class="analog-btn" data-topic-id="${esc(topicId)}" data-base-proto="${esc(protoId)}">Решить аналог</button>`
+  : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`;
+
+ans.innerHTML =
+  `<div class="hw-ans-line">` +
+  `<span>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></span>` +
+  `<span class="hw-actions">` +
+  `<span class="video-solution-slot" data-video-proto="${esc(protoId)}"></span>` +
+  analogBtnHtml +
+  `</span>` +
+  `</div>` +
+  `<div class="hw-ans-line">Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
+card.appendChild(ans);
+
 
     host.appendChild(card);
   }
