@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-18-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-18-2';
-import { CONFIG } from '../app/config.js?v=2026-02-18-2';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-17-4';
+import { CONFIG } from '../app/config.js?v=2026-02-17-4';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -145,8 +145,10 @@ const LAST10_FORCE_MIN_INTERVAL_MS = 5000;
 let _LAST10_BOOT_RETRIES_LEFT = 0;
 let _LAST10_BOOT_DEADLINE_AT = 0;
 let _LAST10_BOOT_RETRY_T = 0;
-const LAST10_BOOT_RETRY_MAX = 3;
-const LAST10_BOOT_DEADLINE_MS = 6000;
+const LAST10_BOOT_RETRY_MAX = 5;
+const LAST10_BOOT_DEADLINE_MS = 12000;
+const LAST10_TOKEN_MIN_TTL_SEC = 90;
+const LAST10_RPC_TIMEOUT_MS = 5000;
 
 function pct(total, correct) {
   const t = Number(total || 0) || 0;
@@ -416,21 +418,46 @@ function clearStudentLast10UI() {
   updateScoreForecast(null, { signedIn: false });
 }
 
-async function fetchStudentDashboardSelf(accessToken) {
+async function fetchStudentDashboardSelf(accessToken, opts = {}) {
   const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
   if (!base) throw new Error('Supabase URL is empty');
 
   const url = `${base}/rest/v1/rpc/student_dashboard_self_v2`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: String(CONFIG?.supabase?.anonKey || ''),
-      Authorization: `Bearer ${accessToken}`,
-    },
-    // параметры должны совпадать с RPC student_dashboard_self_v2(p_days int, p_source text)
-    body: JSON.stringify({ p_days: 30, p_source: 'all' }),
-  });
+
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || LAST10_RPC_TIMEOUT_MS) || LAST10_RPC_TIMEOUT_MS);
+
+  let controller = null;
+  let t = 0;
+
+  if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
+    controller = new AbortController();
+    t = setTimeout(() => {
+      try { controller.abort(); } catch (_) {}
+    }, timeoutMs);
+  }
+
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: String(CONFIG?.supabase?.anonKey || ''),
+        Authorization: `Bearer ${accessToken}`,
+      },
+      // параметры должны совпадать с RPC student_dashboard_self_v2(p_days int, p_source text)
+      body: JSON.stringify({ p_days: 30, p_source: 'all' }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (e) {
+    const name = String(e?.name || '');
+    if (name === 'AbortError') {
+      throw new Error('student_dashboard_self failed: timeout');
+    }
+    throw e;
+  } finally {
+    if (t) clearTimeout(t);
+  }
 
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -439,7 +466,6 @@ async function fetchStudentDashboardSelf(accessToken) {
 
   return await res.json();
 }
-
 function supabaseRefFromUrl(url) {
   const u = String(url || '')
     .trim();
@@ -458,6 +484,25 @@ function readSessionFallback() {
     if (s && s.access_token && s.user && s.user.id) return s;
   } catch (_) {}
   return null;
+}
+
+
+function sessionTtlSec(session, nowMs) {
+  const now = Number(nowMs || Date.now()) || Date.now();
+  const expAt = Number(session?.expires_at);
+  if (isFinite(expAt) && expAt > 0) {
+    return Math.floor(expAt - (now / 1000));
+  }
+  // Без expires_at оценка TTL ненадёжна (expires_in не привязан ко времени создания).
+  return NaN;
+}
+
+function isFallbackSessionUsable(session, minTtlSec) {
+  if (!session || !session.access_token || !session.user?.id) return false;
+  const ttl = sessionTtlSec(session);
+  const min = Math.max(0, Number(minTtlSec || 0) || 0);
+  if (!isFinite(ttl)) return false; // консервативно: если не можем оценить — не используем
+  return ttl >= min;
 }
 
 
@@ -483,9 +528,15 @@ async function refreshStudentLast10(opts = {}) {
     }
   }
 
+
+  const bootDeadline = Number(_LAST10_BOOT_DEADLINE_AT || 0) || 0;
+  const isBootLike = isBoot || (bootDeadline && now < bootDeadline);
+
   const scheduleBootRetry = () => {
-    if (!isBoot) return false;
-    if (now >= (_LAST10_BOOT_DEADLINE_AT || 0)) return false;
+    if (!isBootLike) return false;
+    const tNow = Date.now();
+    const deadline = Number(_LAST10_BOOT_DEADLINE_AT || 0) || 0;
+    if (!deadline || tNow >= deadline) return false;
     if ((_LAST10_BOOT_RETRIES_LEFT || 0) <= 0) return false;
 
     _LAST10_BOOT_RETRIES_LEFT -= 1;
@@ -530,7 +581,7 @@ async function refreshStudentLast10(opts = {}) {
   } else {
     // В Telegram WebView localStorage может быть пустым или "появляться" не сразу.
     // На boot держим скелетон и попробуем дождаться восстановления сессии.
-    if (isBoot) {
+    if (isBootLike) {
       setHomeStatsLoading(true);
     } else {
       clearStudentLast10UI();
@@ -540,7 +591,7 @@ async function refreshStudentLast10(opts = {}) {
 
   // Throttle forced refetches (tab flicker/back-forward cache)
   // Для boot-ретраев throttle отключаем, чтобы успеть восстановиться в WebView.
-  if (force && !bypassThrottle && !isBoot) {
+  if (force && !bypassThrottle && !isBootLike) {
     const dt = now - (_LAST10_LAST_FORCE_AT || 0);
     if (_LAST10_LAST_FORCE_AT && dt < LAST10_FORCE_MIN_INTERVAL_MS) {
       return;
@@ -548,14 +599,15 @@ async function refreshStudentLast10(opts = {}) {
     _LAST10_LAST_FORCE_AT = now;
   }
 
-  // Достаём токен. На boot даём больше времени — в WebView (Telegram) восстановление сессии может быть медленным.
+  // Достаём токен. В boot-окне даём больше времени — в WebView (Telegram) восстановление сессии может быть медленным.
   let session = null;
   try {
-    session = await getSession({ timeoutMs: isBoot ? 1600 : 350, skewSec: 30 });
+    session = await getSession({ timeoutMs: isBootLike ? 2200 : 350, skewSec: 30 });
   } catch (_) {
     session = null;
   }
-  if (!session) session = fb;
+  const fbUsable = isFallbackSessionUsable(fb, LAST10_TOKEN_MIN_TTL_SEC);
+  if (!session && fbUsable) session = fb;
 
   const uid = session?.user?.id || uidFast;
   const token = String(session?.access_token || '').trim();
@@ -574,7 +626,7 @@ async function refreshStudentLast10(opts = {}) {
   _LAST10_KNOWN_UID = uid;
 
   try {
-    const dash = await fetchStudentDashboardSelf(token);
+    const dash = await fetchStudentDashboardSelf(token, { timeoutMs: LAST10_RPC_TIMEOUT_MS });
     if (seq !== _STATS_SEQ) return;
     if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
 
