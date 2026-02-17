@@ -1598,6 +1598,22 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
     flex-wrap:wrap;
     margin-top:6px;
   }
+
+  /* то же самое для отчёта после тренировки */
+  #summary .hw-review-answers .hw-ans-line{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  #summary .hw-review-answers .hw-ans-line > :first-child{
+    flex:1 1 100%;
+  }
+  #summary .hw-review-answers .hw-actions{
+    width:100%;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top:6px;
+  }
+
 }
 
 
