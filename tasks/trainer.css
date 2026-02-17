@@ -1580,6 +1580,27 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 /* переопределяем старое margin-left:auto, чтобы слот не "растягивал" контейнер */
 .hw-actions .video-solution-slot{ margin-left:0 !important; }
 
+/* Мобильная версия: в отчетах (ДЗ) кнопки под строкой "Правильный ответ" */
+@media (max-width: 520px){
+  /* переносим действия на строку ниже, не трогая десктоп */
+  #hw .hw-review-answers .hw-ans-line{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  /* текст занимает всю ширину, кнопки уходят на новую строку */
+  #hw .hw-review-answers .hw-ans-line > :first-child{
+    flex:1 1 100%;
+  }
+  /* кнопки на отдельной строке и по левому краю */
+  #hw .hw-review-answers .hw-actions{
+    width:100%;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    margin-top:6px;
+  }
+}
+
+
 /* Кнопка "Решить аналог" в итогах ДЗ */
 .analog-btn{
   border:none;
