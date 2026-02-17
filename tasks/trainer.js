@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-16-15';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-16-15';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-16-15';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-17-4';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
+import { withBuild } from '../app/build.js?v=2026-02-16-15';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-16-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-16-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-16-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -128,39 +128,6 @@ let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из ses
 let SESSION = null;
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
-let SELECTION_KEY = null; // сырой JSON selection (используем как ключ для восстановления сессии в режиме листа)
-
-function loadSavedSession() {
-  try {
-    const raw = sessionStorage.getItem('tasks_session_v1');
-    return raw ? JSON.parse(raw) : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function saveSessionQuestions(questions) {
-  try {
-    if (!SELECTION_KEY) return;
-    const refs = (questions || []).map(q => ({ topic_id: q.topic_id, question_id: q.question_id }));
-    sessionStorage.setItem('tasks_session_v1', JSON.stringify({ key: SELECTION_KEY, refs, created_at: Date.now() }));
-  } catch (_) {}
-}
-
-async function restoreSessionQuestions() {
-  try {
-    if (!SELECTION_KEY) return null;
-    const saved = loadSavedSession();
-    if (!saved || saved.key !== SELECTION_KEY) return null;
-    const refs = Array.isArray(saved.refs) ? saved.refs : [];
-    if (!refs.length) return null;
-    const restored = await buildQuestionsFromSmartRefs(refs);
-    return restored.length === refs.length ? restored : null;
-  } catch (_) {
-    return null;
-  }
-}
-
 let SMART = null;
 let SMART_ACTIVE = false;
 
@@ -176,7 +143,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       smart = !!JSON.parse(raw || '{}')?.smart;
     } catch (_) {}
     sessionStorage.removeItem('tasks_selection_v1');
-    sessionStorage.removeItem('tasks_session_v1');
     try { clearSmartMode(); } catch (_) {}
     location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
@@ -248,8 +214,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   CHOICE_TOPICS = sel.topics || {};
   CHOICE_SECTIONS = sel.sections || {};
 
-  SELECTION_KEY = rawSel;
-
   // флаг «перемешать задачи» (по умолчанию false, если поле отсутствует)
   SHUFFLE_TASKS = !!sel.shuffle;
 
@@ -270,16 +234,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       questions = await getOrCreateSmartQuestions();
       perfMark('pickSmart:done');
     } else {
-      // В режиме листа сохраняем список выбранных задач, чтобы refresh не менял набор.
-      const restored = await restoreSessionQuestions();
-      if (restored) {
-        questions = restored;
-      } else {
-        perfMark('pickPrototypes:start');
-        questions = await pickPrototypes();
-        perfMark('pickPrototypes:done');
-        saveSessionQuestions(questions);
-      }
+      perfMark('pickPrototypes:start');
+      questions = await pickPrototypes();
+      perfMark('pickPrototypes:done');
     }
 
     perfMark('startTestSession:start');
@@ -588,7 +545,6 @@ function renderSmartPanel() {
   btnReset.textContent = 'Сбросить';
   btnReset.addEventListener('click', () => {
     sessionStorage.removeItem('tasks_selection_v1');
-    sessionStorage.removeItem('tasks_session_v1');
     clearSmartMode();
     location.href = new URL('./stats.html', location.href).toString();
   });
@@ -969,55 +925,36 @@ function renderCurrent() {
 
 // ---------- Режим листа (как ДЗ): все задачи на одном экране ----------
 function mountSheetUI() {
-  const outerPanel = document.querySelector('#runner .panel');
-  const runBody = document.querySelector('#runner .run-body');
-  if (!outerPanel || !runBody) return;
+  // делаем panel визуально как на странице ДЗ
+  const panel = document.querySelector('#runner .panel');
+  if (panel) panel.classList.add('hw-panel');
 
-  // Внешний panel = шапка + оболочка. Внутренний panel = контент (как в ДЗ).
-  outerPanel.classList.remove('hw-panel');
-
-  // Прячем прогресс в шапке: счётчик показываем во втором контейнере.
+  // обновляем заголовок прогресса
   const prog = document.querySelector('#runner .progress');
-  if (prog) prog.style.display = 'none';
+  if (prog) prog.textContent = `Задач: ${SESSION.questions.length}`;
 
-  // Таймер переносим во второй контейнер.
-  const headerTimer = document.querySelector('#runner #appHeader .timer');
+  // перестраиваем тело раннера под список
+  const runBody = document.querySelector('#runner .run-body');
+  if (!runBody) return;
 
   // сохраняем smart panel (если был) и переносим вниз
   const smartPanel = document.getElementById('smartPanel');
   if (smartPanel) smartPanel.remove();
 
-  // создаём/находим внутренний panel и переносим туда run-body
-  let inner = document.getElementById('sheetPanel');
-  if (!inner) {
-    inner = document.createElement('div');
-    inner.id = 'sheetPanel';
-    inner.className = 'panel hw-panel sheet-panel';
-    outerPanel.insertBefore(inner, runBody);
-  }
-  if (runBody.parentElement !== inner) inner.appendChild(runBody);
-
   runBody.innerHTML = `
-    <div class="list-meta" id="sessionMeta">
-      <div class="list-meta-left" id="sessionMetaLeft"></div>
-      <div class="list-meta-right" id="sessionMetaRight"></div>
-    </div>
+    <div class="list-meta" id="sessionMeta"></div>
     <div class="task-list" id="taskList"></div>
     <div class="hw-bottom" id="hwBottom">
       <button id="finish" type="button">Завершить</button>
     </div>
   `;
 
-  // таймер — справа на строке sessionMeta
-  const metaRight = document.getElementById('sessionMetaRight');
-  if (metaRight && headerTimer) metaRight.appendChild(headerTimer);
-
   if (smartPanel) runBody.appendChild(smartPanel);
 }
 
 function renderSheetList() {
-  const metaLeft = $('#sessionMetaLeft');
-  if (metaLeft) metaLeft.textContent = `Всего задач: ${SESSION.questions.length}`;
+  const metaEl = $('#sessionMeta');
+  if (metaEl) metaEl.textContent = `Всего задач: ${SESSION.questions.length}`;
 
   const listEl = $('#taskList');
   if (!listEl) return;
@@ -1043,25 +980,13 @@ function renderSheetList() {
       figWrap.className = 'task-fig';
 
       const img = document.createElement('img');
-
-      let figSrc = null;
-      let figAlt = 'figure';
-      if (typeof q.figure === 'string') {
-        figSrc = q.figure;
-      } else if (q.figure && typeof q.figure === 'object') {
-        figSrc = q.figure.img || q.figure.src || null;
-        figAlt = q.figure.alt || figAlt;
-      }
-
-      img.alt = figAlt;
+      img.alt = 'figure';
       img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
-      if (figSrc) img.src = asset(figSrc);
+      img.src = asset(q.figure);
 
-      if (figSrc) {
-        figWrap.appendChild(img);
-        card.appendChild(figWrap);
-      }
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
     }
 
     const ansRow = document.createElement('div');
@@ -1534,7 +1459,24 @@ function renderReviewCards() {
       (analogTopicId ? `<button type="button" class="analog-btn" data-analog-topic="${esc(analogTopicId)}" data-analog-base="${esc(protoId)}">Решить аналог</button>` : ``) +
       `</div>` +
       `<div>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
-    card.appendChild(ans);
+    
+    // Mobile fix: move "Видео-решение" and "Решить аналог" under correct answer to avoid overlap
+    try{
+      if (window.matchMedia && window.matchMedia('(max-width: 520px)').matches){
+        const row = ans.querySelector('.answer-row');
+        const correctLine = row ? row.nextElementSibling : null;
+        const video = row ? row.querySelector('.video-solution-slot') : null;
+        const analog = row ? row.querySelector('.analog-btn') : null;
+        if (row && correctLine && (video || analog)){
+          const tools = document.createElement('div');
+          tools.className = 'hw-actions';
+          if (video) tools.appendChild(video);
+          if (analog) tools.appendChild(analog);
+          correctLine.after(tools);
+        }
+      }
+    }catch(_e){}
+card.appendChild(ans);
 
     host.appendChild(card);
   }
