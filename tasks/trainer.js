@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-18-1';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-1';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-18-1';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-18-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-1';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-1';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1549,12 +1549,14 @@ const analogBtnHtml = (topicId && protoId)
 ans.innerHTML =
   `<div class="hw-ans-line">` +
   `<span>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></span>` +
+  `</div>` +
+  `<div class="hw-ans-line">` +
+  `<span>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></span>` +
   `<span class="hw-actions">` +
   `<span class="video-solution-slot" data-video-proto="${esc(protoId)}"></span>` +
   analogBtnHtml +
   `</span>` +
-  `</div>` +
-  `<div class="hw-ans-line">Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></div>`;
+  `</div>`;
 card.appendChild(ans);
 
 

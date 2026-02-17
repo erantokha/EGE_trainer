@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { CONFIG } from '../app/config.js?v=2026-02-18-1';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-18-1';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-18-1';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-1';
+import { CONFIG } from '../app/config.js?v=2026-02-17-4';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-17-4';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-1';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1971,14 +1971,16 @@ function renderReviewCards() {
     ans.innerHTML =
       `<div class="hw-ans-line">` +
       `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
+      `</div>` +
+      `<div class="hw-ans-line">` +
+      `<span>Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></span>` +
       `<span class="hw-actions">` +
       `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
       `${(String(q.topic_id || '').trim() && protoId)
         ? `<button type="button" class="analog-btn" data-topic-id="${escHtml(String(q.topic_id || '').trim())}" data-base-proto="${escHtml(protoId)}">Решить аналог</button>`
         : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`}` +
       `</span>` +
-      `</div>` +
-      `<div class="hw-ans-line">Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></div>`;
+      `</div>`;
 
     card.appendChild(ans);
 
