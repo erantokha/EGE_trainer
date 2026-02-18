@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-18-6';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-6';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-18-6';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-18-6';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-6';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-6';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-6';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -161,6 +161,106 @@ async function restoreSessionQuestions() {
   }
 }
 
+
+const REPORT_STORAGE_KEY = 'tasks_report_v1';
+
+function loadSavedReport() {
+  try {
+    const raw = sessionStorage.getItem(REPORT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function clearSavedReport() {
+  try { sessionStorage.removeItem(REPORT_STORAGE_KEY); } catch (_) {}
+}
+
+function saveReportState() {
+  try {
+    if (!SELECTION_KEY || !SESSION || !Array.isArray(SESSION.questions) || !SESSION.questions.length) return;
+    const refs = SESSION.questions.map(q => ({ topic_id: q.topic_id ?? null, question_id: q.question_id ?? null }));
+    const answers = SESSION.questions.map(q => ({
+      topic_id: q.topic_id ?? null,
+      question_id: q.question_id ?? null,
+      chosen_text: q.chosen_text ?? '',
+      normalized_text: q.normalized_text ?? '',
+      correct: !!q.correct,
+      time_ms: Number.isFinite(q.time_ms) ? q.time_ms : 0,
+    }));
+    sessionStorage.setItem(
+      REPORT_STORAGE_KEY,
+      JSON.stringify({
+        key: SELECTION_KEY,
+        finished: true,
+        saved_at: Date.now(),
+        started_at: SESSION.started_at ?? null,
+        total_ms: SESSION.total_ms ?? 0,
+        refs,
+        answers,
+      }),
+    );
+  } catch (_) {}
+}
+
+function inferCorrectText(q) {
+  let correct_text = '';
+  if (q && q.answer) {
+    if (q.answer.text != null) correct_text = String(q.answer.text);
+    else if ('value' in q.answer) correct_text = String(q.answer.value);
+  }
+  return correct_text;
+}
+
+async function tryRestoreReport() {
+  try {
+    if (!SELECTION_KEY) return false;
+    const rep = loadSavedReport();
+    if (!rep || !rep.finished || rep.key !== SELECTION_KEY) return false;
+
+    const refs = Array.isArray(rep.refs) ? rep.refs : [];
+    if (!refs.length) return false;
+
+    const restored = await buildQuestionsFromSmartRefs(refs);
+    if (!restored || restored.length !== refs.length) return false;
+
+    const ansArr = Array.isArray(rep.answers) ? rep.answers : [];
+    const ansMap = new Map();
+    for (const a of ansArr) {
+      const k = `${a?.topic_id ?? ''}::${a?.question_id ?? ''}`;
+      ansMap.set(k, a);
+    }
+
+    for (const q of restored) {
+      const k = `${q?.topic_id ?? ''}::${q?.question_id ?? ''}`;
+      const a = ansMap.get(k);
+      if (!a) continue;
+      q.chosen_text = a.chosen_text ?? '';
+      q.normalized_text = a.normalized_text ?? '';
+      q.correct = !!a.correct;
+      q.time_ms = Number.isFinite(a.time_ms) ? a.time_ms : 0;
+      q.correct_text = inferCorrectText(q);
+    }
+
+    SESSION = {
+      questions: restored,
+      idx: 0,
+      started_at: Number.isFinite(rep.started_at) ? rep.started_at : Date.now(),
+      timerId: null,
+      total_ms: Number.isFinite(rep.total_ms) ? rep.total_ms : 0,
+      t0: null,
+    };
+
+    // показываем отчёт и НЕ запускаем тест заново
+    showReportFromSession();
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+
 let SMART = null;
 let SMART_ACTIVE = false;
 
@@ -177,6 +277,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (_) {}
     sessionStorage.removeItem('tasks_selection_v1');
     sessionStorage.removeItem('tasks_session_v1');
+    sessionStorage.removeItem('tasks_report_v1');
     try { clearSmartMode(); } catch (_) {}
     location.href = smart ? new URL('./stats.html', location.href).toString() : new URL('../', location.href).toString();
   });
@@ -263,6 +364,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     perfMark('loadCatalog:start');
     await loadCatalog();
     perfMark('loadCatalog:done');
+
+    // если страница обновлена на экране отчёта — восстанавливаем отчёт, не перезапуская тест
+    if (await tryRestoreReport()) return;
+
 
     let questions;
     if (SMART_ACTIVE) {
@@ -908,33 +1013,10 @@ async function startTestSession(arr) {
   $('#summary')?.classList.add('hidden');
 
 // На случай возврата со страницы отчёта (bfcache/refresh): показываем основную часть
-const runBody = document.querySelector('#runner .run-body');
-if (runBody) runBody.classList.remove('hidden');
-const sheetPanel = document.getElementById('sheetPanel');
-if (sheetPanel) sheetPanel.classList.remove('hidden');
-const smartPanel = document.getElementById('smartPanel');
-if (smartPanel) smartPanel.classList.remove('hidden');
+  // сохраняем состояние отчёта, чтобы F5 на экране итогов не запускал тест заново
+  saveReportState();
 
-const header = document.getElementById('appHeader');
-header?.querySelector('.progress')?.classList.remove('hidden');
-header?.querySelector('.timer')?.classList.remove('hidden');
-header?.querySelector('.theme-toggle')?.classList.remove('hidden');
-
-  $('#topicTitle').textContent = 'Подборка задач';
-  $('#total').textContent = SESSION.questions.length;
-  $('#idx').textContent = 1;
-
-  if (SHEET_MODE) {
-    // в режиме листа заменяем панель на список задач с полями ответов
-    mountSheetUI();
-    renderSheetList();
-    startTimer();
-    wireRunner();
-  } else {
-    renderCurrent();
-    startTimer();
-    wireRunner();
-  }
+  showReportFromSession();
 }
 
 function renderCurrent() {
@@ -1376,7 +1458,64 @@ function updateWrongButtonState() {
 }
 
 // ---------- завершение сессии ----------
-async function finishSession() {
+async 
+function showReportFromSession() {
+  const runnerEl = document.getElementById('runner');
+  runnerEl?.classList.remove('hidden');
+
+  const total = (SESSION && Array.isArray(SESSION.questions)) ? SESSION.questions.length : 0;
+  const correct = (SESSION && Array.isArray(SESSION.questions))
+    ? SESSION.questions.reduce((s, q) => s + (q && q.correct ? 1 : 0), 0)
+    : 0;
+  const avg_ms = Math.round((SESSION?.total_ms || 0) / Math.max(1, total));
+
+  const runBody = document.querySelector('#runner .run-body');
+  const sheetPanel = document.getElementById('sheetPanel');
+  if (sheetPanel) sheetPanel.classList.add('hidden');
+  if (runBody) runBody.classList.add('hidden');
+
+  const smartPanel = document.getElementById('smartPanel');
+  // В листовом режиме smartPanel переезжает внутрь runBody — он уже скрыт.
+  if (smartPanel && !sheetPanel) smartPanel.classList.add('hidden');
+
+  const header = document.getElementById('appHeader');
+  header?.querySelector('.progress')?.classList.add('hidden');
+  header?.querySelector('.timer')?.classList.add('hidden');
+  header?.querySelector('.theme-toggle')?.classList.add('hidden');
+
+  document.getElementById('summary')?.classList.remove('hidden');
+
+  const badgeClassByPct = (pct) => {
+    if (pct === null || pct === undefined || Number.isNaN(pct)) return 'gray';
+    if (pct >= 90) return 'green';
+    if (pct >= 70) return 'lime';
+    if (pct >= 50) return 'yellow';
+    return 'red';
+  };
+
+  const _pct = total > 0 ? Math.round((100 * correct) / total) : null;
+  const _scoreCls = badgeClassByPct(_pct);
+  const _pctText = (_pct === null) ? '—' : `${_pct}%`;
+
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.innerHTML =
+      `<div class="stat-compact stat-score ${_scoreCls}">${correct}/${total} ${_pctText}</div>` +
+      `<div class="stat-compact stat-time">Общее время: ${formatHms(SESSION?.total_ms || 0)}</div>` +
+      `<div class="stat-full">Всего: ${total}</div>` +
+      `<div class="stat-full">Верно: ${correct}</div>` +
+      `<div class="stat-full">Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+      `<div class="stat-full">Общее время: ${formatHms(SESSION?.total_ms || 0)}</div>` +
+      `<div class="stat-full">Среднее на задачу: ${formatHms(avg_ms)}</div>`;
+  }
+
+  REVIEW_ONLY_WRONG = false;
+  updateWrongButtonState();
+  renderReviewCards();
+}
+
+
+function finishSession() {
   stopTick();
   saveTimeForCurrent();
 
