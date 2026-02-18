@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-18-10';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-10';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-18-10';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-18-10';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-10';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-10';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -166,6 +166,200 @@ let SMART_ACTIVE = false;
 
 let REVIEW_ONLY_WRONG = false;
 
+// ---------- восстановление отчёта после refresh ----------
+const REPORT_VIEW_KEY = 'tasks_trainer_view_v1';
+const REPORT_SNAPSHOT_KEY = 'tasks_trainer_report_snapshot_v1';
+const REPORT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+function getNavType() {
+  try {
+    const nav = performance.getEntriesByType?.('navigation')?.[0];
+    if (nav && typeof nav.type === 'string') return nav.type;
+  } catch (_) {}
+  try {
+    // legacy
+    // 0 = navigate, 1 = reload, 2 = back_forward
+    const t = performance?.navigation?.type;
+    if (t === 1) return 'reload';
+    if (t === 2) return 'back_forward';
+  } catch (_) {}
+  return 'navigate';
+}
+
+function urlKey() {
+  return String(location.pathname || '') + String(location.search || '');
+}
+
+function loadReportSnapshot() {
+  try {
+    const raw = sessionStorage.getItem(REPORT_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const snap = JSON.parse(raw);
+    if (!snap || snap.v !== 1) return null;
+    if (snap.url_key !== urlKey()) return null;
+    if (!Array.isArray(snap.refs) || !snap.refs.length) return null;
+    if (!Array.isArray(snap.results)) return null;
+    if (typeof snap.saved_at !== 'number') return null;
+    if ((Date.now() - snap.saved_at) > REPORT_MAX_AGE_MS) return null;
+    return snap;
+  } catch (_) {
+    return null;
+  }
+}
+
+function saveReportSnapshot(snap) {
+  try {
+    sessionStorage.setItem(REPORT_SNAPSHOT_KEY, JSON.stringify(snap));
+    sessionStorage.setItem(REPORT_VIEW_KEY, 'summary');
+  } catch (_) {}
+}
+
+function clearReportSnapshot() {
+  try { sessionStorage.removeItem(REPORT_SNAPSHOT_KEY); } catch (_) {}
+  try { sessionStorage.removeItem(REPORT_VIEW_KEY); } catch (_) {}
+}
+
+function setViewRun() {
+  try { sessionStorage.setItem(REPORT_VIEW_KEY, 'run'); } catch (_) {}
+  try { sessionStorage.removeItem(REPORT_SNAPSHOT_KEY); } catch (_) {}
+}
+
+function isViewSummary() {
+  try { return sessionStorage.getItem(REPORT_VIEW_KEY) === 'summary'; } catch (_) { return false; }
+}
+
+function applyResultsToQuestions(questions, results) {
+  const map = new Map();
+  for (const r of (results || [])) {
+    const tid = String(r?.topic_id || '').trim();
+    const qid = String(r?.question_id || '').trim();
+    if (!tid || !qid) continue;
+    map.set(`${tid}:${qid}`, r);
+  }
+  for (const q of (questions || [])) {
+    const tid = String(q?.topic_id || '').trim();
+    const qid = String(q?.question_id || q?.id || '').trim();
+    const r = map.get(`${tid}:${qid}`);
+    if (!r) continue;
+    q.correct = !!r.correct;
+    q.chosen_text = String(r.chosen_text ?? '');
+    q.normalized_text = String(r.normalized_text ?? '');
+    q.correct_text = String(r.correct_text ?? '');
+    q.time_ms = Number.isFinite(r.time_ms) ? r.time_ms : (q.time_ms || 0);
+  }
+}
+
+function showSummaryScreen({ total, correct, avg_ms, duration_ms, insert_ok, insert_error } = {}) {
+  // показываем шапку, но прячем элементы режима решения
+  document.getElementById('runner')?.classList.remove('hidden');
+
+  const runBody = document.querySelector('#runner .run-body');
+  const sheetPanel = document.getElementById('sheetPanel');
+  if (sheetPanel) sheetPanel.classList.add('hidden');
+  if (runBody) runBody.classList.add('hidden');
+
+  const smartPanel = document.getElementById('smartPanel');
+  // В листовом режиме smartPanel переезжает внутрь runBody — он уже скрыт.
+  if (smartPanel && !sheetPanel) smartPanel.classList.add('hidden');
+
+  const header = document.getElementById('appHeader');
+  header?.querySelector('.progress')?.classList.add('hidden');
+  header?.querySelector('.timer')?.classList.add('hidden');
+  header?.querySelector('.theme-toggle')?.classList.add('hidden');
+
+  document.getElementById('summary')?.classList.remove('hidden');
+
+  const badgeClassByPct = (pct) => {
+    if (pct === null || pct === undefined || Number.isNaN(pct)) return 'gray';
+    if (pct >= 90) return 'green';
+    if (pct >= 70) return 'lime';
+    if (pct >= 50) return 'yellow';
+    return 'red';
+  };
+
+  const pct = (total > 0) ? Math.round((100 * correct) / total) : null;
+  const scoreCls = badgeClassByPct(pct);
+  const pctText = (pct === null) ? '—' : `${pct}%`;
+
+  const statsEl = document.getElementById('stats');
+  if (statsEl) {
+    statsEl.innerHTML =
+      `<div class="stat-compact stat-score ${scoreCls}">${correct}/${total} ${pctText}</div>` +
+      `<div class="stat-compact stat-time">Общее время: ${formatHms(duration_ms || 0)}</div>` +
+      `<div class="stat-full">Всего: ${total}</div>` +
+      `<div class="stat-full">Верно: ${correct}</div>` +
+      `<div class="stat-full">Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+      `<div class="stat-full">Общее время: ${formatHms(duration_ms || 0)}</div>` +
+      `<div class="stat-full">Среднее на задачу: ${formatHms(avg_ms || 0)}</div>`;
+  }
+
+  REVIEW_ONLY_WRONG = false;
+  updateWrongButtonLabel();
+  updateWrongButtonState();
+  renderReviewCards();
+
+  const exportCsv = document.getElementById('exportCsv');
+  if (exportCsv) {
+    exportCsv.onclick = (e) => {
+      e.preventDefault();
+      const csv = toCsv(SESSION?.questions || []);
+      download('tasks_session.csv', csv);
+    };
+  }
+
+  if (insert_ok === false) {
+    console.warn('Supabase insert error', insert_error);
+  }
+}
+
+async function tryRestoreReportOnReload() {
+  // восстанавливаем только если пользователь реально сделал reload/back_forward
+  const navType = getNavType();
+  if (navType !== 'reload' && navType !== 'back_forward') return false;
+  if (!isViewSummary()) return false;
+
+  const snap = loadReportSnapshot();
+  if (!snap) return false;
+
+  try {
+    perfMark('restoreReport:start');
+    await loadCatalog();
+    perfMark('restoreReport:catalog');
+
+    const questions = await buildQuestionsFromSmartRefs(snap.refs);
+    if (!questions || questions.length !== snap.refs.length) {
+      clearReportSnapshot();
+      return false;
+    }
+
+    applyResultsToQuestions(questions, snap.results);
+
+    SESSION = {
+      questions,
+      idx: 0,
+      started_at: Number.isFinite(snap.started_at) ? snap.started_at : (snap.saved_at || Date.now()),
+      timerId: null,
+      total_ms: Number.isFinite(snap.total_ms) ? snap.total_ms : 0,
+      t0: null,
+    };
+
+    stopTick();
+
+    const total = questions.length;
+    const correct = questions.reduce((s, q) => s + (q && q.correct ? 1 : 0), 0);
+    const avg_ms = Math.round((SESSION.total_ms || 0) / Math.max(1, total));
+
+    showSummaryScreen({ total, correct, avg_ms, duration_ms: SESSION.total_ms, insert_ok: true });
+    perfMark('restoreReport:done');
+    return true;
+  } catch (e) {
+    console.warn('restore report failed', e);
+    // если восстановление не удалось — сбрасываем снимок и идём по обычному пути
+    clearReportSnapshot();
+    return false;
+  }
+}
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
@@ -206,6 +400,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   } else {
     overlay.classList.remove('hidden');
   }
+
+  // Если пользователь обновил страницу на экране отчёта — восстанавливаем отчёт,
+  // не запуская новую тренировку.
+  try {
+    overlay.textContent = 'Восстанавливаем отчёт...';
+    const restored = await tryRestoreReportOnReload();
+    if (restored) {
+      overlay.classList.add('hidden');
+      try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
+      return;
+    }
+  } catch (_) {
+    // если что-то пошло не так — продолжаем обычный запуск
+  }
+
+  // возвращаем текст оверлея, дальше пойдёт обычная загрузка
+  overlay.textContent = 'Загружаем задачи...';
 
   // smart_mode (если запуск из статистики)
   SMART = loadSmartMode();
@@ -904,6 +1115,9 @@ async function startTestSession(arr) {
     t0: null,
   };
 
+  // Любой новый запуск тренировки должен сбрасывать «снимок отчёта».
+  setViewRun();
+
   $('#runner')?.classList.remove('hidden');
   $('#summary')?.classList.add('hidden');
 
@@ -1444,6 +1658,35 @@ async function finishSession() {
     payload: { questions: payloadQuestions },
     created_at: new Date().toISOString(),
   };
+
+  // Снимок отчёта: нужен, чтобы при refresh на странице отчёта
+  // не запускалась новая тренировка, а восстанавливался отчёт.
+  try {
+    const refs = SESSION.questions.map(q => ({
+      topic_id: String(q.topic_id || '').trim(),
+      question_id: String(q.question_id || q.id || '').trim(),
+    })).filter(r => r.topic_id && r.question_id);
+
+    const results = SESSION.questions.map(q => ({
+      topic_id: String(q.topic_id || '').trim(),
+      question_id: String(q.question_id || q.id || '').trim(),
+      correct: !!q.correct,
+      chosen_text: q.chosen_text ?? '',
+      normalized_text: q.normalized_text ?? '',
+      correct_text: q.correct_text ?? '',
+      time_ms: q.time_ms || 0,
+    }));
+
+    saveReportSnapshot({
+      v: 1,
+      url_key: urlKey(),
+      saved_at: Date.now(),
+      started_at: SESSION.started_at,
+      total_ms: SESSION.total_ms,
+      refs,
+      results,
+    });
+  } catch (_) {}
 
   let ok = true;
   let error = null;
