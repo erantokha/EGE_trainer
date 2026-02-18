@@ -819,12 +819,11 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
 
   /* время: зелёный как "Решить аналог" */
   #summary .stats>div.stat-time{
-    
-
-    background: rgba(16,185,129,.12);
-    border-color: var(--border);
-    color: inherit;
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
   }
+}
 #summary .actions{
   margin-top:10px;
   display:flex;
