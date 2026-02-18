@@ -817,11 +817,11 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
   #summary .stats>div.stat-score.lime{ background: rgba(132,204,22,.14); }
   #summary .stats>div.stat-score.green{ background: rgba(16,185,129,.12); }
 
-  /* время: зелёный как "Решить аналог" */
+  /* время: как green-бейдж (>=90%) */
   #summary .stats>div.stat-time{
-    background: var(--success);
-    border-color: var(--success);
-    color: #fff;
+    background: rgba(16,185,129,.12);
+    border-color: var(--border);
+    color: inherit;
   }
 }
 #summary .actions{
