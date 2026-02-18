@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-18-5';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-5';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-17-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-18-5';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-17-4';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-18-5';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-5';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-5';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-5';
+import { withBuild } from '../app/build.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1474,12 +1474,26 @@ header?.querySelector('.theme-toggle')?.classList.add('hidden');
 
 $('#summary')?.classList.remove('hidden');
 
+const badgeClassByPct = (pct) => {
+  if (pct === null || pct === undefined || Number.isNaN(pct)) return 'gray';
+  if (pct >= 90) return 'green';
+  if (pct >= 70) return 'lime';
+  if (pct >= 50) return 'yellow';
+  return 'red';
+};
+
+const _pct = total > 0 ? Math.round((100 * correct) / total) : null;
+const _scoreCls = badgeClassByPct(_pct);
+const _pctText = (_pct === null) ? '—' : `${_pct}%`;
+
 $('#stats').innerHTML =
-  `<div>Всего: ${total}</div>` +
-  `<div>Верно: ${correct}</div>` +
-  `<div>Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-  `<div>Общее время: ${formatHms(SESSION.total_ms)}</div>` +
-  `<div>Среднее на задачу: ${formatHms(avg_ms)}</div>`;
+  `<div class="stat-compact stat-score ${_scoreCls}">${correct}/${total} ${_pctText}</div>` +
+  `<div class="stat-compact stat-time">Общее время: ${formatHms(SESSION.total_ms)}</div>` +
+  `<div class="stat-full">Всего: ${total}</div>` +
+  `<div class="stat-full">Верно: ${correct}</div>` +
+  `<div class="stat-full">Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+  `<div class="stat-full">Общее время: ${formatHms(SESSION.total_ms)}</div>` +
+  `<div class="stat-full">Среднее на задачу: ${formatHms(avg_ms)}</div>`;
 
 REVIEW_ONLY_WRONG = false;
 updateWrongButtonLabel();

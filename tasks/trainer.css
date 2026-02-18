@@ -802,6 +802,28 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
   padding:10px;
   border-radius:10px;
 }
+
+/* отчёт: статистика (десктоп = полный набор, мобилка = компактный) */
+#summary .stats>div.stat-compact{ display:none; }
+
+@media (max-width: 520px){
+  #summary .stats>div.stat-full{ display:none; }
+  #summary .stats>div.stat-compact{ display:block; }
+
+  /* цвет как у бейджей на главной (аккордеон) */
+  #summary .stats>div.stat-score.gray{ background: rgba(148,163,184,.10); }
+  #summary .stats>div.stat-score.red{ background: rgba(239,68,68,.14); }
+  #summary .stats>div.stat-score.yellow{ background: rgba(245,158,11,.16); }
+  #summary .stats>div.stat-score.lime{ background: rgba(132,204,22,.14); }
+  #summary .stats>div.stat-score.green{ background: rgba(16,185,129,.12); }
+
+  /* время: зелёный как "Решить аналог" */
+  #summary .stats>div.stat-time{
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+  }
+}
 #summary .actions{
   margin-top:10px;
   display:flex;

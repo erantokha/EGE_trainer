@@ -10,16 +10,16 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-18-5';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-17-4';
 
-import { CONFIG } from '../app/config.js?v=2026-02-18-5';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-18-5';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-18-5';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-18-5';
+import { CONFIG } from '../app/config.js?v=2026-02-17-4';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-17-4';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-17-4';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-17-4';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-18-5';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-18-5';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-17-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-17-4';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -946,12 +946,26 @@ function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
   const statsEl = $('#stats');
   if (!statsEl) return;
 
-  statsEl.innerHTML =
-    `<div>Всего: ${t}</div>` +
-    `<div>Верно: ${c}</div>` +
-    `<div>Точность: ${Math.round((100 * c) / Math.max(1, t))}%</div>` +
-    `<div>Общее время: ${formatHms(d)}</div>` +
-    `<div>Среднее на задачу: ${formatHms(a)}</div>`;
+  const badgeClassByPct = (pct) => {
+  if (pct === null || pct === undefined || Number.isNaN(pct)) return 'gray';
+  if (pct >= 90) return 'green';
+  if (pct >= 70) return 'lime';
+  if (pct >= 50) return 'yellow';
+  return 'red';
+};
+
+const pct = t > 0 ? Math.round((100 * c) / t) : null;
+const color = badgeClassByPct(pct);
+const pctText = (pct === null) ? '—' : `${pct}%`;
+
+statsEl.innerHTML =
+  `<div class="stat-compact stat-score ${color}">${c}/${t} ${pctText}</div>` +
+  `<div class="stat-compact stat-time">Общее время: ${formatHms(d)}</div>` +
+  `<div class="stat-full">Всего: ${t}</div>` +
+  `<div class="stat-full">Верно: ${c}</div>` +
+  `<div class="stat-full">Точность: ${Math.round((100 * c) / Math.max(1, t))}%</div>` +
+  `<div class="stat-full">Общее время: ${formatHms(d)}</div>` +
+  `<div class="stat-full">Среднее на задачу: ${formatHms(a)}</div>`;
 }
 
 function parseAttemptPayload(raw) {
