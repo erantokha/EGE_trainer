@@ -157,6 +157,15 @@
                 </select>
               </div>
 
+
+              <div class="ctrl">
+                <label>Номер</label>
+                <select id="smartRecSection">
+                  <option value="" selected>все</option>
+                </select>
+              </div>
+
+
               <div class="ctrl">
                 <label>Рекомендации</label>
                 <select id="smartRecMode">
@@ -210,6 +219,7 @@
             <div class="stats-actions" style="margin-top:10px">
               <button id="smartRecLoad" class="btn" type="button">Подобрать темы</button>
               <button id="smartRecAddAll" class="btn" type="button">Добавить все</button>
+              <button id="smartRecAddSectionAll" class="btn" type="button">Добавить номер</button>
               <button id="smartRecAddTop5" class="btn" type="button">Топ-5</button>
               <button id="smartRecAddTop10" class="btn" type="button">Топ-10</button>
               <button id="smartPlanClear" class="btn" type="button">Очистить план</button>
@@ -242,11 +252,27 @@
                 </div>
 
                 <div class="stats-actions" style="margin-top:10px; align-items:center">
-                  <button id="smartHwCreate" class="btn" type="button" disabled>Создать ДЗ</button>
+                  <button id="smartHwCreate" class="btn" type="button" disabled>Собрать черновик</button>
                   <span id="smartHwCreateHint" class="smart-hw-hint"></span>
                 </div>
 
-                <div id="smartHwResult" class="hidden" style="margin-top:12px">
+                
+                <div id="smartDraftBox" class="hidden" style="margin-top:12px">
+                  <div class="smart-hw-subhead">Предпросмотр задач</div>
+                  <div id="smartDraftSummary" class="muted" style="margin-top:6px"></div>
+                  <div style="overflow:auto;margin-top:10px">
+                    <div id="smartDraftList" class="fixed-mini-list"></div>
+                  </div>
+
+                  <div class="stats-actions" style="margin-top:10px; align-items:center">
+                    <button id="smartHwPublish" class="btn" type="button" disabled>Опубликовать ДЗ</button>
+                    <button id="smartHwRebuild" class="btn" type="button">Пересобрать</button>
+                    <button id="smartHwClearDraft" class="btn" type="button">Очистить</button>
+                    <span id="smartDraftHint" class="smart-hw-hint"></span>
+                  </div>
+                </div>
+
+<div id="smartHwResult" class="hidden" style="margin-top:12px">
                   <div class="stats-controls">
                     <div class="ctrl" style="flex:1">
                       <label>Ссылка для ученика</label>

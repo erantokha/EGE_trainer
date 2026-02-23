@@ -70,9 +70,13 @@ export function buildRecommendations(dash, catalog, {
   weakBelowPct = 70,       // «плохая статистика»
   limit = 15,
   includeUncovered = true,
+  sectionId = '',
+
 } = {}) {
   const stats = buildStatsMap(dash);
-  const ids = includeUncovered ? allCatalogTopics(catalog) : Array.from(stats.keys());
+  const idsAll = includeUncovered ? allCatalogTopics(catalog) : Array.from(stats.keys());
+  const sec = String(sectionId || '').trim();
+  const ids = sec ? idsAll.filter((tid) => String(tid).startsWith(sec + '.')) : idsAll;
 
   const list = [];
 
