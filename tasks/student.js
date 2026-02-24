@@ -1207,7 +1207,6 @@ if (statsFiltersToggle && statsControls) {
     } catch (_) {}
   }
 
-}
 
   function settingsKey() {
     return JSON.stringify({
