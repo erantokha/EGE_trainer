@@ -1,16 +1,16 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-25-7';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-25-7';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-25-8';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-25-8';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-25-7';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-25-8';
 
 
-import { withBuild } from '../app/build.js?v=2026-02-25-7';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-25-7';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-25-7';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-25-7';
+import { withBuild } from '../app/build.js?v=2026-02-25-8';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-25-8';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-25-8';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-25-8';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
