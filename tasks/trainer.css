@@ -2477,3 +2477,50 @@ body[data-home-variant="student"] #accordion .node.section > .row > .section-tit
   background:transparent !important;
   line-height:1.2 !important;
 }
+
+
+/* home_student: панель прототипов справа */
+body[data-home-variant="student"] #picker .node.topic .title{
+  cursor:pointer;
+}
+body[data-home-variant="student"] #picker .node.topic .title:hover{
+  text-decoration:underline;
+}
+
+body[data-home-variant="student"].home-protos-open #picker .picker-right{
+  flex:0 0 520px;
+  width:520px;
+}
+
+body[data-home-variant="student"] #homeProtoPanel{
+  margin-top:12px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:12px;
+  background:rgba(148,163,184,.06);
+}
+body[data-home-variant="student"] #homeProtoPanel .home-proto-head{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-bottom:10px;
+}
+body[data-home-variant="student"] #homeProtoPanel .home-proto-title{
+  font-size:14px;
+  font-weight:600;
+  line-height:1.25;
+}
+body[data-home-variant="student"] #homeProtoPanel .home-proto-note{
+  font-size:12px;
+  opacity:.8;
+  line-height:1.3;
+}
+
+body[data-home-variant="student"] #homeProtoList{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:calc(100vh - 220px);
+  overflow:auto;
+  padding-right:2px;
+}
