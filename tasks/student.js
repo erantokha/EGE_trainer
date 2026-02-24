@@ -564,6 +564,7 @@ if (statsFiltersToggle && statsControls) {
 
   const recDaysEl = $('#smartRecDays');
   const recSourceEl = $('#smartRecSource');
+  const recSectionEl = $('#smartRecSection');
   const recModeEl = $('#smartRecMode');
   const recMinEl = $('#smartRecMinAttempts');
   const recLimitEl = $('#smartRecLimit');
@@ -572,6 +573,7 @@ if (statsFiltersToggle && statsControls) {
 
   const recLoadBtn = $('#smartRecLoad');
   const recAddAllBtn = $('#smartRecAddAll');
+  const recAddSectionAllBtn = $('#smartRecAddSectionAll');
   const recAddTop5Btn = $('#smartRecAddTop5');
   const recAddTop10Btn = $('#smartRecAddTop10');
   const planClearBtn = $('#smartPlanClear');
@@ -587,6 +589,13 @@ if (statsFiltersToggle && statsControls) {
   const titleEl = $('#smartHwTitle');
   const createBtn = $('#smartHwCreate');
   const createHintEl = $('#smartHwCreateHint');
+
+  const draftBox = $('#smartDraftBox');
+  const draftSummaryEl = $('#smartDraftSummary');
+  const draftListEl = $('#smartDraftList');
+  const publishBtn = $('#smartHwPublish');
+  const rebuildBtn = $('#smartHwRebuild');
+  const clearDraftBtn = $('#smartHwClearDraft');
 
   const resultBox = $('#smartHwResult');
   const linkEl = $('#smartHwLink');
