@@ -1072,6 +1072,8 @@ if (statsFiltersToggle && statsControls) {
     if (!smartStatus) return;
     smartStatus.textContent = String(text || '');
     smartStatus.className = kind === 'err' ? 'err' : 'muted';
+  }
+
   
   function planSignatureFromMap(m) {
     const entries = [];
