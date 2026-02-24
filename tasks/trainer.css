@@ -204,6 +204,102 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
   font-size:12px;
   color:var(--text-dim);
 }
+
+
+/* Главная ученика (десктоп): вместо текстового прогноза показываем горизонтальный "градусник" */
+body[data-home-variant="student"] #picker .score-forecast .sf-row,
+body[data-home-variant="student"] #picker .score-forecast .sf-note{
+  display:none;
+}
+
+/* Градусник внутри правой колонки (десктоп) */
+body[data-home-variant="student"] #picker .score-forecast .score-thermo-slot--desk{
+  display:block;
+  margin:0;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo{
+  --st-h:64px;
+  --st-radius:18px;
+  --st-pad-x:14px;
+
+  /* match badge tints */
+  --st-gray:rgba(148,163,184,.10);
+  --st-red:rgba(239,68,68,.14);
+  --st-yellow:rgba(245,158,11,.16);
+  --st-lime:rgba(132,204,22,.14);
+  --st-green:rgba(16,185,129,.12);
+
+  --st-track-bg:rgba(148,163,184,.06);
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__track{
+  position:relative;
+  height:var(--st-h);
+  border:1px solid var(--border);
+  border-radius:var(--st-radius);
+  background:var(--st-track-bg);
+  overflow:hidden;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__fill{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0%;
+  background:var(--st-gray);
+  transition:width 220ms ease, background-color 220ms ease;
+}
+body[data-home-variant="student"] #picker .score-forecast .score-thermo[data-color="gray"] .score-thermo__fill{background:var(--st-gray);}
+body[data-home-variant="student"] #picker .score-forecast .score-thermo[data-color="red"] .score-thermo__fill{background:var(--st-red);}
+body[data-home-variant="student"] #picker .score-forecast .score-thermo[data-color="yellow"] .score-thermo__fill{background:var(--st-yellow);}
+body[data-home-variant="student"] #picker .score-forecast .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
+body[data-home-variant="student"] #picker .score-forecast .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__content{
+  position:absolute;
+  inset:0;
+  padding:0 var(--st-pad-x);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  pointer-events:none;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__label{
+  font-size:12px;
+  line-height:1.1;
+  color:var(--text-dim);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__values{
+  display:flex;
+  align-items:baseline;
+  justify-content:center;
+  gap:10px;
+  margin-top:2px;
+  font-variant-numeric:tabular-nums;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__secondary{
+  font-size:22px;
+  line-height:1;
+}
+
+body[data-home-variant="student"] #picker .score-forecast .score-thermo__primary{
+  font-size:14px;
+  line-height:1;
+  color:var(--text-dim);
+  white-space:nowrap;
+}
+
 @media (max-width: 900px){
   body[data-home-variant="student"] #picker .picker-grid{flex-direction:column}
   body[data-home-variant="student"] #picker .picker-right{width:auto; flex:0 0 auto}
