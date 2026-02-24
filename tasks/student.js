@@ -564,7 +564,6 @@ if (statsFiltersToggle && statsControls) {
 
   const recDaysEl = $('#smartRecDays');
   const recSourceEl = $('#smartRecSource');
-  const recSectionEl = $('#smartRecSection');
   const recModeEl = $('#smartRecMode');
   const recMinEl = $('#smartRecMinAttempts');
   const recLimitEl = $('#smartRecLimit');
@@ -573,7 +572,6 @@ if (statsFiltersToggle && statsControls) {
 
   const recLoadBtn = $('#smartRecLoad');
   const recAddAllBtn = $('#smartRecAddAll');
-  const recAddSectionAllBtn = $('#smartRecAddSectionAll');
   const recAddTop5Btn = $('#smartRecAddTop5');
   const recAddTop10Btn = $('#smartRecAddTop10');
   const planClearBtn = $('#smartPlanClear');
@@ -589,14 +587,6 @@ if (statsFiltersToggle && statsControls) {
   const titleEl = $('#smartHwTitle');
   const createBtn = $('#smartHwCreate');
   const createHintEl = $('#smartHwCreateHint');
-
-  const draftBox = $('#smartDraftBox');
-  const draftSummaryEl = $('#smartDraftSummary');
-  const draftListEl = $('#smartDraftList');
-  const publishBtn = $('#smartHwPublish');
-  const rebuildBtn = $('#smartHwRebuild');
-  const clearDraftBtn = $('#smartHwClearDraft');
-  const draftHintEl = $('#smartDraftHint');
 
   const resultBox = $('#smartHwResult');
   const linkEl = $('#smartHwLink');
@@ -876,7 +866,7 @@ if (statsFiltersToggle && statsControls) {
 
     let frozen = null;
     try {
-      frozen = await builder.buildFrozenQuestionsForTopics(topics, { shuffle: true });
+      frozen = await builder.buildFrozenQuestionsForTopics({ catalog, cfg, auth, topics, shuffle: true });
     } catch (e) {
       console.warn('variant12: buildFrozen failed', e);
       var12SetStatus('Не удалось собрать задачи по темам.');
@@ -887,9 +877,7 @@ if (statsFiltersToggle && statsControls) {
     const totalWanted = 12;
     const got = safeInt(frozen?.totalPicked, 0);
     if (got < totalWanted) {
-      const missRows = Object.entries(frozen?.shortages || {}).filter(([, v]) => safeInt(v, 0) > 0);
-      missRows.sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'ru'));
-      const miss = missRows.slice(0, 6).map(([tid, miss]) => `${tid}: -${safeInt(miss, 0)}`).join(', ');
+      const miss = Array.isArray(frozen?.shortages) ? frozen.shortages.slice(0, 6).map((x) => String(x)).join(', ') : '';
       var12SetStatus(`Не удалось собрать 12 задач. Не хватает: ${miss}`.trim());
       var12CreateBtn.disabled = false;
       return;
@@ -911,20 +899,16 @@ if (statsFiltersToggle && statsControls) {
         frozen,
       };
 
-      const created = await hwApi.createHomeworkAndLink({
-        cfg,
-        accessToken: auth.access_token,
-        userId: auth.user_id,
+      const created = await hwApi.createHomeworkAndLink(cfg, auth.access_token, {
         title,
         attempts_per_student: 1,
         is_active: true,
         spec_json: spec,
-        frozen_questions: frozen?.frozen_questions || null,
-        seed: frozen?.seedUsed || null,
       });
 
-      const url = buildHwUrlFromToken(created.token);
-      if (var12LinkEl) var12LinkEl.value = url;
+      const link = String(created?.student_link || '').trim();
+      if (!link) throw new Error('No student_link from createHomeworkAndLink');
+      if (var12LinkEl) var12LinkEl.value = link;
       setHidden(var12ResultBox, false);
       var12SetStatus('ДЗ создано.');
     } catch (e) {
@@ -976,7 +960,6 @@ if (statsFiltersToggle && statsControls) {
 
   const LS_FILTERS_KEY = `smart_hw_filters_v1:${studentId}`;
   const LS_PLAN_KEY = `smart_hw_plan_v1:${studentId}`;
-  const LS_DRAFT_KEY = `smart_hw_draft_v1:${studentId}`;
 
   const ui = {
     search: '',
@@ -989,9 +972,6 @@ if (statsFiltersToggle && statsControls) {
   let lastRecsView = [];
   let lastDash = null;
   let lastKey = '';
-
-  // draft preview state
-  let draft = null;
 
   const saveFilters = debounce(() => {
     try {
@@ -1078,149 +1058,11 @@ if (statsFiltersToggle && statsControls) {
 
   loadSmartFromStorage();
 
-  loadDraftLS();
-  renderDraft().catch(() => {});
-  updateSectionButtons();
-
   function smartSetStatus(text, kind = '') {
     if (!smartStatus) return;
     smartStatus.textContent = String(text || '');
     smartStatus.className = kind === 'err' ? 'err' : 'muted';
   }
-
-  
-  function planSignatureFromMap(m) {
-    const entries = [];
-    for (const [tid, it] of (m?.entries?.() || [])) {
-      const c = safeInt(it?.count, 0);
-      if (c > 0) entries.push([String(tid), c]);
-    }
-    entries.sort((a, b) => a[0].localeCompare(b[0], 'ru'));
-    return JSON.stringify(entries);
-  }
-
-  function fmtShortages(shortagesObj) {
-    const rows = Object.entries(shortagesObj || {});
-    if (!rows.length) return '';
-    rows.sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'ru'));
-    const parts = rows.slice(0, 8).map(([tid, miss]) => {
-      const name = topicName(tid);
-      return `${name}: -${safeInt(miss, 0)}`;
-    });
-    return parts.join(' · ');
-  }
-
-  function populateSectionSelectOnce() {
-    if (!recSectionEl) return;
-    if (!catalog || !catalog.sections) return;
-    if (recSectionEl.dataset.inited === '1') return;
-
-    // оставляем option "все" как первый
-    const keepFirst = recSectionEl.querySelector('option[value=""]');
-    recSectionEl.innerHTML = '';
-    if (keepFirst) recSectionEl.appendChild(keepFirst);
-    else {
-      const opt = document.createElement('option');
-      opt.value = '';
-      opt.textContent = 'все';
-      recSectionEl.appendChild(opt);
-    }
-
-    const ids = [];
-    try { for (const k of catalog.sections.keys()) ids.push(String(k)); } catch (_) {}
-    ids.sort((a, b) => a.localeCompare(b, 'ru'));
-
-    for (const sid of ids) {
-      const title = catalog.sections.get(sid);
-      const opt = document.createElement('option');
-      opt.value = sid;
-      opt.textContent = `${sid}. ${title}`;
-      recSectionEl.appendChild(opt);
-    }
-
-    recSectionEl.dataset.inited = '1';
-  }
-
-  function updateSectionButtons() {
-    const sid = String(recSectionEl?.value || '').trim();
-    if (recAddSectionAllBtn) recAddSectionAllBtn.disabled = !sid;
-  }
-
-  function saveDraftLS() {
-    try {
-      if (!draft) { localStorage.removeItem(LS_DRAFT_KEY); return; }
-      localStorage.setItem(LS_DRAFT_KEY, JSON.stringify(draft));
-    } catch (_) {}
-  }
-
-  function clearDraftState(msg = '') {
-    draft = null;
-    saveDraftLS();
-    if (draftListEl) draftListEl.innerHTML = '';
-    if (draftSummaryEl) draftSummaryEl.textContent = '';
-    if (draftHintEl) draftHintEl.textContent = '';
-    setHidden(draftBox, true);
-    if (publishBtn) publishBtn.disabled = true;
-    if (msg) smartSetStatus(msg);
-  }
-
-  async function renderDraft() {
-    if (!draftBox) return;
-    if (!draft || !Array.isArray(draft.frozen_questions)) {
-      setHidden(draftBox, true);
-      if (publishBtn) publishBtn.disabled = true;
-      return;
-    }
-
-    setHidden(draftBox, false);
-
-    const want = safeInt(draft.totalWanted, 0);
-    const got = safeInt(draft.totalPicked, 0);
-    const missTxt = fmtShortages(draft.shortages);
-
-    const parts = [];
-    parts.push(`Задач: ${got}/${want}`);
-    if (missTxt) parts.push(`Не хватает: ${missTxt}`);
-    if (draftSummaryEl) draftSummaryEl.textContent = parts.join(' · ');
-
-    const canPublish = (got === want && got > 0 && planSignatureFromMap(plan) === String(draft.planSig || ''));
-    if (publishBtn) publishBtn.disabled = !canPublish;
-
-    if (draftHintEl) {
-      if (!canPublish) {
-        if (planSignatureFromMap(plan) !== String(draft.planSig || '')) {
-          draftHintEl.textContent = 'План изменился. Нажмите «Пересобрать».';
-          draftHintEl.className = 'smart-hw-hint err';
-        } else if (got !== want) {
-          draftHintEl.textContent = 'Нельзя опубликовать: не хватает задач. Измените план и пересоберите.';
-          draftHintEl.className = 'smart-hw-hint err';
-        } else {
-          draftHintEl.textContent = '';
-          draftHintEl.className = 'smart-hw-hint';
-        }
-      } else {
-        draftHintEl.textContent = '';
-        draftHintEl.className = 'smart-hw-hint';
-      }
-    }
-
-    if (draftListEl) {
-      const preview = await import(withV('./question_preview.js'));
-      await preview.renderFrozenPreviewList(draftListEl, draft.frozen_questions);
-    }
-  }
-
-  function loadDraftLS() {
-    try {
-      const raw = localStorage.getItem(LS_DRAFT_KEY);
-      const obj = raw ? JSON.parse(raw) : null;
-      if (!obj || typeof obj !== 'object') return;
-      // минимальная валидация
-      if (!Array.isArray(obj.frozen_questions)) return;
-      draft = obj;
-    } catch (_) {}
-  }
-
 
   function settingsKey() {
     return JSON.stringify({
@@ -1253,25 +1095,16 @@ if (statsFiltersToggle && statsControls) {
     if (planTotalEl) planTotalEl.textContent = String(totalTasks);
     if (planTopicsEl) planTopicsEl.textContent = String(totalTopics);
 
-    // Кнопка "Собрать черновик"
-    const canBuild = totalTasks > 0;
-    if (createBtn) createBtn.disabled = !canBuild;
-    if (createHintEl) {
-      createHintEl.textContent = canBuild ? '' : 'Добавьте темы в план.';
-      createHintEl.className = canBuild ? 'smart-hw-hint' : 'smart-hw-hint err';
-    }
+    const title = String(titleEl?.value || '').trim();
+    let can = true;
+    let why = '';
+    if (totalTasks <= 0) { can = false; why = 'Добавьте темы в план.'; }
+    else if (!title) { can = false; why = 'Введите название ДЗ.'; }
 
-    // Секция черновика / публикация
-    // publishBtn управляется в renderDraft(), но на случай изменений плана — обновим здесь тоже
-    if (draft && typeof draft === 'object') {
-      draft.planSig = String(draft.planSig || '');
-    }
-    if (publishBtn) {
-      const sigNow = planSignatureFromMap(plan);
-      const want = safeInt(draft?.totalWanted, 0);
-      const got = safeInt(draft?.totalPicked, 0);
-      const canPublish = !!draft && got > 0 && got === want && sigNow === String(draft?.planSig || '');
-      publishBtn.disabled = !canPublish;
+    if (createBtn) createBtn.disabled = !can;
+    if (createHintEl) {
+      createHintEl.textContent = can ? '' : why;
+      createHintEl.className = can ? 'smart-hw-hint' : 'smart-hw-hint err';
     }
   }
 
@@ -1445,8 +1278,6 @@ if (statsFiltersToggle && statsControls) {
     try {
       if (!catalog) {
         try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
-        populateSectionSelectOnce();
-        updateSectionButtons();
       }
 
       const days = safeInt(recDaysEl?.value, 30) || 30;
@@ -1468,7 +1299,6 @@ if (statsFiltersToggle && statsControls) {
         minAttempts,
         limit,
         includeUncovered,
-        sectionId: String(recSectionEl?.value || ''),
       });
 
       lastKey = k;
@@ -1486,10 +1316,10 @@ if (statsFiltersToggle && statsControls) {
     }
   }
 
-  async function buildDraftFromPlan(forceNewSeed = true) {
+  async function createHomeworkFromPlan() {
     if (!createBtn) return;
     createBtn.disabled = true;
-    smartSetStatus('Собираем черновик…');
+    smartSetStatus('Создаём ДЗ…');
     setHidden(resultBox, true);
 
     try {
@@ -1504,85 +1334,22 @@ if (statsFiltersToggle && statsControls) {
         return;
       }
 
-      const planSig = planSignatureFromMap(plan);
-      const seed = forceNewSeed ? Date.now() : safeInt(draft?.seedUsed, Date.now());
-
-      const builder = await import(withV('./smart_hw_builder.js'));
-      const built = await builder.buildFrozenQuestionsForTopics(topics, { shuffle: true, seed });
-
-      const frozen = Array.isArray(built?.frozen_questions) ? built.frozen_questions : [];
-      draft = {
-        frozen_questions: frozen,
-        shortages: built?.shortages || {},
-        totalWanted: safeInt(built?.totalWanted, totalWanted),
-        totalPicked: safeInt(built?.totalPicked, frozen.length),
-        seedUsed: built?.seedUsed || seed,
-        topics,
-        planSig,
-        builtAt: Date.now(),
-      };
-
-      saveDraftLS();
-      await renderDraft();
-
-      const got = safeInt(draft.totalPicked, 0);
-      const want = safeInt(draft.totalWanted, 0);
-      smartSetStatus(got === want ? 'Черновик собран.' : 'Черновик собран, но не хватает задач. См. предпросмотр.');
-    } catch (e) {
-      if (isAccessDenied(e)) {
-        smartSetStatus('Нет доступа (ACCESS_DENIED).', 'err');
-      } else {
-        smartSetStatus(`Ошибка: ${String(e?.message || e || 'Ошибка')}`, 'err');
-      }
-    } finally {
-      updateCreateState();
-    }
-  }
-
-  async function publishHomeworkFromDraft() {
-    if (!publishBtn) return;
-
-    if (!draft || !Array.isArray(draft.frozen_questions)) {
-      smartSetStatus('Сначала соберите черновик.', 'err');
-      return;
-    }
-
-    const sigNow = planSignatureFromMap(plan);
-    if (sigNow !== String(draft.planSig || '')) {
-      smartSetStatus('План изменился. Пересоберите черновик перед публикацией.', 'err');
-      return;
-    }
-
-    const want = safeInt(draft.totalWanted, 0);
-    const got = safeInt(draft.totalPicked, 0);
-    if (want <= 0 || got !== want) {
-      smartSetStatus('Нельзя опубликовать: не хватает задач. Измените план и пересоберите.', 'err');
-      return;
-    }
-
-    publishBtn.disabled = true;
-    smartSetStatus('Создаём ДЗ…');
-    setHidden(resultBox, true);
-
-    try {
       const title = String(titleEl?.value || '').trim() || `Умное ДЗ (${todayISO()})`;
 
-      const topics = draft.topics || {};
+      const builder = await import(withV('./smart_hw_builder.js'));
+      const built = await builder.buildFrozenQuestionsForTopics(topics, { shuffle: true });
+
+      if (!built?.frozen_questions || built.frozen_questions.length !== totalWanted) {
+        const got = built?.frozen_questions ? built.frozen_questions.length : 0;
+        smartSetStatus(`Не удалось собрать задания: нужно ${totalWanted}, получилось ${got}.`, 'err');
+        return;
+      }
+
       const spec_json = {
         v: 1,
         fixed: [],
         shuffle: false,
-        generated: {
-          by: 'smart_hw',
-          topics,
-          seed: draft.seedUsed || null,
-          section_id: String(recSectionEl?.value || ''),
-          filters: {
-            days: safeInt(recDaysEl?.value, 30) || 30,
-            source: normSource(recSourceEl?.value || 'all'),
-            mode: String(recModeEl?.value || 'mixed'),
-          },
-        },
+        generated: { by: 'topics', topics },
         content_version: (cfg?.content?.version || BUILD || ''),
       };
 
@@ -1593,8 +1360,7 @@ if (statsFiltersToggle && statsControls) {
         userId: auth.user_id,
         title,
         spec_json,
-        frozen_questions: draft.frozen_questions,
-        seed: draft.seedUsed || null,
+        frozen_questions: built.frozen_questions,
         attempts_per_student: 1,
         is_active: true,
       });
@@ -1611,7 +1377,6 @@ if (statsFiltersToggle && statsControls) {
       }
     } finally {
       updateCreateState();
-      renderDraft().catch(() => {});
     }
   }
 
@@ -1636,24 +1401,6 @@ if (statsFiltersToggle && statsControls) {
     for (const r of (lastRecsView || [])) addToPlan(r.topic_id, n, r);
     smartSetStatus('Темы добавлены в план.');
   });
-
-  if (recAddSectionAllBtn) recAddSectionAllBtn.addEventListener('click', async () => {
-    const sid = String(recSectionEl?.value || '').trim();
-    if (!sid) return;
-
-    if (!catalog) {
-      try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
-    }
-    populateSectionSelectOnce();
-    updateSectionButtons();
-
-    const n = safeInt(recDefaultCountEl?.value, 2);
-    const arr = catalog?.topicsBySection?.get?.(sid) || [];
-    for (const t of arr) addToPlan(String(t?.id || ''), n, null);
-
-    smartSetStatus(`Добавлен номер ${sid}.`);
-  });
-
   if (recAddTop5Btn) recAddTop5Btn.addEventListener('click', () => {
     const n = safeInt(recDefaultCountEl?.value, 2);
     for (const r of (lastRecsView || []).slice(0, 5)) addToPlan(r.topic_id, n, r);
@@ -1685,12 +1432,7 @@ if (statsFiltersToggle && statsControls) {
     smartSetStatus('План очищен.');
   });
 
-  if (createBtn) createBtn.addEventListener('click', () => buildDraftFromPlan(true));
-
-  if (publishBtn) publishBtn.addEventListener('click', publishHomeworkFromDraft);
-  if (rebuildBtn) rebuildBtn.addEventListener('click', () => buildDraftFromPlan(true));
-  if (clearDraftBtn) clearDraftBtn.addEventListener('click', () => clearDraftState('Черновик очищен.'));
-
+  if (createBtn) createBtn.addEventListener('click', createHomeworkFromPlan);
 
   if (titleEl) titleEl.addEventListener('input', () => {
     updateCreateState();
@@ -1703,7 +1445,6 @@ if (statsFiltersToggle && statsControls) {
     if (!fe) continue;
     fe.addEventListener('change', () => {
       saveFilters();
-      updateSectionButtons();
       smartSetStatus('Настройки обновлены. Нажмите «Подобрать темы».');
       updateCreateState();
     });
@@ -1737,8 +1478,6 @@ if (statsFiltersToggle && statsControls) {
     try {
       if (!catalog) {
         try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
-        populateSectionSelectOnce();
-        updateSectionButtons();
       }
 
       const dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
