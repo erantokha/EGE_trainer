@@ -596,6 +596,7 @@ if (statsFiltersToggle && statsControls) {
   const publishBtn = $('#smartHwPublish');
   const rebuildBtn = $('#smartHwRebuild');
   const clearDraftBtn = $('#smartHwClearDraft');
+  const draftHintEl = $('#smartDraftHint');
 
   const resultBox = $('#smartHwResult');
   const linkEl = $('#smartHwLink');
@@ -975,6 +976,7 @@ if (statsFiltersToggle && statsControls) {
 
   const LS_FILTERS_KEY = `smart_hw_filters_v1:${studentId}`;
   const LS_PLAN_KEY = `smart_hw_plan_v1:${studentId}`;
+  const LS_DRAFT_KEY = `smart_hw_draft_v1:${studentId}`;
 
   const ui = {
     search: '',
@@ -987,6 +989,9 @@ if (statsFiltersToggle && statsControls) {
   let lastRecsView = [];
   let lastDash = null;
   let lastKey = '';
+
+  // draft preview state
+  let draft = null;
 
   const saveFilters = debounce(() => {
     try {
