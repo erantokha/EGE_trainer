@@ -2524,3 +2524,30 @@ body[data-home-variant="student"] #homeProtoList{
   overflow:auto;
   padding-right:2px;
 }
+
+/* home_student: уменьшенный степпер в мини-карточках прототипов (на ~20% компактнее) */
+body[data-home-variant="student"] #homeProtoPanel .tp-item-right{ gap:6px; }
+body[data-home-variant="student"] #homeProtoPanel .tp-ctr-btn{
+  width:26px;
+  height:26px;
+  border-radius:8px;
+  font-size:14px;
+  padding:0 0 2px 0;
+}
+body[data-home-variant="student"] #homeProtoPanel .tp-ctr-val{
+  width:22px;
+  min-width:22px;
+  height:26px;
+  padding:0;
+  border:none;
+  background:transparent;
+  font-size:14px;
+  line-height:26px;
+  text-align:center;
+  box-sizing:border-box;
+  display:inline-block;
+}
+body[data-home-variant="student"] #homeProtoPanel .tp-ctr-cap{
+  font-size:10px;
+  white-space:nowrap;
+}
