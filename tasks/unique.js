@@ -35,9 +35,9 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-02-25-11';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-25-11';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-25-11';
+import { withBuild } from '../app/build.js?v=2026-02-25-12';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-25-12';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-25-12';
 
 const INDEX_URL = '../content/tasks/index.json';
 
