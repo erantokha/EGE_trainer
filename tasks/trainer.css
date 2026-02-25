@@ -2428,6 +2428,7 @@ body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{gr
 
 /* less vertical gap: controls -> accordion and labels -> first row */
 body[data-home-variant="student"] #picker .accordion{margin-top:4px !important}
+body.teacher-student-view #picker .accordion{margin-top:4px !important}
 body[data-home-variant="student"] #accordion .home-badges-head{padding:0 0 1px !important}
 body[data-home-variant="student"] #accordion .home-badges-head .row{padding:1px 0 0 0 !important}
 
