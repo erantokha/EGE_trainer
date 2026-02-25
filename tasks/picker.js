@@ -8,9 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-25-20';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-20';
-import { CONFIG } from '../app/config.js?v=2026-02-25-20';
+import { withBuild } from '../app/build.js?v=2026-02-25-5';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-5';
+import { CONFIG } from '../app/config.js?v=2026-02-25-5';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-5';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -24,7 +25,6 @@ let SECTIONS = [];
 
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
-let CHOICE_PROTOS = {};   // typeId -> count (только home_student: явный выбор прототипов)
 let CURRENT_MODE = 'list'; // 'list' | 'test'
 let SHUFFLE_TASKS = false;
 
@@ -52,465 +52,148 @@ let CURRENT_ROLE = '';
 const HOME_VARIANT = String(document.body?.getAttribute('data-home-variant') || '').trim().toLowerCase();
 const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
+const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.test(location.pathname);
+
+// Главная учителя: выбранный ученик (для автоподстановки на странице создания ДЗ)
+const TEACHER_SELECTED_STUDENT_KEY = 'teacher_selected_student_v1';
+const TEACHER_SELECTED_STUDENT_TTL_MS = 2 * 60 * 60 * 1000; // 2 часа
+
+function safeJsonParse(raw) {
+  try { return JSON.parse(raw); } catch (_) { return null; }
+}
+
+function fmtName(x){ return String(x || '').trim(); }
+
+function emailLocalPart(email){
+  const s = String(email || '').trim();
+  if (!s) return '';
+  const at = s.indexOf('@');
+  if (at <= 0) return s;
+  return s.slice(0, at);
+}
+
+function studentLabel(st){
+  const fn = fmtName(st?.first_name);
+  const ln = fmtName(st?.last_name);
+  const nm = `${fn} ${ln}`.trim();
+  if (nm) return nm;
+  const email = String(st?.email || st?.student_email || '').trim();
+  const local = emailLocalPart(email);
+  return local || String(st?.student_id || st?.id || '').trim() || 'Ученик';
+}
+
+function setTeacherStudentStatus(msg){
+  const el = $('#teacherStudentStatus');
+  if (el) el.textContent = String(msg || '');
+}
+
+function readTeacherSelectedStudentId(nowMs){
+  const now = Number(nowMs || Date.now()) || Date.now();
+  try {
+    const raw = sessionStorage.getItem(TEACHER_SELECTED_STUDENT_KEY);
+    if (!raw) return '';
+    const obj = safeJsonParse(raw);
+    if (obj && typeof obj === 'object') {
+      const id = String(obj.id || '').trim();
+      const ts = Number(obj.ts || 0) || 0;
+      if (!id) return '';
+      if (ts && (now - ts) > TEACHER_SELECTED_STUDENT_TTL_MS) return '';
+      return id;
+    }
+    // совместимость: могли хранить просто строкой
+    return String(raw || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function writeTeacherSelectedStudentId(id){
+  const sid = String(id || '').trim();
+  try {
+    if (!sid) {
+      sessionStorage.removeItem(TEACHER_SELECTED_STUDENT_KEY);
+      return;
+    }
+    sessionStorage.setItem(TEACHER_SELECTED_STUDENT_KEY, JSON.stringify({ id: sid, ts: Date.now() }));
+  } catch (_) {}
+}
+
+function wireTeacherStudentSelect(sel){
+  if (!sel || sel.dataset.wired === '1') return;
+  sel.dataset.wired = '1';
+  sel.addEventListener('change', () => {
+    writeTeacherSelectedStudentId(sel.value);
+  });
+}
+
+async function refreshTeacherStudentSelect(){
+  if (!IS_TEACHER_HOME) return;
+  const sel = $('#teacherStudentSelect');
+  if (!sel) return;
+
+  wireTeacherStudentSelect(sel);
+  sel.disabled = true;
+  setTeacherStudentStatus('');
+
+  // Базовая опция
+  sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+
+  let session = null;
+  try {
+    session = await getSession({ timeoutMs: 900, skewSec: 30 });
+  } catch (_) {
+    session = null;
+  }
+  if (!session?.user?.id) {
+    setTeacherStudentStatus('Войдите, чтобы выбрать ученика.');
+    return;
+  }
+
+  setTeacherStudentStatus('Загружаем учеников...');
+  try {
+    const res = await listMyStudents();
+    if (!res?.ok) {
+      setTeacherStudentStatus('Не удалось загрузить учеников.');
+      return;
+    }
+
+    const rows = Array.isArray(res.data) ? res.data : [];
+    if (!rows.length) {
+      setTeacherStudentStatus('Нет привязанных учеников.');
+      return;
+    }
+
+    for (const st of rows){
+      const sid = String(st?.student_id || st?.id || '').trim();
+      if (!sid) continue;
+      const opt = document.createElement('option');
+      opt.value = sid;
+      opt.textContent = studentLabel(st);
+      sel.appendChild(opt);
+    }
+
+    // восстановить прошлый выбор
+    const saved = readTeacherSelectedStudentId();
+    if (saved) {
+      for (const o of Array.from(sel.options)) {
+        if (String(o.value) === saved) {
+          sel.value = saved;
+          break;
+        }
+      }
+    }
+
+    sel.disabled = false;
+    setTeacherStudentStatus('');
+  } catch (e) {
+    console.warn('refreshTeacherStudentSelect error', e);
+    setTeacherStudentStatus('Не удалось загрузить учеников.');
+  }
+}
 
 let _STATS_SEQ = 0;
 
 let _HOME_STATS_LOADING = false;
-
-
-// ---------- home_student: панель выбора прототипов справа ----------
-let HOME_PROTO_ACTIVE_TOPIC_ID = '';
-let _HOME_PROTO_SEQ = 0;
-
-function getHomeProtoEls() {
-  return {
-    panel: $('#homeProtoPanel'),
-    title: $('#homeProtoTitle'),
-    note: $('#homeProtoNote'),
-    list: $('#homeProtoList'),
-  };
-}
-
-function setProtoCount(typeId, n, cap) {
-  const id = String(typeId || '').trim();
-  if (!id) return 0;
-
-  let v = Math.max(0, Number(n || 0));
-  if (Number.isFinite(cap)) v = Math.min(v, Math.max(0, Number(cap) || 0));
-
-  if (v > 0) CHOICE_PROTOS[id] = v;
-  else delete CHOICE_PROTOS[id];
-
-  refreshTotalSum();
-  return v;
-}
-
-
-// ---------- home_student: модалка выбора прототипов (карточки как в hw_create) ----------
-let PROTO_MODAL_OPEN = false;
-let PROTO_MODAL_TOPIC = null;
-let PROTO_MODAL_TYPES = [];
-let _PROTO_MODAL_SEQ = 0;
-
-function getProtoModalEls() {
-  return {
-    modal: $('#protoPickerModal'),
-    title: $('#protoPickerTitle'),
-    list: $('#protoPickerList'),
-    hint: $('#protoPickerHint'),
-    close: $('#protoPickerClose'),
-    cnt: $('#protoPickerSelectedCount'),
-    backdrop: $('#protoPickerModal .modal-backdrop'),
-  };
-}
-
-function protoModalSum() {
-  let sum = 0;
-  for (const t of (PROTO_MODAL_TYPES || [])) {
-    const id = String(t?.id || '').trim();
-    if (!id) continue;
-    sum += Number(CHOICE_PROTOS[id] || 0) || 0;
-  }
-  return sum;
-}
-
-function updateProtoModalSelectedCount() {
-  if (!IS_STUDENT_PAGE || !PROTO_MODAL_OPEN) return;
-  const { cnt } = getProtoModalEls();
-  if (cnt) cnt.textContent = `Выбрано: ${protoModalSum()}`;
-}
-
-function closeProtoPickerModal() {
-  if (!IS_STUDENT_PAGE) return;
-  const { modal, title, list, hint, cnt } = getProtoModalEls();
-  if (!modal) return;
-
-  PROTO_MODAL_OPEN = false;
-  PROTO_MODAL_TOPIC = null;
-  PROTO_MODAL_TYPES = [];
-
-  modal.classList.add('hidden');
-  modal.setAttribute('aria-hidden', 'true');
-  if (title) title.textContent = 'Прототипы';
-  if (cnt) cnt.textContent = 'Выбрано: 0';
-  if (list) list.innerHTML = '';
-  if (hint) hint.textContent = '';
-}
-
-async function openProtoPickerModal(topic) {
-  if (!IS_STUDENT_PAGE) return;
-  if (!topic || !topic.id) return;
-  if (PICK_MODE === 'smart') return;
-
-  const { modal, title, list, hint, cnt } = getProtoModalEls();
-  if (!modal || !title || !list || !hint) return;
-
-  PROTO_MODAL_OPEN = true;
-  PROTO_MODAL_TOPIC = topic;
-  PROTO_MODAL_TYPES = [];
-
-  modal.classList.remove('hidden');
-  modal.setAttribute('aria-hidden', 'false');
-
-  const topicId = String(topic.id).trim();
-  title.textContent = `${topicId}. ${topic.title || ''}`.trim();
-  list.innerHTML = '<div class="muted">Загрузка…</div>';
-  hint.textContent = '';
-  if (cnt) cnt.textContent = 'Выбрано: 0';
-
-  const seq = ++_PROTO_MODAL_SEQ;
-  const man = await ensurePickerManifest(topic);
-  if (seq !== _PROTO_MODAL_SEQ) return;
-
-  if (!man) {
-    list.innerHTML = '';
-    hint.textContent = 'Не удалось загрузить прототипы. Проверьте сеть и обновите страницу.';
-    return;
-  }
-
-  const types = (man.types || []).filter(t => Array.isArray(t.prototypes) && t.prototypes.length > 0);
-  types.sort((a, b) => compareId(a.id, b.id));
-  PROTO_MODAL_TYPES = types;
-
-  list.innerHTML = '';
-  if (!types.length) {
-    hint.textContent = 'В этой подтеме пока нет прототипов.';
-    updateProtoModalSelectedCount();
-    return;
-  }
-
-  const frag = document.createDocumentFragment();
-  for (const typ of types) {
-    frag.appendChild(renderProtoModalCard(man, typ));
-  }
-  list.appendChild(frag);
-
-  updateProtoModalSelectedCount();
-  await typesetMathIfNeeded(list);
-}
-
-function renderProtoModalCard(manifest, type) {
-  const cap = (type.prototypes || []).length;
-  const typeId = String(type.id || '').trim();
-  const row = document.createElement('div');
-  row.className = 'tp-item';
-  row.dataset.typeId = typeId;
-
-  const left = document.createElement('div');
-  left.className = 'tp-item-left';
-
-  const meta = document.createElement('div');
-  meta.className = 'tp-item-meta';
-  meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
-
-  const stem = document.createElement('div');
-  stem.className = 'tp-item-stem';
-  const proto0 = (type.prototypes || [])[0] || null;
-  stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
-
-  left.appendChild(meta);
-  left.appendChild(stem);
-
-  const right = document.createElement('div');
-  right.className = 'tp-item-right';
-
-  const minus = document.createElement('button');
-  minus.type = 'button';
-  minus.className = 'tp-ctr-btn';
-  minus.textContent = '−';
-
-  const val = document.createElement('div');
-  val.className = 'tp-ctr-val';
-
-  const plus = document.createElement('button');
-  plus.type = 'button';
-  plus.className = 'tp-ctr-btn';
-  plus.textContent = '+';
-
-  const capEl = document.createElement('div');
-  capEl.className = 'tp-ctr-cap';
-  capEl.textContent = `из ${cap}`;
-
-  const setBtnState = () => {
-    const c = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[typeId] || 0)));
-    val.textContent = String(c);
-    minus.disabled = c <= 0;
-    plus.disabled = c >= cap;
-  };
-
-  minus.addEventListener('click', () => {
-    const c = Number(CHOICE_PROTOS[typeId] || 0);
-    setProtoCount(typeId, Math.max(0, c - 1), cap);
-    setBtnState();
-    updateProtoModalSelectedCount();
-  });
-  plus.addEventListener('click', () => {
-    const c = Number(CHOICE_PROTOS[typeId] || 0);
-    setProtoCount(typeId, Math.min(cap, c + 1), cap);
-    setBtnState();
-    updateProtoModalSelectedCount();
-  });
-
-  // начальное состояние
-  setBtnState();
-
-  right.appendChild(minus);
-  right.appendChild(val);
-  right.appendChild(plus);
-  right.appendChild(capEl);
-
-  row.appendChild(left);
-  row.appendChild(right);
-
-  return row;
-}
-
-let _PROTO_MODAL_EVENTS_BOUND = false;
-function initProtoPickerModal() {
-  if (!IS_STUDENT_PAGE || _PROTO_MODAL_EVENTS_BOUND) return;
-  const { modal, close, backdrop } = getProtoModalEls();
-  if (!modal) return;
-  _PROTO_MODAL_EVENTS_BOUND = true;
-
-  if (close) close.addEventListener('click', () => closeProtoPickerModal());
-  if (backdrop) backdrop.addEventListener('click', () => closeProtoPickerModal());
-
-  document.addEventListener('keydown', (e) => {
-    if (!PROTO_MODAL_OPEN) return;
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      closeProtoPickerModal();
-    }
-  });
-}
-
-function closeHomeProtoPanel(opts = {}) {
-  if (!IS_STUDENT_PAGE) return;
-  const { panel, title, note, list } = getHomeProtoEls();
-
-  HOME_PROTO_ACTIVE_TOPIC_ID = '';
-  try { document.body?.classList.remove('home-protos-open'); } catch (_) {}
-
-  if (panel) panel.hidden = true;
-  if (title) title.textContent = '—';
-  if (note) {
-    note.hidden = false;
-    note.textContent = 'Кликните по подтеме слева, чтобы добавить конкретные прототипы.';
-  }
-  if (list) list.innerHTML = '';
-}
-
-async function openHomeProtoPanel(topic) {
-  if (!IS_STUDENT_PAGE) return;
-  if (!topic || !topic.id) return;
-
-  const { panel, title, note, list } = getHomeProtoEls();
-  if (!panel || !title || !list) return;
-
-  const topicId = String(topic.id).trim();
-  const same = (HOME_PROTO_ACTIVE_TOPIC_ID === topicId) && !panel.hidden && (PICK_MODE !== 'smart');
-  if (same) {
-    closeHomeProtoPanel();
-    syncPickModeUI();
-    return;
-  }
-
-  HOME_PROTO_ACTIVE_TOPIC_ID = topicId;
-  syncPickModeUI(); // покажем панель, расширим правую колонку
-
-  title.textContent = `${topicId}. ${topic.title || ''}`.trim();
-  if (note) {
-    note.hidden = true;
-    note.textContent = '';
-  }
-
-  list.innerHTML = '<div style="opacity:.8;font-size:12px">Загрузка…</div>';
-
-  const seq = ++_HOME_PROTO_SEQ;
-  const man = await ensurePickerManifest(topic);
-
-  if (seq !== _HOME_PROTO_SEQ) return; // устаревший запрос
-
-  if (!man) {
-    list.innerHTML = '';
-    if (note) {
-      note.hidden = false;
-      note.textContent = 'Не удалось загрузить прототипы. Проверьте сеть и обновите страницу.';
-    }
-    return;
-  }
-
-  const types = (man.types || []).filter(t => Array.isArray(t.prototypes) && t.prototypes.length > 0);
-  types.sort((a, b) => compareId(a.id, b.id));
-
-  list.innerHTML = '';
-  if (!types.length) {
-    if (note) {
-      note.hidden = false;
-      note.textContent = 'В этой подтеме пока нет прототипов.';
-    }
-    return;
-  }
-
-  for (const typ of types) {
-    list.appendChild(renderHomeProtoCard(man, typ));
-  }
-
-  await typesetMathIfNeeded(list);
-}
-
-function renderHomeProtoCard(manifest, type) {
-  const cap = (type.prototypes || []).length;
-  const typeId = String(type.id || '').trim();
-  const current = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[typeId] || 0)));
-
-  const node = document.createElement('div');
-  node.className = 'tp-item';
-  node.dataset.typeId = typeId;
-
-  const meta = `${typeId} ${type.title || ''} (вариантов: ${cap})`;
-  const proto0 = (type.prototypes || [])[0] || null;
-  const stemHtml = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
-
-  node.innerHTML = `
-    <div class="tp-item-left">
-      <div class="tp-item-meta">${escapeHtml(meta)}</div>
-      <div class="tp-item-stem">${stemHtml}</div>
-    </div>
-    <div class="tp-item-right">
-      <button class="tp-ctr-btn tp-ctr-minus" type="button">−</button>
-      <input class="tp-ctr-val" type="text" value="${current}" readonly>
-      <button class="tp-ctr-btn tp-ctr-plus" type="button">+</button>
-      <div class="tp-ctr-cap">из ${cap}</div>
-    </div>
-  `;
-
-  // home_student: переносим картинку (если есть) в правую колонку (под степпером),
-  // чтобы она не зависела от высоты текста слева.
-  const fig = node.querySelector('.tp-item-left .tp-fig');
-  if (fig) {
-    const wrap = document.createElement('div');
-    wrap.className = 'home-proto-figwrap';
-    node.appendChild(wrap);
-    wrap.appendChild(fig);
-  }
-
-  const minus = $('.tp-ctr-minus', node);
-  const plus = $('.tp-ctr-plus', node);
-  const val = $('.tp-ctr-val', node);
-
-  const syncBtns = () => {
-    const v = Math.max(0, Math.min(cap, Number(val.value || 0)));
-    if (minus) minus.disabled = (v <= 0);
-    if (plus) plus.disabled = (v >= cap);
-  };
-
-  if (minus) minus.addEventListener('click', () => {
-    const v = Math.max(0, Number(val.value || 0) - 1);
-    val.value = String(setProtoCount(typeId, v, cap));
-    syncBtns();
-  });
-
-  if (plus) plus.addEventListener('click', () => {
-    const v = Math.min(cap, Number(val.value || 0) + 1);
-    val.value = String(setProtoCount(typeId, v, cap));
-    syncBtns();
-  });
-
-  syncBtns();
-  return node;
-}
-
-async function ensurePickerManifest(topic) {
-  if (topic._manifest) return topic._manifest;
-  if (topic._manifestPromise) return topic._manifestPromise;
-  if (!topic.path) return null;
-
-  const url = new URL((IN_TASKS_DIR ? '../' : '') + topic.path, location.href);
-
-  topic._manifestPromise = (async () => {
-    try {
-      const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
-      if (!resp.ok) return null;
-      const j = await resp.json();
-      topic._manifest = j;
-      return j;
-    } catch (_) {
-      return null;
-    }
-  })();
-
-  return topic._manifestPromise;
-}
-
-function buildStemPreview(manifest, type, proto) {
-  const params = proto?.params || {};
-  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
-  const stem = interpolate(stemTpl, params);
-
-  const fig = proto?.figure || type?.figure || null;
-  const figHtml = fig?.img ? `<img class="tp-fig" src="${asset(fig.img)}" alt="${escapeHtml(fig.alt || '')}">` : '';
-  const textHtml = `<div class="tp-stem">${stem}</div>`;
-  return figHtml ? `<div class="tp-preview">${textHtml}${figHtml}</div>` : textHtml;
-}
-
-function asset(p) {
-  if (typeof p === 'string' && p.startsWith('content/')) {
-    return IN_TASKS_DIR ? '../' + p : p;
-  }
-  return p;
-}
-
-// минимальная интерполяция ${var} как в тренажёре
-function interpolate(tpl, params) {
-  return String(tpl || '').replace(
-    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
-    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
-  );
-}
-
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-async function typesetMathIfNeeded(rootEl) {
-  if (!rootEl) return;
-  await ensureMathJaxLoaded();
-
-  if (window.MathJax?.typesetPromise) {
-    try { await window.MathJax.typesetPromise([rootEl]); } catch (_) { /* ignore */ }
-  } else if (window.MathJax?.typeset) {
-    try { window.MathJax.typeset([rootEl]); } catch (_) { /* ignore */ }
-  }
-}
-
-let __mjLoading = null;
-function ensureMathJaxLoaded() {
-  if (window.MathJax && (window.MathJax.typesetPromise || window.MathJax.typeset)) return Promise.resolve();
-  if (__mjLoading) return __mjLoading;
-
-  __mjLoading = new Promise((resolve) => {
-    window.MathJax = window.MathJax || {
-      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
-      svg: { fontCache: 'global' },
-    };
-
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => resolve();
-    document.head.appendChild(s);
-  });
-
-  return __mjLoading;
-}
-
 
 // Кэш статистики для home_student (stale-while-revalidate):
 // - sessionStorage: быстрый и короткий (для back/forward и табов)
@@ -771,50 +454,35 @@ function thermoColorByPrimary(primaryRounded) {
 function updateScoreThermo(primaryRounded, secondary, opts = {}) {
   if (!IS_STUDENT_PAGE) return;
 
-  const targets = [
-    {
-      root: document.getElementById('scoreThermo'),
-      fill: document.getElementById('scoreThermoFill'),
-      elS: document.getElementById('scoreThermoSecondary'),
-      elP: document.getElementById('scoreThermoPrimary'),
-    },
-    {
-      root: document.getElementById('scoreThermoDesk'),
-      fill: document.getElementById('scoreThermoFillDesk'),
-      elS: document.getElementById('scoreThermoSecondaryDesk'),
-      elP: document.getElementById('scoreThermoPrimaryDesk'),
-    },
-  ];
+  const root = document.getElementById('scoreThermo');
+  const fill = document.getElementById('scoreThermoFill');
+  const elS = document.getElementById('scoreThermoSecondary');
+  const elP = document.getElementById('scoreThermoPrimary');
+
+  if (!root || !fill || !elS || !elP) return;
 
   const signedIn = opts?.signedIn !== false;
+  if (!signedIn) {
+    root.dataset.color = 'gray';
+    fill.style.width = '0%';
+    elS.textContent = '—';
+    elP.textContent = '—';
+    root.setAttribute('aria-label', 'Готовность по первой части');
+    return;
+  }
 
   const v = Number(primaryRounded || 0);
   const p = Math.max(0, Math.min(12, Math.round(isFinite(v) ? v : 0)));
   const s = Math.max(0, Number(secondary || 0) || 0);
 
-  for (const t of targets) {
-    const root = t.root, fill = t.fill, elS = t.elS, elP = t.elP;
-    if (!root || !fill || !elS || !elP) continue;
+  root.dataset.color = thermoColorByPrimary(p);
+  fill.style.width = `${(p / 12) * 100}%`;
 
-    if (!signedIn) {
-      root.dataset.color = 'gray';
-      fill.style.width = '0%';
-      elS.textContent = '—';
-      elP.textContent = '—';
-      root.setAttribute('aria-label', 'Готовность по первой части');
-      continue;
-    }
+  elS.textContent = `${s} втор.`;
+  elP.textContent = `${p} перв.`;
 
-    root.dataset.color = thermoColorByPrimary(p);
-    fill.style.width = `${(p / 12) * 100}%`;
-
-    elS.textContent = `${s} втор.`;
-    elP.textContent = `${p} перв.`;
-
-    root.setAttribute('aria-label', `Готовность по первой части: ${p} первичных, ${s} вторичных`);
-  }
+  root.setAttribute('aria-label', `Готовность по первой части: ${p} первичных, ${s} вторичных`);
 }
-
 
 function updateScoreForecast(sectionPctById, opts = {}) {
   if (!IS_STUDENT_PAGE) return;
@@ -1537,10 +1205,19 @@ function initAuthHeader() {
 document.addEventListener('DOMContentLoaded', async () => {
   initAuthHeader();
 
+  // Главная учителя: селект ученика (для автоподстановки на hw_create)
+  refreshTeacherStudentSelect();
+  try {
+    if (IS_TEACHER_HOME) {
+      supabase.auth.onAuthStateChange(() => {
+        refreshTeacherStudentSelect();
+      });
+    }
+  } catch (_) {}
+
   if (IS_STUDENT_PAGE) {
     // До рендера аккордеона держим бейджи в скелетоне, чтобы не мигали дефолтные "— 0/0".
     setHomeStatsLoading(true);
-    initProtoPickerModal();
   }
 
   if (IS_STUDENT_PAGE) {
@@ -1688,16 +1365,6 @@ function syncPickModeUI() {
   if (bulk) bulk.hidden = (PICK_MODE === 'smart');
   if (accordion) accordion.hidden = (PICK_MODE === 'smart');
 
-  // home_student: панель прототипов показываем только в manual режиме
-  if (IS_STUDENT_PAGE) {
-    const panel = $('#homeProtoPanel');
-    if (panel) panel.hidden = true;
-    try { document.body?.classList.remove('home-protos-open'); } catch (_) {}
-    if (PICK_MODE === 'smart') {
-      try { closeProtoPickerModal(); } catch (_) {}
-    }
-  }
-
   try { if (document.body) document.body.dataset.pickMode = PICK_MODE; } catch (_) {}
 
 }
@@ -1770,8 +1437,7 @@ function updateSmartHint(msg = '') {
 function getTotalSelected() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
-  const sumProtos = Object.values(CHOICE_PROTOS).reduce((s, n) => s + (n || 0), 0);
-  return sumTopics + sumSections + sumProtos;
+  return sumTopics + sumSections;
 }
 
 async function tryBuildSmartSelection(n) {
@@ -1917,6 +1583,13 @@ function initCreateHomeworkButton() {
   if (!btn) return;
 
   btn.addEventListener('click', () => {
+    // Главная учителя: сохраняем выбранного ученика (нужно для автоподстановки на странице создания ДЗ)
+    try {
+      const sel = $('#teacherStudentSelect');
+      const sid = String(sel?.value || '').trim();
+      if (sid) writeTeacherSelectedStudentId(sid);
+    } catch (_) {}
+
     try {
       const prefill = buildHwCreatePrefill();
       const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections);
@@ -1960,9 +1633,6 @@ function bulkPickAll(delta) {
 function bulkResetAll() {
   CHOICE_TOPICS = {};
   CHOICE_SECTIONS = {};
-  CHOICE_PROTOS = {};
-  try { closeProtoPickerModal(); } catch (_) {}
-  try { closeHomeProtoPanel({ keepSelection: true }); } catch (_) {}
   refreshCountsUI();
 }
 
@@ -2198,13 +1868,6 @@ function renderTopicRow(topic) {
 
   const titleEl = $('.title', row);
   if (titleEl) titleEl.dataset.baseTitle = `${topic.id}. ${topic.title}`;
-  if (IS_STUDENT_PAGE && titleEl) {
-    titleEl.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openProtoPickerModal(topic);
-    });
-  }
 
   // поправка значения count (чтобы не было issues с шаблонной строкой внутри)
   const num = $('.count', row);
@@ -2271,8 +1934,7 @@ function bubbleUpSums() {
 function refreshTotalSum() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
-  const sumProtos = Object.values(CHOICE_PROTOS).reduce((s, n) => s + (n || 0), 0);
-  const total = sumTopics + sumSections + sumProtos;
+  const total = sumTopics + sumSections;
 
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
@@ -2283,8 +1945,13 @@ function refreshTotalSum() {
   const isReady = total > 0;
   const smartNoSelection = IS_STUDENT_PAGE && PICK_MODE === 'smart' && !isReady;
 
-  startBtn.classList.toggle('disabled', (!isReady && !smartNoSelection));
-  startBtn.disabled = (!isReady && !smartNoSelection);
+  startBtn.classList.toggle('is-ready', isReady);
+  startBtn.classList.toggle('is-smart', smartNoSelection);
+
+  // На главной ученика в "умной тренировке" кнопку "Начать" не блокируем:
+  // при total=0 она запускает автосбор плана (и поэтому должна выглядеть кликабельно).
+  if (IS_STUDENT_PAGE && PICK_MODE === 'smart') startBtn.disabled = false;
+  else startBtn.disabled = total <= 0;
 }
 
 // ---------- передача выбора в тренажёр / список ----------
@@ -2294,7 +1961,6 @@ function saveSelectionAndGo() {
   const selection = {
     topics: CHOICE_TOPICS,
     sections: CHOICE_SECTIONS,
-    protos: CHOICE_PROTOS,
     mode,
     shuffle: SHUFFLE_TASKS,
   };

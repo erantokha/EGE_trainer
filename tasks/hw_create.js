@@ -2,15 +2,20 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-02-25-20';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-20';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-25-20';
+import { CONFIG } from '../app/config.js?v=2026-02-25-5';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-5';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-25-5';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-02-25-20';
+} from '../app/core/pick.js?v=2026-02-25-5';
+
+
+// Главная учителя → страница создания ДЗ: автоподстановка ученика
+const TEACHER_SELECTED_STUDENT_KEY = 'teacher_selected_student_v1';
+const TEACHER_SELECTED_STUDENT_TTL_MS = 2 * 60 * 60 * 1000; // 2 часа
 
 
 // finalize OAuth redirect URL cleanup (remove ?code=&state= after successful exchange)
@@ -128,6 +133,18 @@ async function loadAssignStudents(){
       sel.appendChild(opt);
     }
 
+    // Автоподстановка: если пришли с главной страницы учителя и там был выбран ученик.
+    // Храним в sessionStorage объект {id, ts}, чтобы не подтягивать слишком старый выбор.
+    const autoId = readTeacherSelectedStudentId();
+    if (autoId) {
+      for (const o of Array.from(sel.options)) {
+        if (String(o.value) === autoId) {
+          sel.value = autoId;
+          break;
+        }
+      }
+    }
+
     sel.disabled = false;
     setAssignStatus('');
   } catch(e){
@@ -154,6 +171,26 @@ const HW_PREFILL_KEY = 'hw_create_prefill_v1';
 function safeJsonParse(raw) {
   try { return JSON.parse(raw); } catch { return null; }
 }
+
+function readTeacherSelectedStudentId(nowMs){
+  const now = Number(nowMs || Date.now()) || Date.now();
+  try {
+    const raw = sessionStorage.getItem(TEACHER_SELECTED_STUDENT_KEY);
+    if (!raw) return '';
+    const obj = safeJsonParse(raw);
+    if (obj && typeof obj === 'object') {
+      const id = String(obj.id || '').trim();
+      const ts = Number(obj.ts || 0) || 0;
+      if (!id) return '';
+      if (ts && (now - ts) > TEACHER_SELECTED_STUDENT_TTL_MS) return '';
+      return id;
+    }
+    return String(raw || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
 function normalizeCount(x) {
   const n = Math.floor(Number(x) || 0);
   return n > 0 ? n : 0;
