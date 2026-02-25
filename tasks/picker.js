@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-26-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-2';
-import { CONFIG } from '../app/config.js?v=2026-02-26-2';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-02-26-2';
+import { withBuild } from '../app/build.js?v=2026-02-25-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-23';
+import { CONFIG } from '../app/config.js?v=2026-02-25-23';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -139,8 +139,8 @@ function wireTeacherStudentSelect(sel){
 function setTeacherStudentViewUI(studentId){
   TEACHER_VIEW_STUDENT_ID = String(studentId || '').trim();
   document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
-  const slot = document.getElementById('scoreThermoSlot');
-  if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
+  // Видимость градусника контролируем через CSS (как на home_student.mobile.css).
+  // Атрибут hidden не используем, чтобы медиазапросы могли показывать/прятать блок.
 }
 
 let _TEACHER_STATS_SEQ = 0;

@@ -1,0 +1,279 @@
+/* Responsive tweaks for /home_teacher.html when teacher views a selected student.
+   Loaded after trainer.css, so it can safely override styles without touching desktop. */
+
+/* Score thermometer: hidden by default (desktop), shown on <=1024px like on home_student */
+body[data-home-variant="teacher"] .score-thermo-slot{
+  display:none;
+}
+
+@media (max-width: 1024px) {
+  /* Responsive sizing tokens (scale with viewport, but stay within sane bounds) */
+  body.teacher-student-view #accordion{
+    /* keep countbox width compact on phones, default-ish on tablets */
+    --home-countbox-w:clamp(112px, 20vw, 132px);
+
+    /* stepper */
+    --hs-step-btn:clamp(28px, 3.2vw, 32px);
+    --hs-step-input:clamp(30px, 5.0vw, 40px);
+    --hs-step-radius:clamp(8px, 1.6vw, 10px);
+
+    /* "chips" (pct/cov) under the title, inside the same rounded container */
+    --hs-chip-h:clamp(16px, 2.2vw, 22px);
+    --hs-chip-w:clamp(56px, 13vw, 96px);
+    --hs-chip-pad-x:clamp(6px, 1.2vw, 10px);
+    --hs-chip-radius:clamp(10px, 1.8vw, 12px);
+    --hs-chip-fs:clamp(11px, 2.6vw, 12px);
+
+    /* container around title + chips */
+    --hs-card-radius:clamp(14px, 2.2vw, 18px);
+    --hs-card-pad-x:clamp(10px, 2.2vw, 14px);
+    --hs-card-pad-top:clamp(8px, 1.6vw, 10px);
+    --hs-card-pad-bot:clamp(6px, 1.4vw, 9px);
+
+    /* layout gaps */
+    --hs-row-gap:clamp(3px, 0.9vw, 6px);
+    --hs-col-gap:clamp(10px, 1.6vw, 14px);
+  }
+
+  /* Hide the "Процент / Покрытие" header row – chips live inside the title container */
+  body.teacher-student-view #accordion .home-badges-head{
+    display:none !important;
+  }
+
+  /* Tighter spacing between sections */
+  body.teacher-student-view #accordion .node.section{
+    padding:clamp(4px, 0.9vw, 6px) 0 !important;
+    border-bottom:none !important;
+  }
+
+  /* Compact stepper (+ 0 -) */
+  body.teacher-student-view #accordion .countbox{
+    gap:clamp(4px, 1.2vw, 6px);
+  }
+
+  body.teacher-student-view #accordion .countbox .btn{
+    width:var(--hs-step-btn);
+    height:var(--hs-step-btn);
+    padding:0;
+    border-radius:var(--hs-step-radius);
+  }
+
+  body.teacher-student-view #accordion .countbox input[type="number"],
+  body.teacher-student-view #accordion .countbox .count{
+    width:var(--hs-step-input) !important;
+    height:var(--hs-step-btn);
+    padding:0 var(--hs-chip-pad-x);
+    font-size:clamp(12px, 2.8vw, 14px);
+    border-radius:var(--hs-step-radius);
+    box-sizing:border-box;
+  }
+
+  /* Section row layout: countbox (left) + content (right) */
+  body.teacher-student-view #accordion .node.section > .row{
+    display:grid !important;
+    grid-template-columns:var(--home-countbox-w) 1fr !important;
+    grid-template-rows:auto auto auto !important;
+    column-gap:var(--hs-col-gap) !important;
+    row-gap:var(--hs-row-gap) !important;
+    align-items:start !important;
+
+    /* no visual seam between title row and chips row */
+    row-gap:0 !important;
+  }
+
+  body.teacher-student-view #accordion .node.section > .row > .countbox{
+    grid-column:1 !important;
+    grid-row:1 / span 3 !important;
+    width:var(--home-countbox-w) !important;
+    margin-right:0 !important;
+    align-self:center !important;
+  }
+
+  /* Remove previous ::before container (it could collapse to a thin line on some layouts) */
+  body.teacher-student-view #accordion .node.section > .row::before{
+    content:none !important;
+    display:none !important;
+  }
+
+  /* The clickable title button becomes the unified rounded container */
+  body.teacher-student-view #accordion .node.section > .row > .section-title{
+    grid-column:2 !important;
+    grid-row:1 / span 2 !important;
+    margin-left:0 !important;
+    width:100% !important;
+    justify-self:stretch !important;
+    box-sizing:border-box !important;
+
+    position:relative !important;
+    z-index:1 !important;
+
+    border:1px solid var(--border) !important;
+    border-radius:var(--hs-card-radius) !important;
+    background:rgba(148,163,184,.06) !important;
+
+    /* Reserve space at bottom for chips that are separate DOM nodes */
+    padding:var(--hs-card-pad-top) var(--hs-card-pad-x)
+            calc(var(--hs-card-pad-bot) + var(--hs-chip-h) + clamp(6px, 1.4vw, 10px))
+            var(--hs-card-pad-x) !important;
+
+    /* allow up to 2 lines */
+    display:-webkit-box !important;
+    -webkit-box-orient:vertical !important;
+    -webkit-line-clamp:2 !important;
+    white-space:normal !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    line-height:1.2 !important;
+  }
+
+  /* Chips live "inside" the rounded container (visually). */
+  body.teacher-student-view #accordion .node.section > .row > .home-section-badges{
+    grid-column:2 !important;
+    grid-row:2 !important;
+
+    position:relative !important;
+    z-index:2 !important;
+
+    display:flex !important;
+    align-items:center !important;
+    justify-content:flex-start !important;
+    gap:clamp(6px, 1.2vw, 8px) !important;
+    width:100% !important;
+    box-sizing:border-box !important;
+
+    /* transparent: the container is the title button */
+    border:none !important;
+    background:transparent !important;
+    border-radius:0 !important;
+
+    padding:0 var(--hs-card-pad-x) var(--hs-card-pad-bot) var(--hs-card-pad-x) !important;
+    margin-right:0 !important;
+  }
+
+  /* Small rounded chips */
+  body.teacher-student-view #accordion .node.section .home-section-pct,
+  body.teacher-student-view #accordion .node.section .home-section-cov{
+    flex:0 0 auto !important;
+    width:var(--hs-chip-w) !important;
+    min-width:var(--hs-chip-w) !important;
+    height:var(--hs-chip-h) !important;
+    padding:0 var(--hs-chip-pad-x) !important;
+    border-radius:var(--hs-chip-radius) !important;
+    font-size:var(--hs-chip-fs) !important;
+    line-height:1 !important;
+    box-sizing:border-box !important;
+    justify-content:center !important;
+  }
+
+  body.teacher-student-view #accordion .node.section > .row > .unique-btn{
+    grid-column:2 !important;
+    grid-row:3 !important;
+    justify-self:start !important;
+    margin-left:0 !important;
+    font-size:clamp(11px, 2.4vw, 12px);
+    padding:6px 10px;
+    border-radius:12px;
+    max-width:100%;
+  }
+
+  body.teacher-student-view #accordion .node.section > .row > .spacer{
+    display:none !important;
+  }
+
+  /* Thermometer: horizontal bar between header and mode toggle */
+  body.teacher-student-view .score-thermo-slot{
+    display:block;
+    margin:clamp(8px, 1.6vw, 12px) 0 clamp(6px, 1.2vw, 10px);
+    max-width:none;
+  }
+
+  body.teacher-student-view .score-thermo{
+    --st-h:clamp(52px, 8vw, 64px);
+    --st-radius:clamp(16px, 3.0vw, 22px);
+    --st-pad-x:clamp(10px, 2.6vw, 14px);
+
+    /* match badge tints from trainer.css */
+    --st-gray:rgba(148,163,184,.10);
+    --st-red:rgba(239,68,68,.14);
+    --st-yellow:rgba(245,158,11,.16);
+    --st-lime:rgba(132,204,22,.14);
+    --st-green:rgba(16,185,129,.12);
+
+    --st-track-bg:rgba(148,163,184,.06);
+  }
+
+  body.teacher-student-view .score-thermo__track{
+    position:relative;
+    height:var(--st-h);
+    border:1px solid var(--border);
+    border-radius:var(--st-radius);
+    background:var(--st-track-bg);
+    overflow:hidden;
+  }
+
+  body.teacher-student-view .score-thermo__fill{
+    position:absolute;
+    left:0;
+    top:0;
+    bottom:0;
+    width:0%;
+    background:var(--st-gray);
+    transition:width 220ms ease, background-color 220ms ease;
+  }
+
+  body.teacher-student-view .score-thermo[data-color="gray"] .score-thermo__fill{background:var(--st-gray);}
+  body.teacher-student-view .score-thermo[data-color="red"] .score-thermo__fill{background:var(--st-red);}
+  body.teacher-student-view .score-thermo[data-color="yellow"] .score-thermo__fill{background:var(--st-yellow);}
+  body.teacher-student-view .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
+  body.teacher-student-view .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
+
+  body.teacher-student-view .score-thermo__content{
+    position:absolute;
+    inset:0;
+    padding:0 var(--st-pad-x);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    pointer-events:none;
+  }
+
+  body.teacher-student-view .score-thermo__label{
+    font-size:clamp(11px, 2.6vw, 13px);
+    line-height:1.1;
+    color:var(--text-dim);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+
+  body.teacher-student-view .score-thermo__values{
+    display:flex;
+    align-items:baseline;
+    justify-content:center;
+    gap:clamp(6px, 1.6vw, 10px);
+    margin-top:2px;
+    font-variant-numeric:tabular-nums;
+  }
+
+  body.teacher-student-view .score-thermo__secondary{
+    font-size:clamp(16px, 4.4vw, 22px);
+    line-height:1;
+  }
+
+  body.teacher-student-view .score-thermo__primary{
+    font-size:clamp(11px, 2.9vw, 14px);
+    line-height:1;
+    color:var(--text-dim);
+    white-space:nowrap;
+  }
+}
+
+@media (max-width: 1024px) and (hover: none) and (pointer: coarse) {
+  /* On touch devices, make chips click-through so the whole card toggles on tap */
+  body.teacher-student-view #accordion .node.section > .row > .home-section-badges{
+    pointer-events:none !important;
+  }
+}
