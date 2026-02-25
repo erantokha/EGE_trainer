@@ -2677,3 +2677,35 @@ body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap{
   display:flex;
   justify-content:flex-end;
 }
+
+/* home_student: polish proto cards (keep changes local to #homeProtoPanel) */
+body[data-home-variant="student"] #homeProtoPanel .tp-item{
+  grid-template-columns: 1fr max-content;
+  column-gap:10px;
+}
+
+/* prevent tall meta row when title wraps; keep it neat */
+body[data-home-variant="student"] #homeProtoPanel .tp-item-meta{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* make preview heights more uniform (like HW builder) */
+body[data-home-variant="student"] #homeProtoPanel .tp-preview-text{
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:6;
+  overflow:hidden;
+}
+
+/* normalize figure size so different images don't "jump" */
+body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap{
+  width:96px;
+}
+body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap .tp-fig{
+  width:96px;
+  height:96px;
+  max-width:96px;
+  object-fit:contain;
+}
