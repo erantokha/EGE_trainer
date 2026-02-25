@@ -2653,13 +2653,27 @@ body[data-home-variant="student"] #homeProtoPanel .tp-ctr-cap{
   white-space:nowrap;
 }
 
-/* home_student: картинка прототипа под степпером, выравнивание вправо */
-body[data-home-variant="student"] #homeProtoPanel .tp-item{ flex-wrap:wrap; }
-body[data-home-variant="student"] #homeProtoPanel .home-proto-figrow{
-  flex-basis:100%;
-  width:100%;
+/* home_student: картинка прототипа справа (под степпером) без "провала" из-за высоты текста слева */
+body[data-home-variant="student"] #homeProtoPanel .tp-item{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap:12px;
+  row-gap:0;
+  align-items:start;
+}
+body[data-home-variant="student"] #homeProtoPanel .tp-item-left{ display:contents; }
+body[data-home-variant="student"] #homeProtoPanel .tp-item-meta{ grid-column:1; grid-row:1; }
+body[data-home-variant="student"] #homeProtoPanel .tp-item-stem{ grid-column:1; grid-row:2; }
+body[data-home-variant="student"] #homeProtoPanel .tp-item-right{
+  grid-column:2;
+  grid-row:1;
+  justify-self:end;
+}
+body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap{
+  grid-column:2;
+  grid-row:2;
+  justify-self:end;
   display:flex;
   justify-content:flex-end;
-  /* отступ между степпером (верхним рядом) и картинкой — примерно одна строка */
-  margin-top:1.35em;
 }
