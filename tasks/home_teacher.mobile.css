@@ -7,6 +7,12 @@ body[data-home-variant="teacher"] .score-thermo-slot{
 }
 
 @media (max-width: 1024px) {
+  /* Keep parity with home_student: hide the right forecast column on mobile */
+  body.teacher-student-view #picker .picker-right{
+    display:none !important;
+  }
+
+
   /* Responsive sizing tokens (scale with viewport, but stay within sane bounds) */
   body.teacher-student-view #accordion{
     /* keep countbox width compact on phones, default-ish on tablets */
