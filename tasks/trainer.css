@@ -204,112 +204,6 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
   font-size:12px;
   color:var(--text-dim);
 }
-
-
-/* Главная ученика (десктоп): градусник под шапкой (как в мобилке), без отдельного контейнера справа */
-@media (min-width: 1025px){
-  /* В home_student.mobile.css градусник скрыт по умолчанию и показывается только до 1024px.
-     Для десктопа включаем его здесь, чтобы не трогать mobile.css. */
-  body[data-home-variant="student"] #scoreThermoSlot{
-    display:block !important;
-    max-width:448px;
-    width:100%;
-    margin:12px 0 10px;
-  }
-
-  /* Теперь справа внизу ничего не показываем (прототипы открываются в модалке) */
-  body[data-home-variant="student"] #picker .picker-right{
-    display:none;
-  }
-
-  body[data-home-variant="student"] .score-thermo{
-    --st-h:32px;
-    --st-radius:14px;
-    --st-pad-x:12px;
-
-    /* match badge tints */
-    --st-gray:rgba(148,163,184,.10);
-    --st-red:rgba(239,68,68,.14);
-    --st-yellow:rgba(245,158,11,.16);
-    --st-lime:rgba(132,204,22,.14);
-    --st-green:rgba(16,185,129,.12);
-
-    --st-track-bg:rgba(148,163,184,.06);
-  }
-
-  body[data-home-variant="student"] .score-thermo__track{
-    position:relative;
-    height:var(--st-h);
-    border:1px solid var(--border);
-    border-radius:var(--st-radius);
-    background:var(--st-track-bg);
-    overflow:hidden;
-  }
-
-  body[data-home-variant="student"] .score-thermo__fill{
-    position:absolute;
-    left:0;
-    top:0;
-    bottom:0;
-    width:0%;
-    background:var(--st-gray);
-    transition:width 220ms ease, background-color 220ms ease;
-  }
-  body[data-home-variant="student"] .score-thermo[data-color="gray"] .score-thermo__fill{background:var(--st-gray);}
-  body[data-home-variant="student"] .score-thermo[data-color="red"] .score-thermo__fill{background:var(--st-red);}
-  body[data-home-variant="student"] .score-thermo[data-color="yellow"] .score-thermo__fill{background:var(--st-yellow);}
-  body[data-home-variant="student"] .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
-  body[data-home-variant="student"] .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
-
-  body[data-home-variant="student"] .score-thermo__content{
-    position:absolute;
-    inset:0;
-    padding:0 var(--st-pad-x);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    text-align:center;
-    pointer-events:none;
-  }
-
-  body[data-home-variant="student"] .score-thermo__label{
-    font-size:10px;
-    line-height:1.1;
-    color:var(--text-dim);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    max-width:100%;
-  }
-
-  body[data-home-variant="student"] .score-thermo__values{
-    display:flex;
-    align-items:baseline;
-    justify-content:center;
-    gap:8px;
-    margin-top:0;
-    font-variant-numeric:tabular-nums;
-  }
-
-  body[data-home-variant="student"] .score-thermo__secondary{
-    font-size:18px;
-    line-height:1;
-  }
-
-  body[data-home-variant="student"] .score-thermo__primary{
-    font-size:12px;
-    line-height:1;
-    color:var(--text-dim);
-    white-space:nowrap;
-  }
-
-  /* На десктопе справа градусник больше не нужен: он сверху */
-  body[data-home-variant="student"] #picker #scoreForecast{
-    display:none;
-  }
-}
-
 @media (max-width: 900px){
   body[data-home-variant="student"] #picker .picker-grid{flex-direction:column}
   body[data-home-variant="student"] #picker .picker-right{width:auto; flex:0 0 auto}
@@ -1483,31 +1377,6 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   line-height:1;
   text-align:center;
 }
-
-/* home_student: кнопка закрытия окна выбора прототипов */
-#protoPickerModal #protoPickerClose{
-  width:36px;
-  height:36px;
-  padding:0 0 4px 0;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  font-size:24px;
-  line-height:1;
-  text-align:center;
-}
-
-/* home_student: тело модалки с прототипами */
-#protoPickerModal .proto-picker-main{
-  display:flex;
-  flex-direction:column;
-  flex:1;
-  min-height:0;
-}
-#protoPickerModal #protoPickerList{
-  flex:1;
-  min-height:0;
-}
 .modal-body {
   display:grid;
   grid-template-columns:320px 1fr;
@@ -2610,132 +2479,267 @@ body[data-home-variant="student"] #accordion .node.section > .row > .section-tit
 }
 
 
-/* home_student: панель прототипов справа */
-body[data-home-variant="student"] #picker .node.topic .title{
-  cursor:pointer;
-}
-body[data-home-variant="student"] #picker .node.topic .title:hover{
-  text-decoration:underline;
-}
+/* =========================
+   Главная учителя: режим «как у ученика» (teacher-student-view)
+   ========================= */
 
-body[data-home-variant="student"].home-protos-open #picker .picker-right{
-  flex:0 0 520px;
-  width:520px;
-}
-
-body[data-home-variant="student"] #homeProtoPanel{
-  margin-top:12px;
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:12px;
-  background:rgba(148,163,184,.06);
-}
-body[data-home-variant="student"] #homeProtoPanel .home-proto-head{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  margin-bottom:10px;
-}
-body[data-home-variant="student"] #homeProtoPanel .home-proto-title{
-  font-size:14px;
-  font-weight:600;
-  line-height:1.25;
-}
-body[data-home-variant="student"] #homeProtoPanel .home-proto-note{
-  font-size:12px;
-  opacity:.8;
-  line-height:1.3;
-}
-
-body[data-home-variant="student"] #homeProtoList{
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  max-height:calc(100vh - 220px);
-  overflow:auto;
-  padding-right:2px;
-}
-
-/* home_student: уменьшенный степпер в мини-карточках прототипов (на ~20% компактнее) */
-body[data-home-variant="student"] #homeProtoPanel .tp-item-right{ gap:6px; }
-body[data-home-variant="student"] #homeProtoPanel .tp-ctr-btn{
-  width:26px;
-  height:26px;
-  border-radius:8px;
-  font-size:14px;
-  padding:0 0 2px 0;
-}
-body[data-home-variant="student"] #homeProtoPanel .tp-ctr-val{
-  width:22px;
-  min-width:22px;
-  height:26px;
-  padding:0;
-  border:none;
-  background:transparent;
-  font-size:14px;
-  line-height:26px;
-  text-align:center;
-  box-sizing:border-box;
-  display:inline-block;
-}
-body[data-home-variant="student"] #homeProtoPanel .tp-ctr-cap{
-  font-size:10px;
+body.teacher-student-view #accordion .section-title{
+  flex:0 0 auto;
+  width:auto;
+  display:inline-flex;
+  align-items:center;
   white-space:nowrap;
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
 }
 
-/* home_student: картинка прототипа справа (под степпером) без "провала" из-за высоты текста слева */
-body[data-home-variant="student"] #homeProtoPanel .tp-item{
+body.teacher-student-view #accordion .unique-btn{
+  margin-left:5ch;
+}
+
+body.teacher-student-view #accordion .node.section .section-title{margin-left:0}
+body.teacher-student-view #accordion .node .row .countbox{margin-right:12px}
+
+/* названия тем/подтем — как у ученика (без овальных плашек) */
+body.teacher-student-view #accordion .node.topic .title{
+  display:block;
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+  line-height:1.25;
+  white-space:normal;
+  overflow:visible;
+}
+
+body.teacher-student-view #accordion .home-last10-badge{flex:0 0 auto}
+body.teacher-student-view #accordion .home-topic-badge{margin-right:12px}
+
+body.teacher-student-view #accordion{
+  --home-countbox-w:132px;
+  --home-pct-w:40px;
+  --home-cov-w:60px;
+  --home-cols-gap:12px;
+}
+
+body.teacher-student-view #accordion .node.section > .row,
+body.teacher-student-view #accordion .home-badges-head .row{
   display:grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
-  column-gap:12px;
-  row-gap:0;
-  align-items:start;
+  grid-template-columns:var(--home-countbox-w) var(--home-pct-w) var(--home-cov-w) max-content max-content 1fr;
+  column-gap:var(--home-cols-gap);
+  align-items:center;
 }
-body[data-home-variant="student"] #homeProtoPanel .tp-item-left{ display:contents; }
-body[data-home-variant="student"] #homeProtoPanel .tp-item-meta{ grid-column:1; grid-row:1; }
-body[data-home-variant="student"] #homeProtoPanel .tp-item-stem{ grid-column:1; grid-row:2; }
-body[data-home-variant="student"] #homeProtoPanel .tp-item-right{
-  grid-column:2;
-  grid-row:1;
-  justify-self:end;
+
+body.teacher-student-view #accordion .node.section > .row > .countbox{
+  margin-right:0;
+  width:var(--home-countbox-w);
 }
-body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap{
-  grid-column:2;
-  grid-row:2;
-  justify-self:end;
+
+body.teacher-student-view #accordion .home-badges-head .countbox-head{
+  margin-right:0;
+  width:var(--home-countbox-w);
+}
+
+/* бейджи в гриде: убираем обёртку из потока layout (дети занимают колонки 2 и 3) */
+body.teacher-student-view #accordion .home-section-badges{
+  margin-right:0;
+  display:contents;
+}
+
+body.teacher-student-view #accordion .home-section-pct{
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
+  padding:4px 4px;
+  gap:0;
+  justify-self:center;
+  box-sizing:border-box;
+}
+body.teacher-student-view #accordion .home-section-pct .small{display:none}
+
+body.teacher-student-view #accordion .home-section-cov{
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
+  padding:4px 6px;
+  gap:0;
+  justify-self:center;
+  box-sizing:border-box;
+}
+body.teacher-student-view #accordion .home-section-cov .small{display:none}
+
+/* подписи над бейджами верхнего уровня */
+body.teacher-student-view #accordion .home-badges-head{
+  padding:6px 0 2px;
+}
+body.teacher-student-view #accordion .home-badges-head .countbox-head{
+  visibility:hidden;
+  pointer-events:none;
+}
+body.teacher-student-view #accordion .home-badges-head .home-badge-label{
+  font-size:11px;
+  line-height:1;
+  color:var(--text-dim);
+  text-align:center;
+  user-select:none;
+  justify-self:center;
+}
+body.teacher-student-view #accordion .home-badges-head .home-badge-label.pct{
+  width:var(--home-pct-w);
+  min-width:var(--home-pct-w);
+}
+body.teacher-student-view #accordion .home-badges-head .home-badge-label.cov{
+  width:var(--home-cov-w);
+  min-width:var(--home-cov-w);
+}
+body.teacher-student-view #accordion .home-badges-head .spacer{
+  grid-column:4/-1;
+}
+
+body.teacher-student-view #accordion .badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:4px 6px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:rgba(148,163,184,.08);
+  font-size:11px;
+  gap:4px;
+  line-height:1;
+  white-space:nowrap;
+  width:80px;
+  min-width:80px;
+  overflow:visible;
+  font-variant-numeric:tabular-nums;
+}
+body.teacher-student-view #accordion .badge b{font-weight:600}
+body.teacher-student-view #accordion .badge .small{font-size:10px;color:var(--text-dim)}
+
+body.teacher-student-view #accordion .badge.gray{background:rgba(148,163,184,.10)}
+body.teacher-student-view #accordion .badge.green{background:rgba(16,185,129,.12)}
+body.teacher-student-view #accordion .badge.lime{background:rgba(132,204,22,.14)}
+body.teacher-student-view #accordion .badge.yellow{background:rgba(245,158,11,.16)}
+body.teacher-student-view #accordion .badge.red{background:rgba(239,68,68,.14)}
+
+/* плавное обновление + скелетон */
+body.teacher-student-view #accordion .badge{
+  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+body.teacher-student-view.home-stats-loading #accordion .home-last10-badge{
+  position:relative;
+  opacity:.70;
+}
+body.teacher-student-view.home-stats-loading #accordion .home-last10-badge b,
+body.teacher-student-view.home-stats-loading #accordion .home-last10-badge .small{
+  color:transparent;
+}
+body.teacher-student-view.home-stats-loading #accordion .home-last10-badge::after{
+  content:"";
+  position:absolute;
+  left:10px;
+  right:10px;
+  top:50%;
+  height:10px;
+  transform:translateY(-50%);
+  border-radius:999px;
+  background:linear-gradient(90deg, rgba(148,163,184,.10), rgba(148,163,184,.22), rgba(148,163,184,.10));
+  animation:homeBadgeShimmer 1.1s ease-in-out infinite;
+  pointer-events:none;
+}
+
+@media (max-width:640px){
+  body.teacher-student-view #accordion .badge{padding:4px 7px}
+}
+
+/* Градусник готовности выбранного ученика (показывается только в teacher-student-view) */
+body.teacher-student-view .score-thermo-slot{
+  display:block;
+  margin:12px 0 10px;
+  max-width:560px;
+}
+
+body.teacher-student-view .score-thermo{
+  --st-h:32px;
+  --st-radius:12px;
+  --st-pad-x:12px;
+
+  /* match badge tints */
+  --st-gray:rgba(148,163,184,.10);
+  --st-red:rgba(239,68,68,.14);
+  --st-yellow:rgba(245,158,11,.16);
+  --st-lime:rgba(132,204,22,.14);
+  --st-green:rgba(16,185,129,.12);
+
+  --st-track-bg:rgba(148,163,184,.06);
+}
+
+body.teacher-student-view .score-thermo__track{
+  position:relative;
+  height:var(--st-h);
+  border:1px solid var(--border);
+  border-radius:var(--st-radius);
+  background:var(--st-track-bg);
+  overflow:hidden;
+}
+
+body.teacher-student-view .score-thermo__fill{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:0%;
+  background:var(--st-gray);
+  transition:width 220ms ease, background-color 220ms ease;
+}
+
+body.teacher-student-view .score-thermo[data-color="gray"] .score-thermo__fill{background:var(--st-gray);}
+body.teacher-student-view .score-thermo[data-color="red"] .score-thermo__fill{background:var(--st-red);}
+body.teacher-student-view .score-thermo[data-color="yellow"] .score-thermo__fill{background:var(--st-yellow);}
+body.teacher-student-view .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
+body.teacher-student-view .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
+
+body.teacher-student-view .score-thermo__content{
+  position:absolute;
+  inset:0;
+  padding:0 var(--st-pad-x);
   display:flex;
-  justify-content:flex-end;
+  align-items:center;
+  justify-content:space-between;
+  pointer-events:none;
 }
 
-/* home_student: polish proto cards (keep changes local to #homeProtoPanel) */
-body[data-home-variant="student"] #homeProtoPanel .tp-item{
-  grid-template-columns: 1fr max-content;
-  column-gap:10px;
-}
-
-/* prevent tall meta row when title wraps; keep it neat */
-body[data-home-variant="student"] #homeProtoPanel .tp-item-meta{
+body.teacher-student-view .score-thermo__label{
+  font-size:12px;
+  line-height:1.1;
+  color:var(--text-dim);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  max-width:70%;
 }
 
-/* make preview heights more uniform (like HW builder) */
-body[data-home-variant="student"] #homeProtoPanel .tp-preview-text{
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:6;
-  overflow:hidden;
+body.teacher-student-view .score-thermo__values{
+  display:flex;
+  align-items:baseline;
+  justify-content:flex-end;
+  gap:10px;
+  font-variant-numeric:tabular-nums;
 }
 
-/* normalize figure size so different images don't "jump" */
-body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap{
-  width:96px;
+body.teacher-student-view .score-thermo__secondary{
+  font-size:14px;
+  line-height:1;
 }
-body[data-home-variant="student"] #homeProtoPanel .home-proto-figwrap .tp-fig{
-  width:96px;
-  height:96px;
-  max-width:96px;
-  object-fit:contain;
+
+body.teacher-student-view .score-thermo__primary{
+  font-size:12px;
+  line-height:1;
+  color:var(--text-dim);
+  white-space:nowrap;
 }

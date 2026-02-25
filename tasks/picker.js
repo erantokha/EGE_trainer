@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-25-22';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-22';
-import { CONFIG } from '../app/config.js?v=2026-02-25-22';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-22';
+import { withBuild } from '../app/build.js?v=2026-02-25-7';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-7';
+import { CONFIG } from '../app/config.js?v=2026-02-25-7';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-7';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -53,6 +53,14 @@ const HOME_VARIANT = String(document.body?.getAttribute('data-home-variant') || 
 const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
 const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.test(location.pathname);
+
+// Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
+let TEACHER_VIEW_STUDENT_ID = '';
+let _TEACHER_VIEW_PENDING_ID = null;
+
+function isStudentLikeHome(){
+  return IS_STUDENT_PAGE || (IS_TEACHER_HOME && !!TEACHER_VIEW_STUDENT_ID);
+}
 
 // Главная учителя: выбранный ученик (для автоподстановки на странице создания ДЗ)
 const TEACHER_SELECTED_STUDENT_KEY = 'teacher_selected_student_v1';
@@ -122,8 +130,126 @@ function wireTeacherStudentSelect(sel){
   if (!sel || sel.dataset.wired === '1') return;
   sel.dataset.wired = '1';
   sel.addEventListener('change', () => {
-    writeTeacherSelectedStudentId(sel.value);
+    const sid = String(sel.value || '').trim();
+    writeTeacherSelectedStudentId(sid);
+    applyTeacherStudentView(sid, { reason: 'select-change' });
   });
+}
+
+function setTeacherStudentViewUI(studentId){
+  TEACHER_VIEW_STUDENT_ID = String(studentId || '').trim();
+  document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
+  const slot = document.getElementById('scoreThermoSlot');
+  if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
+}
+
+let _TEACHER_STATS_SEQ = 0;
+const TEACHER_DASH_TIMEOUT_MS = 5000;
+
+async function fetchStudentDashboardForTeacher(accessToken, studentId, opts = {}) {
+  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
+  if (!base) throw new Error('Supabase URL is empty');
+
+  const sid = String(studentId || '').trim();
+  if (!sid) throw new Error('studentId is empty');
+
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || TEACHER_DASH_TIMEOUT_MS) || TEACHER_DASH_TIMEOUT_MS);
+
+  let controller = null;
+  let t = 0;
+  if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
+    controller = new AbortController();
+    t = setTimeout(() => {
+      try { controller.abort(); } catch (_) {}
+    }, timeoutMs);
+  }
+
+  const tryCall = async (rpcName) => {
+    const url = `${base}/rest/v1/rpc/${rpcName}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: String(CONFIG?.supabase?.anonKey || ''),
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ p_student_id: sid, p_days: 30, p_source: 'all' }),
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      const err = new Error(`RPC ${rpcName} failed: ${res.status} ${txt}`);
+      err.status = res.status;
+      err.body = txt;
+      throw err;
+    }
+
+    return await res.json();
+  };
+
+  try {
+    return await tryCall('student_dashboard_for_teacher_v2');
+  } catch (e1) {
+    // fallback на старое имя
+    try {
+      return await tryCall('student_dashboard_for_teacher');
+    } catch (e2) {
+      console.warn('teacher dashboard rpc failed', e1, e2);
+      throw e2;
+    }
+  } finally {
+    if (t) clearTimeout(t);
+  }
+}
+
+async function loadTeacherStudentStats(studentId, opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  const sid = String(studentId || '').trim();
+  if (!sid) return;
+
+  const seq = ++_TEACHER_STATS_SEQ;
+  setHomeStatsLoading(true);
+
+  try {
+    const session = await getSession({ timeoutMs: 1200, skewSec: 30 }).catch(() => null);
+    const token = session?.access_token;
+    if (!token) throw new Error('no access token');
+
+    const dash = await fetchStudentDashboardForTeacher(token, sid, { timeoutMs: TEACHER_DASH_TIMEOUT_MS });
+    if (seq !== _TEACHER_STATS_SEQ) return;
+
+    applyDashboardHomeStats(dash);
+  } catch (e) {
+    if (seq !== _TEACHER_STATS_SEQ) return;
+    console.warn('loadTeacherStudentStats failed', e);
+    setHomeStatsLoading(false);
+    clearStudentLast10UI();
+  }
+}
+
+function applyTeacherStudentView(studentId, opts = {}){
+  if (!IS_TEACHER_HOME) return;
+  const sid = String(studentId || '').trim();
+  setTeacherStudentViewUI(sid);
+
+  if (!CATALOG) {
+    _TEACHER_VIEW_PENDING_ID = sid;
+    return;
+  }
+  _TEACHER_VIEW_PENDING_ID = null;
+
+  // перерисовываем аккордеон в нужном режиме
+  renderAccordion();
+
+  if (!sid) {
+    setHomeStatsLoading(false);
+    return;
+  }
+
+  // держим скелетон до прихода статистики
+  setHomeStatsLoading(true);
+  loadTeacherStudentStats(sid, { reason: opts?.reason || '' });
 }
 
 async function refreshTeacherStudentSelect(){
@@ -146,6 +272,7 @@ async function refreshTeacherStudentSelect(){
   }
   if (!session?.user?.id) {
     setTeacherStudentStatus('Войдите, чтобы выбрать ученика.');
+    try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
     return;
   }
 
@@ -185,6 +312,9 @@ async function refreshTeacherStudentSelect(){
 
     sel.disabled = false;
     setTeacherStudentStatus('');
+
+    // применить режим «как у ученика» при восстановлении выбора
+    try { applyTeacherStudentView(sel.value, { reason: 'restore' }); } catch (_) {}
   } catch (e) {
     console.warn('refreshTeacherStudentSelect error', e);
     setTeacherStudentStatus('Не удалось загрузить учеников.');
@@ -219,7 +349,7 @@ function homeLast10CacheKey(uid, scope) {
 }
 
 function setHomeStatsLoading(isLoading) {
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
   const v = !!isLoading;
   if (v === _HOME_STATS_LOADING) return;
   _HOME_STATS_LOADING = v;
@@ -452,7 +582,7 @@ function thermoColorByPrimary(primaryRounded) {
 }
 
 function updateScoreThermo(primaryRounded, secondary, opts = {}) {
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
 
   const root = document.getElementById('scoreThermo');
   const fill = document.getElementById('scoreThermoFill');
@@ -485,19 +615,18 @@ function updateScoreThermo(primaryRounded, secondary, opts = {}) {
 }
 
 function updateScoreForecast(sectionPctById, opts = {}) {
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
 
   const elP = document.getElementById('sfPrimaryExact');
   const elS = document.getElementById('sfSecondary');
   const elN = document.getElementById('sfNote');
 
-  if (!elP || !elS) return;
 
   const signedIn = opts?.signedIn !== false;
 
   if (!signedIn) {
-    elP.textContent = '—';
-    elS.textContent = '—';
+    if (elP) elP.textContent = '—';
+    if (elS) elS.textContent = '—';
     if (elN) { elN.hidden = true; elN.textContent = ''; }
     updateScoreThermo(0, 0, { signedIn: false });
     return;
@@ -515,8 +644,8 @@ function updateScoreForecast(sectionPctById, opts = {}) {
   const primaryRounded = Math.round(primaryExact);
   const secondary = secondaryFromPrimary(primaryRounded);
 
-  elP.textContent = fmtPrimaryExact(primaryExact);
-  elS.textContent = String(secondary);
+  if (elP) elP.textContent = fmtPrimaryExact(primaryExact);
+  if (elS) elS.textContent = String(secondary);
 
   if (elN) {
     elN.hidden = false;
@@ -529,7 +658,7 @@ function updateScoreForecast(sectionPctById, opts = {}) {
 
 
 function clearStudentLast10UI() {
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
   setHomeStatsLoading(false);
   LAST_DASH = null;
 
@@ -881,7 +1010,7 @@ function initStudentLast10LiveRefresh() {
 
 
 function applyDashboardHomeStats(dash) {
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
   setHomeStatsLoading(false);
 
   if (!dash || typeof dash !== 'object') {
@@ -967,7 +1096,7 @@ function applyDashboardHomeStats(dash) {
 
   updateSmartHint();
 
-  if (IS_STUDENT_PAGE) syncHomeTopicBadgesWidth();
+  if (isStudentLikeHome()) syncHomeTopicBadgesWidth();
 }
 
 
@@ -1235,6 +1364,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCatalog();
     renderAccordion();
     initBulkControls();
+    // Главная учителя: если ученик выбран — переключаемся в режим «как у ученика»
+    if (IS_TEACHER_HOME) {
+      const sid = String($('#teacherStudentSelect')?.value || readTeacherSelectedStudentId() || _TEACHER_VIEW_PENDING_ID || '').trim();
+      applyTeacherStudentView(sid, { reason: 'boot-after-catalog' });
+    }
     // Главная ученика: подсветка по статистике (последние 10)
     initStudentLast10LiveRefresh();
     refreshStudentLast10({ force: true, reason: 'boot' });
@@ -1679,7 +1813,7 @@ async function loadCatalog() {
 // ---------- Аккордеон ----------
 
 function syncHomeTopicBadgesWidth(){
-  if (!IS_STUDENT_PAGE) return;
+  if (!isStudentLikeHome()) return;
   const host = $('#accordion');
   if (!host) return;
 
@@ -1726,7 +1860,7 @@ function renderAccordion() {
 
   // На главной ученика показываем подписи над бейджами верхнего уровня,
   // чтобы без наведения было понятно, что означают 2 колонки.
-  if (IS_STUDENT_PAGE) {
+  if (isStudentLikeHome()) {
     host.appendChild(renderSectionBadgesHead());
   }
 
@@ -1770,7 +1904,7 @@ function renderSectionNode(sec) {
           value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? `
+      ${isStudentLikeHome() ? `
       <span class="home-section-badges">
         <span class="badge gray home-last10-badge home-section-pct" title="Процент правильных ответов"><b>—</b></span>
         <span class="badge gray home-coverage-badge home-section-cov" title="Покрытие тем"><b>0/0</b></span>
@@ -1859,7 +1993,7 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${IS_STUDENT_PAGE ? '<span class="badge gray home-last10-badge home-topic-badge" title="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
+      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" title="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       
