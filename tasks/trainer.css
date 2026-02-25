@@ -217,6 +217,11 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
     margin:12px 0 10px;
   }
 
+  /* Теперь справа внизу ничего не показываем (прототипы открываются в модалке) */
+  body[data-home-variant="student"] #picker .picker-right{
+    display:none;
+  }
+
   body[data-home-variant="student"] .score-thermo{
     --st-h:32px;
     --st-radius:14px;
@@ -1477,6 +1482,31 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   font-size:24px;
   line-height:1;
   text-align:center;
+}
+
+/* home_student: кнопка закрытия окна выбора прототипов */
+#protoPickerModal #protoPickerClose{
+  width:36px;
+  height:36px;
+  padding:0 0 4px 0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  line-height:1;
+  text-align:center;
+}
+
+/* home_student: тело модалки с прототипами */
+#protoPickerModal .proto-picker-main{
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0;
+}
+#protoPickerModal #protoPickerList{
+  flex:1;
+  min-height:0;
 }
 .modal-body {
   display:grid;

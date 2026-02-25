@@ -8,9 +8,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-25-17';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-17';
-import { CONFIG } from '../app/config.js?v=2026-02-25-17';
+import { withBuild } from '../app/build.js?v=2026-02-18-11';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-18-11';
+import { CONFIG } from '../app/config.js?v=2026-02-18-11';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -83,6 +83,205 @@ function setProtoCount(typeId, n, cap) {
 
   refreshTotalSum();
   return v;
+}
+
+
+// ---------- home_student: модалка выбора прототипов (карточки как в hw_create) ----------
+let PROTO_MODAL_OPEN = false;
+let PROTO_MODAL_TOPIC = null;
+let PROTO_MODAL_TYPES = [];
+let _PROTO_MODAL_SEQ = 0;
+
+function getProtoModalEls() {
+  return {
+    modal: $('#protoPickerModal'),
+    title: $('#protoPickerTitle'),
+    list: $('#protoPickerList'),
+    hint: $('#protoPickerHint'),
+    close: $('#protoPickerClose'),
+    cnt: $('#protoPickerSelectedCount'),
+    backdrop: $('#protoPickerModal .modal-backdrop'),
+  };
+}
+
+function protoModalSum() {
+  let sum = 0;
+  for (const t of (PROTO_MODAL_TYPES || [])) {
+    const id = String(t?.id || '').trim();
+    if (!id) continue;
+    sum += Number(CHOICE_PROTOS[id] || 0) || 0;
+  }
+  return sum;
+}
+
+function updateProtoModalSelectedCount() {
+  if (!IS_STUDENT_PAGE || !PROTO_MODAL_OPEN) return;
+  const { cnt } = getProtoModalEls();
+  if (cnt) cnt.textContent = `Выбрано: ${protoModalSum()}`;
+}
+
+function closeProtoPickerModal() {
+  if (!IS_STUDENT_PAGE) return;
+  const { modal, title, list, hint, cnt } = getProtoModalEls();
+  if (!modal) return;
+
+  PROTO_MODAL_OPEN = false;
+  PROTO_MODAL_TOPIC = null;
+  PROTO_MODAL_TYPES = [];
+
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  if (title) title.textContent = 'Прототипы';
+  if (cnt) cnt.textContent = 'Выбрано: 0';
+  if (list) list.innerHTML = '';
+  if (hint) hint.textContent = '';
+}
+
+async function openProtoPickerModal(topic) {
+  if (!IS_STUDENT_PAGE) return;
+  if (!topic || !topic.id) return;
+  if (PICK_MODE === 'smart') return;
+
+  const { modal, title, list, hint, cnt } = getProtoModalEls();
+  if (!modal || !title || !list || !hint) return;
+
+  PROTO_MODAL_OPEN = true;
+  PROTO_MODAL_TOPIC = topic;
+  PROTO_MODAL_TYPES = [];
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+
+  const topicId = String(topic.id).trim();
+  title.textContent = `${topicId}. ${topic.title || ''}`.trim();
+  list.innerHTML = '<div class="muted">Загрузка…</div>';
+  hint.textContent = '';
+  if (cnt) cnt.textContent = 'Выбрано: 0';
+
+  const seq = ++_PROTO_MODAL_SEQ;
+  const man = await ensurePickerManifest(topic);
+  if (seq !== _PROTO_MODAL_SEQ) return;
+
+  if (!man) {
+    list.innerHTML = '';
+    hint.textContent = 'Не удалось загрузить прототипы. Проверьте сеть и обновите страницу.';
+    return;
+  }
+
+  const types = (man.types || []).filter(t => Array.isArray(t.prototypes) && t.prototypes.length > 0);
+  types.sort((a, b) => compareId(a.id, b.id));
+  PROTO_MODAL_TYPES = types;
+
+  list.innerHTML = '';
+  if (!types.length) {
+    hint.textContent = 'В этой подтеме пока нет прототипов.';
+    updateProtoModalSelectedCount();
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const typ of types) {
+    frag.appendChild(renderProtoModalCard(man, typ));
+  }
+  list.appendChild(frag);
+
+  updateProtoModalSelectedCount();
+  await typesetMathIfNeeded(list);
+}
+
+function renderProtoModalCard(manifest, type) {
+  const cap = (type.prototypes || []).length;
+  const typeId = String(type.id || '').trim();
+  const row = document.createElement('div');
+  row.className = 'tp-item';
+  row.dataset.typeId = typeId;
+
+  const left = document.createElement('div');
+  left.className = 'tp-item-left';
+
+  const meta = document.createElement('div');
+  meta.className = 'tp-item-meta';
+  meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
+
+  const stem = document.createElement('div');
+  stem.className = 'tp-item-stem';
+  const proto0 = (type.prototypes || [])[0] || null;
+  stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
+
+  left.appendChild(meta);
+  left.appendChild(stem);
+
+  const right = document.createElement('div');
+  right.className = 'tp-item-right';
+
+  const minus = document.createElement('button');
+  minus.type = 'button';
+  minus.className = 'tp-ctr-btn';
+  minus.textContent = '−';
+
+  const val = document.createElement('div');
+  val.className = 'tp-ctr-val';
+
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.className = 'tp-ctr-btn';
+  plus.textContent = '+';
+
+  const capEl = document.createElement('div');
+  capEl.className = 'tp-ctr-cap';
+  capEl.textContent = `из ${cap}`;
+
+  const setBtnState = () => {
+    const c = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[typeId] || 0)));
+    val.textContent = String(c);
+    minus.disabled = c <= 0;
+    plus.disabled = c >= cap;
+  };
+
+  minus.addEventListener('click', () => {
+    const c = Number(CHOICE_PROTOS[typeId] || 0);
+    setProtoCount(typeId, Math.max(0, c - 1), cap);
+    setBtnState();
+    updateProtoModalSelectedCount();
+  });
+  plus.addEventListener('click', () => {
+    const c = Number(CHOICE_PROTOS[typeId] || 0);
+    setProtoCount(typeId, Math.min(cap, c + 1), cap);
+    setBtnState();
+    updateProtoModalSelectedCount();
+  });
+
+  // начальное состояние
+  setBtnState();
+
+  right.appendChild(minus);
+  right.appendChild(val);
+  right.appendChild(plus);
+  right.appendChild(capEl);
+
+  row.appendChild(left);
+  row.appendChild(right);
+
+  return row;
+}
+
+let _PROTO_MODAL_EVENTS_BOUND = false;
+function initProtoPickerModal() {
+  if (!IS_STUDENT_PAGE || _PROTO_MODAL_EVENTS_BOUND) return;
+  const { modal, close, backdrop } = getProtoModalEls();
+  if (!modal) return;
+  _PROTO_MODAL_EVENTS_BOUND = true;
+
+  if (close) close.addEventListener('click', () => closeProtoPickerModal());
+  if (backdrop) backdrop.addEventListener('click', () => closeProtoPickerModal());
+
+  document.addEventListener('keydown', (e) => {
+    if (!PROTO_MODAL_OPEN) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeProtoPickerModal();
+    }
+  });
 }
 
 function closeHomeProtoPanel(opts = {}) {
@@ -1341,6 +1540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (IS_STUDENT_PAGE) {
     // До рендера аккордеона держим бейджи в скелетоне, чтобы не мигали дефолтные "— 0/0".
     setHomeStatsLoading(true);
+    initProtoPickerModal();
   }
 
   if (IS_STUDENT_PAGE) {
@@ -1491,9 +1691,11 @@ function syncPickModeUI() {
   // home_student: панель прототипов показываем только в manual режиме
   if (IS_STUDENT_PAGE) {
     const panel = $('#homeProtoPanel');
-    const show = (PICK_MODE !== 'smart') && !!HOME_PROTO_ACTIVE_TOPIC_ID;
-    if (panel) panel.hidden = !show;
-    try { document.body?.classList.toggle('home-protos-open', !!show); } catch (_) {}
+    if (panel) panel.hidden = true;
+    try { document.body?.classList.remove('home-protos-open'); } catch (_) {}
+    if (PICK_MODE === 'smart') {
+      try { closeProtoPickerModal(); } catch (_) {}
+    }
   }
 
   try { if (document.body) document.body.dataset.pickMode = PICK_MODE; } catch (_) {}
@@ -1759,6 +1961,7 @@ function bulkResetAll() {
   CHOICE_TOPICS = {};
   CHOICE_SECTIONS = {};
   CHOICE_PROTOS = {};
+  try { closeProtoPickerModal(); } catch (_) {}
   try { closeHomeProtoPanel({ keepSelection: true }); } catch (_) {}
   refreshCountsUI();
 }
@@ -1999,7 +2202,7 @@ function renderTopicRow(topic) {
     titleEl.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openHomeProtoPanel(topic);
+      openProtoPickerModal(topic);
     });
   }
 
