@@ -2660,5 +2660,6 @@ body[data-home-variant="student"] #homeProtoPanel .home-proto-figrow{
   width:100%;
   display:flex;
   justify-content:flex-end;
-  margin-top:6px;
+  /* поднимаем картинку ближе к степперу примерно на высоту одной строки */
+  margin-top:calc(6px - 1.35em);
 }
