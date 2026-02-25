@@ -2652,3 +2652,13 @@ body[data-home-variant="student"] #homeProtoPanel .tp-ctr-cap{
   font-size:10px;
   white-space:nowrap;
 }
+
+/* home_student: картинка прототипа под степпером, выравнивание вправо */
+body[data-home-variant="student"] #homeProtoPanel .tp-item{ flex-wrap:wrap; }
+body[data-home-variant="student"] #homeProtoPanel .home-proto-figrow{
+  flex-basis:100%;
+  width:100%;
+  display:flex;
+  justify-content:flex-end;
+  margin-top:6px;
+}
