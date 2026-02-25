@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-25-19">
+    <meta name="app-build" content="2026-02-25-5">
 <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="./app/diag_bootstrap.js?v=2026-02-25-19"></script>
+  <script src="./app/diag_bootstrap.js?v=2026-02-25-5"></script>
 
   <!--
     Главная страница сайта (/): это "вход" в тренажёр.
@@ -76,7 +76,7 @@
 
 
   
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-25-19">
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-25-5">
 </head>
 <body data-home-variant="teacher">
 <main class="container">
@@ -123,6 +123,14 @@
               <input type="checkbox" id="shuffleToggle">
               Перемешать задачи
             </label>
+
+            <label style="display:flex;align-items:center;gap:6px;user-select:none">
+              <span class="muted">Ученик:</span>
+              <select id="teacherStudentSelect" class="input" style="min-width:240px">
+                <option value="">— ученик не выбран —</option>
+              </select>
+            </label>
+            <span id="teacherStudentStatus" class="muted" style="opacity:.85"></span>
           </div>
 
           <div class="controls-actions-right">
@@ -159,10 +167,10 @@
       </div>
     </section>
   </main>
-  <script type="module" src="./tasks/home_guard.js?v=2026-02-25-19"></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-02-25-5"></script>
 
 
-  <script src="./tasks/theme.js?v=2026-02-25-19" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-25-19"></script>
+  <script src="./tasks/theme.js?v=2026-02-25-5" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-02-25-5"></script>
 </body>
 </html>
