@@ -2734,8 +2734,9 @@ body.teacher-student-view .score-thermo-slot{
     justify-self:auto !important;
   }
 
-  /* neutralize old fixed width for all badges */
-  body.teacher-student-view #accordion .badge{
+  /* neutralize old fixed width for badges,
+     BUT keep top-level %/coverage badges fixed-width like on student home */
+  body.teacher-student-view #accordion .badge:not(.home-section-pct):not(.home-section-cov){
     width:auto !important;
     min-width:0 !important;
   }
