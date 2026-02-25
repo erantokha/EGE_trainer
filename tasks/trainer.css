@@ -2744,82 +2744,101 @@ body.teacher-student-view .score-thermo__primary{
   white-space:nowrap;
 }
 
-
-
 /* =========================
-   Home teacher: desktop parity with home student (teacher-student-view)
+   Teacher-student-view (desktop): spacing parity with student accordion
+   Требования:
+   - между степпером и 1-м бейджем: 14px
+   - между бейджами: 15px
+   - между 2-м бейджем и названием темы: 14px
    ========================= */
 
-/* On teacher home, hide the right column unless a student is selected */
-body[data-home-variant="teacher"] #picker .picker-right{display:none}
+@media (min-width:1025px){
+  body.teacher-student-view #accordion{
+    --home-badge-w: 60px;
+    --home-stepper-to-badge: 14px;
+    --home-badges-gap: 15px;
+    --home-badge-to-title: 14px;
+  }
 
-/* When viewing a selected student, use the same 2-column layout as on home_student */
-body.teacher-student-view #picker .picker-grid{
-  display:flex;
-  align-items:flex-start;
-  gap:16px;
-}
-body.teacher-student-view #picker .picker-left{flex:1 1 auto; min-width:0}
-body.teacher-student-view #picker .picker-right{
-  display:block;
-  flex:0 0 260px;
-  width:260px;
-}
-body.teacher-student-view #picker .score-forecast{
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:12px;
-  background:rgba(148,163,184,.06);
-}
-body.teacher-student-view #picker .score-forecast .sf-row{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-  padding:6px 0;
-}
-body.teacher-student-view #picker .score-forecast .sf-label{
-  font-size:12px;
-  color:var(--text-dim);
-}
-body.teacher-student-view #picker .score-forecast .sf-value{
-  font-size:18px;
-  font-variant-numeric:tabular-nums;
-}
-body.teacher-student-view #picker .score-forecast .sf-note{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--text-dim);
-}
-@media (max-width: 900px){
-  body.teacher-student-view #picker .picker-grid{flex-direction:column}
-  body.teacher-student-view #picker .picker-right{width:auto; flex:0 0 auto}
+  /* grid: countbox | 14px | badges | 14px | title | uniq | spacer */
+  body.teacher-student-view #accordion .home-badges-head .row,
+  body.teacher-student-view #accordion .node.section > .row{
+    display:grid !important;
+    grid-template-columns:
+      max-content
+      var(--home-stepper-to-badge)
+      max-content
+      var(--home-badge-to-title)
+      1fr
+      max-content
+      1fr
+      !important;
+    column-gap: 0 !important;
+    align-items: center !important;
+  }
+
+  body.teacher-student-view #accordion .home-badges-head .row > .countbox,
+  body.teacher-student-view #accordion .node.section > .row > .countbox{
+    grid-column: 1 !important;
+    width: auto !important;
+    margin-right: 0 !important;
+  }
+
+  /* badges container: flex with required internal gap */
+  body.teacher-student-view #accordion .home-badges-head .home-section-badges,
+  body.teacher-student-view #accordion .node.section > .row > .home-section-badges{
+    grid-column: 3 !important;
+    display:flex !important;
+    gap: var(--home-badges-gap) !important;
+    align-items: center !important;
+    margin-right: 0 !important;
+  }
+
+  /* labels in head should match badge widths */
+  body.teacher-student-view #accordion .home-badges-head .home-badge-label{
+    width: var(--home-badge-w) !important;
+    min-width: var(--home-badge-w) !important;
+    text-align: center !important;
+    justify-self: auto !important;
+  }
+
+  /* top-level badges: same width as student */
+  body.teacher-student-view #accordion .home-section-pct,
+  body.teacher-student-view #accordion .home-section-cov{
+    width: var(--home-badge-w) !important;
+    min-width: var(--home-badge-w) !important;
+    justify-self: auto !important;
+  }
+
+  /* title / uniq / spacer columns */
+  body.teacher-student-view #accordion .node.section > .row > .section-title{
+    grid-column: 5 !important;
+    margin-left: 0 !important;
+  }
+  body.teacher-student-view #accordion .node.section > .row > .unique-btn{
+    grid-column: 6 !important;
+    margin-left: 0 !important;
+  }
+  body.teacher-student-view #accordion .node.section > .row > .spacer{
+    grid-column: 7 !important;
+  }
+
+  /* head spacer should occupy the remaining row */
+  body.teacher-student-view #accordion .home-badges-head .spacer{
+    grid-column: 5 / -1 !important;
+  }
+
+  /* do not force fixed width on all badges (prevents old layout artifacts) */
+  body.teacher-student-view #accordion .badge{
+    width: auto !important;
+  }
 }
 
-/* Ensure the teacher-student-view accordion matches student desktop fixes (2026-02-06b pack) */
-body.teacher-student-view #accordion .home-badges-head{
-  padding:0 !important;
-  margin:0 !important;
-}
-body.teacher-student-view #accordion .home-badges-head .row{
-  padding:0 !important;
-  margin:0 !important;
-}
-/* minimize gap between "Процент/Покрытие" row and the first section */
-body.teacher-student-view #accordion .home-badges-head + .node.section{
-  padding-top:0 !important;
-}
-/* outlined section title sized to text, but compact */
-body.teacher-student-view #accordion .node.section > .row > .section-title{
-  border:1px solid var(--border) !important;
-  border-radius:12px !important;
-  padding:2px 8px !important;
-  background:transparent !important;
-  line-height:1.2 !important;
-}
-/* --- Home teacher: desktop parity with student accordion (2026-02-26) ---
-   Исправляет "слипание" бейджей Процент/Покрытие и возвращает обводку заголовков разделов
-   в режиме teacher-student-view. Делается только для десктопа, чтобы не ломать мобильные карточки.
+
+/* --- Teacher student view: desktop badge grid parity with student (2026-02-26) ---
+   Важно: у ученика расстояния задаются не "margin в пикселях", а схемой grid:
+   countbox | spacer(3ch) | badges(flex gap) | title | uniq | spacer
+   Это даёт визуально идентичную геометрию на любых масштабах/шрифтах.
 */
 @media (min-width:1025px){
   body.teacher-student-view #accordion{
@@ -2827,21 +2846,12 @@ body.teacher-student-view #accordion .node.section > .row > .section-title{
     --home-badges-gap: 12px;
   }
 
-  /* grid: countbox | spacer(3ch) | badges | title | uniq | spacer */
   body.teacher-student-view #accordion .home-badges-head .row,
   body.teacher-student-view #accordion .node.section > .row{
     display:grid !important;
     grid-template-columns: max-content 3ch max-content 1fr max-content 1fr !important;
     column-gap: 0 !important;
     align-items: center !important;
-  }
-
-  body.teacher-student-view #accordion .home-badges-head{
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  body.teacher-student-view #accordion .home-badges-head + .node.section{
-    padding-top: 3px !important;
   }
 
   body.teacher-student-view #accordion .home-badges-head .row > .countbox,
@@ -2877,22 +2887,11 @@ body.teacher-student-view #accordion .node.section > .row > .section-title{
   body.teacher-student-view #accordion .node.section > .row > .section-title{
     grid-column: 4 !important;
     margin-left: 0 !important;
-
-    border: 1px solid var(--border) !important;
-    border-radius: 14px !important;
-    padding: 6px 10px !important;
-    background: rgba(148,163,184,.06) !important;
-    width: fit-content !important;
-    max-width: 100% !important;
-    justify-self: start !important;
-    box-sizing: border-box !important;
   }
-
   body.teacher-student-view #accordion .node.section > .row > .unique-btn{
     grid-column: 5 !important;
     margin-left: 0 !important;
   }
-
   body.teacher-student-view #accordion .node.section > .row > .spacer{
     grid-column: 6 !important;
   }
@@ -2901,7 +2900,10 @@ body.teacher-student-view #accordion .node.section > .row > .section-title{
     grid-column: 4 / -1 !important;
   }
 
-  body.teacher-student-view #accordion .children{
-    margin-top: 0 !important;
+  body.teacher-student-view #accordion .home-badges-head{
+    padding: 2px 0 0 !important;
+  }
+  body.teacher-student-view #accordion .node.section > .row{
+    padding: 8px 0 !important;
   }
 }
