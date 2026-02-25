@@ -212,15 +212,15 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
      Для десктопа включаем его здесь, чтобы не трогать mobile.css. */
   body[data-home-variant="student"] #scoreThermoSlot{
     display:block !important;
-    max-width:560px;
+    max-width:448px;
     width:100%;
     margin:12px 0 10px;
   }
 
   body[data-home-variant="student"] .score-thermo{
-    --st-h:64px;
-    --st-radius:18px;
-    --st-pad-x:14px;
+    --st-h:32px;
+    --st-radius:14px;
+    --st-pad-x:12px;
 
     /* match badge tints */
     --st-gray:rgba(148,163,184,.10);
@@ -269,7 +269,7 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
   }
 
   body[data-home-variant="student"] .score-thermo__label{
-    font-size:12px;
+    font-size:10px;
     line-height:1.1;
     color:var(--text-dim);
     white-space:nowrap;
@@ -282,18 +282,18 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
     display:flex;
     align-items:baseline;
     justify-content:center;
-    gap:10px;
-    margin-top:2px;
+    gap:8px;
+    margin-top:0;
     font-variant-numeric:tabular-nums;
   }
 
   body[data-home-variant="student"] .score-thermo__secondary{
-    font-size:22px;
+    font-size:18px;
     line-height:1;
   }
 
   body[data-home-variant="student"] .score-thermo__primary{
-    font-size:14px;
+    font-size:12px;
     line-height:1;
     color:var(--text-dim);
     white-space:nowrap;
