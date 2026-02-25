@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-02-26-3">
+    <meta name="app-build" content="2026-02-26-02">
 <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="./app/diag_bootstrap.js?v=2026-02-26-3"></script>
+  <script src="./app/diag_bootstrap.jsP26-02-26-02"></script>
 
   <!--
     Главная страница сайта (/): это "вход" в тренажёр.
@@ -76,8 +76,8 @@
 
 
   
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-02-26-3">
-  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-02-26-3">
+  <link rel="stylesheet" href="./tasks/trainer.cssP26-02-26-02">
+  <link rel="stylesheet" href="./tasks/home_teacher.mobile.cssP26-02-26-02">
 </head>
 <body data-home-variant="teacher">
 <main class="container">
@@ -179,15 +179,40 @@
           <div class="sum">Итого: <span id="sum">0</span></div>
         </div>
 
-        <!-- Ряд 3: аккордеон -->
-        <div id="accordion" class="accordion"></div>
+        <!-- Ряд 3: аккордеон + прогноз баллов -->
+        <div class="picker-grid">
+          <div class="picker-left">
+            <div id="accordion" class="accordion"></div>
+          </div>
+          <aside class="picker-right" aria-label="Прогноз баллов">
+            <div class="score-forecast" id="scoreForecast">
+              <div class="sf-row">
+                <div class="sf-label">Первичные (до округления)</div>
+                <div class="sf-value" id="sfPrimaryExact">—</div>
+              </div>
+              <div class="sf-row">
+                <div class="sf-label">Вторичные</div>
+                <div class="sf-value" id="sfSecondary">—</div>
+              </div>
+              <div class="sf-note" id="sfNote" hidden></div>
+            </div>
+
+            <div class="home-proto-panel" id="homeProtoPanel" hidden>
+              <div class="home-proto-head">
+                <div class="home-proto-title" id="homeProtoTitle">—</div>
+                <div class="home-proto-note" id="homeProtoNote">Кликните по подтеме слева, чтобы добавить конкретные прототипы.</div>
+              </div>
+              <div class="tp-list" id="homeProtoList"></div>
+            </div>
+          </aside>
+        </div>
       </div>
     </section>
   </main>
-  <script type="module" src="./tasks/home_guard.js?v=2026-02-26-3"></script>
+  <script type="module" src="./tasks/home_guard.jsP26-02-26-02"></script>
 
 
-  <script src="./tasks/theme.js?v=2026-02-26-3" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-02-26-3"></script>
+  <script src="./tasks/theme.jsP26-02-26-02" defer></script>
+  <script type="module" src="./tasks/picker.jsP26-02-26-02"></script>
 </body>
 </html>
