@@ -33,165 +33,8 @@ function diagMarkReady() {
   }, 200);
 }
 
-// ---------- auth (localStorage sb-<ref>-auth-token) ----------
+// ---------- config cache ----------
 let __cfgGlobal = null;
-let __authCache = null;
-
-function pick(obj, paths) {
-  for (const p of paths) {
-    const parts = String(p).split('.');
-    let cur = obj;
-    let ok = true;
-    for (const part of parts) {
-      if (!cur || typeof cur !== 'object' || !(part in cur)) { ok = false; break; }
-      cur = cur[part];
-    }
-    if (ok && cur !== undefined && cur !== null && String(cur) !== '') return cur;
-  }
-  return null;
-}
-
-function getAuthStorageKey(cfg) {
-  const url = String(cfg?.supabase?.url || '').trim();
-  const m = url.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
-  const ref = m ? m[1] : null;
-  if (!ref) return null;
-  return `sb-${ref}-auth-token`;
-}
-
-function readStoredSession(cfg) {
-  const key = getAuthStorageKey(cfg);
-  if (!key) return { key: null, raw: null, session: null };
-
-  let raw = null;
-  try { raw = localStorage.getItem(key); } catch (_) { raw = null; }
-  if (!raw) return { key, raw: null, session: null };
-
-  let obj = null;
-  try { obj = JSON.parse(raw); } catch (_) { obj = null; }
-  if (!obj || typeof obj !== 'object') return { key, raw: obj, session: null };
-
-  const session = {
-    access_token: String(pick(obj, ['access_token', 'currentSession.access_token', 'session.access_token']) || ''),
-    refresh_token: String(pick(obj, ['refresh_token', 'currentSession.refresh_token', 'session.refresh_token']) || ''),
-    token_type: String(pick(obj, ['token_type', 'currentSession.token_type', 'session.token_type']) || 'bearer'),
-    expires_at: Number(pick(obj, ['expires_at', 'currentSession.expires_at', 'session.expires_at']) || 0) || 0,
-    user: pick(obj, ['user', 'currentSession.user', 'session.user']) || null,
-    __raw: obj,
-  };
-
-  if (!session.access_token) return { key, raw: obj, session: null };
-  return { key, raw: obj, session };
-}
-
-async function fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { method, headers, body, signal: ctrl.signal });
-    const text = await res.text().catch(() => '');
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
-    return { ok: res.ok, status: res.status, data };
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-async function refreshAccessToken(cfg, refreshToken) {
-  const url = `${String(cfg.supabase.url).replace(/\/$/, '')}/auth/v1/token?grant_type=refresh_token`;
-  const headers = {
-    'Content-Type': 'application/json',
-    apikey: cfg.supabase.anonKey,
-    Authorization: `Bearer ${cfg.supabase.anonKey}`,
-  };
-  const body = JSON.stringify({ refresh_token: refreshToken });
-  const r = await fetchJson(url, { method: 'POST', headers, body, timeoutMs: 15000 });
-  if (!r.ok) throw new Error(`Не удалось обновить сессию (HTTP ${r.status})`);
-  return r.data;
-}
-
-async function ensureAuth(cfg) {
-  const now = Math.floor(Date.now() / 1000);
-  if (__authCache && __authCache.expires_at && __authCache.expires_at - now > 30) return __authCache;
-
-  const { key, session } = readStoredSession(cfg);
-  if (!session?.access_token) return null;
-
-  const uid = String(session?.user?.id || '').trim();
-  const expiresAt = Number(session.expires_at || 0) || 0;
-
-  const secondsLeft = expiresAt ? (expiresAt - now) : 999999;
-  if (secondsLeft > 30) {
-    __authCache = { access_token: session.access_token, user_id: uid, expires_at: expiresAt, key };
-    return __authCache;
-  }
-
-  if (!session.refresh_token) return null;
-
-  const refreshed = await refreshAccessToken(cfg, session.refresh_token);
-  const expiresIn = Number(refreshed?.expires_in || 0) || 0;
-  const newExpiresAt = expiresIn ? (now + expiresIn) : 0;
-
-  const newObj = {
-    access_token: refreshed?.access_token,
-    refresh_token: refreshed?.refresh_token || session.refresh_token,
-    token_type: refreshed?.token_type || session.token_type || 'bearer',
-    expires_at: newExpiresAt,
-    user: refreshed?.user || session.user || null,
-  };
-
-  try {
-    const raw = session.__raw && typeof session.__raw === 'object' ? session.__raw : {};
-    if ('currentSession' in raw && raw.currentSession && typeof raw.currentSession === 'object') {
-      raw.currentSession = { ...raw.currentSession, ...newObj };
-    } else if ('session' in raw && raw.session && typeof raw.session === 'object') {
-      raw.session = { ...raw.session, ...newObj };
-    } else {
-      Object.assign(raw, newObj);
-    }
-    localStorage.setItem(key, JSON.stringify(raw));
-  } catch (_) {}
-
-  __authCache = { access_token: newObj.access_token, user_id: uid, expires_at: newExpiresAt, key };
-  return __authCache;
-}
-
-async function rpc(cfg, accessToken, fn, args = {}) {
-  const base = String(cfg.supabase.url).replace(/\/$/, '');
-  const url = `${base}/rest/v1/rpc/${encodeURIComponent(fn)}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    apikey: cfg.supabase.anonKey,
-    Authorization: `Bearer ${accessToken}`,
-  };
-  const body = JSON.stringify(args || {});
-  const r = await fetchJson(url, { method: 'POST', headers, body, timeoutMs: 20000 });
-  if (!r.ok) {
-    const msg = (typeof r.data === 'string') ? r.data : (r.data?.message || r.data?.hint || JSON.stringify(r.data));
-    const err = new Error(msg || `RPC ${fn} failed (HTTP ${r.status})`);
-    err.httpStatus = r.status;
-    err.payload = r.data;
-    throw err;
-  }
-  return r.data;
-}
-
-async function restSelect(cfg, accessToken, table, queryString) {
-  const base = String(cfg.supabase.url).replace(/\/$/, '');
-  const url = `${base}/rest/v1/${table}?${queryString}`;
-  const headers = {
-    apikey: cfg.supabase.anonKey,
-    Authorization: `Bearer ${accessToken}`,
-    'Accept': 'application/json',
-  };
-  const r = await fetchJson(url, { method: 'GET', headers, timeoutMs: 15000 });
-  if (!r.ok) {
-    const msg = (typeof r.data === 'string') ? r.data : (r.data?.message || JSON.stringify(r.data));
-    throw new Error(msg || `REST ${table} failed (HTTP ${r.status})`);
-  }
-  return r.data;
-}
 
 async function getConfig() {
   const mod = await import(withV('../app/config.js'));
@@ -328,7 +171,7 @@ function initBackButton() {
 }
 
 
-function initStudentDeleteMenu({ cfg, auth, studentId } = {}) {
+function initStudentDeleteMenu({ supaRest, refreshAuthSnapshot, studentId } = {}) {
   const actions = $('#studentActions');
   const gearBtn = $('#studentGearBtn');
   const menu = $('#studentGearMenu');
@@ -380,12 +223,16 @@ function initStudentDeleteMenu({ cfg, auth, studentId } = {}) {
     setStatus('Удаляем...', '');
 
     try {
-      const a2 = await ensureAuth(cfg);
+      const a2 = refreshAuthSnapshot ? await refreshAuthSnapshot() : null;
       if (!a2?.access_token) {
         setStatus('Сессия истекла. Перезайдите в аккаунт.', 'err');
         return;
       }
-      await rpc(cfg, a2.access_token, 'remove_student', { p_student_id: studentId });
+      if (!supaRest?.rpc) {
+        setStatus('Ошибка: не загружен модуль API.', 'err');
+        return;
+      }
+      await supaRest.rpc('remove_student', { p_student_id: studentId }, { timeoutMs: 15000 });
       setStatus('Ученик удалён', 'ok');
 
       // Вернёмся к списку
@@ -452,13 +299,32 @@ function setStatus(text, kind = '') {
 }
 
 function isAccessDenied(err) {
-  const msg = String(err?.message || err || '');
-  return msg.includes('ACCESS_DENIED') || msg.includes('AUTH_REQUIRED');
+  const status = Number(err?.status || err?.httpStatus || 0) || 0;
+  if (err?.code === 'AUTH_REQUIRED' || status === 401 || status === 403) return true;
+
+  const msg = String(err?.message || '');
+  const details = err?.details;
+  let text = msg;
+  if (typeof details === 'string') text += ' ' + details;
+  else if (details && typeof details === 'object') {
+    try { text += ' ' + JSON.stringify(details); } catch (_) {}
+  }
+  return /ACCESS_DENIED/i.test(text);
 }
 
 function isMissingRpc(err) {
-  const msg = String(err?.message || err || '').toLowerCase();
-  return msg.includes('could not find the function') || msg.includes('pgrst202') || (msg.includes('function') && msg.includes('not found'));
+  const status = Number(err?.status || err?.httpStatus || 0) || 0;
+  const details = err?.details;
+  if (err?.code === 'RPC_ERROR' && (status === 404 || details?.code === 'PGRST202')) return true;
+
+  const msg = String(err?.message || '');
+  let text = msg;
+  if (typeof details === 'string') text += ' ' + details;
+  else if (details && typeof details === 'object') {
+    try { text += ' ' + JSON.stringify(details); } catch (_) {}
+  }
+  text = text.toLowerCase();
+  return text.includes('could not find the function') || text.includes('pgrst202') || (text.includes('function') && text.includes('not found'));
 }
 
 async function main() {
@@ -474,6 +340,11 @@ async function main() {
     diagMarkReady();
     return;
   }
+  const sMod = await import(withV('../app/providers/supabase.js'));
+  const rMod = await import(withV('../app/providers/supabase-rest.js'));
+  const { requireSession, getSession } = sMod;
+  const { supaRest } = rMod;
+
   initBackButton();
   diagMarkReady();
 
@@ -489,18 +360,36 @@ async function main() {
   const cfg = __cfgGlobal || await getConfig();
   __cfgGlobal = cfg;
 
-  const auth = await ensureAuth(cfg);
-  if (!auth?.access_token) {
+  let session = null;
+  try {
+    session = await requireSession({ timeoutMs: 900 });
+  } catch (_) {
     setStatus('Войдите, чтобы открыть страницу ученика.', 'err');
     return;
+  }
+
+  const auth = {
+    access_token: session.access_token,
+    user_id: session.user.id,
+    expires_at: session.expires_at,
+  };
+
+  async function refreshAuthSnapshot() {
+    const s2 = await getSession({ timeoutMs: 900 });
+    if (!s2?.access_token) return null;
+    auth.access_token = s2.access_token;
+    auth.user_id = s2.user?.id || auth.user_id;
+    auth.expires_at = s2.expires_at || auth.expires_at;
+    return auth;
   }
 
   // проверим роль
   let role = '';
   try {
-    const rows = await restSelect(cfg, auth.access_token, 'profiles', `select=role&id=eq.${encodeURIComponent(auth.user_id)}`);
+    const rows = await supaRest.select('profiles', { select: 'role', id: `eq.${auth.user_id}` }, { timeoutMs: 12000 });
     role = String(rows?.[0]?.role || '').trim();
-  } catch (_) {
+  } catch (e) {
+    console.warn('role select error', e);
     role = '';
   }
   if (role !== 'teacher') {
@@ -508,12 +397,12 @@ async function main() {
     return;
   }
 
-  initStudentDeleteMenu({ cfg, auth, studentId });
+  initStudentDeleteMenu({ supaRest, refreshAuthSnapshot, studentId });
 
   // подтянем мету ученика через безопасный RPC списка
   if (!cached) {
     try {
-      const list = await rpc(cfg, auth.access_token, 'list_my_students', {});
+      const list = await supaRest.rpc('list_my_students', {}, { timeoutMs: 15000 });
       const arr = Array.isArray(list) ? list : [];
       const meta = arr.find((x) => String(x?.student_id || '').trim() === String(studentId)) || null;
       if (meta) {
@@ -743,7 +632,7 @@ if (statsFiltersToggle && statsControls) {
 
       let rows = [];
       try {
-        rows = await restSelect(cfg, auth.access_token, 'answer_events', qs);
+        rows = await supaRest.select('answer_events', qs, { timeoutMs: 15000 });
       } catch (e) {
         // если таблица/колонки недоступны по RLS — просто вернем пустое
         console.warn('variant12: cannot load answer_events', e);
@@ -798,11 +687,11 @@ if (statsFiltersToggle && statsControls) {
 
     let dash = null;
     try {
-      dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
-        p_student_id: studentId,
-        p_days: 3650,
-        p_source: src,
-      });
+      dash = await supaRest.rpcAny(
+        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
+        { p_student_id: studentId, p_days: 3650, p_source: src },
+        { timeoutMs: 20000 }
+      );
     } catch (e) {
       console.warn('variant12: dashboard rpc failed', e);
       var12SetStatus('Не удалось загрузить статистику ученика.');
@@ -848,6 +737,13 @@ if (statsFiltersToggle && statsControls) {
     var12SetStatus('Собираем задачи…');
     var12CreateBtn.disabled = true;
     setHidden(var12ResultBox, true);
+
+    const a2 = await refreshAuthSnapshot();
+    if (!a2?.access_token) {
+      var12SetStatus('Сессия истекла. Перезайдите в аккаунт.');
+      var12CreateBtn.disabled = false;
+      return;
+    }
 
     let builder = null;
     let hwApi = null;
@@ -1287,11 +1183,11 @@ if (statsFiltersToggle && statsControls) {
       const limit = safeInt(recLimitEl?.value, 15) || 15;
       const includeUncovered = !!recIncludeUncoveredEl?.checked;
 
-      lastDash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
-        p_student_id: studentId,
-        p_days: days,
-        p_source: normSource(source),
-      });
+      lastDash = await supaRest.rpcAny(
+        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
+        { p_student_id: studentId, p_days: days, p_source: normSource(source) },
+        { timeoutMs: 20000 }
+      );
 
       const recMod = await import(withV('./recommendations.js'));
       lastRecsRaw = recMod.buildRecommendations(lastDash, catalog, {
@@ -1323,6 +1219,12 @@ if (statsFiltersToggle && statsControls) {
     setHidden(resultBox, true);
 
     try {
+      const a2 = await refreshAuthSnapshot();
+      if (!a2?.access_token) {
+        smartSetStatus('Сессия истекла. Перезайдите в аккаунт.', 'err');
+        return;
+      }
+
       const topics = {};
       for (const [tid, it] of plan.entries()) {
         const c = safeInt(it?.count, 0);
@@ -1480,11 +1382,11 @@ if (statsFiltersToggle && statsControls) {
         try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
       }
 
-      const dash = await rpc(cfg, auth.access_token, 'student_dashboard_for_teacher', {
-        p_student_id: studentId,
-        p_days: days,
-        p_source: normSource(source),
-      });
+      const dash = await supaRest.rpcAny(
+        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
+        { p_student_id: studentId, p_days: days, p_source: normSource(source) },
+        { timeoutMs: 20000 }
+      );
 
       statsUi.hintEl.textContent = '';
       __lastSeenAt = dash?.overall?.last_seen_at || null;
@@ -1525,7 +1427,7 @@ async function loadWorks() {
     works.replaceChildren(el('div', { class:'muted', text:'Загружаем выполненные работы...' }));
 
     try {
-      const data = await rpc(cfg, auth.access_token, 'list_student_attempts', { p_student_id: studentId });
+      const data = await supaRest.rpc('list_student_attempts', { p_student_id: studentId }, { timeoutMs: 20000 });
       const rows = Array.isArray(data) ? data : [];
 
       if (rows.length === 0) {
