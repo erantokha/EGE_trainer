@@ -991,6 +991,25 @@ body[data-theme="light"] .task-card{
   margin-top:6px;
 }
 
+/* бейджи статистики на мини‑карточках (уникальные прототипы / лист задач) */
+.ws-badges,
+.task-badges{
+  margin-top:8px;
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  align-items:center;
+}
+.ws-badges .ws-badge-last,
+.task-badges .task-badge-last{
+  margin-left:auto;
+}
+.ws-badges .badge,
+.task-badges .badge{
+  font-size:11px;
+  padding:3px 8px;
+}
+
 .ws-ans summary,
 .task-ans summary{
   cursor:pointer;
