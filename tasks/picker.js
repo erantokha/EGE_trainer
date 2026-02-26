@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-26-13';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-13';
-import { CONFIG } from '../app/config.js?v=2026-02-26-13';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-02-26-13';
+import { withBuild } from '../app/build.js?v=2026-02-25-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-23';
+import { CONFIG } from '../app/config.js?v=2026-02-25-23';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -62,6 +62,12 @@ let _TEACHER_VIEW_PENDING_ID = null;
 let _TEACHER_SELECT_SEQ = 0;
 let _TEACHER_SELECT_LAST_OK_AT = 0;
 let _TEACHER_SELECT_LAST_UID = '';
+
+let _TEACHER_SELECT_INFLIGHT = null;
+const TEACHER_STUDENTS_SOFT_MIN_INTERVAL_MS = 90 * 1000; // 90 секунд
+const TEACHER_STUDENTS_HARD_TIMEOUT_MS = 20000;
+const TEACHER_STUDENTS_SOFT_TIMEOUT_MS = 12000;
+const TEACHER_STUDENTS_STATUS_DELAY_MS = 500;
 
 function isStudentLikeHome(){
   return IS_STUDENT_PAGE || (IS_TEACHER_HOME && !!TEACHER_VIEW_STUDENT_ID);
@@ -262,143 +268,215 @@ async function refreshTeacherStudentSelect(opts = {}){
   const sel = $('#teacherStudentSelect');
   if (!sel) return;
 
-  const soft = (opts?.soft === undefined) ? true : !!opts.soft;
-  const seq = ++_TEACHER_SELECT_SEQ;
+  const reason = String(opts?.reason || '').trim();
+
+  const softRequested = (opts?.soft === undefined) ? true : !!opts.soft;
 
   const prevValue = String(sel.value || '').trim();
   const prevHadList = !!(sel.options && sel.options.length > 1);
-  const preserveUi = soft && prevHadList;
+  const preserveUi = softRequested && prevHadList;
 
-  // Вариант 2: во время обновления блокируем селект, но гарантированно снимаем блокировку в finally.
-  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || 4500) || 4500);
+  // Дедупликация: не стартуем параллельные обновления (они и вызывают "гонки" + лишние таймауты).
+  // Исключение — SIGNED_OUT: там важно сразу сбросить UI.
+  if (_TEACHER_SELECT_INFLIGHT && reason !== 'SIGNED_OUT') return _TEACHER_SELECT_INFLIGHT;
 
+  // Троттлинг: если список уже есть и недавно успешно обновлялся — не дергаем RPC лишний раз.
+  const now0 = Date.now();
+  if (preserveUi && (now0 - _TEACHER_SELECT_LAST_OK_AT) < TEACHER_STUDENTS_SOFT_MIN_INTERVAL_MS) return;
+
+  const seq = ++_TEACHER_SELECT_SEQ;
   wireTeacherStudentSelect(sel);
 
-  let finalDisabled = true;
-  let finalStatus = preserveUi ? 'Обновляем учеников...' : '';
+  const p = (async () => {
+    // Вариант 2: во время обновления блокируем селект, но гарантированно снимаем блокировку в finally.
+    const timeoutMs = Math.max(
+      0,
+      Number(opts?.timeoutMs || 0) || 0
+    ) || (preserveUi ? TEACHER_STUDENTS_SOFT_TIMEOUT_MS : TEACHER_STUDENTS_HARD_TIMEOUT_MS);
 
-  sel.disabled = true;
-  setTeacherStudentStatus(finalStatus);
+    let finalDisabled = true;
+    let finalStatus = '';
 
-  // При мягком обновлении не очищаем селект до успешной загрузки списка (иначе “пропадает” выбранный ученик).
-  if (!preserveUi) {
-    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-  }
-
-  let session = null;
-  try {
-    session = await getSession({ timeoutMs: 900, skewSec: 30 });
-  } catch (_) {
-    session = null;
-  }
-
-  if (seq !== _TEACHER_SELECT_SEQ) return;
-
-  if (!session?.user?.id) {
-    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-    finalDisabled = true;
-    finalStatus = 'Войдите, чтобы выбрать ученика.';
-    try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
-    return;
-  }
-
-  finalStatus = preserveUi ? 'Обновляем учеников...' : 'Загружаем учеников...';
-  setTeacherStudentStatus(finalStatus);
-
-  let p = null;
-  let timer = 0;
-
-  const makeTimeoutErr = () => {
-    const e = new Error('listMyStudents timeout');
-    e.code = 'TEACHER_STUDENTS_TIMEOUT';
-    return e;
-  };
-
-  try {
-    p = listMyStudents();
-
-    const timeoutPromise = new Promise((_, rej) => {
-      if (timeoutMs > 0) {
-        timer = setTimeout(() => rej(makeTimeoutErr()), timeoutMs);
+    // Статус "Обновляем..." показываем лениво, чтобы не мигало при быстрых обновлениях.
+    let statusDelayT = 0;
+    const scheduleStatus = (msg) => {
+      const s = String(msg || '').trim();
+      if (!s) return;
+      if (!preserveUi) {
+        setTeacherStudentStatus(s);
+        return;
       }
-    });
+      if (statusDelayT) return;
+      statusDelayT = setTimeout(() => {
+        statusDelayT = 0;
+        if (seq !== _TEACHER_SELECT_SEQ) return;
+        // Пишем статус только если обновление всё ещё идёт (селект заблокирован).
+        if (sel.disabled) setTeacherStudentStatus(s);
+      }, TEACHER_STUDENTS_STATUS_DELAY_MS);
+    };
 
-    const res = await (timeoutMs > 0 ? Promise.race([p, timeoutPromise]) : p);
-    if (timer) { clearTimeout(timer); timer = 0; }
+    sel.disabled = true;
+
+    // При мягком обновлении не очищаем селект до успешной загрузки списка (иначе “пропадает” выбранный ученик).
+    if (!preserveUi) {
+      sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+      scheduleStatus('Загружаем учеников...');
+    } else {
+      // Если до этого висело сообщение об ошибке/таймауте — убираем его сразу.
+      setTeacherStudentStatus('');
+      scheduleStatus('Обновляем учеников...');
+    }
+
+    let session = null;
+    try {
+      session = await getSession({ timeoutMs: 900, skewSec: 30 });
+    } catch (_) {
+      session = null;
+    }
 
     if (seq !== _TEACHER_SELECT_SEQ) return;
 
-    if (!res?.ok) {
-      finalStatus = prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.';
-      finalDisabled = !prevHadList;
-      return;
-    }
-
-    const rows = Array.isArray(res.data) ? res.data : [];
-    if (!rows.length) {
-      finalStatus = 'Нет привязанных учеников.';
+    if (!session?.user?.id) {
       sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-      finalDisabled = false;
-      try { applyTeacherStudentView('', { reason: 'no-students' }); } catch (_) {}
+      finalDisabled = true;
+      finalStatus = 'Войдите, чтобы выбрать ученика.';
+      try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
       return;
     }
 
-    // Пересобираем список целиком (так проще держать консистентность).
-    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-    for (const st of rows) {
-      const sid = String(st?.student_id || st?.id || '').trim();
-      if (!sid) continue;
-      const opt = document.createElement('option');
-      opt.value = sid;
-      opt.textContent = studentLabel(st);
-      sel.appendChild(opt);
+    const uid = String(session?.user?.id || '');
+    // Если список уже есть и мы успели обновиться совсем недавно (например, boot → INITIAL_SESSION),
+    // то просто не трогаем UI.
+    const now1 = Date.now();
+    if (preserveUi && uid && uid === _TEACHER_SELECT_LAST_UID && (now1 - _TEACHER_SELECT_LAST_OK_AT) < TEACHER_STUDENTS_SOFT_MIN_INTERVAL_MS) {
+      finalDisabled = false;
+      finalStatus = '';
+      return;
     }
 
-    // Восстановить выбор: текущий → TEACHER_VIEW → сохранённый.
-    const saved = readTeacherSelectedStudentId();
-    const desired = String(prevValue || TEACHER_VIEW_STUDENT_ID || saved || '').trim();
-    if (desired) {
-      for (const o of Array.from(sel.options)) {
-        if (String(o.value) === desired) {
-          sel.value = desired;
-          break;
+    // Если мы всё ещё "в хард-режиме" (первичная загрузка) — держим явный статус.
+    if (!preserveUi) setTeacherStudentStatus('Загружаем учеников...');
+
+    let pRpc = null;
+    let timer = 0;
+
+    const makeTimeoutErr = () => {
+      const e = new Error('listMyStudents timeout');
+      e.code = 'TEACHER_STUDENTS_TIMEOUT';
+      return e;
+    };
+
+    try {
+      pRpc = listMyStudents();
+
+      const timeoutPromise = new Promise((_, rej) => {
+        if (timeoutMs > 0) {
+          timer = setTimeout(() => rej(makeTimeoutErr()), timeoutMs);
+        }
+      });
+
+      const res = await (timeoutMs > 0 ? Promise.race([pRpc, timeoutPromise]) : pRpc);
+      if (timer) { clearTimeout(timer); timer = 0; }
+
+      if (seq !== _TEACHER_SELECT_SEQ) return;
+
+      if (!res?.ok) {
+        if (!preserveUi) {
+          finalStatus = 'Не удалось загрузить учеников.';
+          finalDisabled = true;
+        } else {
+          // При мягком обновлении не пугаем: оставляем текущий список, просто молча не обновили.
+          finalStatus = '';
+          finalDisabled = false;
+        }
+        return;
+      }
+
+      const rows = Array.isArray(res.data) ? res.data : [];
+      if (!rows.length) {
+        finalStatus = 'Нет привязанных учеников.';
+        sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+        finalDisabled = false;
+        try { applyTeacherStudentView('', { reason: 'no-students' }); } catch (_) {}
+        return;
+      }
+
+      // Пересобираем список целиком (так проще держать консистентность).
+      sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+      for (const st of rows) {
+        const sid = String(st?.student_id || st?.id || '').trim();
+        if (!sid) continue;
+        const opt = document.createElement('option');
+        opt.value = sid;
+        opt.textContent = studentLabel(st);
+        sel.appendChild(opt);
+      }
+
+      // Восстановить выбор: текущий → TEACHER_VIEW → сохранённый.
+      const saved = readTeacherSelectedStudentId();
+      const desired = String(prevValue || TEACHER_VIEW_STUDENT_ID || saved || '').trim();
+      if (desired) {
+        for (const o of Array.from(sel.options)) {
+          if (String(o.value) === desired) {
+            sel.value = desired;
+            break;
+          }
         }
       }
-    }
 
-    finalDisabled = false;
-    finalStatus = '';
+      finalDisabled = false;
+      finalStatus = '';
 
-    _TEACHER_SELECT_LAST_OK_AT = Date.now();
-    _TEACHER_SELECT_LAST_UID = String(session?.user?.id || '');
+      _TEACHER_SELECT_LAST_OK_AT = Date.now();
+      _TEACHER_SELECT_LAST_UID = uid;
 
-    // Применить режим «как у ученика» только если реально изменилось.
-    const nextValue = String(sel.value || '').trim();
-    if (nextValue !== String(prevValue || '').trim()) writeTeacherSelectedStudentId(nextValue);
-    if (nextValue !== String(TEACHER_VIEW_STUDENT_ID || '').trim()) {
-      try { applyTeacherStudentView(nextValue, { reason: preserveUi ? 'refresh' : 'restore' }); } catch (_) {}
-    }
-  } catch (e) {
-    if (timer) { clearTimeout(timer); timer = 0; }
+      // Применить режим «как у ученика» только если реально изменилось.
+      const nextValue = String(sel.value || '').trim();
+      if (nextValue !== String(prevValue || '').trim()) writeTeacherSelectedStudentId(nextValue);
+      if (nextValue !== String(TEACHER_VIEW_STUDENT_ID || '').trim()) {
+        try { applyTeacherStudentView(nextValue, { reason: preserveUi ? 'refresh' : 'restore' }); } catch (_) {}
+      }
+    } catch (e) {
+      if (timer) { clearTimeout(timer); timer = 0; }
 
-    // Если мы “отвалились” по таймауту, не даём UI зависнуть. Также гасим возможный поздний reject исходного промиса.
-    if (e && e.code === 'TEACHER_STUDENTS_TIMEOUT') {
-      try { p?.catch(() => {}); } catch (_) {}
-      console.warn('listMyStudents timeout', e);
-      finalStatus = prevHadList ? 'Не удалось обновить учеников (таймаут).' : 'Не удалось загрузить учеников (таймаут).';
-      finalDisabled = !prevHadList;
+      // Таймаут: в soft-режиме просто молча не обновили (оставляем текущий список и не показываем сообщение).
+      if (e && e.code === 'TEACHER_STUDENTS_TIMEOUT') {
+        try { pRpc?.catch(() => {}); } catch (_) {}
+        console.warn('listMyStudents timeout', e);
+
+        if (!preserveUi) {
+          finalStatus = 'Не удалось загрузить учеников (таймаут).';
+          finalDisabled = true;
+        } else {
+          finalStatus = '';
+          finalDisabled = false;
+        }
+        return;
+      }
+
+      console.warn('refreshTeacherStudentSelect error', e);
+      if (!preserveUi) {
+        finalStatus = 'Не удалось загрузить учеников.';
+        finalDisabled = true;
+      } else {
+        finalStatus = '';
+        finalDisabled = false;
+      }
       return;
+    } finally {
+      if (timer) { clearTimeout(timer); timer = 0; }
+      if (statusDelayT) { clearTimeout(statusDelayT); statusDelayT = 0; }
+      if (seq !== _TEACHER_SELECT_SEQ) return;
+      sel.disabled = !!finalDisabled;
+      setTeacherStudentStatus(finalStatus);
     }
+  })();
 
-    console.warn('refreshTeacherStudentSelect error', e);
-    finalStatus = prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.';
-    finalDisabled = !prevHadList;
-    return;
+  _TEACHER_SELECT_INFLIGHT = p;
+  try {
+    await p;
   } finally {
-    if (timer) { clearTimeout(timer); timer = 0; }
-    if (seq !== _TEACHER_SELECT_SEQ) return;
-    sel.disabled = !!finalDisabled;
-    setTeacherStudentStatus(finalStatus);
+    if (_TEACHER_SELECT_INFLIGHT === p) _TEACHER_SELECT_INFLIGHT = null;
   }
 }
 
