@@ -478,6 +478,26 @@ function setupMenuInteractions(userBtn, menu) {
 }
 
 export async function initHeader(opts = {}) {
+
+  // Межвкладочный логаут: если в другой вкладке сделали signOut(), уводим и эту вкладку на страницу входа.
+  if (!window.__EGE_LOGOUT_STORAGE_LISTENER__) {
+    window.__EGE_LOGOUT_STORAGE_LISTENER__ = true;
+    window.addEventListener('storage', (e) => {
+      try {
+        if (e && e.key === 'ege_logout_ts') {
+          const p = String(location.pathname || '');
+          if (p.includes('/tasks/auth')) return;
+          const inTasks = p.includes('/tasks/');
+          const home = new URL(inTasks ? '../' : './', location.href).href;
+          const u = new URL('tasks/auth.html', home);
+          u.searchParams.set('next', home);
+          // Без ожиданий: replace, чтобы не было "Назад" на защищённую страницу.
+          location.replace(u.href);
+        }
+      } catch (_) {}
+    });
+  }
+
   const headerEl = document.getElementById('appHeader');
   if (!headerEl) return;
 

@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-02-27-7';
+import { CONFIG } from '../config.js?v=2026-02-27-1';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -542,6 +542,12 @@ const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 450) || 0);
   // гарантированно очищаем in-memory кэш после чистки storage
   __clearSessionCache();
 
+
+
+  // Сигнал другим вкладкам: пользователь вышел.
+  try {
+    localStorage.setItem('ege_logout_ts', String(Date.now()));
+  } catch (_) {}
 
   // Не ждём бесконечно: максимум timeoutMs (по умолчанию ~450 мс).
   try {
