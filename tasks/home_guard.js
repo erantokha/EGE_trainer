@@ -29,12 +29,31 @@
     return pn.endsWith('/home_student.html');
   };
 
+  const computeHomeUrl = () => {
+    try {
+      return new URL('./', location.href).toString();
+    } catch (_) {
+      return './';
+    }
+  };
+
   const goRoot = () => {
     try {
-      // replace: не засоряем историю
       location.replace(withV('./'));
     } catch (_) {
       try { location.replace('./'); } catch (__){ location.href = './'; }
+    }
+  };
+
+  const goLogin = () => {
+    try {
+      const home = computeHomeUrl();
+      const url = new URL('tasks/auth.html', home);
+      url.searchParams.set('next', home);
+      // replace: не засоряем историю
+      location.replace(withV(url.toString()));
+    } catch (_) {
+      try { location.replace(withV('tasks/auth.html')); } catch (__){ location.href = 'tasks/auth.html'; }
     }
   };
 
@@ -62,7 +81,7 @@
 
     // Не залогинен: на teacher-home быть нельзя.
     if (!userId) {
-      if (isTeacherHome()) goRoot();
+      if (isTeacherHome()) goLogin();
       return;
     }
 
@@ -95,7 +114,7 @@
     try {
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
-          if (isTeacherHome()) goRoot();
+          if (isTeacherHome()) goLogin();
           return;
         }
         if (event === 'SIGNED_IN') {

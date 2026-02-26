@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-02-27-4';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-4';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-27-4';
+import { CONFIG } from '../app/config.js?v=2026-02-26-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-14';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-26-14';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-02-27-4';
+} from '../app/core/pick.js?v=2026-02-26-14';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -364,6 +364,28 @@ function cleanRedirectUrl() {
   }
 }
 
+function computeHomeUrl() {
+  try {
+    // hw_create.html лежит в /tasks
+    return new URL('../', location.href).toString();
+  } catch (_) {
+    return '/';
+  }
+}
+
+function buildAuthLoginUrl(nextUrl) {
+  try {
+    const home = computeHomeUrl();
+    const loginRoute = String(CONFIG?.auth?.routes?.login || 'tasks/auth.html');
+    const rel = loginRoute.replace(/^\/+/, '');
+    const url = new URL(rel, home);
+    url.searchParams.set('next', String(nextUrl || home));
+    return url.toString();
+  } catch (_) {
+    return '../tasks/auth.html';
+  }
+}
+
 let AUTH_WIRED = false;
 function wireAuthControls() {
   if (AUTH_WIRED) return;
@@ -382,17 +404,17 @@ function wireAuthControls() {
   $('#logoutBtn')?.addEventListener('click', (e) => {
     e?.preventDefault?.();
 
-    const clean = cleanRedirectUrl();
+    const home = computeHomeUrl();
+    const loginUrl = buildAuthLoginUrl(home);
 
     let navigated = false;
     const navigate = () => {
       if (navigated) return;
       navigated = true;
       try {
-        if (clean === location.href) location.reload();
-        else location.replace(clean);
+        location.replace(loginUrl);
       } catch (_) {
-        location.reload();
+        location.href = loginUrl;
       }
     };
 

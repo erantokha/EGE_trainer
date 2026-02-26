@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-27-4';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-4';
-import { CONFIG } from '../app/config.js?v=2026-02-27-4';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-4';
+import { withBuild } from '../app/build.js?v=2026-02-26-14';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-14';
+import { CONFIG } from '../app/config.js?v=2026-02-26-14';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-26-14';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -357,13 +357,43 @@ async function refreshTeacherStudentSelect(opts = {}){
     // Если мы всё ещё "в хард-режиме" (первичная загрузка) — держим явный статус.
     if (!preserveUi) setTeacherStudentStatus('Загружаем учеников...');
 
+    let pRpc = null;
+    let timer = 0;
+
+    const makeTimeoutErr = () => {
+      const e = new Error('listMyStudents timeout');
+      e.code = 'TEACHER_STUDENTS_TIMEOUT';
+      return e;
+    };
+
     try {
-      const rows = await supaRest.rpc('list_my_students', {}, { timeoutMs, sessionTimeoutMs: 900 });
+      pRpc = listMyStudents();
+
+      const timeoutPromise = new Promise((_, rej) => {
+        if (timeoutMs > 0) {
+          timer = setTimeout(() => rej(makeTimeoutErr()), timeoutMs);
+        }
+      });
+
+      const res = await (timeoutMs > 0 ? Promise.race([pRpc, timeoutPromise]) : pRpc);
+      if (timer) { clearTimeout(timer); timer = 0; }
 
       if (seq !== _TEACHER_SELECT_SEQ) return;
 
-      const list = Array.isArray(rows) ? rows : [];
-      if (!list.length) {
+      if (!res?.ok) {
+        if (!preserveUi) {
+          finalStatus = 'Не удалось загрузить учеников.';
+          finalDisabled = true;
+        } else {
+          // При мягком обновлении не пугаем: оставляем текущий список, просто молча не обновили.
+          finalStatus = '';
+          finalDisabled = false;
+        }
+        return;
+      }
+
+      const rows = Array.isArray(res.data) ? res.data : [];
+      if (!rows.length) {
         finalStatus = 'Нет привязанных учеников.';
         sel.innerHTML = '<option value="">— ученик не выбран —</option>';
         finalDisabled = false;
@@ -373,7 +403,7 @@ async function refreshTeacherStudentSelect(opts = {}){
 
       // Пересобираем список целиком (так проще держать консистентность).
       sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-      for (const st of list) {
+      for (const st of rows) {
         const sid = String(st?.student_id || st?.id || '').trim();
         if (!sid) continue;
         const opt = document.createElement('option');
@@ -407,22 +437,13 @@ async function refreshTeacherStudentSelect(opts = {}){
         try { applyTeacherStudentView(nextValue, { reason: preserveUi ? 'refresh' : 'restore' }); } catch (_) {}
       }
     } catch (e) {
-      // AUTH_REQUIRED
-      if (e && (e.code === 'AUTH_REQUIRED' || e.status === 401)) {
-        if (!preserveUi) {
-          sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-          finalDisabled = true;
-          finalStatus = 'Войдите, чтобы выбрать ученика.';
-        } else {
-          finalDisabled = false;
-          finalStatus = '';
-        }
-        try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
-        return;
-      }
+      if (timer) { clearTimeout(timer); timer = 0; }
 
-      // Таймаут: в soft-режиме просто молча не обновили.
-      if (e && e.code === 'TIMEOUT') {
+      // Таймаут: в soft-режиме просто молча не обновили (оставляем текущий список и не показываем сообщение).
+      if (e && e.code === 'TEACHER_STUDENTS_TIMEOUT') {
+        try { pRpc?.catch(() => {}); } catch (_) {}
+        console.warn('listMyStudents timeout', e);
+
         if (!preserveUi) {
           finalStatus = 'Не удалось загрузить учеников (таймаут).';
           finalDisabled = true;
@@ -443,6 +464,7 @@ async function refreshTeacherStudentSelect(opts = {}){
       }
       return;
     } finally {
+      if (timer) { clearTimeout(timer); timer = 0; }
       if (statusDelayT) { clearTimeout(statusDelayT); statusDelayT = 0; }
       if (seq !== _TEACHER_SELECT_SEQ) return;
       sel.disabled = !!finalDisabled;
@@ -1392,6 +1414,18 @@ function initAuthHeader() {
 
   const homeUrl = new URL(IN_TASKS_DIR ? '../' : './', location.href).toString();
 
+  const buildAuthLoginUrl = (nextUrl) => {
+    try {
+      const loginRoute = String(CONFIG?.auth?.routes?.login || 'tasks/auth.html');
+      const rel = loginRoute.replace(/^\/+/, '');
+      const url = new URL(rel, homeUrl);
+      url.searchParams.set('next', String(nextUrl || homeUrl));
+      return url.toString();
+    } catch (_) {
+      return 'tasks/auth.html';
+    }
+  };
+
   const closeMenu = () => {
     menu.hidden = true;
     menu.classList.add('hidden');
@@ -1453,7 +1487,7 @@ function initAuthHeader() {
     } catch (e) {
       console.warn('signOut failed', e);
     }
-    location.replace(homeUrl);
+    location.replace(buildAuthLoginUrl(homeUrl));
   });
 
   try {
