@@ -747,11 +747,17 @@ export async function initHeader(opts = {}) {
       console.warn('Header: signOut failed', err);
     } finally {
       isSigningOut = false;
-      // После логаута всегда уходим на корень.
+      // После логаута всегда уходим на страницу входа (не на индекс).
       try {
-        location.replace(computeHomeUrl());
+        const home = cleanOauthParams(computeHomeUrl());
+        location.replace(buildAuthLoginUrl(home));
       } catch (_) {
-        location.replace('./');
+        try {
+          const home = cleanOauthParams(computeHomeUrl());
+          location.replace(buildAuthLoginUrl(home));
+        } catch (__){
+          location.replace('./');
+        }
       }
     }
   });
