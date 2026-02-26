@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-26-11';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-11';
-import { CONFIG } from '../app/config.js?v=2026-02-26-11';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-02-26-11';
+import { withBuild } from '../app/build.js?v=2026-02-25-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-23';
+import { CONFIG } from '../app/config.js?v=2026-02-25-23';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -57,6 +57,11 @@ const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.t
 // Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
 let TEACHER_VIEW_STUDENT_ID = '';
 let _TEACHER_VIEW_PENDING_ID = null;
+
+// Главная учителя: защита от повторных перерисовок селекта при TOKEN_REFRESHED/INITIAL_SESSION.
+let _TEACHER_SELECT_SEQ = 0;
+let _TEACHER_SELECT_LAST_OK_AT = 0;
+let _TEACHER_SELECT_LAST_UID = '';
 
 function isStudentLikeHome(){
   return IS_STUDENT_PAGE || (IS_TEACHER_HOME && !!TEACHER_VIEW_STUDENT_ID);
@@ -139,8 +144,8 @@ function wireTeacherStudentSelect(sel){
 function setTeacherStudentViewUI(studentId){
   TEACHER_VIEW_STUDENT_ID = String(studentId || '').trim();
   document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
-  // Видимость градусника контролируем через CSS (как на home_student.mobile.css).
-  // Атрибут hidden не используем, чтобы медиазапросы могли показывать/прятать блок.
+  const slot = document.getElementById('scoreThermoSlot');
+  if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
 }
 
 let _TEACHER_STATS_SEQ = 0;
@@ -252,17 +257,26 @@ function applyTeacherStudentView(studentId, opts = {}){
   loadTeacherStudentStats(sid, { reason: opts?.reason || '' });
 }
 
-async function refreshTeacherStudentSelect(){
+async function refreshTeacherStudentSelect(opts = {}){
   if (!IS_TEACHER_HOME) return;
   const sel = $('#teacherStudentSelect');
   if (!sel) return;
 
+  const soft = (opts?.soft === undefined) ? true : !!opts.soft;
+  const seq = ++_TEACHER_SELECT_SEQ;
+
+  const prevValue = String(sel.value || '').trim();
+  const prevHadList = sel.options && sel.options.length > 1;
+  const preserveUi = soft && prevHadList;
+
   wireTeacherStudentSelect(sel);
   sel.disabled = true;
-  setTeacherStudentStatus('');
+  setTeacherStudentStatus(preserveUi ? 'Обновляем учеников...' : '');
 
-  // Базовая опция
-  sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+  // Базовая опция: при мягком обновлении не очищаем селект (иначе “пропадает” выбранный ученик).
+  if (!preserveUi) {
+    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+  }
 
   let session = null;
   try {
@@ -270,27 +284,41 @@ async function refreshTeacherStudentSelect(){
   } catch (_) {
     session = null;
   }
+
+  if (seq !== _TEACHER_SELECT_SEQ) return;
   if (!session?.user?.id) {
+    // Жёстко сбрасываем UI в “гость”.
+    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+    sel.disabled = true;
     setTeacherStudentStatus('Войдите, чтобы выбрать ученика.');
     try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
     return;
   }
 
-  setTeacherStudentStatus('Загружаем учеников...');
+  setTeacherStudentStatus(preserveUi ? 'Обновляем учеников...' : 'Загружаем учеников...');
   try {
     const res = await listMyStudents();
+
+    if (seq !== _TEACHER_SELECT_SEQ) return;
     if (!res?.ok) {
-      setTeacherStudentStatus('Не удалось загрузить учеников.');
+      // Если список уже был, оставляем его (не ломаем UX).
+      setTeacherStudentStatus(prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.');
+      sel.disabled = !prevHadList;
       return;
     }
 
     const rows = Array.isArray(res.data) ? res.data : [];
     if (!rows.length) {
       setTeacherStudentStatus('Нет привязанных учеников.');
+      sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+      sel.disabled = false;
+      try { applyTeacherStudentView('', { reason: 'no-students' }); } catch (_) {}
       return;
     }
 
-    for (const st of rows){
+    // Пересобираем список целиком (так проще держать консистентность).
+    sel.innerHTML = '<option value="">— ученик не выбран —</option>';
+    for (const st of rows) {
       const sid = String(st?.student_id || st?.id || '').trim();
       if (!sid) continue;
       const opt = document.createElement('option');
@@ -299,12 +327,13 @@ async function refreshTeacherStudentSelect(){
       sel.appendChild(opt);
     }
 
-    // восстановить прошлый выбор
+    // Восстановить выбор: текущий → TEACHER_VIEW → сохранённый.
     const saved = readTeacherSelectedStudentId();
-    if (saved) {
+    const desired = String(prevValue || TEACHER_VIEW_STUDENT_ID || saved || '').trim();
+    if (desired) {
       for (const o of Array.from(sel.options)) {
-        if (String(o.value) === saved) {
-          sel.value = saved;
+        if (String(o.value) === desired) {
+          sel.value = desired;
           break;
         }
       }
@@ -313,11 +342,19 @@ async function refreshTeacherStudentSelect(){
     sel.disabled = false;
     setTeacherStudentStatus('');
 
-    // применить режим «как у ученика» при восстановлении выбора
-    try { applyTeacherStudentView(sel.value, { reason: 'restore' }); } catch (_) {}
+    _TEACHER_SELECT_LAST_OK_AT = Date.now();
+    _TEACHER_SELECT_LAST_UID = String(session?.user?.id || '');
+
+    // Применить режим «как у ученика» только если реально изменилось.
+    const nextValue = String(sel.value || '').trim();
+    if (nextValue !== String(prevValue || '').trim()) writeTeacherSelectedStudentId(nextValue);
+    if (nextValue !== String(TEACHER_VIEW_STUDENT_ID || '').trim()) {
+      try { applyTeacherStudentView(nextValue, { reason: preserveUi ? 'refresh' : 'restore' }); } catch (_) {}
+    }
   } catch (e) {
     console.warn('refreshTeacherStudentSelect error', e);
-    setTeacherStudentStatus('Не удалось загрузить учеников.');
+    setTeacherStudentStatus(prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.');
+    sel.disabled = !prevHadList;
   }
 }
 
@@ -1335,11 +1372,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   initAuthHeader();
 
   // Главная учителя: селект ученика (для автоподстановки на hw_create)
-  refreshTeacherStudentSelect();
+  refreshTeacherStudentSelect({ reason: 'boot', soft: false });
   try {
     if (IS_TEACHER_HOME) {
-      supabase.auth.onAuthStateChange(() => {
-        refreshTeacherStudentSelect();
+      supabase.auth.onAuthStateChange((event, session) => {
+        const ev = String(event || '');
+
+        // Не сбрасываем селект на авто-рефреше токена: это и давало "пропадает ученик".
+        if (ev === 'TOKEN_REFRESHED') return;
+
+        if (ev === 'SIGNED_OUT') {
+          refreshTeacherStudentSelect({ reason: ev, soft: false });
+          return;
+        }
+
+        if (ev === 'SIGNED_IN' || ev === 'INITIAL_SESSION' || ev === 'USER_UPDATED') {
+          const uid = String(session?.user?.id || '');
+          const now = Date.now();
+          if (uid && uid === _TEACHER_SELECT_LAST_UID && (now - _TEACHER_SELECT_LAST_OK_AT) < 2500) return;
+          refreshTeacherStudentSelect({ reason: ev, soft: true });
+        }
       });
     }
   } catch (_) {}
