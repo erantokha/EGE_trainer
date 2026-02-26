@@ -2,13 +2,17 @@
 // ДЗ: создание/линки/получение по token.
 
 import { CONFIG } from '../config.js?v=2026-02-26-22';
-import { supabase } from './supabase.js?v=2026-02-26-22';
+import { supabase, requireSession } from './supabase.js?v=2026-02-26-22';
 
-// supabase-js v2: getUser() возвращает { data: { user }, error }
+// Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
+// Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
 async function getAuth() {
-  const { data, error } = await supabase.auth.getUser();
-  if (error) return { user: null, error };
-  return { user: data?.user || null, error: null };
+  try {
+    const s = await requireSession({ timeoutMs: 900 });
+    return { user: s?.user || null, error: null };
+  } catch (e) {
+    return { user: null, error: e };
+  }
 }
 
 
