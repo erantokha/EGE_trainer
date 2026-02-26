@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-02-26-16';
+import { CONFIG } from '../config.js?v=2026-02-26-15';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -36,6 +36,7 @@ const __SESSION_CACHE = {
   session: null,
   expires_at: 0,
   inflight: null,
+  inflight_refresh: null,
   // защитный флаг: после signOut в течение короткого окна
   // всегда считаем, что сессии нет (даже если supabase-js ещё не успел очистить in-memory state).
   signed_out_until: 0,
@@ -46,6 +47,7 @@ function __clearSessionCache() {
   __SESSION_CACHE.session = null;
   __SESSION_CACHE.expires_at = 0;
   __SESSION_CACHE.inflight = null;
+  __SESSION_CACHE.inflight_refresh = null;
 }
 
 function __pick(obj, paths) {
@@ -167,9 +169,55 @@ async function __getSessionViaSupabase(timeoutMs) {
   }
 }
 
+async function __forceRefreshSession(now, timeoutMs) {
+  // если есть обычный inflight — подождём, чтобы не refresh’ить на «старой» памяти
+  if (__SESSION_CACHE.inflight) {
+    try { await __SESSION_CACHE.inflight; } catch (_) {}
+  }
+
+  const stored = __readStoredSession();
+  const baseSession = __SESSION_CACHE.session || stored.session || null;
+  const rt = String(baseSession?.refresh_token || '').trim();
+
+  if (!rt) {
+    __SESSION_CACHE.session = null;
+    __SESSION_CACHE.expires_at = 0;
+    return null;
+  }
+
+  try {
+    const refreshed = await __refreshByToken(rt);
+    const expiresIn = Number(refreshed?.expires_in || 0) || 0;
+    const newExpiresAt = expiresIn ? (now + expiresIn) : (Number(baseSession?.expires_at || 0) || 0);
+
+    const newObj = {
+      access_token: refreshed?.access_token || baseSession?.access_token || '',
+      refresh_token: refreshed?.refresh_token || rt,
+      token_type: refreshed?.token_type || baseSession?.token_type || 'bearer',
+      expires_at: newExpiresAt,
+      user: refreshed?.user || baseSession?.user || null,
+    };
+
+    if (stored?.key) __writeStoredSession(stored.key, stored.raw, newObj);
+
+    const out = { ...(baseSession || {}), ...newObj };
+    __SESSION_CACHE.session = out;
+    __SESSION_CACHE.expires_at = Number(newExpiresAt || 0) || 0;
+    __SESSION_CACHE.signed_out_until = 0;
+    return out;
+  } catch (_) {
+    // важно: не отдаём «старую» сессию после явного forceRefresh
+    __SESSION_CACHE.session = null;
+    __SESSION_CACHE.expires_at = 0;
+    return null;
+  }
+}
+
+
 export async function getSession(opts = {}) {
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 900) || 0);
   const skewSec = Math.max(0, Number(opts?.skewSec ?? 30) || 0);
+  const forceRefresh = !!opts?.forceRefresh;
   const now = Math.floor(Date.now() / 1000);
 
 
@@ -177,6 +225,20 @@ export async function getSession(opts = {}) {
   if (Number(__SESSION_CACHE.signed_out_until || 0) > now) {
     __clearSessionCache();
     return null;
+  }
+
+  if (forceRefresh) {
+    if (__SESSION_CACHE.inflight_refresh) return __SESSION_CACHE.inflight_refresh;
+
+    __SESSION_CACHE.inflight_refresh = (async () => {
+      return await __forceRefreshSession(now, timeoutMs);
+    })();
+
+    try {
+      return await __SESSION_CACHE.inflight_refresh;
+    } finally {
+      __SESSION_CACHE.inflight_refresh = null;
+    }
   }
 
   // быстрый cache
@@ -290,10 +352,34 @@ export async function getSession(opts = {}) {
   }
 }
 
-export async function requireSession() {
-  const session = await getSession();
-  if (!session) throw new Error('AUTH_REQUIRED');
+export async function requireSession(opts = {}) {
+  const session = await getSession(opts);
+  if (!session) {
+    const e = new Error('AUTH_REQUIRED');
+    e.code = 'AUTH_REQUIRED';
+    throw e;
+  }
   return session;
+}
+
+export function peekStoredSession(opts = {}) {
+  const minTtlSec = Math.max(0, Number(opts?.minTtlSec ?? 0) || 0);
+  const now = Math.floor(Date.now() / 1000);
+
+  const stored = __readStoredSession();
+  const s = stored?.session || null;
+  if (!s?.access_token) return null;
+
+  const exp = Number(s.expires_at || 0) || 0;
+  if (exp && (exp - now) <= minTtlSec) return null;
+
+  const out = { ...s };
+  try { delete out.__raw; } catch (_) {}
+  return out;
+}
+
+export function hasStoredSession() {
+  return !!peekStoredSession({ minTtlSec: 0 });
 }
 
 export async function signInWithGoogle(redirectTo = null) {
