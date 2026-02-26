@@ -35,11 +35,11 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-02-27-10';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-10';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-27-10';
-import { getSession } from '../app/providers/supabase.js?v=2026-02-27-10';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-10';
+import { withBuild } from '../app/build.js?v=2026-02-27-11';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-11';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-27-11';
+import { getSession } from '../app/providers/supabase.js?v=2026-02-27-11';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-11';
 
 const INDEX_URL = '../content/tasks/index.json';
 // ---------- бейджи на карточках уникальных прототипов ----------
