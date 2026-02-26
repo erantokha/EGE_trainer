@@ -1,6 +1,7 @@
 // tasks/auth.js
 // Важно: используем один и тот же URL модулей (?v из meta app-build), чтобы не создавать несколько Supabase клиентов.
 let CONFIG = null;
+let supabase = null;
 let getSession = null;
 let signInWithGoogle = null;
 let signInWithPassword = null;
@@ -26,6 +27,7 @@ async function loadDeps() {
   const cfgMod = await import(buildWithV('../app/config.js'));
   const sbMod = await import(buildWithV('../app/providers/supabase.js'));
   CONFIG = cfgMod?.CONFIG || null;
+  supabase = sbMod?.supabase || null;
   getSession = sbMod?.getSession || null;
   signInWithGoogle = sbMod?.signInWithGoogle || null;
   signInWithPassword = sbMod?.signInWithPassword || null;
@@ -38,6 +40,57 @@ async function loadDeps() {
   if (!getSession || !signInWithGoogle || !signInWithPassword || !signUpWithPassword || !resendSignupEmail || !sendPasswordReset) {
     throw new Error('AUTH_DEPS_NOT_LOADED');
   }
+}
+
+function startAutoRedirectWhenSessionAppears(nextUrl) {
+  let done = false;
+  const safeNext = String(nextUrl || homeUrl());
+
+  const go = () => {
+    if (done) return;
+    done = true;
+    try { location.replace(safeNext); } catch (_) { location.href = safeNext; }
+  };
+
+  const check = async () => {
+    if (done) return;
+    try {
+      const s = await getSession({ timeoutMs: 900 }).catch(() => null);
+      if (s) go();
+    } catch (_) {}
+  };
+
+  // 1) Подписка (если доступна). В некоторых средах межвкладочное событие может не прилететь,
+  // поэтому ниже есть polling-фолбек.
+  try {
+    if (supabase?.auth?.onAuthStateChange) {
+      const res = supabase.auth.onAuthStateChange((evt, session) => {
+        if (done) return;
+        if (evt === 'SIGNED_IN' || evt === 'TOKEN_REFRESHED') {
+          if (session) go();
+          else check();
+        }
+      });
+      const sub = res?.data?.subscription || res?.subscription || null;
+      if (sub?.unsubscribe) {
+        window.addEventListener('beforeunload', () => {
+          done = true;
+          try { sub.unsubscribe(); } catch (_) {}
+        }, { once: true });
+      }
+    }
+  } catch (_) {}
+
+  // 2) Polling как гарантированный фолбек (чтобы вкладка ушла с auth, даже если событие не прилетело).
+  const startedAt = Date.now();
+  const interval = setInterval(() => {
+    if (done) { clearInterval(interval); return; }
+    if (Date.now() - startedAt > 5 * 60 * 1000) { clearInterval(interval); return; }
+    check();
+  }, 1200);
+
+  // 3) Быстрый первый чек
+  setTimeout(check, 300);
 }
 
 function homeUrl() {
@@ -182,6 +235,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
   } catch (_) {}
+
+  // Если вошли в другой вкладке, эта вкладка тоже должна уйти с экрана авторизации.
+  // Возвращаем на next (обычно это корень приложения).
+  startAutoRedirectWhenSessionAppears(next);
 
   const callback = new URL(appUrl(CONFIG?.auth?.routes?.callback || '/tasks/auth_callback.html'));
   callback.searchParams.set('next', next);
