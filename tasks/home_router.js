@@ -99,77 +99,39 @@
     }
   };
 
-  async function loadSupabase() {
-    const m = await import(withV(rel + 'app/providers/supabase.js'));
-    return { supabase: m?.supabase };
+  async function loadProviders() {
+    const mS = await import(withV(rel + 'app/providers/supabase.js'));
+    const mR = await import(withV(rel + 'app/providers/supabase-rest.js'));
+    return {
+      supabase: mS?.supabase,
+      getSession: mS?.getSession,
+      hasStoredSession: mS?.hasStoredSession,
+      supaRest: mR?.supaRest,
+    };
   }
 
-  
-async function getLocalSession(supabase, timeoutMs) {
-  let timerId = null;
-  try {
-    const timeoutP = new Promise((resolve) => {
-      timerId = setTimeout(() => resolve({ timedOut: true }), Math.max(100, timeoutMs || 350));
-    });
-    const sessP = supabase.auth.getSession()
-      .then((res) => ({ res }))
-      .catch((err) => ({ err }));
-    const r = await Promise.race([sessP, timeoutP]);
-    if (r?.timedOut) return { error: new Error('getSession timeout'), timedOut: true, session: null };
-    if (r?.err) return { error: r.err, session: null };
-    if (r?.res?.error) return { error: r.res.error, session: null };
-    return { session: r?.res?.data?.session || null, error: null };
-  } finally {
-    try { if (timerId) clearTimeout(timerId); } catch (_) {}
-  }
-}
-
-async function getConfirmedUser(supabase, timeoutMs) {
-    let timerId = null;
+  async function readRoleOnce(supaRest, uid) {
     try {
-      const timeoutP = new Promise((resolve) => {
-        timerId = setTimeout(() => resolve({ timedOut: true }), Math.max(200, timeoutMs || 2000));
-      });
-      const userP = supabase.auth.getUser()
-        .then((res) => ({ res }))
-        .catch((err) => ({ err }));
-      const r = await Promise.race([userP, timeoutP]);
-      if (r?.timedOut) return { error: new Error('getUser timeout'), timedOut: true };
-      if (r?.err) return { error: r.err };
-      return { user: r?.res?.data?.user || null };
-    } finally {
-      try { if (timerId) clearTimeout(timerId); } catch (_) {}
-    }
-  }
-
-  async function readRoleOnce(supabase, uid) {
-    try {
-      const q = supabase.from('profiles').select('role').eq('id', uid);
-      const res = q.maybeSingle ? await q.maybeSingle() : await q.single();
-      if (res?.error) return { error: res.error, role: null };
-      return { role: res?.data?.role || null };
+      const rows = await supaRest.select('profiles', { select: 'role', id: `eq.${uid}` }, { timeoutMs: 12000 });
+      return { role: rows?.[0]?.role || null, error: null };
     } catch (err) {
       return { error: err, role: null };
     }
   }
 
-  async function readRoleWithRetry(supabase, uid, onAttempt) {
+  async function readRoleWithRetry(supaRest, uid, onAttempt) {
     const delays = [150, 300, 600];
     let lastErr = null;
 
     for (let i = 0; i < delays.length; i++) {
       try { onAttempt?.(i + 1, delays.length); } catch (_) {}
 
-      const { role, error } = await readRoleOnce(supabase, uid);
+      const { role, error } = await readRoleOnce(supaRest, uid);
 
-      // Если роль читается корректно — выходим.
       const r = String(role || '').trim().toLowerCase();
       if (r === 'teacher' || r === 'student') return { role: r, error: null };
 
-      // Если роль пустая/не назначена — это может быть и "не прогрелась авторизация".
-      // Поэтому пробуем ещё раз, но запоминаем ошибку/факт пустой роли.
       lastErr = error || lastErr || new Error('role is empty');
-
       if (i < delays.length - 1) await sleep(delays[i]);
     }
 
@@ -234,10 +196,10 @@ async function getConfirmedUser(supabase, timeoutMs) {
       return;
     }
 
-    let supabase;
+    let supabase, getSession, hasStoredSession, supaRest;
     try {
-      ({ supabase } = await loadSupabase());
-      if (!supabase) throw new Error('no supabase');
+      ({ supabase, getSession, hasStoredSession, supaRest } = await loadProviders());
+      if (!supabase || !getSession || !hasStoredSession || !supaRest) throw new Error('no providers');
     } catch (err) {
       inflight = false;
       hideOverlay();
@@ -245,70 +207,48 @@ async function getConfirmedUser(supabase, timeoutMs) {
       return;
     }
 
-    // Быстро проверяем локальную сессию (без сети).
-    // На "холодном" первом открытии supabase.auth.getSession() иногда отвечает медленнее,
-    // чем короткий таймаут, поэтому делаем более мягкую проверку + ретрай, если похоже,
-    // что пользователь уже залогинен (есть auth-token в localStorage).
     const t0 = Date.now();
 
-    const hasAuthToken = () => {
-      try {
-        // Supabase v2 хранит сессию в ключе вида: sb-<projectRef>-auth-token
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (!k) continue;
-          if (k.startsWith('sb-') && k.endsWith('-auth-token')) return true;
-        }
-      } catch (_) {}
-      return false;
-    };
-
     let sessAttempts = 1;
-    let sess = await getLocalSession(supabase, 700);
-    let sessTimedOutAny = !!sess?.timedOut;
-    const hadToken = hasAuthToken();
+    let session = null;
+    let sessTimedOutAny = false;
+    const hadToken = !!hasStoredSession();
 
-    if (!sess?.session && sess?.timedOut && hadToken) {
+    try {
+      session = await getSession({ timeoutMs: 900, skewSec: 30 });
+    } catch (_) {
+      session = null;
+    }
+
+    if (!session && hadToken) {
       showOverlay('Загружаем сессию…');
-
-      // Ретраим несколько раз с небольшими паузами.
-      for (let i = 0; i < 6 && !sess?.session; i++) {
-        await sleep(200);
+      const delays = [200, 200, 200];
+      for (let i = 0; i < delays.length && !session; i++) {
+        await sleep(delays[i]);
         sessAttempts++;
-        sess = await getLocalSession(supabase, 2500);
-        sessTimedOutAny = sessTimedOutAny || !!sess?.timedOut;
-
-        // Если получили "окончательный" ответ (не таймаут) — больше не ждём.
-        if (!sess?.timedOut) break;
+        try {
+          session = await getSession({ timeoutMs: 2500, skewSec: 30 });
+        } catch (_) {
+          sessTimedOutAny = true;
+          session = null;
+        }
       }
     }
 
-    if (!sess?.session) {
+    if (!session?.user?.id) {
       inflight = false;
       hideOverlay();
       reveal();
       return;
     }
 
-    let userId = sess.session?.user?.id || null;
-
-    // Если uid не удалось получить из session (редкий случай) — подтверждаем через getUser.
-    if (!userId) {
-      const confirmed = await getConfirmedUser(supabase, 1800);
-      if (confirmed?.user == null) {
-        inflight = false;
-        hideOverlay();
-        reveal();
-        return;
-      }
-      userId = confirmed.user.id;
-    }
+    const userId = String(session.user.id);
 
     // Залогинен — показываем оверлей и определяем роль.
     showOverlay('Определяем роль…');
 
     const { role, error } = await readRoleWithRetry(
-      supabase,
+      supaRest,
       userId,
       (n, total) => showOverlay(`Определяем роль… (${n}/${total})`)
     );
@@ -332,11 +272,9 @@ async function getConfirmedUser(supabase, timeoutMs) {
       online: !!navigator.onLine,
       build: BUILD || null,
       elapsed_ms: Date.now() - t0,
-      sess_timed_out: !!sess?.timedOut,
       sess_timed_out_any: !!sessTimedOutAny,
       sess_attempts: sessAttempts,
       has_auth_token: hadToken,
-      sess_error: sess?.error ? { message: String(sess.error.message || sess.error), code: sess.error.code, status: sess.error.status } : null,
       error: error ? { message: String(error.message || error), code: error.code, status: error.status } : null,
     };
 
@@ -350,7 +288,7 @@ async function getConfirmedUser(supabase, timeoutMs) {
   // Если логин/логаут происходит без перезагрузки (в другой вкладке) — реагируем.
   // На / при SIGNED_IN просто запускаем run(), при SIGNED_OUT убираем оверлей и показываем главную.
   try {
-    loadSupabase().then(({ supabase }) => {
+    loadProviders().then(({ supabase }) => {
       if (!supabase?.auth?.onAuthStateChange) return;
       supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_OUT') { hideOverlay(); reveal(); return; }
