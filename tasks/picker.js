@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-02-26-12';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-26-12';
-import { CONFIG } from '../app/config.js?v=2026-02-26-12';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-02-26-12';
+import { withBuild } from '../app/build.js?v=2026-02-25-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-25-23';
+import { CONFIG } from '../app/config.js?v=2026-02-25-23';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-25-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -266,14 +266,21 @@ async function refreshTeacherStudentSelect(opts = {}){
   const seq = ++_TEACHER_SELECT_SEQ;
 
   const prevValue = String(sel.value || '').trim();
-  const prevHadList = sel.options && sel.options.length > 1;
+  const prevHadList = !!(sel.options && sel.options.length > 1);
   const preserveUi = soft && prevHadList;
 
-  wireTeacherStudentSelect(sel);
-  sel.disabled = true;
-  setTeacherStudentStatus(preserveUi ? 'Обновляем учеников...' : '');
+  // Вариант 2: во время обновления блокируем селект, но гарантированно снимаем блокировку в finally.
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || 4500) || 4500);
 
-  // Базовая опция: при мягком обновлении не очищаем селект (иначе “пропадает” выбранный ученик).
+  wireTeacherStudentSelect(sel);
+
+  let finalDisabled = true;
+  let finalStatus = preserveUi ? 'Обновляем учеников...' : '';
+
+  sel.disabled = true;
+  setTeacherStudentStatus(finalStatus);
+
+  // При мягком обновлении не очищаем селект до успешной загрузки списка (иначе “пропадает” выбранный ученик).
   if (!preserveUi) {
     sel.innerHTML = '<option value="">— ученик не выбран —</option>';
   }
@@ -286,32 +293,52 @@ async function refreshTeacherStudentSelect(opts = {}){
   }
 
   if (seq !== _TEACHER_SELECT_SEQ) return;
+
   if (!session?.user?.id) {
-    // Жёстко сбрасываем UI в “гость”.
     sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-    sel.disabled = true;
-    setTeacherStudentStatus('Войдите, чтобы выбрать ученика.');
+    finalDisabled = true;
+    finalStatus = 'Войдите, чтобы выбрать ученика.';
     try { applyTeacherStudentView('', { reason: 'signed-out' }); } catch (_) {}
     return;
   }
 
-  setTeacherStudentStatus(preserveUi ? 'Обновляем учеников...' : 'Загружаем учеников...');
+  finalStatus = preserveUi ? 'Обновляем учеников...' : 'Загружаем учеников...';
+  setTeacherStudentStatus(finalStatus);
+
+  let p = null;
+  let timer = 0;
+
+  const makeTimeoutErr = () => {
+    const e = new Error('listMyStudents timeout');
+    e.code = 'TEACHER_STUDENTS_TIMEOUT';
+    return e;
+  };
+
   try {
-    const res = await listMyStudents();
+    p = listMyStudents();
+
+    const timeoutPromise = new Promise((_, rej) => {
+      if (timeoutMs > 0) {
+        timer = setTimeout(() => rej(makeTimeoutErr()), timeoutMs);
+      }
+    });
+
+    const res = await (timeoutMs > 0 ? Promise.race([p, timeoutPromise]) : p);
+    if (timer) { clearTimeout(timer); timer = 0; }
 
     if (seq !== _TEACHER_SELECT_SEQ) return;
+
     if (!res?.ok) {
-      // Если список уже был, оставляем его (не ломаем UX).
-      setTeacherStudentStatus(prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.');
-      sel.disabled = !prevHadList;
+      finalStatus = prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.';
+      finalDisabled = !prevHadList;
       return;
     }
 
     const rows = Array.isArray(res.data) ? res.data : [];
     if (!rows.length) {
-      setTeacherStudentStatus('Нет привязанных учеников.');
+      finalStatus = 'Нет привязанных учеников.';
       sel.innerHTML = '<option value="">— ученик не выбран —</option>';
-      sel.disabled = false;
+      finalDisabled = false;
       try { applyTeacherStudentView('', { reason: 'no-students' }); } catch (_) {}
       return;
     }
@@ -339,8 +366,8 @@ async function refreshTeacherStudentSelect(opts = {}){
       }
     }
 
-    sel.disabled = false;
-    setTeacherStudentStatus('');
+    finalDisabled = false;
+    finalStatus = '';
 
     _TEACHER_SELECT_LAST_OK_AT = Date.now();
     _TEACHER_SELECT_LAST_UID = String(session?.user?.id || '');
@@ -352,9 +379,26 @@ async function refreshTeacherStudentSelect(opts = {}){
       try { applyTeacherStudentView(nextValue, { reason: preserveUi ? 'refresh' : 'restore' }); } catch (_) {}
     }
   } catch (e) {
+    if (timer) { clearTimeout(timer); timer = 0; }
+
+    // Если мы “отвалились” по таймауту, не даём UI зависнуть. Также гасим возможный поздний reject исходного промиса.
+    if (e && e.code === 'TEACHER_STUDENTS_TIMEOUT') {
+      try { p?.catch(() => {}); } catch (_) {}
+      console.warn('listMyStudents timeout', e);
+      finalStatus = prevHadList ? 'Не удалось обновить учеников (таймаут).' : 'Не удалось загрузить учеников (таймаут).';
+      finalDisabled = !prevHadList;
+      return;
+    }
+
     console.warn('refreshTeacherStudentSelect error', e);
-    setTeacherStudentStatus(prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.');
-    sel.disabled = !prevHadList;
+    finalStatus = prevHadList ? 'Не удалось обновить учеников.' : 'Не удалось загрузить учеников.';
+    finalDisabled = !prevHadList;
+    return;
+  } finally {
+    if (timer) { clearTimeout(timer); timer = 0; }
+    if (seq !== _TEACHER_SELECT_SEQ) return;
+    sel.disabled = !!finalDisabled;
+    setTeacherStudentStatus(finalStatus);
   }
 }
 
