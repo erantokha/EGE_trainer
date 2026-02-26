@@ -8,6 +8,31 @@
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
   const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
 
+
+function hasFreshLogoutMarker(maxAgeMs = 2 * 60 * 1000) {
+  try {
+    const ts = Number(localStorage.getItem('ege_logout_ts') || 0) || 0;
+    if (!ts) return false;
+    const age = Date.now() - ts;
+    if (age < 0 || age > maxAgeMs) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function clearLogoutMarker() {
+  try { localStorage.removeItem('ege_logout_ts'); } catch (_) {}
+}
+
+function redirectToLoginFromRoot(withV) {
+  const home = new URL('./', location.href).href;
+  const u = new URL('tasks/auth.html', home);
+  u.searchParams.set('next', home);
+  clearLogoutMarker();
+  location.replace(withV(u.href));
+}
+
   // Запускаем только на корне (/, /index.html)
   const pn = String(location.pathname || '');
   const isRoot = (pn === '/' || pn === '' || pn.endsWith('/index.html'));
@@ -216,7 +241,12 @@
 
     try {
       session = await getSession({ timeoutMs: 900, skewSec: 30 });
-    } catch (_) {
+    
+  if (!session && hasFreshLogoutMarker()) {
+    redirectToLoginFromRoot(withV);
+    return;
+  }
+} catch (_) {
       session = null;
     }
 

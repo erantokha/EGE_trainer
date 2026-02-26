@@ -57,6 +57,20 @@
     }
   };
 
+
+  // Межвкладочный логаут: если в другой вкладке сделали signOut(), эта вкладка должна уйти на вход без рефреша.
+  if (!window.__EGE_HOME_GUARD_LOGOUT_STORAGE__) {
+    window.__EGE_HOME_GUARD_LOGOUT_STORAGE__ = true;
+    window.addEventListener('storage', (e) => {
+      try {
+        if (e && e.key === 'ege_logout_ts') {
+          if (isTeacherHome() || isStudentHome()) goLogin();
+        }
+      } catch (_) {}
+    });
+  }
+
+
   async function loadSupabase() {
     // home_guard.js лежит в /tasks, поэтому для импорта из /app нужен ../
     const m = await import(withV('../app/providers/supabase.js'));
