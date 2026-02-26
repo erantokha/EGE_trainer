@@ -1,8 +1,8 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-02-27-5';
-import { supabase, requireSession } from './supabase.js?v=2026-02-27-5';
+import { CONFIG } from '../config.js?v=2026-02-27-6';
+import { supabase, requireSession } from './supabase.js?v=2026-02-27-6';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
