@@ -79,9 +79,9 @@
   async function enforce(session, supabase) {
     const userId = session?.user?.id || null;
 
-    // Не залогинен: на teacher-home быть нельзя.
+    // Не залогинен: на главных страницах быть нельзя.
     if (!userId) {
-      if (isTeacherHome()) goLogin();
+      if (isTeacherHome() || isStudentHome()) goLogin();
       return;
     }
 
@@ -114,7 +114,7 @@
     try {
       supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_OUT') {
-          if (isTeacherHome()) goLogin();
+          if (isTeacherHome() || isStudentHome()) goLogin();
           return;
         }
         if (event === 'SIGNED_IN') {
