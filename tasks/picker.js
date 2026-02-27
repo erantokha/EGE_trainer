@@ -25,6 +25,7 @@ let SECTIONS = [];
 
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
+let CHOICE_PROTOS = {};   // typeId (прототип) -> count
 let CURRENT_MODE = 'list'; // 'list' | 'test'
 let SHUFFLE_TASKS = false;
 
@@ -1549,6 +1550,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadCatalog();
     renderAccordion();
+    initProtoPickerModal();
     initBulkControls();
     // Главная учителя: если ученик выбран — переключаемся в режим «как у ученика»
     if (IS_TEACHER_HOME) {
@@ -1757,7 +1759,8 @@ function updateSmartHint(msg = '') {
 function getTotalSelected() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
-  return sumTopics + sumSections;
+  const sumProtos = Object.values(CHOICE_PROTOS).reduce((s, n) => s + (n || 0), 0);
+  return sumTopics + sumSections + sumProtos;
 }
 
 async function tryBuildSmartSelection(n) {
@@ -1819,6 +1822,7 @@ async function tryBuildSmartSelection(n) {
   // применяем план: темы, секции сбрасываем
   CHOICE_TOPICS = { ...plan };
   CHOICE_SECTIONS = {};
+  CHOICE_PROTOS = {};
   refreshCountsUI();
 
   updateSmartHint('План собран. Нажмите «Начать».');
@@ -1953,6 +1957,7 @@ function bulkPickAll(delta) {
 function bulkResetAll() {
   CHOICE_TOPICS = {};
   CHOICE_SECTIONS = {};
+  CHOICE_PROTOS = {};
   refreshCountsUI();
 }
 
@@ -2188,6 +2193,13 @@ function renderTopicRow(topic) {
 
   const titleEl = $('.title', row);
   if (titleEl) titleEl.dataset.baseTitle = `${topic.id}. ${topic.title}`;
+  if (IS_STUDENT_PAGE && titleEl) {
+    titleEl.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openProtoPickerModal(topic);
+    });
+  }
 
   // поправка значения count (чтобы не было issues с шаблонной строкой внутри)
   const num = $('.count', row);
@@ -2236,6 +2248,20 @@ function setSectionCount(sectionId, n) {
   bubbleUpSums();
 }
 
+function setProtoCount(typeId, n, cap) {
+  const id = String(typeId || '').trim();
+  if (!id) return 0;
+
+  let v = Math.max(0, Number(n || 0));
+  if (Number.isFinite(cap)) v = Math.min(v, Math.max(0, Number(cap) || 0));
+
+  if (v > 0) CHOICE_PROTOS[id] = v;
+  else delete CHOICE_PROTOS[id];
+
+  refreshTotalSum();
+  return v;
+}
+
 function bubbleUpSums() {
   // Выбор аддитивный: разделы и подтемы суммируются.
   // Не перетираем CHOICE_SECTIONS значениями из CHOICE_TOPICS.
@@ -2254,7 +2280,8 @@ function bubbleUpSums() {
 function refreshTotalSum() {
   const sumTopics = Object.values(CHOICE_TOPICS).reduce((s, n) => s + (n || 0), 0);
   const sumSections = Object.values(CHOICE_SECTIONS).reduce((s, n) => s + (n || 0), 0);
-  const total = sumTopics + sumSections;
+  const sumProtos = Object.values(CHOICE_PROTOS).reduce((s, n) => s + (n || 0), 0);
+  const total = sumTopics + sumSections + sumProtos;
 
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
@@ -2274,6 +2301,294 @@ function refreshTotalSum() {
   else startBtn.disabled = total <= 0;
 }
 
+// ---------- home_student: модалка выбора прототипов (мини-карточки как в hw_create) ----------
+let PROTO_MODAL_OPEN = false;
+let PROTO_MODAL_TOPIC = null;
+let PROTO_MODAL_TYPES = [];
+let _PROTO_MODAL_SEQ = 0;
+
+function getProtoModalEls() {
+  return {
+    modal: $('#protoPickerModal'),
+    title: $('#protoPickerTitle'),
+    list: $('#protoPickerList'),
+    hint: $('#protoPickerHint'),
+    close: $('#protoPickerClose'),
+    cnt: $('#protoPickerSelectedCount'),
+    backdrop: $('#protoPickerModal .modal-backdrop'),
+  };
+}
+
+function protoModalSum() {
+  let sum = 0;
+  for (const t of (PROTO_MODAL_TYPES || [])) {
+    const id = String(t?.id || '').trim();
+    if (!id) continue;
+    sum += Number(CHOICE_PROTOS[id] || 0) || 0;
+  }
+  return sum;
+}
+
+function updateProtoModalSelectedCount() {
+  if (!IS_STUDENT_PAGE || !PROTO_MODAL_OPEN) return;
+  const { cnt } = getProtoModalEls();
+  if (cnt) cnt.textContent = `Выбрано: ${protoModalSum()}`;
+}
+
+function closeProtoPickerModal() {
+  if (!IS_STUDENT_PAGE) return;
+  const { modal, title, list, hint, cnt } = getProtoModalEls();
+  if (!modal) return;
+
+  PROTO_MODAL_OPEN = false;
+  PROTO_MODAL_TOPIC = null;
+  PROTO_MODAL_TYPES = [];
+
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  if (title) title.textContent = 'Прототипы';
+  if (cnt) cnt.textContent = 'Выбрано: 0';
+  if (list) list.innerHTML = '';
+  if (hint) hint.textContent = '';
+}
+
+async function openProtoPickerModal(topic) {
+  if (!IS_STUDENT_PAGE) return;
+  if (!topic || !topic.id) return;
+  if (PICK_MODE === 'smart') return;
+
+  const { modal, title, list, hint, cnt } = getProtoModalEls();
+  if (!modal || !title || !list || !hint) return;
+
+  PROTO_MODAL_OPEN = true;
+  PROTO_MODAL_TOPIC = topic;
+  PROTO_MODAL_TYPES = [];
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+
+  const topicId = String(topic.id).trim();
+  title.textContent = `${topicId}. ${topic.title || ''}`.trim();
+  list.innerHTML = '<div class="muted">Загрузка…</div>';
+  hint.textContent = '';
+  if (cnt) cnt.textContent = 'Выбрано: 0';
+
+  const seq = ++_PROTO_MODAL_SEQ;
+  const man = await ensurePickerManifest(topic);
+  if (seq !== _PROTO_MODAL_SEQ) return;
+
+  if (!man) {
+    list.innerHTML = '';
+    hint.textContent = 'Не удалось загрузить прототипы. Проверьте сеть и обновите страницу.';
+    return;
+  }
+
+  const types = (man.types || []).filter(t => Array.isArray(t.prototypes) && t.prototypes.length > 0);
+  types.sort((a, b) => compareId(a.id, b.id));
+  PROTO_MODAL_TYPES = types;
+
+  list.innerHTML = '';
+  if (!types.length) {
+    hint.textContent = 'В этой подтеме пока нет прототипов.';
+    updateProtoModalSelectedCount();
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (const typ of types) {
+    frag.appendChild(renderProtoModalCard(man, typ));
+  }
+  list.appendChild(frag);
+
+  updateProtoModalSelectedCount();
+  await typesetMathIfNeeded(list);
+}
+
+function renderProtoModalCard(manifest, type) {
+  const cap = (type.prototypes || []).length;
+  const typeId = String(type.id || '').trim();
+  const row = document.createElement('div');
+  row.className = 'tp-item';
+  row.dataset.typeId = typeId;
+
+  const left = document.createElement('div');
+  left.className = 'tp-item-left';
+
+  const meta = document.createElement('div');
+  meta.className = 'tp-item-meta';
+  meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
+
+  const stem = document.createElement('div');
+  stem.className = 'tp-item-stem';
+  const proto0 = (type.prototypes || [])[0] || null;
+  stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
+
+  left.appendChild(meta);
+  left.appendChild(stem);
+
+  const right = document.createElement('div');
+  right.className = 'tp-item-right';
+
+  const minus = document.createElement('button');
+  minus.type = 'button';
+  minus.className = 'tp-ctr-btn';
+  minus.textContent = '−';
+
+  const val = document.createElement('div');
+  val.className = 'tp-ctr-val';
+
+  const plus = document.createElement('button');
+  plus.type = 'button';
+  plus.className = 'tp-ctr-btn';
+  plus.textContent = '+';
+
+  const capEl = document.createElement('div');
+  capEl.className = 'tp-ctr-cap';
+  capEl.textContent = `из ${cap}`;
+
+  const setBtnState = () => {
+    const c = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[typeId] || 0)));
+    val.textContent = String(c);
+    minus.disabled = c <= 0;
+    plus.disabled = c >= cap;
+  };
+
+  minus.addEventListener('click', () => {
+    const c = Number(CHOICE_PROTOS[typeId] || 0);
+    setProtoCount(typeId, Math.max(0, c - 1), cap);
+    setBtnState();
+    updateProtoModalSelectedCount();
+  });
+  plus.addEventListener('click', () => {
+    const c = Number(CHOICE_PROTOS[typeId] || 0);
+    setProtoCount(typeId, Math.min(cap, c + 1), cap);
+    setBtnState();
+    updateProtoModalSelectedCount();
+  });
+
+  setBtnState();
+
+  right.appendChild(minus);
+  right.appendChild(val);
+  right.appendChild(plus);
+  right.appendChild(capEl);
+
+  row.appendChild(left);
+  row.appendChild(right);
+
+  return row;
+}
+
+let _PROTO_MODAL_EVENTS_BOUND = false;
+function initProtoPickerModal() {
+  if (!IS_STUDENT_PAGE || _PROTO_MODAL_EVENTS_BOUND) return;
+  const { modal, close, backdrop } = getProtoModalEls();
+  if (!modal) return;
+  _PROTO_MODAL_EVENTS_BOUND = true;
+
+  if (close) close.addEventListener('click', () => closeProtoPickerModal());
+  if (backdrop) backdrop.addEventListener('click', () => closeProtoPickerModal());
+
+  document.addEventListener('keydown', (e) => {
+    if (!PROTO_MODAL_OPEN) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeProtoPickerModal();
+    }
+  });
+}
+
+async function ensurePickerManifest(topic) {
+  if (topic._manifest) return topic._manifest;
+  if (topic._manifestPromise) return topic._manifestPromise;
+  if (!topic.path) return null;
+
+  const url = new URL((IN_TASKS_DIR ? '../' : '') + topic.path, location.href);
+
+  topic._manifestPromise = (async () => {
+    try {
+      const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+      if (!resp.ok) return null;
+      const j = await resp.json();
+      topic._manifest = j;
+      return j;
+    } catch (_) {
+      return null;
+    }
+  })();
+
+  return topic._manifestPromise;
+}
+
+function buildStemPreview(manifest, type, proto) {
+  const params = proto?.params || {};
+  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
+  const stem = interpolate(stemTpl, params);
+
+  const fig = proto?.figure || type?.figure || null;
+  const figHtml = fig?.img ? `<img class="tp-fig" src="${asset(fig.img)}" alt="${escapeHtml(fig.alt || '')}">` : '';
+  const textHtml = `<div class="tp-stem">${stem}</div>`;
+  return figHtml ? `<div class="tp-preview">${textHtml}${figHtml}</div>` : textHtml;
+}
+
+function asset(p) {
+  if (typeof p === 'string' && p.startsWith('content/')) {
+    return IN_TASKS_DIR ? '../' + p : p;
+  }
+  return p;
+}
+
+function interpolate(tpl, params) {
+  return String(tpl || '').replace(
+    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
+    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
+  );
+}
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function typesetMathIfNeeded(rootEl) {
+  if (!rootEl) return;
+  await ensureMathJaxLoaded();
+
+  if (window.MathJax?.typesetPromise) {
+    try { await window.MathJax.typesetPromise([rootEl]); } catch (_) { /* ignore */ }
+  } else if (window.MathJax?.typeset) {
+    try { window.MathJax.typeset([rootEl]); } catch (_) { /* ignore */ }
+  }
+}
+
+let __mjLoading = null;
+function ensureMathJaxLoaded() {
+  if (window.MathJax && (window.MathJax.typesetPromise || window.MathJax.typeset)) return Promise.resolve();
+  if (__mjLoading) return __mjLoading;
+
+  __mjLoading = new Promise((resolve) => {
+    window.MathJax = window.MathJax || {
+      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
+      svg: { fontCache: 'global' },
+    };
+
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => resolve();
+    document.head.appendChild(s);
+  });
+
+  return __mjLoading;
+}
+
+
+
 // ---------- передача выбора в тренажёр / список ----------
 function saveSelectionAndGo() {
   const mode = IS_STUDENT_PAGE ? 'test' : (CURRENT_MODE || 'list');
@@ -2281,6 +2596,7 @@ function saveSelectionAndGo() {
   const selection = {
     topics: CHOICE_TOPICS,
     sections: CHOICE_SECTIONS,
+    protos: CHOICE_PROTOS,
     mode,
     shuffle: SHUFFLE_TASKS,
   };
