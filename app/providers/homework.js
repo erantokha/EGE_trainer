@@ -2,7 +2,8 @@
 // ДЗ: создание/линки/получение по token.
 
 import { CONFIG } from '../config.js?v=2026-02-27-13';
-import { supabase, requireSession } from './supabase.js?v=2026-02-27-13';
+import { requireSession } from './supabase.js?v=2026-02-27-13';
+import { supaRest } from './supabase-rest.js?v=2026-02-27-13';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -26,24 +27,34 @@ export function normalizeStudentKey(name) {
 }
 
 function isMissingRpcFunction(error) {
-  const msg = String(error?.message || '').toLowerCase();
+  const msg = String(error?.message || error?.details?.message || error?.details || '').toLowerCase();
+  const dcode = String(error?.details?.code || '');
   return (
     error?.code === 'PGRST202' ||
+    dcode === 'PGRST202' ||
     msg.includes('could not find the function') ||
     msg.includes('function') && msg.includes('does not exist')
   );
 }
 
-async function rpcWithFallback(fnNames, args) {
+async function rpcWithFallback(fnNames, args, opts = {}) {
+  const names = Array.isArray(fnNames) ? fnNames : [fnNames];
   let lastError = null;
-  for (const fn of fnNames) {
-    const { data, error } = await supabase.rpc(fn, args);
-    if (!error) return { ok: true, fn, data, error: null };
-    lastError = error;
-    if (isMissingRpcFunction(error)) continue;
-    return { ok: false, fn, data: null, error };
+
+  for (const fn of names) {
+    try {
+      const data = await supaRest.rpc(fn, args, opts);
+      return { ok: true, fn, data, error: null };
+    } catch (e) {
+      lastError = e;
+      if (isMissingRpcFunction(e) || (e?.code === 'RPC_ERROR' && (Number(e?.status || 0) === 404))) {
+        continue;
+      }
+      return { ok: false, fn, data: null, error: e };
+    }
   }
-  return { ok: false, fn: fnNames[0] || null, data: null, error: lastError };
+
+  return { ok: false, fn: names[0] || null, data: null, error: lastError };
 }
 
 // Создать/получить попытку по token+имя. Должно быть разрешено через SECURITY DEFINER RPC.
@@ -57,6 +68,7 @@ export async function startHomeworkAttempt({ token, student_name } = {}) {
     const res = await rpcWithFallback(
       ['start_homework_attempt', 'start_attempt', 'startHomeworkAttempt'],
       { p_token: t, p_student_name: s },
+      { timeoutMs: 15000, authMode: 'auto' },
     );
 
     if (!res.ok) return { ok: false, attempt_id: null, already_exists: false, error: res.error };
@@ -78,9 +90,14 @@ export async function getHomeworkByToken(token) {
     const t = String(token || '').trim();
     if (!t) return { ok: false, homework: null, error: new Error('token is empty') };
 
-    // RPC (security definer) — доступно anon + authenticated (по grant).
-    const { data, error } = await supabase.rpc('get_homework_by_token', { p_token: t });
-    if (error) return { ok: false, homework: null, error };
+    // RPC (security definer) — может быть доступно anon + authenticated (по grant).
+    // Важно: НЕ используем supabase.rpc (supabase-js может зависнуть на auth.getSession).
+    let data;
+    try {
+      data = await supaRest.rpc('get_homework_by_token', { p_token: t }, { timeoutMs: 15000, authMode: 'auto' });
+    } catch (e) {
+      return { ok: false, homework: null, error: e };
+    }
 
     const row = Array.isArray(data) ? data[0] : data;
     if (!row) return { ok: false, homework: null, error: new Error('homework not found') };
@@ -113,6 +130,7 @@ export async function hasAttempt(token, student_name) {
     const res = await rpcWithFallback(
       ['has_homework_attempt', 'has_attempt', 'hasAttempt'],
       { p_token: t, p_student_name: s },
+      { timeoutMs: 15000, authMode: 'auto' },
     );
 
     if (!res.ok) return { ok: false, has: false, error: res.error };
@@ -153,14 +171,10 @@ export async function createHomework({
     if (frozen_questions !== undefined) payload.frozen_questions = frozen_questions;
     if (seed !== undefined) payload.seed = seed;
 
-    const { data, error } = await supabase
-      .from('homeworks')
-      .insert(payload)
-      .select('*')
-      .single();
-
-    if (error) return { ok: false, row: null, error };
-    return { ok: true, row: data, error: null };
+    const rows = await supaRest.insert('homeworks', payload, { timeoutMs: 15000 });
+    const row = Array.isArray(rows) ? (rows[0] || null) : (rows || null);
+    if (!row) return { ok: false, row: null, error: new Error('INSERT_FAILED') };
+    return { ok: true, row, error: null };
   } catch (e) {
     return { ok: false, row: null, error: e };
   }
@@ -186,14 +200,10 @@ export async function createHomeworkLink({
       is_active: !!is_active,
     };
 
-    const { data, error } = await supabase
-      .from('homework_links')
-      .insert(payload)
-      .select('*')
-      .single();
-
-    if (error) return { ok: false, row: null, error };
-    return { ok: true, row: data, error: null };
+    const rows = await supaRest.insert('homework_links', payload, { timeoutMs: 15000 });
+    const row = Array.isArray(rows) ? (rows[0] || null) : (rows || null);
+    if (!row) return { ok: false, row: null, error: new Error('INSERT_FAILED') };
+    return { ok: true, row, error: null };
   } catch (e) {
     return { ok: false, row: null, error: e };
   }
@@ -217,6 +227,7 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
       const resT = await rpcWithFallback(
         ['get_homework_attempt_by_token', 'getHomeworkAttemptByToken', 'get_homework_result_by_token'],
         { p_token: t },
+        { timeoutMs: 15000, authMode: 'auto' },
       );
 
       if (resT.ok) {
@@ -235,19 +246,18 @@ export async function getHomeworkAttempt({ token, attempt_id } = {}) {
     // 2) Fallback: прямой select по attempt_id (только если у нас он есть и RLS разрешает)
     // Не показываем незавершённую попытку как "результат".
     if (id) {
-      const { data, error } = await supabase
-        .from('homework_attempts')
-        .select('id,payload,total,correct,duration_ms,created_at,finished_at')
-        .eq('id', id)
-        .maybeSingle();
+      const rows = await supaRest.select(
+        'homework_attempts',
+        { select: 'id,payload,total,correct,duration_ms,created_at,finished_at', id: `eq.${id}` },
+        { timeoutMs: 15000 },
+      );
+      const data = Array.isArray(rows) ? (rows[0] || null) : (rows || null);
 
-      if (!error && data) {
+      if (data) {
         const isFinished = !!data.finished_at;
         const hasPayload = data.payload !== null && data.payload !== undefined;
         if (isFinished || hasPayload) return { ok: true, row: data, error: null };
       }
-
-      if (error) return { ok: false, row: null, error };
     }
 
     return { ok: true, row: null, error: null };
@@ -263,14 +273,13 @@ export async function submitHomeworkAttempt({ attempt_id, payload, total, correc
   if (!attempt_id) return { ok: false, error: new Error('NO_ATTEMPT_ID') };
 
   try {
-    const { error } = await supabase.rpc('submit_homework_attempt', {
+    await supaRest.rpc('submit_homework_attempt', {
       p_attempt_id: attempt_id,
       p_payload: payload ?? {},
       p_total: Number(total ?? 0),
       p_correct: Number(correct ?? 0),
       p_duration_ms: Number(duration_ms ?? 0),
-    });
-    if (error) return { ok: false, error };
+    }, { timeoutMs: 20000 });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e };
@@ -283,11 +292,8 @@ async function rpcTry(names, args){
   let lastErr = null;
   for (const fn of (names || [])){
     try{
-      const { data, error } = await supabase.rpc(fn, args || {});
-      if (!error) return { ok: true, data, error: null, fn };
-      lastErr = error;
-      if (isMissingRpcFunction(error)) continue; // пробуем следующий алиас
-      return { ok: false, data: null, error, fn };
+      const data = await supaRest.rpc(fn, args || {}, { timeoutMs: 15000 });
+      return { ok: true, data, error: null, fn };
     } catch(e){
       lastErr = e;
       if (isMissingRpcFunction(e)) continue;

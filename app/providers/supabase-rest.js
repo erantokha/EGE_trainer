@@ -15,9 +15,9 @@ function __baseUrl() {
 function __headers(accessToken, extra = null) {
   const h = {
     apikey: CONFIG.supabase.anonKey,
-    Authorization: `Bearer ${accessToken}`,
     'Content-Type': 'application/json',
   };
+  if (accessToken) h.Authorization = `Bearer ${accessToken}`;
   if (extra && typeof extra === 'object') {
     for (const [k, v] of Object.entries(extra)) h[k] = v;
   }
@@ -80,10 +80,48 @@ async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 15000, meta =
 }
 
 async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
+  // authMode:
+  // - session: строго требуется сессия (default)
+  // - auto: если сессия есть — добавляем Authorization, если нет — идём как anon
+  // - anon: всегда идём как anon (без Authorization)
+  const authMode = String(opts?.authMode || 'session');
   const retry401 = opts?.retry401 !== false;
   const timeoutMs = Number(opts?.timeoutMs ?? 15000) || 15000;
   const sessionTimeoutMs = Number(opts?.sessionTimeoutMs ?? 900) || 900;
 
+  // 1) anon: без сессии, без ретрая
+  if (authMode === 'anon') {
+    return await __fetchWithTimeout(url, {
+      ...options,
+      headers: __headers('', options.headers || {}),
+    }, timeoutMs, meta);
+  }
+
+  // 2) auto: не требуем сессию; если она есть — добавляем Authorization
+  if (authMode === 'auto') {
+    const s = await getSession({ timeoutMs: sessionTimeoutMs }).catch(() => null);
+    const token = s?.access_token || '';
+
+    let res = await __fetchWithTimeout(url, {
+      ...options,
+      headers: __headers(token, options.headers || {}),
+    }, timeoutMs, meta);
+
+    // ретрай имеет смысл только если мы реально ходили с Authorization
+    if (token && res.status === 401 && retry401) {
+      const s2 = await getSession({ forceRefresh: true, timeoutMs: sessionTimeoutMs });
+      if (!s2?.access_token) return res;
+
+      res = await __fetchWithTimeout(url, {
+        ...options,
+        headers: __headers(s2.access_token, options.headers || {}),
+      }, timeoutMs, meta);
+    }
+
+    return res;
+  }
+
+  // 3) session (default): строго требуем сессию
   let session;
   try {
     session = await requireSession({ timeoutMs: sessionTimeoutMs });
