@@ -35,138 +35,11 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-02-27-11';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-11';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-27-11';
-import { getSession } from '../app/providers/supabase.js?v=2026-02-27-11';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-11';
+import { withBuild } from '../app/build.js?v=2026-02-27-10';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-10';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-02-27-10';
 
 const INDEX_URL = '../content/tasks/index.json';
-// ---------- бейджи на карточках уникальных прототипов ----------
-const __QSTAT_CACHE = new Map(); // question_id -> { total, correct, last_attempt_at }
-let __QSTAT_UID = null;
-
-function __badgeClassByPct(p) {
-  if (p === null || p === undefined) return 'gray';
-  const v = Number(p);
-  if (!isFinite(v)) return 'gray';
-  if (v >= 90) return 'green';
-  if (v >= 70) return 'lime';
-  if (v >= 50) return 'yellow';
-  return 'red';
-}
-
-function __badgeClassByAgeDays(days) {
-  const d = Number(days);
-  if (!isFinite(d) || d < 0) return 'gray';
-  if (d < 7) return 'green';
-  if (d < 14) return 'lime';
-  if (d < 31) return 'yellow';
-  return 'red';
-}
-
-function __fmtDateDDMMYYYY(date) {
-  const d = (date instanceof Date) ? date : new Date(date);
-  if (!d || !isFinite(d.getTime())) return '—';
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String(d.getFullYear());
-  return `${dd}.${mm}.${yy}`;
-}
-
-function __renderWsBadges(badgesEl, stat) {
-  if (!badgesEl) return;
-  badgesEl.innerHTML = '';
-
-  const total = Math.max(0, Number(stat?.total || 0) || 0);
-  const correct = Math.max(0, Number(stat?.correct || 0) || 0);
-
-  if (!total) {
-    const b = document.createElement('span');
-    b.className = 'badge gray';
-    b.textContent = 'Не решалась';
-    badgesEl.appendChild(b);
-    return;
-  }
-
-  const pct = Math.round((correct / total) * 100);
-
-  const b1 = document.createElement('span');
-  b1.className = `badge ${__badgeClassByPct(pct)}`;
-  b1.textContent = `Точность: ${pct}%, ${correct}/${total}`;
-  badgesEl.appendChild(b1);
-
-  const lastRaw = stat?.last_attempt_at || stat?.last_attempt || stat?.last_attempt_at_ts || null;
-  const lastDate = lastRaw ? new Date(lastRaw) : null;
-  const now = Date.now();
-  const days = lastDate && isFinite(lastDate.getTime())
-    ? Math.floor((now - lastDate.getTime()) / 86400000)
-    : null;
-
-  const b2 = document.createElement('span');
-  b2.className = `badge ${__badgeClassByAgeDays(days)} ws-badge-last`;
-  b2.textContent = `Последняя попытка: ${__fmtDateDDMMYYYY(lastDate)}`;
-  badgesEl.appendChild(b2);
-}
-
-async function applyUniqueTaskBadges(container, questionIds) {
-  const root = container || document;
-  const ids = Array.from(new Set((questionIds || []).map(x => String(x || '').trim()).filter(Boolean)));
-
-  if (!ids.length) return;
-
-  const session = await getSession({ timeoutMs: 1200 });
-  const uid = String(session?.user?.id || '').trim();
-  if (!uid) return; // не показываем «Не решалась», если неизвестно кто ученик
-
-  if (__QSTAT_UID !== uid) {
-    __QSTAT_UID = uid;
-    __QSTAT_CACHE.clear();
-  }
-
-  const missing = ids.filter(id => !__QSTAT_CACHE.has(id));
-  if (missing.length) {
-    let rows = null;
-    try {
-      rows = await supaRest.rpc('question_stats_self_v1', { p_question_ids: missing }, { timeoutMs: 15000 });
-    } catch (e) {
-      // best-effort: если RPC недоступен — просто не показываем бейджи
-      console.warn('[unique.js] question_stats_self_v1 failed', e);
-      return;
-    }
-
-    const got = new Map();
-    if (Array.isArray(rows)) {
-      for (const r of rows) {
-        const qid = String(r?.question_id || '').trim();
-        if (!qid) continue;
-        got.set(qid, r);
-      }
-    }
-
-    for (const id of missing) {
-      const r = got.get(id);
-      if (r) {
-        __QSTAT_CACHE.set(id, {
-          total: Number(r?.total || 0) || 0,
-          correct: Number(r?.correct || 0) || 0,
-          last_attempt_at: r?.last_attempt_at || null,
-        });
-      } else {
-        __QSTAT_CACHE.set(id, { total: 0, correct: 0, last_attempt_at: null });
-      }
-    }
-  }
-
-  const items = root.querySelectorAll('.ws-item[data-qid]');
-  for (const it of items) {
-    const qid = String(it?.dataset?.qid || '').trim();
-    if (!qid || !__QSTAT_CACHE.has(qid)) continue;
-    const badgesEl = it.querySelector('.ws-badges');
-    __renderWsBadges(badgesEl, __QSTAT_CACHE.get(qid));
-  }
-}
-
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -518,7 +391,6 @@ function renderUnicTasks(container, tasks) {
   for (const t of tasks) {
     const item = document.createElement('div');
     item.className = 'ws-item';
-    item.dataset.qid = String(t.id || '').trim();
 
     const num = document.createElement('div');
     num.className = 'ws-num';
@@ -598,9 +470,6 @@ function renderUnicTasks(container, tasks) {
 
     item.appendChild(ans);
 
-    const badges = document.createElement('div');
-    badges.className = 'ws-badges';
-    item.appendChild(badges);
 
     list.appendChild(item);
   }
@@ -611,10 +480,6 @@ function renderUnicTasks(container, tasks) {
   // безопасный прогон через MathJax + гидрация видео-решений
   typesetSafe(container, () => {
     hydrateVideoLinks(container, { mode: 'modal', missingText: 'Видео скоро будет' });
-    // статистика по прототипам (best-effort)
-    applyUniqueTaskBadges(container, tasks.map(x => x.id)).catch((e) => {
-      console.warn('[unique.js] applyUniqueTaskBadges failed', e);
-    });
   });
 }
 
