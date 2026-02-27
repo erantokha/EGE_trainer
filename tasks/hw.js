@@ -10,16 +10,17 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-14';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-13';
 
-import { CONFIG } from '../app/config.js?v=2026-02-27-14';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-27-14';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-27-14';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-14';
+import { CONFIG } from '../app/config.js?v=2026-02-27-13';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-27-13';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-27-13';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-13';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-13';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-14';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-14';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-13';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-13';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -432,8 +433,14 @@ function isTeacherReportView() {
 }
 
 function isMissingRpcFunction(err) {
-  const msg = String(err?.message || err?.details || err || '').toLowerCase();
-  return msg.includes('could not find the function') || (msg.includes('function') && msg.includes('not found')) || msg.includes('pgrst202');
+  const msg = String(err?.message || err?.details?.message || err?.details || err || '').toLowerCase();
+  const dcode = String(err?.details?.code || '');
+  return (
+    dcode === 'PGRST202' ||
+    msg.includes('could not find the function') ||
+    (msg.includes('function') && msg.includes('not found')) ||
+    msg.includes('pgrst202')
+  );
 }
 
 function normalizeAttemptRowFromRpc(data, attemptId) {
@@ -467,11 +474,18 @@ async function showTeacherReport(attemptId) {
     return;
   }
 
-  const { data, error } = await supabase.rpc('get_homework_attempt_for_teacher', { p_attempt_id: attemptId });
-  if (error) {
-    console.warn('get_homework_attempt_for_teacher error', error);
-    if (isMissingRpcFunction(error)) {
+  let data;
+  try {
+    // Важно: не используем supabase.rpc — supabase-js может зависнуть на auth.getSession.
+    data = await supaRest.rpc('get_homework_attempt_for_teacher', { p_attempt_id: attemptId }, { timeoutMs: 15000 });
+  } catch (e) {
+    console.warn('get_homework_attempt_for_teacher error', e);
+    if (e?.code === 'TIMEOUT') {
+      if (msgEl) msgEl.textContent = 'Сервер отвечает слишком долго. Попробуйте обновить страницу.';
+    } else if (isMissingRpcFunction(e)) {
       if (msgEl) msgEl.textContent = 'На стороне Supabase ещё не настроена функция get_homework_attempt_for_teacher(p_attempt_id).';
+    } else if (e?.code === 'AUTH_REQUIRED' || e?.status === 401) {
+      if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
     } else {
       if (msgEl) msgEl.textContent = 'Не удалось загрузить отчёт.';
     }
@@ -574,6 +588,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const errCode = String(hwRes?.error?.code || '');
       const errMsg = String(hwRes?.error?.message || hwRes?.error?.details || hwRes?.error || '').trim();
+
+      if (errCode === 'TIMEOUT') {
+        if (msgEl) msgEl.textContent = 'Сервер отвечает слишком долго. Попробуйте обновить страницу.';
+        const diag = {
+          phase: 'get_homework_by_token',
+          ...buildInfo(),
+          ...tokenHints(token),
+          error_code: errCode,
+          error_message: errMsg,
+          meta: hwRes?.meta || null,
+        };
+        showDiagUI(formatDiag(diag));
+        return;
+      }
 
       // Если функция доступна только авторизованным — просим войти.
       if (!AUTH_SESSION && (errCode === '42501' || errMsg.toLowerCase().includes('permission denied'))) {
