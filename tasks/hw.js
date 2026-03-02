@@ -10,17 +10,17 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-15';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-02-1';
 
-import { CONFIG } from '../app/config.js?v=2026-02-27-15';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-02-27-15';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-02-27-15';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-02-27-15';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-15';
+import { CONFIG } from '../app/config.js?v=2026-03-02-1';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-03-02-1';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-03-02-1';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-03-02-1';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-02-1';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-15';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-02-1';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-02-1';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
