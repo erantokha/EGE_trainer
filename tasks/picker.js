@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-04-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-1';
-import { CONFIG } from '../app/config.js?v=2026-03-04-1';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-1';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-27-15';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1891,6 +1891,7 @@ function buildHwCreatePrefill() {
 
   const t = hasDom ? topics : (CHOICE_TOPICS || {});
   const s = hasDom ? sections : (CHOICE_SECTIONS || {});
+  const p = CHOICE_PROTOS || {};
 
   const by = 'mixed';
   return {
@@ -1898,6 +1899,7 @@ function buildHwCreatePrefill() {
     by,
     topics: t,
     sections: s,
+    protos: p,
     shuffle: !!SHUFFLE_TASKS,
     ts: Date.now(),
   };
@@ -1917,7 +1919,7 @@ function initCreateHomeworkButton() {
 
     try {
       const prefill = buildHwCreatePrefill();
-      const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections);
+      const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections) || anyPositive(prefill.protos);
       if (hasAny) {
         sessionStorage.setItem(HW_PREFILL_KEY, JSON.stringify(prefill));
       } else {
@@ -2412,11 +2414,7 @@ async function openProtoPickerModal(topic) {
   }
   list.appendChild(frag);
 
-  if (IS_TEACHER_HOME && CURRENT_MODE === 'list') {
-    hint.textContent = 'Примечание: сейчас выбор прототипов учитывается только в режиме «Тестирование». В режиме «Список задач» это будет добавлено следующим патчем.';
-  } else {
-    hint.textContent = '';
-  }
+  hint.textContent = '';
 
   updateProtoModalSelectedCount();
   await typesetMathIfNeeded(list);

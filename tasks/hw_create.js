@@ -2,15 +2,15 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-04-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-1';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-04-1';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-27-15';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-04-1';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -277,6 +277,12 @@ function compareId(a, b) {
 
 function inferTopicIdFromQuestionId(qid) {
   const parts = String(qid || '').trim().split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function topicIdFromTypeId(typeId) {
+  const parts = String(typeId || '').trim().split('.').map(s => String(s).trim()).filter(Boolean);
   if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
   return '';
 }
@@ -854,12 +860,44 @@ async function importSelectionIntoFixedTable() {
 
   const topicEntries = Object.entries(prefill.topics || {});
   const secEntries = Object.entries(prefill.sections || {});
+  const protoEntries = Object.entries(prefill.protos || {});
 
   const excludeTopicIds = new Set(
     topicEntries
       .filter(([, cntRaw]) => normalizeCount(cntRaw) > 0)
       .map(([id]) => String(id)),
   );
+
+  // 0) Явный выбор по прототипам (typeId -> k)
+  if (protoEntries.length) {
+    const byTopic = new Map();
+    for (const [typeId, cntRaw] of protoEntries) {
+      const want = normalizeCount(cntRaw);
+      if (!want) continue;
+      const topicId = topicIdFromTypeId(typeId);
+      if (!topicId) continue;
+      if (!byTopic.has(topicId)) byTopic.set(topicId, []);
+      byTopic.get(topicId).push({ typeId: String(typeId), want });
+    }
+
+    const topicIds = Array.from(byTopic.keys()).sort(compareId);
+    for (const topicId of topicIds) {
+      const topic = TOPIC_BY_ID.get(String(topicId));
+      if (!topic) continue;
+
+      const man = await ensureManifest(topic);
+      if (!man) continue;
+
+      const items = byTopic.get(topicId) || [];
+      items.sort((a, b) => compareId(a.typeId, b.typeId));
+
+      for (const it of items) {
+        const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
+        if (!typ) continue;
+        for (const r of pickRefsFromTypeAvoid(man, typ, it.want, used)) pushUnique(r);
+      }
+    }
+  }
 
   // 1) Явный выбор по подтемам
   for (const [topicId, cntRaw] of topicEntries) {
@@ -872,7 +910,7 @@ async function importSelectionIntoFixedTable() {
     const man = await ensureManifest(topic);
     if (!man) continue;
 
-    for (const r of pickRefsFromManifest(man, n)) pushUnique(r);
+    for (const r of pickRefsFromManifestAvoid(man, n, used)) pushUnique(r);
   }
 
   // 2) Добор по разделам
@@ -883,7 +921,7 @@ async function importSelectionIntoFixedTable() {
     const sec = SECTIONS.find(s => String(s.id) === String(secId));
     if (!sec) continue;
 
-    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds }))) pushUnique(r);
+    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds, usedKeys: used }))) pushUnique(r);
   }
 
   // дедуп (страховка)
@@ -994,6 +1032,33 @@ function pickRefsFromManifest(man, want) {
   return out;
 }
 
+function pickRefsFromTypeAvoid(man, type, want, usedKeys) {
+  const out = [];
+  const topicId = String(man?.topic || '').trim() || inferTopicIdFromQuestionId(type?.id);
+  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
+  if (!topicId || !protos.length) return out;
+
+  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
+  for (const p of sampleKByBase(filtered, want)) {
+    out.push(buildRef(man, p));
+  }
+  return out;
+}
+
+function pickRefsFromManifestAvoid(man, want, usedKeys) {
+  if (!usedKeys) return pickRefsFromManifest(man, want);
+
+  const topicId = String(man?.topic || '').trim();
+  if (!topicId) return pickRefsFromManifest(man, want);
+
+  const types = (man.types || []).map((t) => {
+    const protos = Array.isArray(t.prototypes) ? t.prototypes : [];
+    const filtered = protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`));
+    return { ...t, prototypes: filtered };
+  });
+  return pickRefsFromManifest({ ...man, types }, want);
+}
+
 async function pickRefsFromSection(sec, wantSection, opts = {}) {
   const out = [];
   const exclude = opts.excludeTopicIds;
@@ -1039,7 +1104,7 @@ async function pickRefsFromSection(sec, wantSection, opts = {}) {
   for (const x of loaded) {
     const wantT = (planU.get(x.id) || 0) + (planR.get(x.id) || 0);
     if (!wantT) continue;
-    batches.set(x.id, pickRefsFromManifest(x.man, wantT));
+    batches.set(x.id, pickRefsFromManifestAvoid(x.man, wantT, opts.usedKeys));
   }
 
   // Перемешиваем порядок, но так, чтобы было 1+1+1+... по подтемам насколько возможно

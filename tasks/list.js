@@ -5,12 +5,12 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-1';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-15';
 
 
-import { withBuild } from '../app/build.js?v=2026-03-04-1';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-04-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-1';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -18,9 +18,11 @@ const INDEX_URL = '../content/tasks/index.json';
 
 let CATALOG = null;
 let SECTIONS = [];
+let TOPIC_BY_ID = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessionStorage)
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
+let CHOICE_PROTOS = {};   // typeId  -> count (явный выбор прототипов)
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
 
 // ---------- Инициализация ----------
@@ -72,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     CHOICE_TOPICS = sel.topics || {};
     CHOICE_SECTIONS = sel.sections || {};
+    CHOICE_PROTOS = sel.protos || {};
     SHUFFLE_TASKS = !!sel.shuffle;
   }
 
@@ -129,6 +132,9 @@ async function loadCatalog() {
   );
 
   const byId = (a, b) => compareId(a.id, b.id);
+
+  TOPIC_BY_ID = new Map();
+  for (const t of topics) TOPIC_BY_ID.set(String(t.id), t);
 
   for (const sec of sections) {
     sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
@@ -367,6 +373,42 @@ function pickFromManifest(man, want) {
   }
   return out;
 }
+
+function topicIdFromTypeId(typeId) {
+  const parts = String(typeId || '').split('.').map(s => String(s).trim()).filter(Boolean);
+  if (parts.length < 2) return '';
+  return parts[0] + '.' + parts[1];
+}
+
+function pickFromTypeAvoid(man, type, want, usedKeys) {
+  const out = [];
+  const topicId = String(man?.topic || '').trim();
+  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
+  if (!topicId || !protos.length) return out;
+
+  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
+  for (const p of sampleKByBase(filtered, want)) {
+    out.push(buildQuestion(man, type, p));
+  }
+  return out;
+}
+
+function pickFromManifestAvoid(man, want, usedKeys) {
+  if (!usedKeys) return pickFromManifest(man, want);
+
+  const topicId = String(man?.topic || '').trim();
+  if (!topicId) return pickFromManifest(man, want);
+
+  const types = (man.types || []).map((t) => {
+    const protos = Array.isArray(t.prototypes) ? t.prototypes : [];
+    const filtered = protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`));
+    return { ...t, prototypes: filtered };
+  });
+
+  const clone = { ...man, types };
+  return pickFromManifest(clone, want);
+}
+
 async function pickFromSection(sec, wantSection, opts = {}) {
   const out = [];
   const exclude = opts.excludeTopicIds;
@@ -441,7 +483,7 @@ async function pickFromSection(sec, wantSection, opts = {}) {
   for (const x of loaded) {
     const wantT = plan.get(x.id) || 0;
     if (!wantT) continue;
-    const arr = pickFromManifest(x.man, wantT);
+    const arr = pickFromManifestAvoid(x.man, wantT, opts.usedKeys);
     if (arr.length) batches.set(x.id, arr);
   }
 
@@ -451,6 +493,7 @@ async function pickFromSection(sec, wantSection, opts = {}) {
 
 async function pickPrototypes() {
   const chosen = [];
+  const hasProtos = Object.values(CHOICE_PROTOS).some(v => v > 0);
   const hasTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
   const hasSections = Object.values(CHOICE_SECTIONS).some(v => v > 0);
 
@@ -468,6 +511,37 @@ async function pickPrototypes() {
       .map(([id]) => String(id)),
   );
 
+  // 0) Явный выбор по прототипам (typeId -> k)
+  if (hasProtos) {
+    const byTopic = new Map();
+    for (const [typeId, k] of Object.entries(CHOICE_PROTOS || {})) {
+      const want = Number(k || 0) || 0;
+      if (want <= 0) continue;
+      const topicId = topicIdFromTypeId(typeId);
+      if (!topicId) continue;
+      if (!byTopic.has(topicId)) byTopic.set(topicId, []);
+      byTopic.get(topicId).push({ typeId: String(typeId), want });
+    }
+
+    const topicIds = Array.from(byTopic.keys()).sort(compareId);
+    for (const topicId of topicIds) {
+      const topic = TOPIC_BY_ID.get(String(topicId));
+      if (!topic) continue;
+
+      const man = await ensureManifest(topic);
+      if (!man) continue;
+
+      const items = byTopic.get(topicId) || [];
+      items.sort((a, b) => compareId(a.typeId, b.typeId));
+
+      for (const it of items) {
+        const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
+        if (!typ) continue;
+        for (const q of pickFromTypeAvoid(man, typ, it.want, used)) pushUnique(q);
+      }
+    }
+  }
+
   // 1) Явный выбор по подтемам
   if (hasTopics) {
     for (const sec of SECTIONS) {
@@ -478,7 +552,7 @@ async function pickPrototypes() {
         const man = await ensureManifest(t);
         if (!man) continue;
 
-        for (const q of pickFromManifest(man, want)) pushUnique(q);
+        for (const q of pickFromManifestAvoid(man, want, used)) pushUnique(q);
       }
     }
   }
@@ -489,7 +563,7 @@ async function pickPrototypes() {
     for (const sec of SECTIONS) {
       const wantSection = CHOICE_SECTIONS[sec.id] || 0;
       if (!wantSection) continue;
-      jobs.push(pickFromSection(sec, wantSection, { excludeTopicIds }));
+      jobs.push(pickFromSection(sec, wantSection, { excludeTopicIds, usedKeys: used }));
     }
 
     const parts = await Promise.all(jobs);
