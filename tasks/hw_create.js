@@ -2,17 +2,17 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-04-7';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-7';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-7';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-04-7';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-7';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -869,6 +869,18 @@ async function importSelectionIntoFixedTable() {
       .filter(([, cntRaw]) => normalizeCount(cntRaw) > 0)
       .map(([id]) => String(id)),
   );
+
+  // контекст приоритезации (фильтры на главной учителя)
+  // Важно: если ученик не выбран или фильтры выключены — работаем как раньше.
+  const teacherStudentId =
+    String(prefill.teacher_student_id || '').trim() || readTeacherSelectedStudentId();
+  const tf = (prefill.teacher_filters && typeof prefill.teacher_filters === 'object')
+    ? prefill.teacher_filters
+    : {};
+  const flags = { old: !!tf.old, badAcc: !!tf.badAcc };
+  const prioCtx = (teacherStudentId && (flags.old || flags.badAcc))
+    ? { active: true, studentId: teacherStudentId, flags, cache: new Map() }
+    : { active: false, studentId: teacherStudentId, flags, cache: new Map() };
 
   // 0) Явный выбор по прототипам (typeId -> k)
   if (protoEntries.length) {
