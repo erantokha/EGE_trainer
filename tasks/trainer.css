@@ -1367,6 +1367,23 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 .modal-title { font-size:16px; }
 
 
+
+
+/* ---------- proto picker modal (home_student / home_teacher) ---------- */
+#protoPickerModal .proto-picker-main{
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0;
+}
+#protoPickerModal #protoPickerList{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+#protoPickerModal #protoPickerHint{ flex-shrink:0; }
 /* hw_create: кнопка закрытия окна добавления задач */
 #taskPickerModal #tpClose{
   width:36px;
