@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-04-4';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-4';
-import { CONFIG } from '../app/config.js?v=2026-03-04-4';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-4';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-27-15';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -55,6 +55,72 @@ const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
 const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.test(location.pathname);
 const CAN_PROTO_MODAL = IS_STUDENT_PAGE || IS_TEACHER_HOME;
+
+const TEACHER_FILTERS_KEY = 'teacher_pick_filters_v1';
+let TEACHER_PICK_FILTERS = { old: false, badAcc: false };
+let _TEACHER_FILTERS_WIRED = false;
+
+function loadTeacherPickFilters() {
+  try {
+    const raw = sessionStorage.getItem(TEACHER_FILTERS_KEY);
+    if (!raw) return { old: false, badAcc: false };
+    const obj = JSON.parse(raw);
+    return {
+      old: !!obj?.old,
+      badAcc: !!obj?.badAcc,
+    };
+  } catch (_) {
+    return { old: false, badAcc: false };
+  }
+}
+
+function saveTeacherPickFilters(filters) {
+  try {
+    sessionStorage.setItem(TEACHER_FILTERS_KEY, JSON.stringify({
+      old: !!filters?.old,
+      badAcc: !!filters?.badAcc,
+    }));
+  } catch (_) {}
+}
+
+function setTeacherPickFiltersEnabled(enabled) {
+  const a = document.getElementById('teacherFilterOld');
+  const b = document.getElementById('teacherFilterBadAcc');
+  if (a) a.disabled = !enabled;
+  if (b) b.disabled = !enabled;
+}
+
+function syncTeacherPickFiltersUI() {
+  const a = document.getElementById('teacherFilterOld');
+  const b = document.getElementById('teacherFilterBadAcc');
+  if (a) a.checked = !!TEACHER_PICK_FILTERS.old;
+  if (b) b.checked = !!TEACHER_PICK_FILTERS.badAcc;
+}
+
+function initTeacherPickFiltersUI() {
+  if (!IS_TEACHER_HOME || _TEACHER_FILTERS_WIRED) return;
+  const a = document.getElementById('teacherFilterOld');
+  const b = document.getElementById('teacherFilterBadAcc');
+  if (!a || !b) return;
+
+  _TEACHER_FILTERS_WIRED = true;
+  TEACHER_PICK_FILTERS = loadTeacherPickFilters();
+  syncTeacherPickFiltersUI();
+
+  const onChange = () => {
+    TEACHER_PICK_FILTERS = {
+      old: !!a.checked,
+      badAcc: !!b.checked,
+    };
+    saveTeacherPickFilters(TEACHER_PICK_FILTERS);
+  };
+
+  a.addEventListener('change', onChange);
+  b.addEventListener('change', onChange);
+
+  // На старте, пока ученик не выбран — фильтры недоступны.
+  setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
+}
 
 // Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
 let TEACHER_VIEW_STUDENT_ID = '';
@@ -154,6 +220,8 @@ function setTeacherStudentViewUI(studentId){
   document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
   const slot = document.getElementById('scoreThermoSlot');
   if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
+
+  setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
 }
 
 let _TEACHER_STATS_SEQ = 0;
@@ -1509,6 +1577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Главная учителя: селект ученика (для автоподстановки на hw_create)
   refreshTeacherStudentSelect({ reason: 'boot', soft: false });
+  initTeacherPickFiltersUI();
   try {
     if (IS_TEACHER_HOME) {
       supabase.auth.onAuthStateChange((event, session) => {
@@ -1900,6 +1969,8 @@ function buildHwCreatePrefill() {
     topics: t,
     sections: s,
     protos: p,
+    teacher_student_id: IS_TEACHER_HOME ? (String(TEACHER_VIEW_STUDENT_ID || '').trim() || null) : null,
+    teacher_filters: (IS_TEACHER_HOME && String(TEACHER_VIEW_STUDENT_ID || '').trim()) ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false },
     shuffle: !!SHUFFLE_TASKS,
     ts: Date.now(),
   };
@@ -2618,6 +2689,12 @@ function saveSelectionAndGo() {
     mode,
     shuffle: SHUFFLE_TASKS,
   };
+  if (IS_TEACHER_HOME) {
+    const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+    selection.teacher_student_id = sid || null;
+    selection.teacher_filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
+  }
+
   if (IS_STUDENT_PAGE) selection.pick_mode = PICK_MODE;
 
 
