@@ -5,15 +5,17 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-8';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-15';
+
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-02-27-15';
 
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-8';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-8';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
-import { withBuild } from '../app/build.js?v=2026-03-04-8';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-04-8';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-8';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -121,7 +123,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       await renderTaskList(questions, { topic, mode: 'all' });
     } else {
       // стандартный режим: выбор по разделам/темам из picker
-      const questions = await pickPrototypes();
+      const questions = await pickQuestionsScopedForList({
+        sections: SECTIONS,
+        topicById: TOPIC_BY_ID,
+        choiceProtos: CHOICE_PROTOS,
+        choiceTopics: CHOICE_TOPICS,
+        choiceSections: CHOICE_SECTIONS,
+        shuffleTasks: SHUFFLE_TASKS,
+        teacherStudentId: TEACHER_STUDENT_ID,
+        teacherFilters: TEACHER_FILTERS,
+        prioActive: PRIO_ACTIVE,
+        loadTopicPool,
+        buildQuestion,
+      });
       await renderTaskList(questions);
     }
   } catch (e) {
