@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-03-04-5';
-import { requireSession } from './supabase.js?v=2026-03-04-5';
-import { supaRest } from './supabase-rest.js?v=2026-03-04-5';
+import { CONFIG } from '../config.js?v=2026-02-27-15';
+import { requireSession } from './supabase.js?v=2026-02-27-15';
+import { supaRest } from './supabase-rest.js?v=2026-02-27-15';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -374,5 +374,67 @@ export async function getStudentMyHomeworksArchive({ offset = 10, limit = 50 } =
     return { ok: true, data: r.data, error: null };
   } catch(e){
     return { ok: false, data: null, error: e };
+  }
+}
+
+
+// ---------- Статистика по конкретным задачам для учителя ----------
+// RPC: public.question_stats_for_teacher_v1(p_student_id uuid, p_question_ids text[])
+// Возвращает только решённые question_id; отсутствующие трактуем как "не решал".
+export async function questionStatsForTeacherV1({
+  student_id,
+  question_ids,
+  timeoutMs = 8000,
+  chunkSize = 500,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    const idsRaw = Array.isArray(question_ids) ? question_ids : [];
+    const ids = Array.from(new Set(idsRaw.map(x => String(x || '').trim()).filter(Boolean)));
+
+    if (!sid) return { ok: false, map: null, error: new Error('STUDENT_ID_EMPTY') };
+    if (!ids.length) return { ok: true, map: new Map(), error: null };
+
+    const size = Math.max(1, Math.min(2000, Math.floor(Number(chunkSize) || 500)));
+    const map = new Map();
+
+    for (let i = 0; i < ids.length; i += size) {
+      const chunk = ids.slice(i, i + size);
+      let data;
+      try {
+        data = await supaRest.rpc(
+          'question_stats_for_teacher_v1',
+          { p_student_id: sid, p_question_ids: chunk },
+          { timeoutMs: Number(timeoutMs || 8000) || 8000, authMode: 'auto' },
+        );
+      } catch (e) {
+        if (isMissingRpcFunction(e)) {
+          return { ok: false, map: null, missingRpc: true, error: e };
+        }
+        const msg = String(e?.message || e?.details || '').toLowerCase();
+        const denied =
+          Number(e?.status || 0) === 401 ||
+          Number(e?.status || 0) === 403 ||
+          msg.includes('not allowed') ||
+          msg.includes('permission') ||
+          msg.includes('forbidden');
+        return { ok: false, map: null, denied, error: e };
+      }
+
+      const rows = Array.isArray(data) ? data : (data ? [data] : []);
+      for (const r of rows) {
+        const qid = String(r?.question_id || '').trim();
+        if (!qid) continue;
+        map.set(qid, {
+          total: Number(r?.total || 0) || 0,
+          correct: Number(r?.correct || 0) || 0,
+          last_attempt_at: r?.last_attempt_at ?? null,
+        });
+      }
+    }
+
+    return { ok: true, map, error: null };
+  } catch (e) {
+    return { ok: false, map: null, error: e };
   }
 }
