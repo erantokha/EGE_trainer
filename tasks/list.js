@@ -5,12 +5,15 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-6';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-15';
 
 
-import { withBuild } from '../app/build.js?v=2026-03-04-6';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-04-6';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-6';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
+
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -24,6 +27,12 @@ let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessi
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
 let CHOICE_PROTOS = {};   // typeId  -> count (явный выбор прототипов)
 let SHUFFLE_TASKS = false; // флаг «перемешать задачи» из picker
+
+// Фильтры приоритезации (главная учителя)
+let TEACHER_STUDENT_ID = '';
+let TEACHER_FILTERS = { old: false, badAcc: false };
+let PRIO_ACTIVE = false;
+const STATS_BY_TOPIC = new Map(); // topicId -> Promise<Map>|Map|null
 
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
@@ -76,6 +85,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     CHOICE_SECTIONS = sel.sections || {};
     CHOICE_PROTOS = sel.protos || {};
     SHUFFLE_TASKS = !!sel.shuffle;
+
+    TEACHER_STUDENT_ID = String(sel.teacher_student_id || '').trim();
+    const tf = sel.teacher_filters || {};
+    TEACHER_FILTERS = { old: !!tf.old, badAcc: !!tf.badAcc };
+    PRIO_ACTIVE = !!TEACHER_STUDENT_ID && (TEACHER_FILTERS.old || TEACHER_FILTERS.badAcc);
+    if (!PRIO_ACTIVE) {
+      try { STATS_BY_TOPIC.clear(); } catch (_) {}
+    }
   }
 
   try {
@@ -409,6 +426,112 @@ function pickFromManifestAvoid(man, want, usedKeys) {
   return pickFromManifest(clone, want);
 }
 
+// ---------- приоритезация (учитель) ----------
+function collectProtoIdsFromManifest(man) {
+  const ids = [];
+  for (const typ of (man?.types || [])) {
+    for (const p of (typ?.prototypes || [])) {
+      const id = String(p?.id || '').trim();
+      if (id) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+async function ensureStatsMapForManifest(man) {
+  try {
+    if (!PRIO_ACTIVE) return null;
+    const topicId = String(man?.topic || '').trim();
+    if (!topicId) return null;
+
+    const cached = STATS_BY_TOPIC.get(topicId);
+    if (cached) return typeof cached.then === 'function' ? await cached : cached;
+
+    const p = (async () => {
+      const ids = collectProtoIdsFromManifest(man);
+      if (!ids.length) return new Map();
+      const res = await questionStatsForTeacherV1({
+        student_id: TEACHER_STUDENT_ID,
+        question_ids: ids,
+        timeoutMs: 8000,
+        chunkSize: 500,
+      });
+      if (!res?.ok) {
+        console.warn('[prio] stats rpc failed (list)', res);
+        return null;
+      }
+      return res.map || new Map();
+    })();
+
+    STATS_BY_TOPIC.set(topicId, p);
+    const out = await p;
+    STATS_BY_TOPIC.set(topicId, out);
+    return out;
+  } catch (e) {
+    console.warn('[prio] stats error (list)', e);
+    return null;
+  }
+}
+
+async function pickFromTypeAvoidMaybePrio(man, type, want, usedKeys) {
+  const out = [];
+  const topicId = String(man?.topic || '').trim();
+  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
+  if (!topicId || !protos.length) return out;
+
+  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
+
+  if (!PRIO_ACTIVE) {
+    for (const q of pickFromTypeAvoid(man, type, want, usedKeys)) out.push(q);
+    return out;
+  }
+
+  const statsMap = await ensureStatsMapForManifest(man);
+  if (!statsMap) {
+    for (const q of pickFromTypeAvoid(man, type, want, usedKeys)) out.push(q);
+    return out;
+  }
+
+  const picked = pickProtosByPriority(filtered, want, { statsMap, flags: TEACHER_FILTERS, nowMs: Date.now() });
+  for (const p of picked) out.push(buildQuestion(man, type, p));
+  return out;
+}
+
+async function pickFromManifestAvoidMaybePrio(man, want, usedKeys) {
+  if (!PRIO_ACTIVE) return pickFromManifestAvoid(man, want, usedKeys);
+
+  const topicId = String(man?.topic || '').trim();
+  if (!topicId) return pickFromManifestAvoid(man, want, usedKeys);
+
+  const candidates = [];
+  const typeByProtoId = new Map();
+
+  for (const typ of (man.types || [])) {
+    const protos = Array.isArray(typ?.prototypes) ? typ.prototypes : [];
+    for (const p of protos) {
+      const id = String(p?.id || '').trim();
+      if (!id) continue;
+      if (usedKeys && usedKeys.has(`${topicId}::${id}`)) continue;
+      candidates.push(p);
+      if (!typeByProtoId.has(id)) typeByProtoId.set(id, typ);
+    }
+  }
+
+  if (!candidates.length) return [];
+
+  const statsMap = await ensureStatsMapForManifest(man);
+  if (!statsMap) return pickFromManifestAvoid(man, want, usedKeys);
+
+  const picked = pickProtosByPriority(candidates, want, { statsMap, flags: TEACHER_FILTERS, nowMs: Date.now() });
+  const out = [];
+  for (const p of picked) {
+    const typ = typeByProtoId.get(String(p.id)) || null;
+    if (!typ) continue;
+    out.push(buildQuestion(man, typ, p));
+  }
+  return out;
+}
+
 async function pickFromSection(sec, wantSection, opts = {}) {
   const out = [];
   const exclude = opts.excludeTopicIds;
@@ -480,11 +603,20 @@ async function pickFromSection(sec, wantSection, opts = {}) {
   // Собираем пачки по подтемам и затем интерливим их,
   // чтобы задачи не шли блоками "по подтемам".
   const batches = new Map();
+
+  const jobs = [];
   for (const x of loaded) {
     const wantT = plan.get(x.id) || 0;
     if (!wantT) continue;
-    const arr = pickFromManifestAvoid(x.man, wantT, opts.usedKeys);
-    if (arr.length) batches.set(x.id, arr);
+    jobs.push((async () => {
+      const arr = await pickFromManifestAvoidMaybePrio(x.man, wantT, opts.usedKeys);
+      return { id: x.id, arr };
+    })());
+  }
+
+  const results = await Promise.all(jobs);
+  for (const r of results) {
+    if (r && Array.isArray(r.arr) && r.arr.length) batches.set(r.id, r.arr);
   }
 
   return interleaveBatches(batches, wantSection);
@@ -537,7 +669,7 @@ async function pickPrototypes() {
       for (const it of items) {
         const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
         if (!typ) continue;
-        for (const q of pickFromTypeAvoid(man, typ, it.want, used)) pushUnique(q);
+        for (const q of (await pickFromTypeAvoidMaybePrio(man, typ, it.want, used))) pushUnique(q);
       }
     }
   }
@@ -552,7 +684,7 @@ async function pickPrototypes() {
         const man = await ensureManifest(t);
         if (!man) continue;
 
-        for (const q of pickFromManifestAvoid(man, want, used)) pushUnique(q);
+        for (const q of (await pickFromManifestAvoidMaybePrio(man, want, used))) pushUnique(q);
       }
     }
   }

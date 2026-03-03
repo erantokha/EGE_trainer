@@ -2,15 +2,17 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-04-6';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-6';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-04-6';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-04-6';
+} from '../app/core/pick.js?v=2026-02-27-15';
+
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -894,7 +896,7 @@ async function importSelectionIntoFixedTable() {
       for (const it of items) {
         const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
         if (!typ) continue;
-        for (const r of pickRefsFromTypeAvoid(man, typ, it.want, used)) pushUnique(r);
+        for (const r of (await pickRefsFromTypeAvoidMaybePrio(man, typ, it.want, used, prioCtx))) pushUnique(r);
       }
     }
   }
@@ -910,7 +912,7 @@ async function importSelectionIntoFixedTable() {
     const man = await ensureManifest(topic);
     if (!man) continue;
 
-    for (const r of pickRefsFromManifestAvoid(man, n, used)) pushUnique(r);
+    for (const r of (await pickRefsFromManifestAvoidMaybePrio(man, n, used, prioCtx))) pushUnique(r);
   }
 
   // 2) Добор по разделам
@@ -921,7 +923,7 @@ async function importSelectionIntoFixedTable() {
     const sec = SECTIONS.find(s => String(s.id) === String(secId));
     if (!sec) continue;
 
-    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds, usedKeys: used }))) pushUnique(r);
+    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds, usedKeys: used }, prioCtx))) pushUnique(r);
   }
 
   // дедуп (страховка)
@@ -1001,6 +1003,97 @@ function buildRef(manifest, proto) {
   };
 }
 
+// ---------- приоритезация (учитель) ----------
+function collectProtoIdsFromManifest(man) {
+  const ids = [];
+  for (const typ of (man?.types || [])) {
+    for (const p of (typ?.prototypes || [])) {
+      const id = String(p?.id || '').trim();
+      if (id) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+async function ensureStatsMapForManifest(man, prioCtx) {
+  try {
+    if (!prioCtx?.active) return null;
+    const topicId = String(man?.topic || '').trim();
+    if (!topicId) return null;
+
+    const cache = prioCtx.cache;
+    const cached = cache?.get(topicId);
+    if (cached) return typeof cached.then === 'function' ? await cached : cached;
+
+    const p = (async () => {
+      const ids = collectProtoIdsFromManifest(man);
+      if (!ids.length) return new Map();
+      const res = await questionStatsForTeacherV1({
+        student_id: prioCtx.studentId,
+        question_ids: ids,
+        timeoutMs: 8000,
+        chunkSize: 500,
+      });
+      if (!res?.ok) {
+        console.warn('[prio] stats rpc failed (hw_create)', res);
+        return null;
+      }
+      return res.map || new Map();
+    })();
+
+    cache?.set(topicId, p);
+    const out = await p;
+    cache?.set(topicId, out);
+    return out;
+  } catch (e) {
+    console.warn('[prio] stats error (hw_create)', e);
+    return null;
+  }
+}
+
+async function pickRefsFromTypeAvoidMaybePrio(man, type, want, usedKeys, prioCtx) {
+  if (!prioCtx?.active) return pickRefsFromTypeAvoid(man, type, want, usedKeys);
+
+  const topicId = String(man?.topic || '').trim() || inferTopicIdFromQuestionId(type?.id);
+  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
+  if (!topicId || !protos.length) return [];
+
+  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
+  if (!filtered.length) return [];
+
+  const statsMap = await ensureStatsMapForManifest(man, prioCtx);
+  if (!statsMap) return pickRefsFromTypeAvoid(man, type, want, usedKeys);
+
+  const picked = pickProtosByPriority(filtered, want, { statsMap, flags: prioCtx.flags, nowMs: Date.now() });
+  return picked.map(p => buildRef(man, p));
+}
+
+async function pickRefsFromManifestAvoidMaybePrio(man, want, usedKeys, prioCtx) {
+  if (!prioCtx?.active) return pickRefsFromManifestAvoid(man, want, usedKeys);
+
+  const topicId = String(man?.topic || '').trim();
+  if (!topicId) return pickRefsFromManifestAvoid(man, want, usedKeys);
+
+  const candidates = [];
+  for (const typ of (man.types || [])) {
+    const protos = Array.isArray(typ?.prototypes) ? typ.prototypes : [];
+    for (const p of protos) {
+      const id = String(p?.id || '').trim();
+      if (!id) continue;
+      if (usedKeys && usedKeys.has(`${topicId}::${id}`)) continue;
+      candidates.push(p);
+    }
+  }
+
+  if (!candidates.length) return [];
+
+  const statsMap = await ensureStatsMapForManifest(man, prioCtx);
+  if (!statsMap) return pickRefsFromManifestAvoid(man, want, usedKeys);
+
+  const picked = pickProtosByPriority(candidates, want, { statsMap, flags: prioCtx.flags, nowMs: Date.now() });
+  return picked.map(p => buildRef(man, p));
+}
+
 function pickRefsFromManifest(man, want) {
   const out = [];
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
@@ -1059,7 +1152,7 @@ function pickRefsFromManifestAvoid(man, want, usedKeys) {
   return pickRefsFromManifest({ ...man, types }, want);
 }
 
-async function pickRefsFromSection(sec, wantSection, opts = {}) {
+async function pickRefsFromSection(sec, wantSection, opts = {}, prioCtx = null) {
   const out = [];
   const exclude = opts.excludeTopicIds;
   let candidates = (sec.topics || []).filter(t => !!t.path && !(exclude && exclude.has(String(t.id))));
@@ -1104,7 +1197,8 @@ async function pickRefsFromSection(sec, wantSection, opts = {}) {
   for (const x of loaded) {
     const wantT = (planU.get(x.id) || 0) + (planR.get(x.id) || 0);
     if (!wantT) continue;
-    batches.set(x.id, pickRefsFromManifestAvoid(x.man, wantT, opts.usedKeys));
+    // при включённых фильтрах учителя используем приоритезацию по статистике
+    batches.set(x.id, await pickRefsFromManifestAvoidMaybePrio(x.man, wantT, opts.usedKeys, prioCtx));
   }
 
   // Перемешиваем порядок, но так, чтобы было 1+1+1+... по подтемам насколько возможно
