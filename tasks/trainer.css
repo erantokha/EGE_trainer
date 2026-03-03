@@ -1079,6 +1079,9 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   box-shadow:0 0 0 2px rgba(59,130,246,.35);
 }
 
+/* кликабельные названия подтем для выбора прототипов */
+#accordion .node.topic .title.proto-clickable{cursor:pointer}
+
 /* hw_create: верхняя панель + авторизация */
 .create-head { display:flex; justify-content:space-between; align-items:center; }
 .create-head-right { display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; margin-left:auto; }

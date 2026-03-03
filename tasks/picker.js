@@ -8,10 +8,10 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-02-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-02-1';
-import { CONFIG } from '../app/config.js?v=2026-03-02-1';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-02-1';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-02-27-15';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -53,6 +53,7 @@ let CURRENT_ROLE = '';
 const HOME_VARIANT = String(document.body?.getAttribute('data-home-variant') || '').trim().toLowerCase();
 const IS_STUDENT_HOME = HOME_VARIANT === 'student';
 const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(location.pathname);
+const CAN_PROTO_MODAL = IS_STUDENT_PAGE || IS_TEACHER_HOME;
 const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.test(location.pathname);
 
 // Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
@@ -2193,11 +2194,22 @@ function renderTopicRow(topic) {
 
   const titleEl = $('.title', row);
   if (titleEl) titleEl.dataset.baseTitle = `${topic.id}. ${topic.title}`;
-  if (IS_STUDENT_PAGE && titleEl) {
-    titleEl.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  if (CAN_PROTO_MODAL && titleEl) {
+    titleEl.classList.add('proto-clickable');
+    titleEl.setAttribute('role', 'button');
+    titleEl.setAttribute('tabindex', '0');
+
+    const open = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       openProtoPickerModal(topic);
+    };
+
+    titleEl.addEventListener('click', open);
+    titleEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') open(e);
     });
   }
 
@@ -2330,13 +2342,13 @@ function protoModalSum() {
 }
 
 function updateProtoModalSelectedCount() {
-  if (!IS_STUDENT_PAGE || !PROTO_MODAL_OPEN) return;
+  if (!CAN_PROTO_MODAL || !PROTO_MODAL_OPEN) return;
   const { cnt } = getProtoModalEls();
   if (cnt) cnt.textContent = `Выбрано: ${protoModalSum()}`;
 }
 
 function closeProtoPickerModal() {
-  if (!IS_STUDENT_PAGE) return;
+  if (!CAN_PROTO_MODAL) return;
   const { modal, title, list, hint, cnt } = getProtoModalEls();
   if (!modal) return;
 
@@ -2353,7 +2365,7 @@ function closeProtoPickerModal() {
 }
 
 async function openProtoPickerModal(topic) {
-  if (!IS_STUDENT_PAGE) return;
+  if (!CAN_PROTO_MODAL) return;
   if (!topic || !topic.id) return;
   if (PICK_MODE === 'smart') return;
 
@@ -2399,6 +2411,12 @@ async function openProtoPickerModal(topic) {
     frag.appendChild(renderProtoModalCard(man, typ));
   }
   list.appendChild(frag);
+
+  if (IS_TEACHER_HOME && CURRENT_MODE === 'list') {
+    hint.textContent = 'Примечание: сейчас выбор прототипов учитывается только в режиме «Тестирование». В режиме «Список задач» это будет добавлено следующим патчем.';
+  } else {
+    hint.textContent = '';
+  }
 
   updateProtoModalSelectedCount();
   await typesetMathIfNeeded(list);
@@ -2481,7 +2499,7 @@ function renderProtoModalCard(manifest, type) {
 
 let _PROTO_MODAL_EVENTS_BOUND = false;
 function initProtoPickerModal() {
-  if (!IS_STUDENT_PAGE || _PROTO_MODAL_EVENTS_BOUND) return;
+  if (!CAN_PROTO_MODAL || _PROTO_MODAL_EVENTS_BOUND) return;
   const { modal, close, backdrop } = getProtoModalEls();
   if (!modal) return;
   _PROTO_MODAL_EVENTS_BOUND = true;
