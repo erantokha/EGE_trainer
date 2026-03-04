@@ -1,19 +1,20 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-04-11';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-11';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-02-27-15';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-02-27-15';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-03-04-11';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-02-27-15';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-11';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-11';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-02-27-15';
 
 
-import { withBuild } from '../app/build.js?v=2026-03-04-11';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-04-11';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-04-11';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-11';
+import { withBuild } from '../app/build.js?v=2026-02-27-15';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-02-27-15';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-02-27-15';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-02-27-15';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -624,6 +625,69 @@ async function ensureManifest(topic) {
   return topic._manifestPromise;
 }
 
+// общий пул темы: все прототипы из всех её манифестов
+// поддерживает topic.path (один файл) и topic.paths (массив путей)
+async function loadTopicPool(topic) {
+  if (!topic) return [];
+  if (topic._pool) return topic._pool;
+  if (topic._poolPromise) return topic._poolPromise;
+
+  const paths = [];
+  if (Array.isArray(topic.paths)) {
+    for (const p of topic.paths) {
+      if (typeof p === 'string' && p) paths.push(p);
+    }
+  }
+  if (topic.path) paths.push(topic.path);
+
+  topic._poolPromise = (async () => {
+    // если путей нет – fallback на старый ensureManifest
+    if (!paths.length) {
+      const man = await ensureManifest(topic);
+      if (!man) return [];
+      man.topic = man.topic || topic.id;
+      man.title = man.title || topic.title;
+      const pool = [];
+      for (const typ of (man.types || [])) {
+        for (const proto of (typ.prototypes || [])) {
+          pool.push({ manifest: man, type: typ, proto });
+        }
+      }
+      topic._pool = pool;
+      topic._poolByQid = new Map(pool.map(it => [String(it.proto?.id || ''), it]).filter(([k]) => k));
+      return pool;
+    }
+
+    const fetchPromises = paths.map(async (relPath) => {
+      const fullPath = relPath.startsWith('../') ? relPath : '../' + relPath;
+      const url = new URL(fullPath, location.href);
+      const { resp } = await fetchTimed(withBuild(url.href), { cache: 'force-cache' });
+      if (!resp.ok) return null;
+      const j = await resp.json();
+      j.topic = j.topic || topic.id;
+      j.title = j.title || topic.title;
+      return j;
+    });
+
+    const mans = (await Promise.all(fetchPromises)).filter(Boolean);
+    const pool = [];
+    for (const man of mans) {
+      for (const typ of (man.types || [])) {
+        for (const proto of (typ.prototypes || [])) {
+          pool.push({ manifest: man, type: typ, proto });
+        }
+      }
+    }
+    topic._pool = pool;
+    topic._poolByQid = new Map(pool.map(it => [String(it.proto?.id || ''), it]).filter(([k]) => k));
+    return pool;
+  })();
+
+  const out = await topic._poolPromise;
+  topic._pool = out;
+  return out;
+}
+
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -695,13 +759,23 @@ async function buildQuestionsFromSmartRefs(refs) {
   for (const r0 of refs || []) {
     const r = normalizeSmartRef(r0);
     if (!r) continue;
-    const topic = TOPIC_BY_ID.get(r.topic_id) || SECTIONS.flatMap(s => (s.topics || [])).find(t => String(t.id) === r.topic_id);
+
+    const topic =
+      TOPIC_BY_ID.get(r.topic_id) ||
+      SECTIONS.flatMap(s => (s.topics || [])).find(t => String(t.id) === r.topic_id);
     if (!topic) continue;
-    const man = await ensureManifest(topic);
-    if (!man) continue;
-    const found = findProtoById(man, r.question_id);
-    if (!found) continue;
-    out.push(buildQuestion(man, found.type, found.proto));
+
+    const pool = await loadTopicPool(topic);
+    if (!pool.length) continue;
+
+    const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
+    let it = byQid ? byQid.get(String(r.question_id)) : null;
+    if (!it) {
+      it = pool.find(x => String(x?.proto?.id) === String(r.question_id)) || null;
+    }
+    if (!it) continue;
+
+    out.push(buildQuestion(it.manifest, it.type, it.proto));
   }
   return out;
 }
@@ -1145,102 +1219,22 @@ async function pickFromSection(sec, wantSection, opts = {}) {
 }
 
 async function pickPrototypes() {
-  const chosen = [];
-  const hasProtos = Object.values(CHOICE_PROTOS).some(v => v > 0);
-  const hasTopics = Object.values(CHOICE_TOPICS).some(v => v > 0);
-  const hasSections = Object.values(CHOICE_SECTIONS).some(v => v > 0);
-
-  if (PERF) {
-    PERF_DATA.wants.topics = CHOICE_TOPICS;
-    PERF_DATA.wants.sections = CHOICE_SECTIONS;
-    PERF_DATA.wants.protos = CHOICE_PROTOS;
-    PERF_DATA.mode = hasProtos
-      ? ((hasTopics || hasSections) ? 'withProtos' : 'byProtos')
-      : ((hasTopics && hasSections) ? 'mixed' : (hasTopics ? 'byTopics' : 'bySections'));
-  }
-
-  const used = new Set();
-  const pushUnique = (q) => {
-    const key = `${q.topic_id}::${q.question_id}`;
-    if (used.has(key)) return;
-    used.add(key);
-    chosen.push(q);
-  };
-
-  const excludeTopicIds = new Set(
-    Object.entries(CHOICE_TOPICS || {})
-      .filter(([, v]) => (v || 0) > 0)
-      .map(([id]) => String(id)),
-  );
-
-  // 0) Явный выбор по прототипам (typeId -> k)
-  if (hasProtos) {
-    const byTopic = new Map();
-    for (const [typeId, k] of Object.entries(CHOICE_PROTOS || {})) {
-      const want = Number(k || 0) || 0;
-      if (want <= 0) continue;
-      const topicId = topicIdFromTypeId(typeId);
-      if (!topicId) continue;
-      if (!byTopic.has(topicId)) byTopic.set(topicId, []);
-      byTopic.get(topicId).push({ typeId: String(typeId), want });
-    }
-
-    const topicIds = Array.from(byTopic.keys()).sort(compareId);
-    for (const topicId of topicIds) {
-      const topic = TOPIC_BY_ID.get(String(topicId));
-      if (!topic) continue;
-
-      const man = await ensureManifest(topic);
-      if (!man) continue;
-
-      const items = byTopic.get(topicId) || [];
-      items.sort((a, b) => compareId(a.typeId, b.typeId));
-
-      for (const it of items) {
-        const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
-        if (!typ) continue;
-
-        for (const q of (await pickFromTypeAvoidMaybePrio(man, typ, it.want, used))) {
-          pushUnique(q);
-        }
-      }
-    }
-  }
-
-  // 1) Явный выбор по подтемам (точные хотелки пользователя)
-  if (hasTopics) {
-    for (const sec of SECTIONS) {
-      for (const t of (sec.topics || [])) {
-        const want = CHOICE_TOPICS[t.id] || 0;
-        if (!want) continue;
-
-        const man = await ensureManifest(t);
-        if (!man) continue;
-
-        for (const q of (await pickFromManifestAvoidMaybePrio(man, want, used))) pushUnique(q);
-      }
-    }
-  }
-
-  // 2) Добор по разделам (добавить ещё N задач из раздела)
-  if (hasSections) {
-    const jobs = [];
-    for (const sec of SECTIONS) {
-      const wantSection = CHOICE_SECTIONS[sec.id] || 0;
-      if (!wantSection) continue;
-      jobs.push(pickFromSection(sec, wantSection, { excludeTopicIds, usedKeys: used }));
-    }
-
-    const parts = await Promise.all(jobs);
-    for (const arr of parts) {
-      for (const q of arr) pushUnique(q);
-    }
-  }
-
-  if (SHUFFLE_TASKS) {
-    shuffle(chosen);
-  }
-  return chosen;
+  // Единый движок подбора (как на странице списка задач), чтобы:
+  // - строго соблюдать scope (type/topic/section)
+  // - применять фильтры учителя одинаково в list/test/ДЗ
+  return await pickQuestionsScopedForList({
+    sections: SECTIONS,
+    topicById: TOPIC_BY_ID,
+    choiceProtos: CHOICE_PROTOS,
+    choiceTopics: CHOICE_TOPICS,
+    choiceSections: CHOICE_SECTIONS,
+    shuffleTasks: SHUFFLE_TASKS,
+    teacherStudentId: TEACHER_STUDENT_ID,
+    teacherFilters: TEACHER_FILTERS,
+    prioActive: PRIO_ACTIVE,
+    loadTopicPool,
+    buildQuestion,
+  });
 }
 
 // ---------- построение вопроса ----------

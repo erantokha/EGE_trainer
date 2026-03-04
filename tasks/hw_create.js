@@ -2,17 +2,18 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-04-11';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-11';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-11';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-04-11';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-11';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-02-27-15';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -253,581 +254,46 @@ async function ensureManifest(topic) {
   return topic._manifestPromise;
 }
 
-function withV(url) {
-  const v = CONFIG?.content?.version;
-  if (!v) return url;
-  const u = new URL(url, location.href);
-  if (!u.searchParams.has('v')) u.searchParams.set('v', v);
-  return u.href;
-}
+// общий пул темы: все прототипы из всех её манифестов
+// поддерживает topic.path (один файл) и topic.paths (массив путей)
+async function loadTopicPool(topic) {
+  if (!topic) return [];
+  if (topic._pool) return topic._pool;
+  if (topic._poolPromise) return topic._poolPromise;
 
-function normNameForKey(s) {
-  return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function compareId(a, b) {
-  const as = String(a).split('.').map(Number);
-  const bs = String(b).split('.').map(Number);
-  const L = Math.max(as.length, bs.length);
-  for (let i = 0; i < L; i++) {
-    const ai = as[i] ?? 0;
-    const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
-
-function inferTopicIdFromQuestionId(qid) {
-  const parts = String(qid || '').trim().split('.');
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return '';
-}
-
-function topicIdFromTypeId(typeId) {
-  const parts = String(typeId || '').trim().split('.').map(s => String(s).trim()).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return '';
-}
-
-function parseImportLines(text) {
-  const out = [];
-  const lines = String(text ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-  for (const line of lines) {
-    const cols = line.split(/[\s;|,]+/).map(s => s.trim()).filter(Boolean);
-    if (!cols.length) continue;
-
-    if (cols.length === 1) {
-      const question_id = cols[0];
-      const topic_id = inferTopicIdFromQuestionId(question_id);
-      out.push({ topic_id, question_id });
-    } else {
-      const topic_id = cols[0];
-      const question_id = cols[1];
-      out.push({ topic_id, question_id });
+  const paths = [];
+  if (Array.isArray(topic.paths)) {
+    for (const p of topic.paths) {
+      if (typeof p === 'string' && p) paths.push(p);
     }
   }
-  return out;
-}
-
-function makeToken() {
-  const a = new Uint8Array(16);
-  crypto.getRandomValues(a);
-  return Array.from(a).map(x => x.toString(16).padStart(2, '0')).join('');
-}
-
-function todayISO() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${dd}`;
-}
-
-// ---------- UI helpers ----------
-let STATUS_TIMER = null;
-let STATUS_SEQ = 0;
-
-function setStatus(msg) {
-  const el = $('#status');
-  STATUS_SEQ += 1;
-  if (STATUS_TIMER) {
-    clearTimeout(STATUS_TIMER);
-    STATUS_TIMER = null;
-  }
-  if (el) el.textContent = msg || '';
-}
-
-function flashStatus(msg, ttlMs = 5000) {
-  const el = $('#status');
-  STATUS_SEQ += 1;
-  if (STATUS_TIMER) {
-    clearTimeout(STATUS_TIMER);
-    STATUS_TIMER = null;
-  }
-
-  const mySeq = STATUS_SEQ;
-  if (el) el.textContent = msg || '';
-  if (!msg) return;
-
-  STATUS_TIMER = setTimeout(() => {
-    if (mySeq !== STATUS_SEQ) return;
-    if (el) el.textContent = '';
-  }, Math.max(0, Number(ttlMs) || 0));
-}
-
-function ensureAuthBar() {
-  // auth-блок теперь в разметке (hw_create.html), тут оставляем заглушку для совместимости.
-}
-
-
-function cleanRedirectUrl() {
-  try {
-    const u = new URL(location.href);
-    // Supabase OAuth может возвращать эти параметры. Убираем их, чтобы не мешали повторному входу.
-    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
-    return u.toString();
-  } catch (_) {
-    return location.href;
-  }
-}
-
-function computeHomeUrl() {
-  try {
-    // hw_create.html лежит в /tasks
-    return new URL('../', location.href).toString();
-  } catch (_) {
-    return '/';
-  }
-}
-
-function buildAuthLoginUrl(nextUrl) {
-  try {
-    const home = computeHomeUrl();
-    const loginRoute = String(CONFIG?.auth?.routes?.login || 'tasks/auth.html');
-    const rel = loginRoute.replace(/^\/+/, '');
-    const url = new URL(rel, home);
-    url.searchParams.set('next', String(nextUrl || home));
-    return url.toString();
-  } catch (_) {
-    return '../tasks/auth.html';
-  }
-}
-
-let AUTH_WIRED = false;
-function wireAuthControls() {
-  if (AUTH_WIRED) return;
-  AUTH_WIRED = true;
-
-  $('#loginGoogleBtn')?.addEventListener('click', async () => {
-    try {
-      setStatus('Открываем вход через Google...');
-      await signInWithGoogle(cleanRedirectUrl());
-    } catch (e) {
-      console.error(e);
-      flashStatus('Не удалось начать вход через Google.');
-    }
-  });
-
-  $('#logoutBtn')?.addEventListener('click', (e) => {
-    e?.preventDefault?.();
-
-    const home = computeHomeUrl();
-    const loginUrl = buildAuthLoginUrl(home);
-
-    let navigated = false;
-    const navigate = () => {
-      if (navigated) return;
-      navigated = true;
-      try {
-        location.replace(loginUrl);
-      } catch (_) {
-        location.href = loginUrl;
-      }
-    };
-
-    // Мгновенно гасим UI «авторизован», пока перезагрузка не произошла.
-    try {
-      const loginBtn = $('#loginGoogleBtn');
-      const authMini = $('#authMini');
-      const logoutBtn = $('#logoutBtn');
-      const createBtn = $('#createBtn');
-      if (loginBtn) loginBtn.style.display = '';
-      if (authMini) authMini.classList.add('hidden');
-      if (logoutBtn) logoutBtn.style.display = 'none';
-      if (createBtn) createBtn.disabled = true;
-    } catch (_) {}
-
-    // Единый выход: логика ревока/очистки storage внутри app/providers/supabase.js
-    Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
-
-    // UX: не ждём дольше ~450 мс
-    setTimeout(navigate, 350);
-  });
-
-  // ссылка: клик = копировать
-  $('#hwLink')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    const url = String($('#hwLink')?.dataset?.url || '');
-    if (!url) return;
-    const ok = await copyToClipboard(url);
-    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
-  });
-
-  // маленькая кнопка открыть
-  $('#openLinkBtn')?.addEventListener('click', () => {
-    const url = String($('#openLinkBtn')?.dataset?.url || '');
-    if (!url) return;
-    window.open(url, '_blank', 'noopener');
-  });
-
-  // кнопка "На главную"
-  $('#homeBtn')?.addEventListener('click', () => {
-    const u = new URL('../', location.href);
-    location.href = u.href;
-  });
-
-}
-
-
-let LINK_WIRED = false;
-function wireLinkControls() {
-  if (LINK_WIRED) return;
-  LINK_WIRED = true;
-
-  const a = $('#hwLink');
-  const openBtn = $('#openLinkBtn');
-
-  if (a && a.dataset.wiredLink === '1') return;
-  if (a) a.dataset.wiredLink = '1';
-  if (openBtn) openBtn.dataset.wiredLink = '1';
-
-  // Клик по ссылке = копирование
-  a?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const url = String(a?.dataset?.url || a?.textContent || '').trim();
-    if (!url) return;
-
-    const ok = await copyToClipboard(url);
-    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
-  });
-
-  // Иконка справа = открыть ДЗ
-  openBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const url = String(openBtn?.dataset?.url || a?.dataset?.url || '').trim();
-    if (!url) return;
-
-    window.open(url, '_blank', 'noopener,noreferrer');
-  });
-}
-
-
-function pad2(n) {
-  return String(n).padStart(2, '0');
-}
-function defaultTitleDM() {
-  const d = new Date();
-  return `ДЗ ${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
-}
-function initEditableFields() {
-  const titleBtn = $('#titleBtn');
-  const titleInput = $('#titleInput');
-  const descBtn = $('#descBtn');
-  const descInput = $('#descInput');
-
-  if (titleInput && !String(titleInput.value || '').trim()) {
-    titleInput.value = defaultTitleDM();
-  }
-  if (titleBtn) titleBtn.textContent = String(titleInput?.value || defaultTitleDM());
-
-  // Title: клик -> показать input, blur/Enter -> сохранить
-  titleBtn?.addEventListener('click', () => {
-    if (!titleInput) return;
-    titleBtn.classList.add('hidden');
-    titleInput.classList.remove('hidden');
-    titleInput.focus();
-    titleInput.select?.();
-  });
-
-  const commitTitle = () => {
-    if (!titleInput || !titleBtn) return;
-    const v = String(titleInput.value || '').trim() || defaultTitleDM();
-    titleInput.value = v;
-    titleBtn.textContent = v;
-    titleInput.classList.add('hidden');
-    titleBtn.classList.remove('hidden');
-  };
-
-  titleInput?.addEventListener('blur', commitTitle);
-  titleInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitTitle();
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      commitTitle();
-    }
-  });
-
-
-  // Description: клик -> показать input, blur/Enter -> сохранить
-  if (descBtn) {
-    const v0 = String(descInput?.value || '').trim();
-    descBtn.textContent = v0 ? v0 : 'Описание';
-  }
-
-  const openDesc = () => {
-    if (!descInput || !descBtn) return;
-    descBtn.classList.add('hidden');
-    descInput.classList.remove('hidden');
-    descInput.focus();
-    descInput.select?.();
-  };
-
-  const commitDesc = () => {
-    if (!descInput || !descBtn) return;
-    const v = String(descInput.value || '').trim();
-    descBtn.textContent = v ? v : 'Описание';
-    descInput.classList.add('hidden');
-    descBtn.classList.remove('hidden');
-  };
-
-  const cancelDesc = () => {
-    if (!descInput || !descBtn) return;
-    // просто закрываем без изменений текста кнопки
-    descInput.classList.add('hidden');
-    descBtn.classList.remove('hidden');
-  };
-
-  descBtn?.addEventListener('click', openDesc);
-
-  descInput?.addEventListener('blur', commitDesc);
-  descInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitDesc();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      cancelDesc();
-    }
-  });
-}
-
-function getTitleValue() {
-  const v = String($('#titleInput')?.value || '').trim();
-  return v || defaultTitleDM();
-}
-function getDescriptionValue() {
-  const v = String($('#descInput')?.value || '').trim();
-  return v ? v : null;
-}
-
-function showStudentLink(link, metaText = '') {
-  const box = $('#linkBox');
-  if (box) box.classList.remove('hidden');
-
-  const a = $('#hwLink');
-  if (a) {
-    a.textContent = link;
-    a.href = link;
-    a.dataset.url = link;
-  }
-
-  const openBtn = $('#openLinkBtn');
-  if (openBtn) openBtn.dataset.url = link;
-
-  const meta = $('#linkMeta');
-  if (meta) meta.textContent = metaText || '';
-}
-
-async function refreshAuthUI() {
-  // Вся авторизация и меню пользователя теперь живут в общем хедере (app/ui/header.js).
-  // Здесь держим только минимальную реакцию: включить/выключить доступ к созданию ДЗ.
-  const session = await getSession().catch(() => null);
-
-  const createBtn = $('#createBtn');
-  if (createBtn) createBtn.disabled = !session;
-
-  return session;
-}
-
-// ---------- fixed list (добавленные задачи) ----------
-// Теперь "Добавленные задачи" показываются как мини‑карточки (как в аккордеоне выбора):
-// номер → мета (подтип + название + кол-во вариантов) → условие + картинка.
-
-let FIXED_REFS = [];
-let FIXED_RENDER_SEQ = 0;
-
-function normalizeFixedRef(r) {
-  const qid = String(r?.question_id || '').trim();
-  if (!qid) return null;
-  const tid = String(r?.topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
-  if (!tid) return null;
-  return { topic_id: tid, question_id: qid };
-}
-
-function setFixedRefs(refs) {
-  const out = [];
-  const seen = new Set();
-  for (const r of (refs || [])) {
-    const nr = normalizeFixedRef(r);
-    if (!nr) continue;
-    const key = refKey(nr);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(nr);
-  }
-  FIXED_REFS = out;
-  renderFixedList();
-  updateFixedCountUI();
-}
-
-function addFixedRefs(refs) {
-  const seen = new Set(FIXED_REFS.map(refKey));
-  let added = 0;
-
-  for (const r of (refs || [])) {
-    const nr = normalizeFixedRef(r);
-    if (!nr) continue;
-    const key = refKey(nr);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    FIXED_REFS.push(nr);
-    added += 1;
-  }
-
-  if (added > 0) {
-    renderFixedList();
-    updateFixedCountUI();
-  }
-  return added;
-}
-
-function removeFixedByKey(key) {
-  const k = String(key || '');
-  if (!k) return;
-  const before = FIXED_REFS.length;
-  FIXED_REFS = FIXED_REFS.filter(r => refKey(r) !== k);
-  if (FIXED_REFS.length !== before) {
-    renderFixedList();
-    updateFixedCountUI();
-  }
-}
-
-function readFixedRows() {
-  // источник истины — массив, а не инпуты
-  return FIXED_REFS.slice();
-}
-
-function updateFixedCountUI() {
-  const btn = $('#toggleAdded');
-  const n = readFixedRows().length;
-  if (btn) btn.textContent = `Добавленные задачи: ${n}`;
-}
-
-function makeFixedPreviewCard(n, ref) {
-  const key = refKey(ref);
-
-  const row = document.createElement('div');
-  row.className = 'tp-item fixed-prev-card';
-  row.dataset.key = key;
-
-  const num = document.createElement('div');
-  num.className = 'fixed-mini-num';
-  num.textContent = String(n);
-  row.appendChild(num);
-
-  const left = document.createElement('div');
-  left.className = 'tp-item-left';
-
-  const meta = document.createElement('div');
-  meta.className = 'tp-item-meta fixed-prev-meta';
-  meta.textContent = `${ref.question_id}`; // уточним после загрузки манифеста
-  left.appendChild(meta);
-
-  const stem = document.createElement('div');
-  stem.className = 'tp-item-stem fixed-prev-body';
-  stem.innerHTML = '<span class="muted">Загрузка…</span>';
-  left.appendChild(stem);
-
-  row.appendChild(left);
-
-  const del = document.createElement('button');
-  del.className = 'btn fixed-mini-del';
-  del.type = 'button';
-  del.textContent = '×';
-  del.addEventListener('click', () => removeFixedByKey(key));
-  row.appendChild(del);
-
-  return row;
-}
-
-function renderFixedList() {
-  const box = $('#fixedCards');
-  if (!box) return;
-
-  const seq = ++FIXED_RENDER_SEQ;
-
-  box.innerHTML = '';
-  if (!FIXED_REFS.length) {
-    box.innerHTML = '<div class="muted">Пока нет добавленных задач.</div>';
-    return;
-  }
-
-  const frag = document.createDocumentFragment();
-  for (let i = 0; i < FIXED_REFS.length; i++) {
-    frag.appendChild(makeFixedPreviewCard(i + 1, FIXED_REFS[i]));
-  }
-  box.appendChild(frag);
-
-  // заполним карточки (условия/картинки/мета) асинхронно
-  updateFixedPreviews(seq).catch((e) => console.error(e));
-}
-
-async function updateFixedPreviews(seq) {
-  // если после старта отрисовки список уже обновили — прекращаем
-  if (seq !== FIXED_RENDER_SEQ) return;
-
-  const box = $('#fixedCards');
-  if (!box) return;
-
-  await loadCatalog();
-
-  const cards = Array.from(box.querySelectorAll('.fixed-prev-card'));
-  for (const card of cards) {
-    if (seq !== FIXED_RENDER_SEQ) return;
-
-    const key = String(card.dataset.key || '');
-    const ref = FIXED_REFS.find(r => refKey(r) === key);
-    if (!ref) continue;
-
-    const qid = ref.question_id;
-    const tid = ref.topic_id || inferTopicIdFromQuestionId(qid);
-
-    const metaEl = card.querySelector('.fixed-prev-meta');
-    const bodyEl = card.querySelector('.fixed-prev-body');
-
-    const topic = TOPIC_BY_ID.get(String(tid));
-    if (!topic) {
+  if (topic.path) paths.push(topic.path);
+
+  topic._poolPromise = (async () => {
+    // если путей нет – fallback на старый ensureManifest
+    if (!paths.length) {
+          const pool = await loadTopicPool(topic);
+    if (!pool.length) {
       if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(tid))} не найдена в каталоге.</span>`;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось загрузить манифест(ы) темы.</span>`;
       continue;
     }
 
-    const man = await ensureManifest(topic);
-    if (!man) {
-      if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось загрузить манифест темы.</span>`;
-      continue;
+    const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
+    let it = byQid ? byQid.get(String(qid)) : null;
+    if (!it) {
+      it = pool.find(x => String(x?.proto?.id) === String(qid)) || null;
     }
 
-    const base = baseIdFromProtoId(qid) || '';
-    let type = (man.types || []).find(t => String(t.id) === String(base));
-    let proto = type?.prototypes?.find(p => String(p?.id) === String(qid)) || null;
-
-    if (!proto) {
-      // fallback: ищем по всем типам
-      for (const t of (man.types || [])) {
-        const p = (t?.prototypes || []).find(pp => String(pp?.id) === String(qid));
-        if (p) { type = t; proto = p; break; }
-      }
-    }
-
-    if (type && proto) {
+    if (it && it.type && it.proto) {
       // В подборке «Добавленные задачи» служебную подпись про количество вариантов не показываем.
-      const meta = `${type.id} ${type.title || ''}`.trim();
+      const meta = `${it.type.id} ${it.type.title || ''}`.trim();
       if (metaEl) metaEl.textContent = meta;
 
-      if (bodyEl) bodyEl.innerHTML = buildStemPreview(man, type, proto);
+      if (bodyEl) bodyEl.innerHTML = buildStemPreview(it.manifest, it.type, it.proto);
     } else {
       if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось найти задачу в манифесте темы.</span>`;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось найти задачу в манифестах темы.</span>`;
     }
   }
 
@@ -851,113 +317,58 @@ async function importSelectionIntoFixedTable() {
 
   await loadCatalog();
 
-  const wanted = [];
-  const used = new Set();
-  const pushUnique = (r) => {
-    const key = refKey(r);
-    if (used.has(key)) return;
-    used.add(key);
-    wanted.push(r);
-  };
-
-  const topicEntries = Object.entries(prefill.topics || {});
-  const secEntries = Object.entries(prefill.sections || {});
-  const protoEntries = Object.entries(prefill.protos || {});
-
-  const excludeTopicIds = new Set(
-    topicEntries
-      .filter(([, cntRaw]) => normalizeCount(cntRaw) > 0)
-      .map(([id]) => String(id)),
-  );
-
   // контекст приоритезации (фильтры на главной учителя)
-  // Важно: если ученик не выбран или фильтры выключены — работаем как раньше.
   const teacherStudentId =
     String(prefill.teacher_student_id || '').trim() || readTeacherSelectedStudentId();
   const tf = (prefill.teacher_filters && typeof prefill.teacher_filters === 'object')
     ? prefill.teacher_filters
     : {};
-  const flags = { old: !!tf.old, badAcc: !!tf.badAcc };
-  const prioCtx = (teacherStudentId && (flags.old || flags.badAcc))
-    ? { active: true, studentId: teacherStudentId, flags, cache: new Map() }
-    : { active: false, studentId: teacherStudentId, flags, cache: new Map() };
+  const teacherFilters = { old: !!tf.old, badAcc: !!tf.badAcc };
+  const prioActive = !!teacherStudentId && (teacherFilters.old || teacherFilters.badAcc);
 
-  // 0) Явный выбор по прототипам (typeId -> k)
-  if (protoEntries.length) {
-    const byTopic = new Map();
-    for (const [typeId, cntRaw] of protoEntries) {
-      const want = normalizeCount(cntRaw);
-      if (!want) continue;
-      const topicId = topicIdFromTypeId(typeId);
-      if (!topicId) continue;
-      if (!byTopic.has(topicId)) byTopic.set(topicId, []);
-      byTopic.get(topicId).push({ typeId: String(typeId), want });
-    }
-
-    const topicIds = Array.from(byTopic.keys()).sort(compareId);
-    for (const topicId of topicIds) {
-      const topic = TOPIC_BY_ID.get(String(topicId));
-      if (!topic) continue;
-
-      const man = await ensureManifest(topic);
-      if (!man) continue;
-
-      const items = byTopic.get(topicId) || [];
-      items.sort((a, b) => compareId(a.typeId, b.typeId));
-
-      for (const it of items) {
-        const typ = (man.types || []).find(t => String(t.id) === String(it.typeId));
-        if (!typ) continue;
-        for (const r of (await pickRefsFromTypeAvoidMaybePrio(man, typ, it.want, used, prioCtx))) pushUnique(r);
-      }
-    }
+  let picked = [];
+  try {
+    picked = await pickQuestionsScopedForList({
+      sections: SECTIONS,
+      topicById: TOPIC_BY_ID,
+      choiceProtos: prefill.protos || {},
+      choiceTopics: prefill.topics || {},
+      choiceSections: prefill.sections || {},
+      // порядок в фиксированном списке не обязан быть перемешан
+      shuffleTasks: false,
+      teacherStudentId,
+      teacherFilters,
+      prioActive,
+      loadTopicPool,
+      // для ДЗ нам нужны только ссылки (topic_id + question_id)
+      buildQuestion: (man, _type, proto) => ({
+        topic_id: man?.topic || inferTopicIdFromQuestionId(proto?.id),
+        question_id: proto?.id,
+      }),
+    });
+  } catch (e) {
+    console.error(e);
+    picked = [];
   }
 
-  // 1) Явный выбор по подтемам
-  for (const [topicId, cntRaw] of topicEntries) {
-    const n = normalizeCount(cntRaw);
-    if (!n) continue;
-
-    const topic = TOPIC_BY_ID.get(String(topicId));
-    if (!topic) continue;
-
-    const man = await ensureManifest(topic);
-    if (!man) continue;
-
-    for (const r of (await pickRefsFromManifestAvoidMaybePrio(man, n, used, prioCtx))) pushUnique(r);
-  }
-
-  // 2) Добор по разделам
-  for (const [secId, cntRaw] of secEntries) {
-    const n = normalizeCount(cntRaw);
-    if (!n) continue;
-
-    const sec = SECTIONS.find(s => String(s.id) === String(secId));
-    if (!sec) continue;
-
-    for (const r of (await pickRefsFromSection(sec, n, { excludeTopicIds, usedKeys: used }, prioCtx))) pushUnique(r);
-  }
-
-  // дедуп (страховка)
   const uniq = [];
   const seen = new Set();
-  for (const r of wanted) {
-    const key = refKey(r);
+  for (const r of picked || []) {
+    const topic_id = String(r?.topic_id || inferTopicIdFromQuestionId(r?.question_id)).trim();
+    const question_id = String(r?.question_id || '').trim();
+    if (!topic_id || !question_id) continue;
+    const key = `${topic_id}::${question_id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    uniq.push({
-      topic_id: r.topic_id || inferTopicIdFromQuestionId(r.question_id),
-      question_id: r.question_id,
-    });
+    uniq.push({ topic_id, question_id });
   }
 
   if (!uniq.length) {
     flashStatus('Не удалось импортировать задачи из выбора на главной странице.');
     return;
   }
-  // переносим в список добавленных задач
-  setFixedRefs(uniq);
 
+  setFixedRefs(uniq);
   setStatus('');
 }
 
