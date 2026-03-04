@@ -8,12 +8,12 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-04-18';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-18';
-import { CONFIG } from '../app/config.js?v=2026-03-04-18';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-18';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-18';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-18';
+import { withBuild } from '../app/build.js?v=2026-03-04-16';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-16';
+import { CONFIG } from '../app/config.js?v=2026-03-04-16';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-16';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-16';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-16';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -25,6 +25,7 @@ const INDEX_URL = new URL(
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
+let SECTION_BY_ID = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
@@ -116,6 +117,7 @@ function initTeacherPickFiltersUI() {
       badAcc: !!b.checked,
     };
     saveTeacherPickFilters(TEACHER_PICK_FILTERS);
+    try { onTeacherContextChanged({ reason: 'filters-change' }); } catch (_) {}
   };
 
   a.addEventListener('change', onChange);
@@ -123,6 +125,7 @@ function initTeacherPickFiltersUI() {
 
   // На старте, пока ученик не выбран — фильтры недоступны.
   setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
+  try { onTeacherContextChanged({ reason: 'student-view-change' }); } catch (_) {}
 }
 
 // Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
@@ -225,6 +228,7 @@ function setTeacherStudentViewUI(studentId){
   if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
 
   setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
+  try { onTeacherContextChanged({ reason: 'student-view-change' }); } catch (_) {}
 }
 
 let _TEACHER_STATS_SEQ = 0;
@@ -2055,6 +2059,7 @@ function refreshCountsUI() {
   });
 
   refreshTotalSum();
+  if (IS_TEACHER_HOME) scheduleSyncAddedTasks({ reason: 'counts-ui' });
 }
 
 // ---------- Загрузка каталога ----------
@@ -2074,6 +2079,9 @@ async function loadCatalog() {
 
   TOPIC_BY_ID = new Map();
   for (const t of topics) TOPIC_BY_ID.set(String(t.id), t);
+
+  SECTION_BY_ID = new Map();
+  for (const s of sections) SECTION_BY_ID.set(String(s.id), s);
 
   for (const sec of sections) {
     sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
@@ -2334,10 +2342,12 @@ function renderTopicRow(topic) {
 function setTopicCount(topicId, n) {
   CHOICE_TOPICS[topicId] = n;
   bubbleUpSums();
+  if (IS_TEACHER_HOME) scheduleSyncAddedTasks({ reason: 'topic-count' });
 }
 function setSectionCount(sectionId, n) {
   CHOICE_SECTIONS[sectionId] = n;
   bubbleUpSums();
+  if (IS_TEACHER_HOME) scheduleSyncAddedTasks({ reason: 'section-count' });
 }
 
 function setProtoCount(typeId, n, cap) {
@@ -2351,6 +2361,7 @@ function setProtoCount(typeId, n, cap) {
   else delete CHOICE_PROTOS[id];
 
   refreshTotalSum();
+  if (IS_TEACHER_HOME) scheduleSyncAddedTasks({ reason: 'proto-count' });
   return v;
 }
 
@@ -2695,9 +2706,16 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- home_teacher: предпросмотр добавленных задач (в модалке) ----------
+const TEACHER_ADDED_TASKS_KEY = 'teacher_added_tasks_v1';
+
 let ADDED_TASKS_MODAL_OPEN = false;
-let _ADDED_TASKS_MODAL_SEQ = 0;
 let _ADDED_TASKS_MODAL_EVENTS_BOUND = false;
+
+let _ADDED_CTX_KEY = '';
+let _ADDED_CTX = null; // { buckets: { [bucketKey]: question[] }, idCounts: { [question_id]: number } }
+
+let _ADDED_SYNC_T = 0;
+let _ADDED_SYNC_SEQ = 0;
 
 function getAddedTasksModalEls() {
   return {
@@ -2712,14 +2730,371 @@ function getAddedTasksModalEls() {
   };
 }
 
-function openAddedTasksModal() {
-  const { modal } = getAddedTasksModalEls();
+function getTeacherAddedTasksContextKey() {
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim() || 'none';
+  const hasStudent = sid !== 'none';
+  const old = hasStudent && !!TEACHER_PICK_FILTERS?.old ? 1 : 0;
+  const bad = hasStudent && !!TEACHER_PICK_FILTERS?.badAcc ? 1 : 0;
+  return `sid:${sid};old:${old};bad:${bad}`;
+}
+
+function loadTeacherAddedTasksStore() {
+  try {
+    const raw = sessionStorage.getItem(TEACHER_ADDED_TASKS_KEY);
+    const obj = safeJsonParse(raw);
+    if (!obj || typeof obj !== 'object') return { v: 1, contexts: {} };
+    const ctxs = (obj.contexts && typeof obj.contexts === 'object') ? obj.contexts : {};
+    return { v: 1, contexts: ctxs };
+  } catch (_) {
+    return { v: 1, contexts: {} };
+  }
+}
+
+function saveTeacherAddedTasksStore(store) {
+  try {
+    sessionStorage.setItem(TEACHER_ADDED_TASKS_KEY, JSON.stringify(store || { v: 1, contexts: {} }));
+  } catch (_) {}
+}
+
+function persistAddedTasksContext() {
+  if (!IS_TEACHER_HOME || !_ADDED_CTX_KEY || !_ADDED_CTX) return;
+  const store = loadTeacherAddedTasksStore();
+  store.contexts[_ADDED_CTX_KEY] = {
+    buckets: _ADDED_CTX.buckets || {},
+    ts: Date.now(),
+  };
+  saveTeacherAddedTasksStore(store);
+}
+
+function ensureAddedTasksContextLoaded() {
+  if (!IS_TEACHER_HOME) return null;
+
+  const key = getTeacherAddedTasksContextKey();
+  if (_ADDED_CTX && _ADDED_CTX_KEY === key) return _ADDED_CTX;
+
+  // сохраняем предыдущий контекст перед переключением
+  try { persistAddedTasksContext(); } catch (_) {}
+
+  const store = loadTeacherAddedTasksStore();
+  const rawCtx = store?.contexts?.[key] || null;
+  const rawBuckets = (rawCtx && typeof rawCtx === 'object') ? rawCtx.buckets : null;
+
+  const buckets = (rawBuckets && typeof rawBuckets === 'object') ? rawBuckets : {};
+  const ctx = { buckets: {}, idCounts: {} };
+
+  for (const [bk, arr0] of Object.entries(buckets)) {
+    const arr = Array.isArray(arr0) ? arr0 : [];
+    // мягкая валидация элементов
+    ctx.buckets[bk] = arr
+      .map((q) => (q && typeof q === 'object') ? q : null)
+      .filter(Boolean);
+  }
+
+  for (const arr of Object.values(ctx.buckets)) {
+    for (const q of arr || []) {
+      const id = String(q?.question_id || '').trim();
+      if (!id) continue;
+      ctx.idCounts[id] = (ctx.idCounts[id] || 0) + 1;
+    }
+  }
+
+  _ADDED_CTX_KEY = key;
+  _ADDED_CTX = ctx;
+  return _ADDED_CTX;
+}
+
+function onTeacherContextChanged(opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  ensureAddedTasksContextLoaded();
+  scheduleSyncAddedTasks({ reason: String(opts?.reason || 'context-change'), immediate: true });
+}
+
+function scheduleSyncAddedTasks(opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  if (_ADDED_SYNC_T) clearTimeout(_ADDED_SYNC_T);
+  const delay = opts?.immediate ? 0 : 90;
+  _ADDED_SYNC_T = setTimeout(() => {
+    _ADDED_SYNC_T = 0;
+    syncAddedTasksToSelection(opts);
+  }, delay);
+}
+
+function incIdCount(id) {
+  const ctx = _ADDED_CTX;
+  if (!ctx) return;
+  const key = String(id || '').trim();
+  if (!key) return;
+  ctx.idCounts[key] = (ctx.idCounts[key] || 0) + 1;
+}
+
+function decIdCount(id) {
+  const ctx = _ADDED_CTX;
+  if (!ctx) return;
+  const key = String(id || '').trim();
+  if (!key) return;
+  const n = Number(ctx.idCounts[key] || 0) || 0;
+  if (n <= 1) delete ctx.idCounts[key];
+  else ctx.idCounts[key] = n - 1;
+}
+
+function getExcludeSet() {
+  const ctx = _ADDED_CTX;
+  const ex = new Set();
+  if (!ctx?.idCounts) return ex;
+  for (const id of Object.keys(ctx.idCounts)) ex.add(String(id || '').trim());
+  return ex;
+}
+
+function getDesiredCountsFromSelection() {
+  const desired = new Map();
+
+  for (const [id, v] of Object.entries(CHOICE_PROTOS || {})) {
+    const want = Number(v || 0) || 0;
+    if (want > 0) desired.set(`proto:${String(id)}`, want);
+  }
+  for (const [id, v] of Object.entries(CHOICE_TOPICS || {})) {
+    const want = Number(v || 0) || 0;
+    if (want > 0) desired.set(`topic:${String(id)}`, want);
+  }
+  for (const [id, v] of Object.entries(CHOICE_SECTIONS || {})) {
+    const want = Number(v || 0) || 0;
+    if (want > 0) desired.set(`section:${String(id)}`, want);
+  }
+
+  return { desired, wantTotal: getTotalSelected() };
+}
+
+function flattenAddedQuestions() {
+  const ctx = _ADDED_CTX;
+  const out = [];
+  if (!ctx?.buckets) return out;
+  for (const arr of Object.values(ctx.buckets)) {
+    for (const q of (arr || [])) out.push(q);
+  }
+  return out;
+}
+
+function sortAddedQuestions(arr) {
+  const xs = Array.isArray(arr) ? arr.slice() : [];
+  xs.sort((a, b) => {
+    const sa = String(a?.section_id || '').trim();
+    const sb = String(b?.section_id || '').trim();
+    const ta = String(a?.topic_id || '').trim();
+    const tb = String(b?.topic_id || '').trim();
+    const qa = String(a?.question_id || '').trim();
+    const qb = String(b?.question_id || '').trim();
+
+    const c1 = compareId(sa, sb);
+    if (c1) return c1;
+    const c2 = compareId(ta, tb);
+    if (c2) return c2;
+    return compareId(qa, qb);
+  });
+  return xs;
+}
+
+async function pickDeltaForBucket(bucketKey, delta, seq) {
+  const key = String(bucketKey || '').trim();
+  const want = Math.max(0, Math.floor(Number(delta || 0)));
+  if (!key || want <= 0) return [];
+
+  if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) return [];
+
+  // учительские фильтры применяются только при выбранном ученике
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
+  const prioActive = !!sid && (filters.old || filters.badAcc);
+
+  const excludeSet = getExcludeSet();
+
+  // proto:TYPE_ID
+  if (key.startsWith('proto:')) {
+    const typeId = key.slice('proto:'.length);
+    const qs = await pickQuestionsScopedForList({
+      sections: [],
+      topicById: TOPIC_BY_ID,
+      choiceProtos: { [typeId]: want },
+      choiceTopics: {},
+      choiceSections: {},
+      shuffleTasks: false,
+      teacherStudentId: sid,
+      teacherFilters: filters,
+      prioActive,
+      loadTopicPool: loadTopicPoolForPreview,
+      buildQuestion: buildQuestionForPreview,
+      excludeQuestionIds: excludeSet,
+    });
+    if (seq !== _ADDED_SYNC_SEQ) return [];
+    return Array.isArray(qs) ? qs : [];
+  }
+
+  // topic:TOPIC_ID
+  if (key.startsWith('topic:')) {
+    const topicId = key.slice('topic:'.length);
+    const topic = TOPIC_BY_ID.get(String(topicId));
+    if (!topic) return [];
+    const secId = String(topic?.parent || '').trim();
+    const sec = SECTION_BY_ID.get(secId);
+    const secTmp = sec ? { ...sec, topics: [topic] } : { id: secId || '0', topics: [topic] };
+    const qs = await pickQuestionsScopedForList({
+      sections: [secTmp],
+      topicById: TOPIC_BY_ID,
+      choiceProtos: {},
+      choiceTopics: { [topicId]: want },
+      choiceSections: {},
+      shuffleTasks: false,
+      teacherStudentId: sid,
+      teacherFilters: filters,
+      prioActive,
+      loadTopicPool: loadTopicPoolForPreview,
+      buildQuestion: buildQuestionForPreview,
+      excludeQuestionIds: excludeSet,
+    });
+    if (seq !== _ADDED_SYNC_SEQ) return [];
+    return Array.isArray(qs) ? qs : [];
+  }
+
+  // section:SECTION_ID
+  if (key.startsWith('section:')) {
+    const sectionId = key.slice('section:'.length);
+    const sec = SECTION_BY_ID.get(String(sectionId));
+    if (!sec) return [];
+    const excludeTopics = new Set(
+      Object.entries(CHOICE_TOPICS || {})
+        .filter(([, v]) => (Number(v || 0) || 0) > 0)
+        .map(([id]) => String(id)),
+    );
+    const filteredTopics = (sec.topics || []).filter(t => !excludeTopics.has(String(t?.id)));
+    const secTmp = { ...sec, topics: filteredTopics.length ? filteredTopics : (sec.topics || []) };
+
+    // ВАЖНО: передаём choiceTopics (реальный) только чтобы движок исключил явные темы
+    // на шаге добора по разделу, но сами явные темы из secTmp уже выкинули, чтобы шаг 1 не сработал.
+    const qs = await pickQuestionsScopedForList({
+      sections: [secTmp],
+      topicById: TOPIC_BY_ID,
+      choiceProtos: {},
+      choiceTopics: CHOICE_TOPICS || {},
+      choiceSections: { [sectionId]: want },
+      shuffleTasks: false,
+      teacherStudentId: sid,
+      teacherFilters: filters,
+      prioActive,
+      loadTopicPool: loadTopicPoolForPreview,
+      buildQuestion: buildQuestionForPreview,
+      excludeQuestionIds: excludeSet,
+    });
+    if (seq !== _ADDED_SYNC_SEQ) return [];
+    return Array.isArray(qs) ? qs : [];
+  }
+
+  return [];
+}
+
+async function syncAddedTasksToSelection(opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) return;
+
+  ensureAddedTasksContextLoaded();
+  const ctx = _ADDED_CTX;
+  if (!ctx) return;
+
+  const seq = ++_ADDED_SYNC_SEQ;
+  const { desired, wantTotal } = getDesiredCountsFromSelection();
+
+  // --- 1) удаление лишних задач ---
+  for (const [bk, arr0] of Object.entries(ctx.buckets || {})) {
+    const need = Number(desired.get(bk) || 0) || 0;
+    const arr = Array.isArray(arr0) ? arr0 : [];
+    while (arr.length > need) {
+      const q = arr.pop();
+      const id = String(q?.question_id || '').trim();
+      if (id) decIdCount(id);
+    }
+    if (need <= 0 && !arr.length) delete ctx.buckets[bk];
+    else ctx.buckets[bk] = arr;
+  }
+
+  const keys = Array.from(desired.keys());
+
+  const protoKeys = keys
+    .filter(k => k.startsWith('proto:'))
+    .sort((a, b) => compareId(a.slice(6), b.slice(6)));
+
+  const topicKeys = keys
+    .filter(k => k.startsWith('topic:'))
+    .sort((a, b) => compareId(a.slice(6), b.slice(6)));
+
+  const sectionKeys = keys
+    .filter(k => k.startsWith('section:'))
+    .sort((a, b) => compareId(a.slice(8), b.slice(8)));
+
+  const ordered = [...protoKeys, ...topicKeys, ...sectionKeys];
+
+  // --- 2) добор (строго в порядке движка: protos -> topics -> sections) ---
+  for (const bk of ordered) {
+    if (seq !== _ADDED_SYNC_SEQ) return;
+
+    const need = Number(desired.get(bk) || 0) || 0;
+    const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
+    const have = cur.length;
+
+    const delta = need - have;
+    if (delta <= 0) {
+      if (need <= 0 && !have) delete ctx.buckets[bk];
+      else ctx.buckets[bk] = cur;
+      continue;
+    }
+
+    const picked = await pickDeltaForBucket(bk, delta, seq);
+    if (seq !== _ADDED_SYNC_SEQ) return;
+
+    if (!picked.length) {
+      ctx.buckets[bk] = cur;
+      continue;
+    }
+
+    for (const q of picked) {
+      const id = String(q?.question_id || '').trim();
+      if (!id) continue;
+      cur.push(q);
+      incIdCount(id);
+    }
+    ctx.buckets[bk] = cur;
+  }
+
+  // сохраняем контекст
+  try { persistAddedTasksContext(); } catch (_) {}
+
+  // если модалка открыта — перерисуем
+  if (ADDED_TASKS_MODAL_OPEN) {
+    renderAddedTasksPreview(sortAddedQuestions(flattenAddedQuestions()), { wantTotal });
+    const { listWrap, list } = getAddedTasksModalEls();
+    await typesetMathIfNeeded(listWrap || list);
+  }
+}
+
+async function openAddedTasksModal() {
+  const { modal, hint, meta, list, listWrap } = getAddedTasksModalEls();
   if (!modal) return;
   if (ADDED_TASKS_MODAL_OPEN) return;
+
   ADDED_TASKS_MODAL_OPEN = true;
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
-  rebuildAddedTasksPreview({ reason: 'open' });
+
+  if (meta) meta.textContent = '—';
+  if (hint) hint.textContent = 'Загружаю…';
+  if (list) list.innerHTML = '';
+
+  await syncAddedTasksToSelection({ reason: 'open', immediate: true });
+
+  if (!ADDED_TASKS_MODAL_OPEN) return;
+
+  const wantTotal = getTotalSelected();
+  const arr = sortAddedQuestions(flattenAddedQuestions());
+  renderAddedTasksPreview(arr, { wantTotal });
+
+  await typesetMathIfNeeded(listWrap || list);
 }
 
 function closeAddedTasksModal() {
@@ -2751,53 +3126,10 @@ function initAddedTasksModal() {
       closeAddedTasksModal();
     }
   });
-}
 
-async function rebuildAddedTasksPreview(opts = {}) {
-  const seq = ++_ADDED_TASKS_MODAL_SEQ;
-  const { meta, list, hint, listWrap } = getAddedTasksModalEls();
-  const wantTotal = getTotalSelected();
-
-  if (meta) meta.textContent = wantTotal > 0 ? `Запрошено: ${wantTotal}` : '—';
-  if (hint) hint.textContent = 'Загружаю…';
-  if (list) list.innerHTML = '';
-
-  if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) {
-    if (hint) hint.textContent = 'Каталог ещё не загружен. Обновите страницу.';
-    return;
-  }
-
-  // учительские фильтры применяются только при выбранном ученике
-  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-  const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
-  const prioActive = !!sid && (filters.old || filters.badAcc);
-
-  try {
-    const questions = await pickQuestionsScopedForList({
-      sections: SECTIONS,
-      topicById: TOPIC_BY_ID,
-      choiceProtos: CHOICE_PROTOS,
-      choiceTopics: CHOICE_TOPICS,
-      choiceSections: CHOICE_SECTIONS,
-      shuffleTasks: SHUFFLE_TASKS,
-      teacherStudentId: sid,
-      teacherFilters: filters,
-      prioActive,
-      loadTopicPool: loadTopicPoolForPreview,
-      buildQuestion: buildQuestionForPreview,
-    });
-
-    if (seq !== _ADDED_TASKS_MODAL_SEQ) return;
-    renderAddedTasksPreview(questions, { wantTotal });
-
-    // MathJax (если есть формулы)
-    await typesetMathIfNeeded(listWrap || list);
-  } catch (e) {
-    console.warn('Не удалось собрать предпросмотр задач', e);
-    if (seq !== _ADDED_TASKS_MODAL_SEQ) return;
-    if (meta) meta.textContent = wantTotal > 0 ? `Запрошено: ${wantTotal}` : '—';
-    if (hint) hint.textContent = 'Не удалось собрать предпросмотр. Попробуйте обновить страницу.';
-  }
+  // на старте загружаем контекст и пытаемся синхронизироваться (если есть выбор)
+  ensureAddedTasksContextLoaded();
+  scheduleSyncAddedTasks({ reason: 'boot', immediate: true });
 }
 
 // общий пул темы: все прототипы из всех её манифестов (topic.path или topic.paths)
@@ -2872,8 +3204,16 @@ function buildQuestionForPreview(manifest, type, proto) {
   const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
   const stem = interpolate(stemTpl, params);
   const fig = proto?.figure || type?.figure || null;
+
+  const topicId = String(manifest?.topic || '').trim();
+  const topicObj = TOPIC_BY_ID.get(topicId) || null;
+  const secId = topicObj ? String(topicObj?.parent || '').trim() : '';
+  const secObj = secId ? (SECTION_BY_ID.get(secId) || null) : null;
+
   return {
-    topic_id: String(manifest?.topic || '').trim(),
+    section_id: secId,
+    section_title: String(secObj?.title || '').trim(),
+    topic_id: topicId,
     topic_title: String(manifest?.title || '').trim(),
     question_id: String(proto?.id || '').trim(),
     stem,
@@ -2895,7 +3235,7 @@ function renderAddedTasksPreview(questions, opts = {}) {
   }
 
   if (!arr.length) {
-    if (hint) hint.textContent = 'Не удалось подобрать задачи. Проверьте выбор в аккордеоне.';
+    if (hint) hint.textContent = 'Список пуст. Добавьте задачи в аккордеоне.';
     return;
   }
 
@@ -2910,14 +3250,23 @@ function renderAddedTasksPreview(questions, opts = {}) {
     num.textContent = String(idx + 1);
     card.appendChild(num);
 
+    const parts = [];
+    if (q.section_id || q.section_title) {
+      const s = `${String(q.section_id || '').trim()}${q.section_title ? `. ${q.section_title}` : ''}`.trim();
+      if (s) parts.push(s);
+    }
     if (q.topic_id || q.topic_title) {
+      const t = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
+      if (t) parts.push(t);
+    }
+
+    if (parts.length) {
       const m = document.createElement('div');
       m.className = 'muted';
       m.style.fontSize = '12px';
       m.style.marginBottom = '4px';
-      const tt = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
-      m.textContent = tt;
-      if (tt) card.appendChild(m);
+      m.textContent = parts.join(' • ');
+      card.appendChild(m);
     }
 
     const stem = document.createElement('div');
@@ -2938,6 +3287,7 @@ function renderAddedTasksPreview(questions, opts = {}) {
     list.appendChild(card);
   });
 }
+
 
 // ---------- передача выбора в тренажёр / список ----------
 function saveSelectionAndGo() {

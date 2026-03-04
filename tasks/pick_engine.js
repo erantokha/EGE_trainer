@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-04-18';
+} from '../app/core/pick.js?v=2026-03-04-16';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-18';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-18';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-16';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-16';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -461,8 +461,21 @@ export async function pickQuestionsScopedForList({
   prioActive,
   loadTopicPool,
   buildQuestion,
+  excludeQuestionIds,
 }) {
   const usedIds = new Set();
+
+  // Внешнее исключение (для «липкой корзины»/инкрементального добора)
+  try {
+    const ex = excludeQuestionIds;
+    if (ex) {
+      if (ex instanceof Set) {
+        for (const id of ex) usedIds.add(String(id || '').trim());
+      } else if (Array.isArray(ex)) {
+        for (const id of ex) usedIds.add(String(id || '').trim());
+      }
+    }
+  } catch (_) {}
   const usedBases = new Set();
 
   const flags = { old: !!teacherFilters?.old, badAcc: !!teacherFilters?.badAcc };
