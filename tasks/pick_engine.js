@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-04-10';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-10';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-10';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -222,6 +222,133 @@ function buildTypeLayersForTopic(byTypeWrapped, statsMap, flags) {
   // фильтры выключены — слой один
   layers.push(typeIds);
   return layers;
+}
+
+function buildTopicLayersForSection(loadedTopics, statsMap, flags) {
+  const fOld = !!flags?.old;
+  const fBad = !!flags?.badAcc;
+
+  const meta = new Map(); // topicId -> { solvedAny, totalSum, correctSum, accBucket }
+
+  for (const x of loadedTopics || []) {
+    const topicId = String(x?.topicId || '').trim();
+    if (!topicId) continue;
+    const arr = x?.wrappedPool || [];
+    let totalSum = 0;
+    let correctSum = 0;
+    let solvedAny = false;
+
+    for (const w of arr) {
+      const st = (statsMap instanceof Map) ? (statsMap.get(w.id) || null) : null;
+      const total = Number(st?.total || 0) || 0;
+      const corr = Number(st?.correct || 0) || 0;
+      if (total > 0) {
+        solvedAny = true;
+        totalSum += total;
+        correctSum += corr;
+      }
+    }
+
+    meta.set(topicId, {
+      solvedAny,
+      totalSum,
+      correctSum,
+      accBucket: accBucketFromSums(totalSum, correctSum),
+    });
+  }
+
+  const topicIds = Array.from(meta.keys());
+
+  // Слои (layers): каждый слой — массив topicId.
+  // old: сначала темы, где НЕТ решённых задач (solvedAny=false), затем остальные.
+  // badAcc: сначала темы с худшей точностью (red->...->gray).
+  // оба: сначала solvedAny=false (как отдельный слой(я) по точности), затем остальные по точности.
+  const layers = [];
+
+  if (fOld && !fBad) {
+    const a = topicIds.filter(id => !meta.get(id)?.solvedAny);
+    const b = topicIds.filter(id => meta.get(id)?.solvedAny);
+    if (a.length) layers.push(a);
+    if (b.length) layers.push(b);
+    return layers;
+  }
+
+  if (!fOld && fBad) {
+    const buckets = [[], [], [], [], []]; // 0..4
+    for (const id of topicIds) {
+      const b = meta.get(id)?.accBucket ?? 4;
+      buckets[Math.max(0, Math.min(4, b))].push(id);
+    }
+    for (const arr of buckets) {
+      if (arr.length) layers.push(arr);
+    }
+    return layers;
+  }
+
+  if (fOld && fBad) {
+    const uns = topicIds.filter(id => !meta.get(id)?.solvedAny);
+    const sol = topicIds.filter(id => meta.get(id)?.solvedAny);
+
+    const pushBuckets = (ids) => {
+      const buckets = [[], [], [], [], []];
+      for (const id of ids) {
+        const b = meta.get(id)?.accBucket ?? 4;
+        buckets[Math.max(0, Math.min(4, b))].push(id);
+      }
+      for (const arr of buckets) {
+        if (arr.length) layers.push(arr);
+      }
+    };
+
+    if (uns.length) pushBuckets(uns);
+    if (sol.length) pushBuckets(sol);
+    return layers;
+  }
+
+  layers.push(topicIds);
+  return layers;
+}
+
+async function getStatsMapForSection({
+  cache,
+  sectionId,
+  studentId,
+  flags,
+  poolsWrapped,
+}) {
+  const active = !!studentId && (!!flags?.old || !!flags?.badAcc);
+  if (!active) return null;
+
+  const key = 'sec:' + String(sectionId || '').trim();
+  if (!key) return null;
+
+  const cached = cache.get(key);
+  if (cached) return typeof cached.then === 'function' ? await cached : cached;
+
+  const p = (async () => {
+    const set = new Set();
+    for (const arr of poolsWrapped || []) {
+      for (const w of arr || []) {
+        if (w?.id) set.add(String(w.id));
+      }
+    }
+    const ids = Array.from(set);
+    if (!ids.length) return new Map();
+
+    const res = await questionStatsForTeacherV1({
+      student_id: studentId,
+      question_ids: ids,
+      timeoutMs: 8000,
+      chunkSize: 500,
+    });
+    if (!res?.ok) return null;
+    return res.map || new Map();
+  })();
+
+  cache.set(key, p);
+  const out = await p;
+  cache.set(key, out);
+  return out;
 }
 
 function buildQuestionsTopicTypePriority({
@@ -448,6 +575,104 @@ for (const sec of sections || []) {
     }
     if (!candidates.length) continue;
 
+    // Если включены фильтры учителя (и выбран ученик), то при доборе по РАЗДЕЛУ
+    // сначала приоритезируем ТЕМЫ (topicId) по статистике:
+    // - old: темы, где ученик вообще ничего не решал, идут первыми;
+    // - badAcc: темы с худшей точностью идут первыми;
+    // - оба: сначала "не решал" темы (внутри — по точности), затем остальные по точности.
+    //
+    // Переход к следующему слою тем — только после исчерпания текущего.
+    if (prioActive && (flags.old || flags.badAcc)) {
+      const loadedAll = [];
+      for (const topic of candidates) {
+        const pool = await buildCandidatesForTopic({ topic, loadTopicPool });
+        const wrappedPool = wrapCandidates(pool);
+        if (!wrappedPool.length) continue;
+        loadedAll.push({ topic, topicId: String(topic.id), wrappedPool });
+      }
+
+      if (loadedAll.length) {
+        const statsMap = await getStatsMapForSection({
+          cache: statsCache,
+          sectionId: String(sec.id),
+          studentId,
+          flags,
+          poolsWrapped: loadedAll.map(x => x.wrappedPool),
+        });
+
+        if (statsMap instanceof Map) {
+          const layers = buildTopicLayersForSection(loadedAll, statsMap, flags);
+          const byId = new Map(loadedAll.map(x => [x.topicId, x]));
+
+          const pickedQs = [];
+          let need = wantSection;
+
+          for (const layer of layers) {
+            if (need <= 0) break;
+
+            const active = (layer || []).filter(id => byId.has(id));
+            if (!active.length) continue;
+
+            shuffleArr(active);
+
+            while (need > 0 && active.length) {
+              let progressed = false;
+
+              for (let i = 0; i < active.length && need > 0; i++) {
+                const topicId = active[i];
+                const x = byId.get(topicId);
+                if (!x) {
+                  active.splice(i, 1);
+                  i--;
+                  continue;
+                }
+
+                const pickedW = pickWrapped({
+                  wrapped: x.wrappedPool,
+                  want: 1,
+                  statsMap,
+                  flags,
+                  nowMs,
+                  usedIds,
+                });
+
+                if (!pickedW.length) {
+                  // Тема исчерпана (с учётом уже выбранных задач)
+                  active.splice(i, 1);
+                  i--;
+                  continue;
+                }
+
+                const qs = buildQuestionsFromPickedWrapped({
+                  wrappedPicked: pickedW,
+                  usedIds,
+                  usedBases,
+                  buildQuestion,
+                });
+
+                if (qs.length) {
+                  pickedQs.push(...qs);
+                  need -= qs.length;
+                  progressed = true;
+                } else {
+                  // safety
+                  active.splice(i, 1);
+                  i--;
+                }
+              }
+
+              if (!progressed) break;
+            }
+          }
+
+          if (pickedQs.length) pushQuestions(pickedQs);
+          continue;
+        }
+      }
+      // Если статистика недоступна — падаем в старый добор (ниже).
+    }
+
+    // ---------------- старый добор по разделам ----------------
     shuffleArr(candidates);
     const targetTopics = computeTargetTopics(wantSection, candidates.length);
 
