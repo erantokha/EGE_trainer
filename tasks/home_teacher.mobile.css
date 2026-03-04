@@ -283,3 +283,36 @@ body[data-home-variant="teacher"] .score-thermo-slot{
     pointer-events:none !important;
   }
 }
+
+
+/* ---------- Added tasks preview (home_teacher) ---------- */
+body[data-home-variant="teacher"] #picker .sub-controls .sum.sum-btn{
+  appearance:none;
+  -webkit-appearance:none;
+  cursor:pointer;
+}
+body[data-home-variant="teacher"] #picker .sub-controls .sum.sum-btn:disabled{
+  opacity:.55;
+  cursor:default;
+}
+
+body[data-home-variant="teacher"] #addedTasksModal .added-tasks-main{
+  display:flex;
+  flex-direction:column;
+  flex:1;
+  min-height:0;
+}
+body[data-home-variant="teacher"] #addedTasksModal #addedTasksListWrap{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  padding:12px 14px;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+}
+body[data-home-variant="teacher"] #addedTasksModal #addedTasksHint{
+  padding:0 14px 12px;
+}
+body[data-home-variant="teacher"] #addedTasksModal .task-list{
+  margin-top:0;
+}

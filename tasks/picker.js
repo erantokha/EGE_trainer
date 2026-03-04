@@ -8,10 +8,12 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-04-17';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-17';
-import { CONFIG } from '../app/config.js?v=2026-03-04-17';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-17';
+import { withBuild } from '../app/build.js?v=2026-03-04-16';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-16';
+import { CONFIG } from '../app/config.js?v=2026-03-04-16';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-16';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-16';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-16';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -22,6 +24,7 @@ const INDEX_URL = new URL(
 
 let CATALOG = null;
 let SECTIONS = [];
+let TOPIC_BY_ID = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count
 let CHOICE_SECTIONS = {}; // sectionId -> count
@@ -1622,6 +1625,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAccordion();
     initProtoPickerModal();
     initBulkControls();
+    initAddedTasksModal();
     // Главная учителя: если ученик выбран — переключаемся в режим «как у ученика»
     if (IS_TEACHER_HOME) {
       const sid = String($('#teacherStudentSelect')?.value || readTeacherSelectedStudentId() || _TEACHER_VIEW_PENDING_ID || '').trim();
@@ -2068,6 +2072,9 @@ async function loadCatalog() {
 
   const byId = (a, b) => compareId(a.id, b.id);
 
+  TOPIC_BY_ID = new Map();
+  for (const t of topics) TOPIC_BY_ID.set(String(t.id), t);
+
   for (const sec of sections) {
     sec.topics = topics.filter(t => t.parent === sec.id).sort(byId);
   }
@@ -2370,6 +2377,13 @@ function refreshTotalSum() {
 
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
+
+
+  const addedBtn = $('#addedTasksBtn');
+  if (addedBtn) {
+    addedBtn.disabled = total <= 0;
+    addedBtn.classList.toggle('is-ready', total > 0);
+  }
 
   const startBtn = $('#start');
   if (!startBtn) return;
@@ -2677,6 +2691,253 @@ function ensureMathJaxLoaded() {
 }
 
 
+
+
+
+// ---------- home_teacher: предпросмотр добавленных задач (в модалке) ----------
+let ADDED_TASKS_MODAL_OPEN = false;
+let _ADDED_TASKS_MODAL_SEQ = 0;
+let _ADDED_TASKS_MODAL_EVENTS_BOUND = false;
+
+function getAddedTasksModalEls() {
+  return {
+    modal: $('#addedTasksModal'),
+    close: $('#addedTasksClose'),
+    backdrop: $('#addedTasksModal .modal-backdrop'),
+    meta: $('#addedTasksMeta'),
+    listWrap: $('#addedTasksListWrap'),
+    list: $('#addedTasksList'),
+    hint: $('#addedTasksHint'),
+    btn: $('#addedTasksBtn'),
+  };
+}
+
+function openAddedTasksModal() {
+  const { modal } = getAddedTasksModalEls();
+  if (!modal) return;
+  if (ADDED_TASKS_MODAL_OPEN) return;
+  ADDED_TASKS_MODAL_OPEN = true;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  rebuildAddedTasksPreview({ reason: 'open' });
+}
+
+function closeAddedTasksModal() {
+  const { modal } = getAddedTasksModalEls();
+  if (!modal) return;
+  ADDED_TASKS_MODAL_OPEN = false;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function initAddedTasksModal() {
+  if (!IS_TEACHER_HOME || _ADDED_TASKS_MODAL_EVENTS_BOUND) return;
+  const { modal, close, backdrop, btn } = getAddedTasksModalEls();
+  if (!modal || !btn) return;
+
+  _ADDED_TASKS_MODAL_EVENTS_BOUND = true;
+
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    openAddedTasksModal();
+  });
+  if (close) close.addEventListener('click', () => closeAddedTasksModal());
+  if (backdrop) backdrop.addEventListener('click', () => closeAddedTasksModal());
+
+  document.addEventListener('keydown', (e) => {
+    if (!ADDED_TASKS_MODAL_OPEN) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeAddedTasksModal();
+    }
+  });
+}
+
+async function rebuildAddedTasksPreview(opts = {}) {
+  const seq = ++_ADDED_TASKS_MODAL_SEQ;
+  const { meta, list, hint, listWrap } = getAddedTasksModalEls();
+  const wantTotal = getTotalSelected();
+
+  if (meta) meta.textContent = wantTotal > 0 ? `Запрошено: ${wantTotal}` : '—';
+  if (hint) hint.textContent = 'Загружаю…';
+  if (list) list.innerHTML = '';
+
+  if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) {
+    if (hint) hint.textContent = 'Каталог ещё не загружен. Обновите страницу.';
+    return;
+  }
+
+  // учительские фильтры применяются только при выбранном ученике
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
+  const prioActive = !!sid && (filters.old || filters.badAcc);
+
+  try {
+    const questions = await pickQuestionsScopedForList({
+      sections: SECTIONS,
+      topicById: TOPIC_BY_ID,
+      choiceProtos: CHOICE_PROTOS,
+      choiceTopics: CHOICE_TOPICS,
+      choiceSections: CHOICE_SECTIONS,
+      shuffleTasks: SHUFFLE_TASKS,
+      teacherStudentId: sid,
+      teacherFilters: filters,
+      prioActive,
+      loadTopicPool: loadTopicPoolForPreview,
+      buildQuestion: buildQuestionForPreview,
+    });
+
+    if (seq !== _ADDED_TASKS_MODAL_SEQ) return;
+    renderAddedTasksPreview(questions, { wantTotal });
+
+    // MathJax (если есть формулы)
+    await typesetMathIfNeeded(listWrap || list);
+  } catch (e) {
+    console.warn('Не удалось собрать предпросмотр задач', e);
+    if (seq !== _ADDED_TASKS_MODAL_SEQ) return;
+    if (meta) meta.textContent = wantTotal > 0 ? `Запрошено: ${wantTotal}` : '—';
+    if (hint) hint.textContent = 'Не удалось собрать предпросмотр. Попробуйте обновить страницу.';
+  }
+}
+
+// общий пул темы: все прототипы из всех её манифестов (topic.path или topic.paths)
+async function loadTopicPoolForPreview(topic) {
+  if (!topic) return [];
+  if (topic._pool) return topic._pool;
+  if (topic._poolPromise) return topic._poolPromise;
+
+  const p = (async () => {
+    const paths = [];
+    if (Array.isArray(topic.paths)) {
+      for (const x of topic.paths) {
+        if (typeof x === 'string' && x) paths.push(x);
+      }
+    }
+    if (topic.path) paths.push(topic.path);
+
+    // fallback: старый режим (один манифест в topic.path)
+    if (!paths.length) {
+      const man = await ensurePickerManifest(topic);
+      if (!man) return [];
+      const manifest = man;
+      manifest.topic = manifest.topic || topic.id;
+      manifest.title = manifest.title || topic.title;
+      const pool = [];
+      for (const typ of (manifest.types || [])) {
+        for (const proto of (typ.prototypes || [])) {
+          pool.push({ manifest, type: typ, proto });
+        }
+      }
+      return pool;
+    }
+
+    const prefix = IN_TASKS_DIR ? '../' : '';
+    const fetches = paths.map(async (relPath) => {
+      const full = relPath.startsWith('../') ? relPath : prefix + relPath;
+      const url = new URL(full, location.href);
+      try {
+        const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+        if (!resp.ok) return null;
+        const manifest = await resp.json();
+        manifest.topic = manifest.topic || topic.id;
+        manifest.title = manifest.title || topic.title;
+        return manifest;
+      } catch (_) {
+        return null;
+      }
+    });
+
+    const manifests = await Promise.all(fetches);
+    const pool = [];
+    for (const manifest of manifests) {
+      if (!manifest) continue;
+      for (const typ of (manifest.types || [])) {
+        for (const proto of (typ.prototypes || [])) {
+          pool.push({ manifest, type: typ, proto });
+        }
+      }
+    }
+    return pool;
+  })();
+
+  topic._poolPromise = p;
+  const out = await p;
+  topic._pool = Array.isArray(out) ? out : [];
+  topic._poolPromise = null;
+  return topic._pool;
+}
+
+function buildQuestionForPreview(manifest, type, proto) {
+  const params = proto?.params || {};
+  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
+  const stem = interpolate(stemTpl, params);
+  const fig = proto?.figure || type?.figure || null;
+  return {
+    topic_id: String(manifest?.topic || '').trim(),
+    topic_title: String(manifest?.title || '').trim(),
+    question_id: String(proto?.id || '').trim(),
+    stem,
+    figure: fig,
+  };
+}
+
+function renderAddedTasksPreview(questions, opts = {}) {
+  const { meta, list, hint } = getAddedTasksModalEls();
+  const arr = Array.isArray(questions) ? questions : [];
+  const wantTotal = Number(opts?.wantTotal || 0) || 0;
+
+  if (list) list.innerHTML = '';
+  if (hint) hint.textContent = '';
+
+  if (meta) {
+    if (wantTotal > 0) meta.textContent = `Показано: ${arr.length} из ${wantTotal}`;
+    else meta.textContent = `Всего: ${arr.length}`;
+  }
+
+  if (!arr.length) {
+    if (hint) hint.textContent = 'Не удалось подобрать задачи. Проверьте выбор в аккордеоне.';
+    return;
+  }
+
+  if (!list) return;
+
+  arr.forEach((q, idx) => {
+    const card = document.createElement('article');
+    card.className = 'task-card';
+
+    const num = document.createElement('div');
+    num.className = 'task-num';
+    num.textContent = String(idx + 1);
+    card.appendChild(num);
+
+    if (q.topic_id || q.topic_title) {
+      const m = document.createElement('div');
+      m.className = 'muted';
+      m.style.fontSize = '12px';
+      m.style.marginBottom = '4px';
+      const tt = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
+      m.textContent = tt;
+      if (tt) card.appendChild(m);
+    }
+
+    const stem = document.createElement('div');
+    stem.className = 'task-stem';
+    setStem(stem, q.stem);
+    card.appendChild(stem);
+
+    if (q.figure?.img) {
+      const figWrap = document.createElement('div');
+      figWrap.className = 'task-fig';
+      const img = document.createElement('img');
+      img.src = asset(q.figure.img);
+      img.alt = q.figure.alt || '';
+      figWrap.appendChild(img);
+      card.appendChild(figWrap);
+    }
+
+    list.appendChild(card);
+  });
+}
 
 // ---------- передача выбора в тренажёр / список ----------
 function saveSelectionAndGo() {
