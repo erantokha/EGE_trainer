@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-04-9';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-9';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-9';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -131,6 +131,166 @@ function pickWrapped({ wrapped, want, statsMap, flags, nowMs, usedIds }) {
   return sampleKByBase(pool, k);
 }
 
+function accBucketFromSums(totalSum, correctSum) {
+  const t = Number(totalSum || 0);
+  const c = Number(correctSum || 0);
+  if (!(t > 0)) return 4; // серый (нет данных)
+  const acc = c / t;
+  if (acc < 0.5) return 0; // красный
+  if (acc < 0.7) return 1; // жёлтый
+  if (acc < 0.9) return 2; // лайм
+  return 3; // зелёный
+}
+
+function buildTypeLayersForTopic(byTypeWrapped, statsMap, flags) {
+  const typeIds = Array.from(byTypeWrapped.keys());
+
+  // meta: typeId -> { solvedCount, totalSum, correctSum, accBucket }
+  const meta = new Map();
+
+  for (const tid of typeIds) {
+    const arr = byTypeWrapped.get(tid) || [];
+    let solvedCount = 0;
+    let totalSum = 0;
+    let correctSum = 0;
+
+    for (const w of arr) {
+      const st = (statsMap instanceof Map) ? (statsMap.get(w.id) || null) : null;
+      const total = Number(st?.total || 0) || 0;
+      const corr = Number(st?.correct || 0) || 0;
+      if (total > 0) {
+        solvedCount += 1;
+        totalSum += total;
+        correctSum += corr;
+      }
+    }
+
+    meta.set(tid, {
+      solvedCount,
+      totalSum,
+      correctSum,
+      accBucket: accBucketFromSums(totalSum, correctSum),
+    });
+  }
+
+  const fOld = !!flags?.old;
+  const fBad = !!flags?.badAcc;
+
+  // Слои (layers): каждый слой — массив typeId.
+  // Логика:
+  // - old: сначала typeId, где solvedCount==0, затем остальные.
+  // - badAcc: сначала typeId с худшей точностью (red->...->gray).
+  // - оба: сначала solvedCount==0, затем остальные по худшей точности.
+  const layers = [];
+
+  if (fOld && !fBad) {
+    const a = typeIds.filter(tid => (meta.get(tid)?.solvedCount || 0) === 0);
+    const b = typeIds.filter(tid => (meta.get(tid)?.solvedCount || 0) !== 0);
+    if (a.length) layers.push(a);
+    if (b.length) layers.push(b);
+    return layers;
+  }
+
+  if (!fOld && fBad) {
+    const buckets = [[], [], [], [], []]; // 0..4
+    for (const tid of typeIds) {
+      const b = meta.get(tid)?.accBucket ?? 4;
+      buckets[Math.max(0, Math.min(4, b))].push(tid);
+    }
+    for (const arr of buckets) {
+      if (arr.length) layers.push(arr);
+    }
+    return layers;
+  }
+
+  if (fOld && fBad) {
+    const a = typeIds.filter(tid => (meta.get(tid)?.solvedCount || 0) === 0);
+    const rest = typeIds.filter(tid => (meta.get(tid)?.solvedCount || 0) !== 0);
+    if (a.length) layers.push(a);
+
+    const buckets = [[], [], [], [], []];
+    for (const tid of rest) {
+      const b = meta.get(tid)?.accBucket ?? 4;
+      buckets[Math.max(0, Math.min(4, b))].push(tid);
+    }
+    for (const arr of buckets) {
+      if (arr.length) layers.push(arr);
+    }
+    return layers;
+  }
+
+  // фильтры выключены — слой один
+  layers.push(typeIds);
+  return layers;
+}
+
+function buildQuestionsTopicTypePriority({
+  want,
+  wrappedPool,
+  statsMap,
+  flags,
+  nowMs,
+  usedIds,
+  usedBases,
+  buildQuestion,
+}) {
+  const k = Math.max(0, Math.floor(Number(want || 0)));
+  if (!wrappedPool?.length || k <= 0) return [];
+
+  // group by typeId
+  const byType = new Map();
+  for (const w of wrappedPool) {
+    const tid = String(w?.__item?.type?.id || '').trim();
+    if (!tid) continue;
+    if (!byType.has(tid)) byType.set(tid, []);
+    byType.get(tid).push(w);
+  }
+
+  const layers = buildTypeLayersForTopic(byType, statsMap, flags);
+  const outQs = [];
+
+  for (const layer of layers) {
+    if (outQs.length >= k) break;
+    const active = (layer || []).filter(tid => byType.has(tid));
+    if (!active.length) continue;
+
+    shuffleArr(active);
+
+    // round-robin inside the layer until exhausted
+    while (outQs.length < k && active.length) {
+      let progressed = false;
+
+      for (let i = 0; i < active.length && outQs.length < k; i++) {
+        const tid = active[i];
+        const cands = byType.get(tid) || [];
+        const pickedW = pickWrapped({ wrapped: cands, want: 1, statsMap, flags, nowMs, usedIds });
+
+        if (!pickedW.length) {
+          // this type is exhausted (considering usedIds and filters)
+          active.splice(i, 1);
+          i--;
+          continue;
+        }
+
+        const qs = buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion });
+        if (qs.length) {
+          outQs.push(...qs);
+          progressed = true;
+        } else {
+          // safety: avoid infinite loop
+          active.splice(i, 1);
+          i--;
+        }
+      }
+
+      if (!progressed) break;
+    }
+  }
+
+  return outQs.slice(0, k);
+}
+
+
 function buildQuestionsFromPickedWrapped({ wrappedPicked, usedIds, usedBases, buildQuestion }) {
   const qs = [];
   for (const w of wrappedPicked || []) {
@@ -231,27 +391,52 @@ export async function pickQuestionsScopedForList({
     }
   }
 
-  // ---------- 1) topicId -> k (явный выбор темы/подтемы) ----------
-  // Идём в порядке секций/тем, чтобы соответствовать UI.
-  for (const sec of sections || []) {
-    for (const topic of (sec?.topics || [])) {
-      const want = Number((choiceTopics || {})[topic.id] || 0) || 0;
-      if (want <= 0) continue;
+  
+// ---------- 1) topicId -> k (явный выбор темы/подтемы) ----------
+// Идём в порядке секций/тем, чтобы соответствовать UI.
+for (const sec of sections || []) {
+  for (const topic of (sec?.topics || [])) {
+    const want = Number((choiceTopics || {})[topic.id] || 0) || 0;
+    if (want <= 0) continue;
 
-      const topicId = String(topic.id);
-      const pool = await buildCandidatesForTopic({ topic, loadTopicPool });
-      const wrappedPool = wrapCandidates(pool);
+    const topicId = String(topic.id);
+    const pool = await buildCandidatesForTopic({ topic, loadTopicPool });
+    const wrappedPool = wrapCandidates(pool);
 
-      const statsMap = (prioActive && wrappedPool.length)
-        ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: wrappedPool })
-        : null;
+    const statsMap = (prioActive && wrappedPool.length)
+      ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: wrappedPool })
+      : null;
 
-      const pickedW = pickWrapped({ wrapped: wrappedPool, want, statsMap, flags, nowMs, usedIds });
+    // ВАЖНО: для выбора КОНКРЕТНОЙ темы (topicId) при включённых фильтрах
+    // приоритезируем сначала ПОДТЕМЫ (typeId), а уже затем прототипы внутри них.
+    //
+    // - old: сначала typeId, где у ученика НЕТ ни одной решённой задачи (solvedCountType==0),
+    //        и только после исчерпания этих typeId переходим к остальным.
+    // - badAcc: сначала typeId с худшей точностью (красный -> ... -> серый),
+    //          и только после исчерпания переходим к следующему уровню.
+    //
+    // Если статистика недоступна (statsMap==null), то делаем fallback на старую
+    // случайную выборку, но всё равно строго внутри темы.
+    if (statsMap instanceof Map && (flags.old || flags.badAcc)) {
+      const qs = buildQuestionsTopicTypePriority({
+        want,
+        wrappedPool,
+        statsMap,
+        flags,
+        nowMs,
+        usedIds,
+        usedBases,
+        buildQuestion,
+      });
+      pushQuestions(qs);
+    } else {
+      const pickedW = pickWrapped({ wrapped: wrappedPool, want, statsMap: null, flags, nowMs, usedIds });
       pushQuestions(buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion }));
     }
   }
+}
 
-  // ---------- 2) sectionId -> k (добор по разделам) ----------
+// ---------- 2) sectionId -> k (добор по разделам) ----------
   for (const sec of sections || []) {
     const wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
     if (wantSection <= 0) continue;
