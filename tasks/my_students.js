@@ -7,6 +7,7 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -161,8 +162,8 @@ function normSource(v) {
 
 async function getTotalTopicsCount() {
   try {
-    const url = new URL('../content/tasks/index.json', location.href);
-    const res = await fetch(url.toString(), { cache: 'no-cache' });
+    const url = toAbsUrl('content/tasks/index.json');
+    const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) return 0;
     const items = await res.json();
     if (!Array.isArray(items)) return 0;

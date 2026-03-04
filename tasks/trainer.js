@@ -3,6 +3,7 @@
 
 import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-04-20';
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-03-04-20';
 
@@ -18,7 +19,7 @@ import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-20';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
 const SHEET_MODE = !new URLSearchParams(location.search).has('step');
@@ -590,10 +591,10 @@ async function ensureManifest(topic) {
   if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
 
-  const url = new URL('../' + topic.path, location.href);
+  const href = toAbsUrl(topic.path);
 
   topic._manifestPromise = (async () => {
-    const { resp, fetch_ms } = await fetchTimed(withBuild(url.href), { cache: 'force-cache' });
+    const { resp, fetch_ms } = await fetchTimed(withBuild(href), { cache: 'force-cache' });
     if (!resp.ok) return null;
 
     if (!PERF) {
@@ -659,9 +660,8 @@ async function loadTopicPool(topic) {
     }
 
     const fetchPromises = paths.map(async (relPath) => {
-      const fullPath = relPath.startsWith('../') ? relPath : '../' + relPath;
-      const url = new URL(fullPath, location.href);
-      const { resp } = await fetchTimed(withBuild(url.href), { cache: 'force-cache' });
+      const href = toAbsUrl(relPath);
+      const { resp } = await fetchTimed(withBuild(href), { cache: 'force-cache' });
       if (!resp.ok) return null;
       const j = await resp.json();
       j.topic = j.topic || topic.id;
@@ -2070,10 +2070,12 @@ function compareId(a, b) {
 
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
-    ? '../' + p
-    : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
+
 
 function toCsv(questions) {
   const rows = questions.map(q => ({

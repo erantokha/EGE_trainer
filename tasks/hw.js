@@ -11,6 +11,7 @@
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 import { CONFIG } from '../app/config.js?v=2026-03-04-20';
 import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-03-04-20';
@@ -414,7 +415,7 @@ function formatDiag(obj) {
 
 const HOME_URL = new URL('../', location.href).href;
 
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 function getTeacherAttemptId() {
@@ -1201,12 +1202,10 @@ async function ensureManifest(topic) {
   if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
 
-  const url = new URL('../' + topic.path, location.href);
-  // cache-busting по версии контента
-  if (CONFIG?.content?.version) url.searchParams.set('v', CONFIG.content.version);
+  const href = withV(toAbsUrl(topic.path));
 
   topic._manifestPromise = (async () => {
-    const resp = await fetch(url.href, { cache: 'force-cache' });
+    const resp = await fetch(href, { cache: 'force-cache' });
     if (!resp.ok) return null;
     const j = await resp.json();
     topic._manifest = j;
@@ -1957,7 +1956,10 @@ function compareId(a, b) {
 
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
 
 

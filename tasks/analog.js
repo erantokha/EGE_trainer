@@ -7,10 +7,11 @@ import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-04-20';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-20';
 import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-04-20';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 const REQ_KEY = 'analog_request_v1';
 const SESSION_KEY = 'analog_session_v1';
 
@@ -62,7 +63,10 @@ function escHtml(s) {
 }
 
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
 
 async function fetchJson(urlLike) {

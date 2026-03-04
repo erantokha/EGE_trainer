@@ -14,13 +14,11 @@ import { CONFIG } from '../app/config.js?v=2026-03-04-20';
 import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-20';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-20';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
-const INDEX_URL = new URL(
-  IN_TASKS_DIR ? '../content/tasks/index.json' : './content/tasks/index.json',
-  location.href,
-).toString();
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 let CATALOG = null;
 let SECTIONS = [];
@@ -2617,11 +2615,11 @@ async function ensurePickerManifest(topic) {
   if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
 
-  const url = new URL((IN_TASKS_DIR ? '../' : '') + topic.path, location.href);
+  const href = toAbsUrl(topic.path);
 
   topic._manifestPromise = (async () => {
     try {
-      const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+      const resp = await fetch(withBuild(href), { cache: 'force-cache' });
       if (!resp.ok) return null;
       const j = await resp.json();
       topic._manifest = j;
@@ -2646,10 +2644,10 @@ function buildStemPreview(manifest, type, proto) {
 }
 
 function asset(p) {
-  if (typeof p === 'string' && p.startsWith('content/')) {
-    return IN_TASKS_DIR ? '../' + p : p;
-  }
-  return p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
 
 function interpolate(tpl, params) {
@@ -3163,12 +3161,10 @@ async function loadTopicPoolForPreview(topic) {
       return pool;
     }
 
-    const prefix = IN_TASKS_DIR ? '../' : '';
     const fetches = paths.map(async (relPath) => {
-      const full = relPath.startsWith('../') ? relPath : prefix + relPath;
-      const url = new URL(full, location.href);
+      const href = toAbsUrl(relPath);
       try {
-        const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+        const resp = await fetch(withBuild(href), { cache: 'force-cache' });
         if (!resp.ok) return null;
         const manifest = await resp.json();
         manifest.topic = manifest.topic || topic.id;

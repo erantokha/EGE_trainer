@@ -6,6 +6,7 @@ import { CONFIG } from '../app/config.js?v=2026-03-04-20';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-20';
 import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-04-20';
 import {
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
@@ -156,7 +157,7 @@ async function loadAssignStudents(){
 }
 
 
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 // "Пикер" задач на этой странице: выбираем подтему → видим только уникальные прототипы (baseId)
 // и задаём количество задач по каждому прототипу.
@@ -239,8 +240,7 @@ async function ensureManifest(topic) {
   if (topic._manifest) return topic._manifest;
   if (topic._manifestPromise) return topic._manifestPromise;
 
-  const url = new URL('../' + topic.path, location.href);
-  const href = withV(url.href);
+  const href = withV(toAbsUrl(topic.path));
 
   topic._manifestPromise = (async () => {
     const resp = await fetch(href, { cache: 'force-cache' });
@@ -286,8 +286,7 @@ async function loadTopicPool(topic) {
 
     for (const p of uniq) {
       try {
-        const url = new URL('../' + p, location.href);
-        const href = withV(url.href);
+        const href = withV(toAbsUrl(p));
         const resp = await fetch(href, { cache: 'force-cache' });
         if (!resp.ok) continue;
         const man = await resp.json();
@@ -1508,7 +1507,10 @@ function buildStemPreview(manifest, type, proto) {
 
 // преобразование "content/..." в путь от /tasks/
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
 
 

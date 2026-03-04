@@ -2,6 +2,7 @@
 // Превью frozen_questions как мини-карточки (условие + картинка) — аналогично hw_create.
 // Используется в умном ДЗ (страница ученика у учителя).
 
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -33,7 +34,10 @@ function interpolate(tpl, params) {
 
 // преобразование "content/..." в путь от /tasks/
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/')) ? '../' + p : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }
 
 function baseIdFromProtoId(id) {
@@ -92,7 +96,7 @@ async function typesetMathIfNeeded(rootEl) {
 async function loadIndex() {
   if (__idxCache) return __idxCache;
 
-  const url = withV(new URL('../content/tasks/index.json', location.href).toString());
+  const url = withV(toAbsUrl('content/tasks/index.json'));
   const res = await fetch(url, { cache: 'no-cache' });
   if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
   const items = await res.json();
@@ -125,7 +129,7 @@ async function fetchManifestByTopic(topicId) {
   const path = topicPath.get(tid);
   if (!path) { __manifestCache.set(tid, null); return null; }
 
-  const url = withV(new URL(`../${path}`, location.href).toString());
+  const url = withV(toAbsUrl(path));
   const res = await fetch(url, { cache: 'no-cache' });
   if (!res.ok) { __manifestCache.set(tid, null); return null; }
 

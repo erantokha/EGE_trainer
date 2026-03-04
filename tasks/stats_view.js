@@ -1,6 +1,7 @@
 // tasks/stats_view.js
 // Рендер статистики на основе JSON, который возвращает student_dashboard_* (Patch 1 backend).
 
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
@@ -52,9 +53,9 @@ function fmtPct(p) {
 }
 
 export async function loadCatalog() {
-  // ../content/tasks/index.json относительно /tasks/
-  const url = new URL('../content/tasks/index.json', location.href);
-  const res = await fetch(url.toString(), { cache: 'no-cache' });
+  // /content/tasks/index.json (всегда от корня сайта)
+  const url = toAbsUrl('content/tasks/index.json');
+  const res = await fetch(url, { cache: 'no-cache' });
   if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
   const items = await res.json();
   if (!Array.isArray(items)) throw new Error('Каталог задач имеет неверный формат');

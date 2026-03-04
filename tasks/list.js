@@ -6,6 +6,7 @@
 // list.html?topic=<topicId>&view=all
 
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-20';
 
@@ -19,7 +20,7 @@ import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-20';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 let CATALOG = null;
 let SECTIONS = [];
@@ -188,10 +189,10 @@ async function ensureManifest(topic) {
   if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
 
-  const url = new URL('../' + topic.path, location.href);
+  const href = toAbsUrl(topic.path);
 
   topic._manifestPromise = (async () => {
-    const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+    const resp = await fetch(withBuild(href), { cache: 'force-cache' });
     if (!resp.ok) return null;
     const j = await resp.json();
     topic._manifest = j;
@@ -250,11 +251,10 @@ async function loadTopicPool(topic) {
 
   // параллельная загрузка всех манифестов темы
   const fetchPromises = paths.map(async (relPath) => {
-    const fullPath = relPath.startsWith('../') ? relPath : '../' + relPath;
-    const url = new URL(fullPath, location.href);
+    const href = toAbsUrl(relPath);
 
     try {
-      const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+      const resp = await fetch(withBuild(href), { cache: 'force-cache' });
       if (!resp.ok) {
         console.warn('Манифест не найден для темы', topic.id, relPath, resp.status);
         return null;
@@ -925,7 +925,8 @@ function compareId(a, b) {
 
 // преобразование "content/..." в абсолютный путь от /tasks/
 function asset(p) {
-  return (typeof p === 'string' && p.startsWith('content/'))
-    ? '../' + p
-    : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }

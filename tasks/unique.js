@@ -38,8 +38,9 @@ function ensureUniqueVideoStyles() {
 import { withBuild } from '../app/build.js?v=2026-03-04-20';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-04-20';
 import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
-const INDEX_URL = '../content/tasks/index.json';
+const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -48,9 +49,9 @@ async function ensureManifest(topic) {
   if (topic._manifestPromise) return topic._manifestPromise;
   if (!topic.path) return null;
 
-  const url = new URL('../' + topic.path, location.href);
+  const href = toAbsUrl(topic.path);
   topic._manifestPromise = (async () => {
-    const resp = await fetch(withBuild(url.href), { cache: 'force-cache' });
+    const resp = await fetch(withBuild(href), { cache: 'force-cache' });
     if (!resp.ok) return null;
     const man = await resp.json();
     topic._manifest = man;
@@ -104,7 +105,7 @@ async function init() {
     console.error(e);
     $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
     $('#uniqSubtitle').textContent =
-      'Не удалось прочитать ../content/tasks/index.json';
+      'Не удалось прочитать /content/tasks/index.json';
     return;
   }
 
@@ -552,7 +553,8 @@ function interpolate(tpl, params) {
 }
 
 function asset(p) {
-  return typeof p === 'string' && p.startsWith('content/')
-    ? '../' + p
-    : p;
+  const s = String(p ?? '').trim();
+  if (!s) return s;
+  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
+  return toAbsUrl(s);
 }

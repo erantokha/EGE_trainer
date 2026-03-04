@@ -3,6 +3,7 @@
 // Важно: если в теме меньше доступных задач, чем запрошено, функция не «дублирует» задачи,
 // а возвращает меньше и сообщает о нехватке.
 
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -29,7 +30,7 @@ function shuffleInPlace(arr) {
 async function loadIndex() {
   if (__idxCache) return __idxCache;
 
-  const url = withV(new URL('../content/tasks/index.json', location.href).toString());
+  const url = withV(toAbsUrl('content/tasks/index.json'));
   const res = await fetch(url, { cache: 'no-cache' });
   if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
   const items = await res.json();
@@ -58,7 +59,7 @@ async function fetchManifestByTopic(topicId) {
   const path = topicPath.get(String(topicId));
   if (!path) return null;
 
-  const url = withV(new URL(`../${path}`, location.href).toString());
+  const url = withV(toAbsUrl(path));
   const res = await fetch(url, { cache: 'no-cache' });
   if (!res.ok) return null;
 
