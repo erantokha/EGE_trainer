@@ -189,7 +189,9 @@
             <button id="bulkResetAll" type="button">Сбросить все</button>
           </div>
 
-          <div class="sum">Итого: <span id="sum">0</span></div>
+          <button id="addedTasksBtn" type="button" class="sum sum-btn" disabled>
+            Добавленные задачи: <span id="sum">0</span>
+          </button>
         </div>
 
         <!-- Ряд 3: аккордеон + прогноз баллов -->
@@ -241,6 +243,28 @@
       </div>
     </div>
   </div>
+
+<!-- Предпросмотр добавленных задач (главная учителя) -->
+<div id="addedTasksModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Добавленные задачи">
+    <div class="modal-head">
+      <div class="modal-title">Добавленные задачи</div>
+      <div class="tp-main-actions">
+        <div id="addedTasksMeta" class="muted">—</div>
+        <button id="addedTasksClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+      </div>
+    </div>
+
+    <div class="added-tasks-main">
+      <div id="addedTasksListWrap" class="added-tasks-listwrap">
+        <div id="addedTasksList" class="task-list"></div>
+      </div>
+      <div id="addedTasksHint" class="muted tp-hint"></div>
+    </div>
+  </div>
+</div>
+
 
   <script type="module" src="./tasks/home_guard.js?v=2026-03-04-16"></script>
 
