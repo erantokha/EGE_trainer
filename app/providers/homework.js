@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-03-04-14';
-import { requireSession } from './supabase.js?v=2026-03-04-14';
-import { supaRest } from './supabase-rest.js?v=2026-03-04-14';
+import { CONFIG } from '../config.js?v=2026-02-27-15';
+import { requireSession } from './supabase.js?v=2026-02-27-15';
+import { supaRest } from './supabase-rest.js?v=2026-02-27-15';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -377,64 +377,110 @@ export async function getStudentMyHomeworksArchive({ offset = 10, limit = 50 } =
   }
 }
 
+// -----------------------------
+// Teacher stats cache + RPC
+// -----------------------------
 
-// ---------- Статистика по конкретным задачам для учителя ----------
-// RPC: public.question_stats_for_teacher_v1(p_student_id uuid, p_question_ids text[])
-// Возвращает только решённые question_id; отсутствующие трактуем как "не решал".
+const TEACHER_STATS_CACHE_PREFIX = 'teacher_stats_cache_v1:';
+const TEACHER_STATS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 минут
+
+function _statsCacheKey(studentId, topicId) {
+  const s = String(studentId || '').trim();
+  const t = String(topicId || '').trim();
+  if (!s || !t) return '';
+  return `${TEACHER_STATS_CACHE_PREFIX}${s}:${t}`;
+}
+
+function _readStatsCache(studentId, topicId) {
+  try {
+    const key = _statsCacheKey(studentId, topicId);
+    if (!key) return null;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    const ts = Number(obj?.ts || 0);
+    if (!ts || (Date.now() - ts) > TEACHER_STATS_CACHE_TTL_MS) return null;
+    const data = obj?.data && typeof obj.data === 'object' ? obj.data : null;
+    if (!data) return null;
+    const map = new Map();
+    for (const [qid, st] of Object.entries(data)) {
+      map.set(String(qid), {
+        total: Number(st?.total || 0) || 0,
+        correct: Number(st?.correct || 0) || 0,
+        last_attempt_at: st?.last_attempt_at ?? null,
+      });
+    }
+    return map;
+  } catch (_) {
+    return null;
+  }
+}
+
+function _writeStatsCache(studentId, topicId, map) {
+  try {
+    const key = _statsCacheKey(studentId, topicId);
+    if (!key) return;
+    const data = {};
+    for (const [qid, st] of (map instanceof Map ? map.entries() : [])) {
+      data[String(qid)] = {
+        total: Number(st?.total || 0) || 0,
+        correct: Number(st?.correct || 0) || 0,
+        last_attempt_at: st?.last_attempt_at ?? null,
+      };
+    }
+    sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
+  } catch (_) {}
+}
+
+function _chunks(arr, n) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+
+// Получить статистику по набору question_id для ученика (для учителя).
+// Возвращает { ok, map, fromCache, error }.
+// Важно: если topic_id передан, используем sessionStorage-кэш на 10 минут.
 export async function questionStatsForTeacherV1({
   student_id,
   question_ids,
+  topic_id = null,
   timeoutMs = 8000,
   chunkSize = 500,
 } = {}) {
   try {
     const sid = String(student_id || '').trim();
-    const idsRaw = Array.isArray(question_ids) ? question_ids : [];
-    const ids = Array.from(new Set(idsRaw.map(x => String(x || '').trim()).filter(Boolean)));
+    const ids = Array.from(new Set((question_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !ids.length) return { ok: true, map: new Map(), fromCache: false, error: null };
 
-    if (!sid) return { ok: false, map: null, error: new Error('STUDENT_ID_EMPTY') };
-    if (!ids.length) return { ok: true, map: new Map(), error: null };
+    const cached = topic_id ? _readStatsCache(sid, topic_id) : null;
+    if (cached) {
+      return { ok: true, map: cached, fromCache: true, error: null };
+    }
 
-    const size = Math.max(1, Math.min(2000, Math.floor(Number(chunkSize) || 500)));
     const map = new Map();
-
-    for (let i = 0; i < ids.length; i += size) {
-      const chunk = ids.slice(i, i + size);
-      let data;
-      try {
-        data = await supaRest.rpc(
-          'question_stats_for_teacher_v1',
-          { p_student_id: sid, p_question_ids: chunk },
-          { timeoutMs: Number(timeoutMs || 8000) || 8000, authMode: 'auto' },
-        );
-      } catch (e) {
-        if (isMissingRpcFunction(e)) {
-          return { ok: false, map: null, missingRpc: true, error: e };
-        }
-        const msg = String(e?.message || e?.details || '').toLowerCase();
-        const denied =
-          Number(e?.status || 0) === 401 ||
-          Number(e?.status || 0) === 403 ||
-          msg.includes('not allowed') ||
-          msg.includes('permission') ||
-          msg.includes('forbidden');
-        return { ok: false, map: null, denied, error: e };
-      }
-
-      const rows = Array.isArray(data) ? data : (data ? [data] : []);
-      for (const r of rows) {
-        const qid = String(r?.question_id || '').trim();
+    const parts = _chunks(ids, Math.max(50, Number(chunkSize || 500) || 500));
+    for (const part of parts) {
+      const r = await rpcTry(
+        ['question_stats_for_teacher_v1', 'questionStatsForTeacherV1'],
+        { p_student_id: sid, p_question_ids: part },
+        { timeoutMs: Number(timeoutMs || 8000) || 8000 },
+      );
+      if (!r.ok) return { ok: false, map: null, fromCache: false, error: r.error };
+      for (const row of (r.data || [])) {
+        const qid = String(row?.question_id || '').trim();
         if (!qid) continue;
         map.set(qid, {
-          total: Number(r?.total || 0) || 0,
-          correct: Number(r?.correct || 0) || 0,
-          last_attempt_at: r?.last_attempt_at ?? null,
+          total: Number(row?.total || 0) || 0,
+          correct: Number(row?.correct || 0) || 0,
+          last_attempt_at: row?.last_attempt_at ?? null,
         });
       }
     }
 
-    return { ok: true, map, error: null };
+    if (topic_id) _writeStatsCache(sid, topic_id, map);
+    return { ok: true, map, fromCache: false, error: null };
   } catch (e) {
-    return { ok: false, map: null, error: e };
+    return { ok: false, map: null, fromCache: false, error: e };
   }
 }
