@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-04-15';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-15';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-15';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -105,6 +105,7 @@ async function getStatsMapForTopic({
     if (!ids.length) return new Map();
     const res = await questionStatsForTeacherV1({
       student_id: studentId,
+      topic_id: topicId,
       question_ids: ids,
       timeoutMs: 8000,
       chunkSize: 500,
@@ -741,6 +742,30 @@ for (const sec of sections || []) {
   if (shuffleTasks) {
     shuffleArr(outQuestions);
   }
+
+  // Простая диагностика и прозрачность (патч 3): сохраняем сводку последнего подбора.
+  // Это не влияет на алгоритм и помогает понимать "почему набралось меньше".
+  try {
+    const wantTypes = Object.values(choiceProtos || {}).reduce((s, v) => s + (Number(v || 0) || 0), 0);
+    const wantTopics = Object.values(choiceTopics || {}).reduce((s, v) => s + (Number(v || 0) || 0), 0);
+    const wantSections = Object.values(choiceSections || {}).reduce((s, v) => s + (Number(v || 0) || 0), 0);
+    const wantTotal = wantTypes + wantTopics + wantSections;
+    const trace = {
+      ts: Date.now(),
+      prioActive: !!prioActive,
+      flags,
+      studentId: studentId ? 'set' : 'none',
+      wantTotal,
+      pickedTotal: outQuestions.length,
+      wantTypes,
+      wantTopics,
+      wantSections,
+    };
+    sessionStorage.setItem('last_pick_trace_v1', JSON.stringify(trace));
+    if (prioActive && wantTotal && outQuestions.length < wantTotal) {
+      console.warn('[pick] Набрано меньше, чем запрошено:', trace);
+    }
+  } catch (_) {}
 
   return outQuestions;
 }
