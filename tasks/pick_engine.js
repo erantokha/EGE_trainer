@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-02-27-15';
+} from '../app/core/pick.js?v=2026-03-04-16';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-02-27-15';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-02-27-15';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-16';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-16';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
