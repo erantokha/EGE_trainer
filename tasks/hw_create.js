@@ -2,18 +2,17 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-04-12';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-12';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-04-12';
+import { CONFIG } from '../app/config.js?v=2026-02-27-15';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-02-27-15';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-02-27-15';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-04-12';
+} from '../app/core/pick.js?v=2026-02-27-15';
 
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-04-12';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-12';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-02-27-15';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -254,11 +253,13 @@ async function ensureManifest(topic) {
   return topic._manifestPromise;
 }
 
-// общий пул темы: все прототипы из всех её манифестов
-// поддерживает topic.path (один файл) и topic.paths (массив путей)
+// Загружает "пул" прототипов темы по всем её манифестам.
+// Поддерживает topic.path (один файл) и topic.paths (массив путей).
+// Возвращает массив элементов: { manifest, type, proto }.
+// Кэширует результат в topic._pool, а также индекс topic._poolByQid (Map question_id -> item).
 async function loadTopicPool(topic) {
   if (!topic) return [];
-  if (topic._pool) return topic._pool;
+  if (Array.isArray(topic._pool)) return topic._pool;
   if (topic._poolPromise) return topic._poolPromise;
 
   const paths = [];
@@ -267,13 +268,603 @@ async function loadTopicPool(topic) {
       if (typeof p === 'string' && p) paths.push(p);
     }
   }
-  if (topic.path) paths.push(topic.path);
+  if (typeof topic.path === 'string' && topic.path) paths.push(topic.path);
+
+  // Удалим дубликаты и пустые
+  const uniq = [];
+  const seen = new Set();
+  for (const p of paths) {
+    const s = String(p).trim();
+    if (!s) continue;
+    if (seen.has(s)) continue;
+    seen.add(s);
+    uniq.push(s);
+  }
 
   topic._poolPromise = (async () => {
-    // если путей нет – fallback на старый ensureManifest
-    if (!paths.length) {
-          const pool = await loadTopicPool(topic);
-    if (!pool.length) {
+    const pool = [];
+
+    for (const p of uniq) {
+      try {
+        const url = new URL('../' + p, location.href);
+        const href = withV(url.href);
+        const resp = await fetch(href, { cache: 'force-cache' });
+        if (!resp.ok) continue;
+        const man = await resp.json();
+        const types = Array.isArray(man?.types) ? man.types : [];
+        for (const t of types) {
+          const protos = Array.isArray(t?.prototypes) ? t.prototypes : [];
+          for (const proto of protos) {
+            const qid = String(proto?.id || '').trim();
+            if (!qid) continue;
+            pool.push({ manifest: man, type: t, proto });
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to load manifest', { topic: topic?.id, path: p, e });
+      }
+    }
+
+    topic._pool = pool;
+
+    const byQid = new Map();
+    for (const it of pool) {
+      const qid = String(it?.proto?.id || '').trim();
+      if (!qid) continue;
+      if (!byQid.has(qid)) byQid.set(qid, it);
+    }
+    topic._poolByQid = byQid;
+
+    return pool;
+  })();
+
+  return topic._poolPromise;
+}
+
+
+function withV(url) {
+  const v = CONFIG?.content?.version;
+  if (!v) return url;
+  const u = new URL(url, location.href);
+  if (!u.searchParams.has('v')) u.searchParams.set('v', v);
+  return u.href;
+}
+
+function normNameForKey(s) {
+  return String(s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function compareId(a, b) {
+  const as = String(a).split('.').map(Number);
+  const bs = String(b).split('.').map(Number);
+  const L = Math.max(as.length, bs.length);
+  for (let i = 0; i < L; i++) {
+    const ai = as[i] ?? 0;
+    const bi = bs[i] ?? 0;
+    if (ai !== bi) return ai - bi;
+  }
+  return 0;
+}
+
+function inferTopicIdFromQuestionId(qid) {
+  const parts = String(qid || '').trim().split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function parseImportLines(text) {
+  const out = [];
+  const lines = String(text ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    const cols = line.split(/[\s;|,]+/).map(s => s.trim()).filter(Boolean);
+    if (!cols.length) continue;
+
+    if (cols.length === 1) {
+      const question_id = cols[0];
+      const topic_id = inferTopicIdFromQuestionId(question_id);
+      out.push({ topic_id, question_id });
+    } else {
+      const topic_id = cols[0];
+      const question_id = cols[1];
+      out.push({ topic_id, question_id });
+    }
+  }
+  return out;
+}
+
+function makeToken() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function todayISO() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+// ---------- UI helpers ----------
+let STATUS_TIMER = null;
+let STATUS_SEQ = 0;
+
+function setStatus(msg) {
+  const el = $('#status');
+  STATUS_SEQ += 1;
+  if (STATUS_TIMER) {
+    clearTimeout(STATUS_TIMER);
+    STATUS_TIMER = null;
+  }
+  if (el) el.textContent = msg || '';
+}
+
+function flashStatus(msg, ttlMs = 5000) {
+  const el = $('#status');
+  STATUS_SEQ += 1;
+  if (STATUS_TIMER) {
+    clearTimeout(STATUS_TIMER);
+    STATUS_TIMER = null;
+  }
+
+  const mySeq = STATUS_SEQ;
+  if (el) el.textContent = msg || '';
+  if (!msg) return;
+
+  STATUS_TIMER = setTimeout(() => {
+    if (mySeq !== STATUS_SEQ) return;
+    if (el) el.textContent = '';
+  }, Math.max(0, Number(ttlMs) || 0));
+}
+
+function ensureAuthBar() {
+  // auth-блок теперь в разметке (hw_create.html), тут оставляем заглушку для совместимости.
+}
+
+
+function cleanRedirectUrl() {
+  try {
+    const u = new URL(location.href);
+    // Supabase OAuth может возвращать эти параметры. Убираем их, чтобы не мешали повторному входу.
+    ['code', 'state', 'error', 'error_description'].forEach((k) => u.searchParams.delete(k));
+    return u.toString();
+  } catch (_) {
+    return location.href;
+  }
+}
+
+function computeHomeUrl() {
+  try {
+    // hw_create.html лежит в /tasks
+    return new URL('../', location.href).toString();
+  } catch (_) {
+    return '/';
+  }
+}
+
+function buildAuthLoginUrl(nextUrl) {
+  try {
+    const home = computeHomeUrl();
+    const loginRoute = String(CONFIG?.auth?.routes?.login || 'tasks/auth.html');
+    const rel = loginRoute.replace(/^\/+/, '');
+    const url = new URL(rel, home);
+    url.searchParams.set('next', String(nextUrl || home));
+    return url.toString();
+  } catch (_) {
+    return '../tasks/auth.html';
+  }
+}
+
+let AUTH_WIRED = false;
+function wireAuthControls() {
+  if (AUTH_WIRED) return;
+  AUTH_WIRED = true;
+
+  $('#loginGoogleBtn')?.addEventListener('click', async () => {
+    try {
+      setStatus('Открываем вход через Google...');
+      await signInWithGoogle(cleanRedirectUrl());
+    } catch (e) {
+      console.error(e);
+      flashStatus('Не удалось начать вход через Google.');
+    }
+  });
+
+  $('#logoutBtn')?.addEventListener('click', (e) => {
+    e?.preventDefault?.();
+
+    const home = computeHomeUrl();
+    const loginUrl = buildAuthLoginUrl(home);
+
+    let navigated = false;
+    const navigate = () => {
+      if (navigated) return;
+      navigated = true;
+      try {
+        location.replace(loginUrl);
+      } catch (_) {
+        location.href = loginUrl;
+      }
+    };
+
+    // Мгновенно гасим UI «авторизован», пока перезагрузка не произошла.
+    try {
+      const loginBtn = $('#loginGoogleBtn');
+      const authMini = $('#authMini');
+      const logoutBtn = $('#logoutBtn');
+      const createBtn = $('#createBtn');
+      if (loginBtn) loginBtn.style.display = '';
+      if (authMini) authMini.classList.add('hidden');
+      if (logoutBtn) logoutBtn.style.display = 'none';
+      if (createBtn) createBtn.disabled = true;
+    } catch (_) {}
+
+    // Единый выход: логика ревока/очистки storage внутри app/providers/supabase.js
+    Promise.resolve(signOut()).catch(() => {}).finally(() => navigate());
+
+    // UX: не ждём дольше ~450 мс
+    setTimeout(navigate, 350);
+  });
+
+  // ссылка: клик = копировать
+  $('#hwLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const url = String($('#hwLink')?.dataset?.url || '');
+    if (!url) return;
+    const ok = await copyToClipboard(url);
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+  });
+
+  // маленькая кнопка открыть
+  $('#openLinkBtn')?.addEventListener('click', () => {
+    const url = String($('#openLinkBtn')?.dataset?.url || '');
+    if (!url) return;
+    window.open(url, '_blank', 'noopener');
+  });
+
+  // кнопка "На главную"
+  $('#homeBtn')?.addEventListener('click', () => {
+    const u = new URL('../', location.href);
+    location.href = u.href;
+  });
+
+}
+
+
+let LINK_WIRED = false;
+function wireLinkControls() {
+  if (LINK_WIRED) return;
+  LINK_WIRED = true;
+
+  const a = $('#hwLink');
+  const openBtn = $('#openLinkBtn');
+
+  if (a && a.dataset.wiredLink === '1') return;
+  if (a) a.dataset.wiredLink = '1';
+  if (openBtn) openBtn.dataset.wiredLink = '1';
+
+  // Клик по ссылке = копирование
+  a?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const url = String(a?.dataset?.url || a?.textContent || '').trim();
+    if (!url) return;
+
+    const ok = await copyToClipboard(url);
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+  });
+
+  // Иконка справа = открыть ДЗ
+  openBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const url = String(openBtn?.dataset?.url || a?.dataset?.url || '').trim();
+    if (!url) return;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+}
+
+
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+function defaultTitleDM() {
+  const d = new Date();
+  return `ДЗ ${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}`;
+}
+function initEditableFields() {
+  const titleBtn = $('#titleBtn');
+  const titleInput = $('#titleInput');
+  const descBtn = $('#descBtn');
+  const descInput = $('#descInput');
+
+  if (titleInput && !String(titleInput.value || '').trim()) {
+    titleInput.value = defaultTitleDM();
+  }
+  if (titleBtn) titleBtn.textContent = String(titleInput?.value || defaultTitleDM());
+
+  // Title: клик -> показать input, blur/Enter -> сохранить
+  titleBtn?.addEventListener('click', () => {
+    if (!titleInput) return;
+    titleBtn.classList.add('hidden');
+    titleInput.classList.remove('hidden');
+    titleInput.focus();
+    titleInput.select?.();
+  });
+
+  const commitTitle = () => {
+    if (!titleInput || !titleBtn) return;
+    const v = String(titleInput.value || '').trim() || defaultTitleDM();
+    titleInput.value = v;
+    titleBtn.textContent = v;
+    titleInput.classList.add('hidden');
+    titleBtn.classList.remove('hidden');
+  };
+
+  titleInput?.addEventListener('blur', commitTitle);
+  titleInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitTitle();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      commitTitle();
+    }
+  });
+
+
+  // Description: клик -> показать input, blur/Enter -> сохранить
+  if (descBtn) {
+    const v0 = String(descInput?.value || '').trim();
+    descBtn.textContent = v0 ? v0 : 'Описание';
+  }
+
+  const openDesc = () => {
+    if (!descInput || !descBtn) return;
+    descBtn.classList.add('hidden');
+    descInput.classList.remove('hidden');
+    descInput.focus();
+    descInput.select?.();
+  };
+
+  const commitDesc = () => {
+    if (!descInput || !descBtn) return;
+    const v = String(descInput.value || '').trim();
+    descBtn.textContent = v ? v : 'Описание';
+    descInput.classList.add('hidden');
+    descBtn.classList.remove('hidden');
+  };
+
+  const cancelDesc = () => {
+    if (!descInput || !descBtn) return;
+    // просто закрываем без изменений текста кнопки
+    descInput.classList.add('hidden');
+    descBtn.classList.remove('hidden');
+  };
+
+  descBtn?.addEventListener('click', openDesc);
+
+  descInput?.addEventListener('blur', commitDesc);
+  descInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitDesc();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelDesc();
+    }
+  });
+}
+
+function getTitleValue() {
+  const v = String($('#titleInput')?.value || '').trim();
+  return v || defaultTitleDM();
+}
+function getDescriptionValue() {
+  const v = String($('#descInput')?.value || '').trim();
+  return v ? v : null;
+}
+
+function showStudentLink(link, metaText = '') {
+  const box = $('#linkBox');
+  if (box) box.classList.remove('hidden');
+
+  const a = $('#hwLink');
+  if (a) {
+    a.textContent = link;
+    a.href = link;
+    a.dataset.url = link;
+  }
+
+  const openBtn = $('#openLinkBtn');
+  if (openBtn) openBtn.dataset.url = link;
+
+  const meta = $('#linkMeta');
+  if (meta) meta.textContent = metaText || '';
+}
+
+async function refreshAuthUI() {
+  // Вся авторизация и меню пользователя теперь живут в общем хедере (app/ui/header.js).
+  // Здесь держим только минимальную реакцию: включить/выключить доступ к созданию ДЗ.
+  const session = await getSession().catch(() => null);
+
+  const createBtn = $('#createBtn');
+  if (createBtn) createBtn.disabled = !session;
+
+  return session;
+}
+
+// ---------- fixed list (добавленные задачи) ----------
+// Теперь "Добавленные задачи" показываются как мини‑карточки (как в аккордеоне выбора):
+// номер → мета (подтип + название + кол-во вариантов) → условие + картинка.
+
+let FIXED_REFS = [];
+let FIXED_RENDER_SEQ = 0;
+
+function normalizeFixedRef(r) {
+  const qid = String(r?.question_id || '').trim();
+  if (!qid) return null;
+  const tid = String(r?.topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
+  if (!tid) return null;
+  return { topic_id: tid, question_id: qid };
+}
+
+function setFixedRefs(refs) {
+  const out = [];
+  const seen = new Set();
+  for (const r of (refs || [])) {
+    const nr = normalizeFixedRef(r);
+    if (!nr) continue;
+    const key = refKey(nr);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(nr);
+  }
+  FIXED_REFS = out;
+  renderFixedList();
+  updateFixedCountUI();
+}
+
+function addFixedRefs(refs) {
+  const seen = new Set(FIXED_REFS.map(refKey));
+  let added = 0;
+
+  for (const r of (refs || [])) {
+    const nr = normalizeFixedRef(r);
+    if (!nr) continue;
+    const key = refKey(nr);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    FIXED_REFS.push(nr);
+    added += 1;
+  }
+
+  if (added > 0) {
+    renderFixedList();
+    updateFixedCountUI();
+  }
+  return added;
+}
+
+function removeFixedByKey(key) {
+  const k = String(key || '');
+  if (!k) return;
+  const before = FIXED_REFS.length;
+  FIXED_REFS = FIXED_REFS.filter(r => refKey(r) !== k);
+  if (FIXED_REFS.length !== before) {
+    renderFixedList();
+    updateFixedCountUI();
+  }
+}
+
+function readFixedRows() {
+  // источник истины — массив, а не инпуты
+  return FIXED_REFS.slice();
+}
+
+function updateFixedCountUI() {
+  const btn = $('#toggleAdded');
+  const n = readFixedRows().length;
+  if (btn) btn.textContent = `Добавленные задачи: ${n}`;
+}
+
+function makeFixedPreviewCard(n, ref) {
+  const key = refKey(ref);
+
+  const row = document.createElement('div');
+  row.className = 'tp-item fixed-prev-card';
+  row.dataset.key = key;
+
+  const num = document.createElement('div');
+  num.className = 'fixed-mini-num';
+  num.textContent = String(n);
+  row.appendChild(num);
+
+  const left = document.createElement('div');
+  left.className = 'tp-item-left';
+
+  const meta = document.createElement('div');
+  meta.className = 'tp-item-meta fixed-prev-meta';
+  meta.textContent = `${ref.question_id}`; // уточним после загрузки манифеста
+  left.appendChild(meta);
+
+  const stem = document.createElement('div');
+  stem.className = 'tp-item-stem fixed-prev-body';
+  stem.innerHTML = '<span class="muted">Загрузка…</span>';
+  left.appendChild(stem);
+
+  row.appendChild(left);
+
+  const del = document.createElement('button');
+  del.className = 'btn fixed-mini-del';
+  del.type = 'button';
+  del.textContent = '×';
+  del.addEventListener('click', () => removeFixedByKey(key));
+  row.appendChild(del);
+
+  return row;
+}
+
+function renderFixedList() {
+  const box = $('#fixedCards');
+  if (!box) return;
+
+  const seq = ++FIXED_RENDER_SEQ;
+
+  box.innerHTML = '';
+  if (!FIXED_REFS.length) {
+    box.innerHTML = '<div class="muted">Пока нет добавленных задач.</div>';
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (let i = 0; i < FIXED_REFS.length; i++) {
+    frag.appendChild(makeFixedPreviewCard(i + 1, FIXED_REFS[i]));
+  }
+  box.appendChild(frag);
+
+  // заполним карточки (условия/картинки/мета) асинхронно
+  updateFixedPreviews(seq).catch((e) => console.error(e));
+}
+
+async function updateFixedPreviews(seq) {
+  // если после старта отрисовки список уже обновили — прекращаем
+  if (seq !== FIXED_RENDER_SEQ) return;
+
+  const box = $('#fixedCards');
+  if (!box) return;
+
+  await loadCatalog();
+
+  const cards = Array.from(box.querySelectorAll('.fixed-prev-card'));
+  for (const card of cards) {
+    if (seq !== FIXED_RENDER_SEQ) return;
+
+    const key = String(card.dataset.key || '');
+    const ref = FIXED_REFS.find(r => refKey(r) === key);
+    if (!ref) continue;
+
+    const qid = ref.question_id;
+    const tid = ref.topic_id || inferTopicIdFromQuestionId(qid);
+
+    const metaEl = card.querySelector('.fixed-prev-meta');
+    const bodyEl = card.querySelector('.fixed-prev-body');
+
+    const topic = TOPIC_BY_ID.get(String(tid));
+    if (!topic) {
+      if (metaEl) metaEl.textContent = qid;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(tid))} не найдена в каталоге.</span>`;
+      continue;
+    }
+
+    const pool = await loadTopicPool(topic);
+    if (!pool || !pool.length) {
       if (metaEl) metaEl.textContent = qid;
       if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось загрузить манифест(ы) темы.</span>`;
       continue;
@@ -317,58 +908,51 @@ async function importSelectionIntoFixedTable() {
 
   await loadCatalog();
 
-  // контекст приоритезации (фильтры на главной учителя)
-  const teacherStudentId =
-    String(prefill.teacher_student_id || '').trim() || readTeacherSelectedStudentId();
-  const tf = (prefill.teacher_filters && typeof prefill.teacher_filters === 'object')
+  // Формируем selection так же, как для списка задач, чтобы логика подбора совпадала.
+  const choiceProtos = prefill.protos || {};
+  const choiceTopics = prefill.topics || {};
+  const choiceSections = prefill.sections || {};
+
+  const teacherStudentId = String(prefill.teacher_student_id || '').trim();
+  const teacherFilters = prefill.teacher_filters && typeof prefill.teacher_filters === 'object'
     ? prefill.teacher_filters
-    : {};
-  const teacherFilters = { old: !!tf.old, badAcc: !!tf.badAcc };
-  const prioActive = !!teacherStudentId && (teacherFilters.old || teacherFilters.badAcc);
+    : { old: false, badAcc: false };
 
-  let picked = [];
-  try {
-    picked = await pickQuestionsScopedForList({
-      sections: SECTIONS,
-      topicById: TOPIC_BY_ID,
-      choiceProtos: prefill.protos || {},
-      choiceTopics: prefill.topics || {},
-      choiceSections: prefill.sections || {},
-      // порядок в фиксированном списке не обязан быть перемешан
-      shuffleTasks: false,
-      teacherStudentId,
-      teacherFilters,
-      prioActive,
-      loadTopicPool,
-      // для ДЗ нам нужны только ссылки (topic_id + question_id)
-      buildQuestion: (man, _type, proto) => ({
-        topic_id: man?.topic || inferTopicIdFromQuestionId(proto?.id),
-        question_id: proto?.id,
-      }),
-    });
-  } catch (e) {
-    console.error(e);
-    picked = [];
-  }
+  const prioActive = !!teacherStudentId && (!!teacherFilters.old || !!teacherFilters.badAcc);
 
-  const uniq = [];
+  // buildQuestion здесь возвращает question_id (proto.id).
+  const buildQuestionId = (_man, _type, proto) => String(proto?.id || '').trim();
+
+  const qids = await pickQuestionsScopedForList({
+    sections: SECTIONS,
+    topicById: TOPIC_BY_ID,
+    choiceProtos,
+    choiceTopics,
+    choiceSections,
+    shuffleTasks: !!prefill.shuffle,
+    teacherStudentId,
+    teacherFilters,
+    prioActive,
+    loadTopicPool,
+    buildQuestion: buildQuestionId,
+  });
+
+  // Превращаем question_id в refs для "Добавленных задач".
+  const wanted = [];
   const seen = new Set();
-  for (const r of picked || []) {
-    const topic_id = String(r?.topic_id || inferTopicIdFromQuestionId(r?.question_id)).trim();
-    const question_id = String(r?.question_id || '').trim();
-    if (!topic_id || !question_id) continue;
-    const key = `${topic_id}::${question_id}`;
+  for (const qid of (qids || [])) {
+    const id = String(qid || '').trim();
+    if (!id) continue;
+    const tid = inferTopicIdFromQuestionId(id);
+    if (!tid) continue;
+    const key = `${tid}::${id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    uniq.push({ topic_id, question_id });
+    wanted.push({ topic_id: tid, question_id: id });
   }
 
-  if (!uniq.length) {
-    flashStatus('Не удалось импортировать задачи из выбора на главной странице.');
-    return;
-  }
+setFixedRefs(uniq);
 
-  setFixedRefs(uniq);
   setStatus('');
 }
 
@@ -426,97 +1010,6 @@ function buildRef(manifest, proto) {
   };
 }
 
-// ---------- приоритезация (учитель) ----------
-function collectProtoIdsFromManifest(man) {
-  const ids = [];
-  for (const typ of (man?.types || [])) {
-    for (const p of (typ?.prototypes || [])) {
-      const id = String(p?.id || '').trim();
-      if (id) ids.push(id);
-    }
-  }
-  return ids;
-}
-
-async function ensureStatsMapForManifest(man, prioCtx) {
-  try {
-    if (!prioCtx?.active) return null;
-    const topicId = String(man?.topic || '').trim();
-    if (!topicId) return null;
-
-    const cache = prioCtx.cache;
-    const cached = cache?.get(topicId);
-    if (cached) return typeof cached.then === 'function' ? await cached : cached;
-
-    const p = (async () => {
-      const ids = collectProtoIdsFromManifest(man);
-      if (!ids.length) return new Map();
-      const res = await questionStatsForTeacherV1({
-        student_id: prioCtx.studentId,
-        question_ids: ids,
-        timeoutMs: 8000,
-        chunkSize: 500,
-      });
-      if (!res?.ok) {
-        console.warn('[prio] stats rpc failed (hw_create)', res);
-        return null;
-      }
-      return res.map || new Map();
-    })();
-
-    cache?.set(topicId, p);
-    const out = await p;
-    cache?.set(topicId, out);
-    return out;
-  } catch (e) {
-    console.warn('[prio] stats error (hw_create)', e);
-    return null;
-  }
-}
-
-async function pickRefsFromTypeAvoidMaybePrio(man, type, want, usedKeys, prioCtx) {
-  if (!prioCtx?.active) return pickRefsFromTypeAvoid(man, type, want, usedKeys);
-
-  const topicId = String(man?.topic || '').trim() || inferTopicIdFromQuestionId(type?.id);
-  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
-  if (!topicId || !protos.length) return [];
-
-  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
-  if (!filtered.length) return [];
-
-  const statsMap = await ensureStatsMapForManifest(man, prioCtx);
-  if (!statsMap) return pickRefsFromTypeAvoid(man, type, want, usedKeys);
-
-  const picked = pickProtosByPriority(filtered, want, { statsMap, flags: prioCtx.flags, nowMs: Date.now() });
-  return picked.map(p => buildRef(man, p));
-}
-
-async function pickRefsFromManifestAvoidMaybePrio(man, want, usedKeys, prioCtx) {
-  if (!prioCtx?.active) return pickRefsFromManifestAvoid(man, want, usedKeys);
-
-  const topicId = String(man?.topic || '').trim();
-  if (!topicId) return pickRefsFromManifestAvoid(man, want, usedKeys);
-
-  const candidates = [];
-  for (const typ of (man.types || [])) {
-    const protos = Array.isArray(typ?.prototypes) ? typ.prototypes : [];
-    for (const p of protos) {
-      const id = String(p?.id || '').trim();
-      if (!id) continue;
-      if (usedKeys && usedKeys.has(`${topicId}::${id}`)) continue;
-      candidates.push(p);
-    }
-  }
-
-  if (!candidates.length) return [];
-
-  const statsMap = await ensureStatsMapForManifest(man, prioCtx);
-  if (!statsMap) return pickRefsFromManifestAvoid(man, want, usedKeys);
-
-  const picked = pickProtosByPriority(candidates, want, { statsMap, flags: prioCtx.flags, nowMs: Date.now() });
-  return picked.map(p => buildRef(man, p));
-}
-
 function pickRefsFromManifest(man, want) {
   const out = [];
   const types = (man.types || []).filter(t => (t.prototypes || []).length > 0);
@@ -548,34 +1041,7 @@ function pickRefsFromManifest(man, want) {
   return out;
 }
 
-function pickRefsFromTypeAvoid(man, type, want, usedKeys) {
-  const out = [];
-  const topicId = String(man?.topic || '').trim() || inferTopicIdFromQuestionId(type?.id);
-  const protos = Array.isArray(type?.prototypes) ? type.prototypes : [];
-  if (!topicId || !protos.length) return out;
-
-  const filtered = usedKeys ? protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`)) : protos;
-  for (const p of sampleKByBase(filtered, want)) {
-    out.push(buildRef(man, p));
-  }
-  return out;
-}
-
-function pickRefsFromManifestAvoid(man, want, usedKeys) {
-  if (!usedKeys) return pickRefsFromManifest(man, want);
-
-  const topicId = String(man?.topic || '').trim();
-  if (!topicId) return pickRefsFromManifest(man, want);
-
-  const types = (man.types || []).map((t) => {
-    const protos = Array.isArray(t.prototypes) ? t.prototypes : [];
-    const filtered = protos.filter(p => !usedKeys.has(`${topicId}::${p.id}`));
-    return { ...t, prototypes: filtered };
-  });
-  return pickRefsFromManifest({ ...man, types }, want);
-}
-
-async function pickRefsFromSection(sec, wantSection, opts = {}, prioCtx = null) {
+async function pickRefsFromSection(sec, wantSection, opts = {}) {
   const out = [];
   const exclude = opts.excludeTopicIds;
   let candidates = (sec.topics || []).filter(t => !!t.path && !(exclude && exclude.has(String(t.id))));
@@ -620,8 +1086,7 @@ async function pickRefsFromSection(sec, wantSection, opts = {}, prioCtx = null) 
   for (const x of loaded) {
     const wantT = (planU.get(x.id) || 0) + (planR.get(x.id) || 0);
     if (!wantT) continue;
-    // при включённых фильтрах учителя используем приоритезацию по статистике
-    batches.set(x.id, await pickRefsFromManifestAvoidMaybePrio(x.man, wantT, opts.usedKeys, prioCtx));
+    batches.set(x.id, pickRefsFromManifest(x.man, wantT));
   }
 
   // Перемешиваем порядок, но так, чтобы было 1+1+1+... по подтемам насколько возможно
