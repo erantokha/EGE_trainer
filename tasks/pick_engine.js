@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-7';
+} from '../app/core/pick.js?v=2026-03-05-3';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-7';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-7';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-3';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-3';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -46,7 +46,6 @@ function getRpcPickMode() {
     if (v === '1') return 'force';
   } catch (_) {}
   return 'auto';
-} catch (_) { return false; }
 }
 
 function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
