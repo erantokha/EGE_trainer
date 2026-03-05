@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-14';
+} from '../app/core/pick.js?v=2026-03-05-11';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-14';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-11';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1 } from '../app/providers/homework.js?v=2026-03-05-14';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-14';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1 } from '../app/providers/homework.js?v=2026-03-05-11';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-11';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -61,13 +61,14 @@ function getRpcSectionsMode() {
 }
 
 function getExpandSectionsTopicsMode() {
-  // Вариант A: при доборе по разделу сначала выбираем темы, которые ученик вообще не решал.
-  // '1' -> включить, иначе выключено (по умолчанию OFF, чтобы раскатывать безопасно).
+  // Оптимизированный режим (topics_v1) включён по умолчанию.
+  // Аварийный выключатель: localStorage.pick_expand_sections_topics_v1 = '0' | 'off' | 'false'.
   try {
-    const v = localStorage.getItem('pick_expand_sections_topics_v1');
-    if (v === '1') return 'on';
+    const v = String(localStorage.getItem('pick_expand_sections_topics_v1') || '').trim().toLowerCase();
+    if (v === '0' || v === 'off' || v === 'false') return 'off';
+    if (v === '1' || v === 'on' || v === 'true') return 'on';
   } catch (_) {}
-  return 'off';
+  return 'on';
 }
 
 function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
@@ -561,7 +562,7 @@ export async function pickQuestionsScopedForList({
   const rpcSectionsEnabled = (rpcSectionsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc);
 
   const expandSectionsTopicsMode = getExpandSectionsTopicsMode();
-  const expandSectionsTopicsEnabled = (expandSectionsTopicsMode === 'on') && !!prioActive && !!studentId && !!flags.old;
+  const expandSectionsTopicsEnabled = (expandSectionsTopicsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc);
 
   const rpcCalls = [];
   const rpcUsedStages = new Set();
@@ -972,6 +973,11 @@ if (expandSectionsTopicsEnabled) {
           const n = (v === null || v === undefined) ? NaN : Number(v);
           return Number.isFinite(n) ? n : Infinity;
         };
+        const accAvgVal = (x) => {
+          const v = x?.acc_avg;
+          const n = (v === null || v === undefined) ? NaN : Number(v);
+          return Number.isFinite(n) ? n : Infinity;
+        };
 
         topicsV1ReqBySection = new Map();
         const agg = new Map(); // topicId -> total want across sections (обычно темы уникальны по секциям)
@@ -991,6 +997,7 @@ if (expandSectionsTopicsEnabled) {
                 attempted_questions: Number(r?.attempted_questions || 0) || 0,
                 last_attempt_at_max: r?.last_attempt_at_max ?? null,
                 acc_min: r?.acc_min ?? null,
+                acc_avg: r?.acc_avg ?? null,
               };
             })
             .filter(t => (Number(t.total_questions || 0) || 0) > 0);
@@ -998,24 +1005,50 @@ if (expandSectionsTopicsEnabled) {
           if (!ordered.length) continue;
 
           ordered.sort((a, b) => {
-            const an = (a.attempted_questions <= 0) ? 0 : 1;
-            const bn = (b.attempted_questions <= 0) ? 0 : 1;
-            if (an !== bn) return an - bn;
+            const preferBadAcc = !!flags?.badAcc;
+            const preferOld = !!flags?.old;
 
-            if (an === 1) {
-              const ta = tsVal(a);
-              const tb = tsVal(b);
-              if (ta !== tb) return ta - tb;
-              if (flags.badAcc) {
-                const aa = accVal(a);
-                const ab = accVal(b);
-                if (aa !== ab) return aa - ab;
+            const groupKey = (t) => {
+              const attempted = (Number(t?.attempted_questions || 0) > 0);
+              if (preferBadAcc) return attempted ? 0 : 1; // never в конце
+              return attempted ? 1 : 0; // вариант A: never в начале
+            };
+
+            const ga = groupKey(a);
+            const gb = groupKey(b);
+            if (ga !== gb) return ga - gb;
+
+            if (preferBadAcc) {
+              const amin = accVal(a);
+              const bmin = accVal(b);
+              if (amin !== bmin) return amin - bmin;
+
+              const aavg = accAvgVal(a);
+              const bavg = accAvgVal(b);
+              if (aavg !== bavg) return aavg - bavg;
+
+              if (preferOld) {
+                const ta = tsVal(a);
+                const tb = tsVal(b);
+                if (ta !== tb) return ta - tb;
               }
             } else {
-              if (flags.badAcc) {
-                const aa = accVal(a);
-                const ab = accVal(b);
-                if (aa !== ab) return aa - ab;
+              // базовый вариант A: never first, затем "old" (и опционально badAcc как tie-break)
+              if (ga === 1) {
+                const ta = tsVal(a);
+                const tb = tsVal(b);
+                if (ta !== tb) return ta - tb;
+                if (flags.badAcc) {
+                  const amin = accVal(a);
+                  const bmin = accVal(b);
+                  if (amin !== bmin) return amin - bmin;
+                }
+              } else {
+                if (flags.badAcc) {
+                  const amin = accVal(a);
+                  const bmin = accVal(b);
+                  if (amin !== bmin) return amin - bmin;
+                }
               }
             }
 
@@ -1030,7 +1063,15 @@ if (expandSectionsTopicsEnabled) {
             const cap = Math.max(0, Math.floor(Number(t.total_questions || 0)));
             if (cap <= 0) continue;
 
-            const give = Math.min(remaining, Math.max(1, Math.min(cap, remaining)));
+            let give;
+
+            if (flags.badAcc) {
+              // Для "Плохая точность" не размазываем по темам: заполняем квоту из худших тем.
+              give = Math.min(remaining, cap);
+            } else {
+              // Для "Не решал/решал давно" оставляем более равномерное распределение.
+              give = Math.min(remaining, Math.max(1, Math.min(cap, remaining)));
+            }
             if (give > 0) {
               topicsReq.push({ id: String(t.topicId), n: give });
               agg.set(String(t.topicId), (agg.get(String(t.topicId)) || 0) + give);
