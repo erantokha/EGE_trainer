@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-6';
+} from '../app/core/pick.js?v=2026-03-05-3';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-6';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-6';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-3';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-3';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -39,8 +39,14 @@ function shuffleArr(arr, rnd = Math.random) {
   return arr;
 }
 
-function isRpcPickEnabled() {
-  try { return localStorage.getItem('pick_rpc_v1') === '1'; } catch (_) { return false; }
+function getRpcPickMode() {
+  try {
+    const v = localStorage.getItem('pick_rpc_v1');
+    if (v === '0') return 'off';
+    if (v === '1') return 'force';
+  } catch (_) {}
+  return 'auto';
+} catch (_) { return false; }
 }
 
 function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
@@ -526,12 +532,15 @@ export async function pickQuestionsScopedForList({
   const studentId = String(teacherStudentId || '').trim();
   const nowMs = Date.now();
 
-  const rpcEnabled = isRpcPickEnabled() && !!prioActive && !!studentId && (flags.old || flags.badAcc);
+  const rpcMode = getRpcPickMode();
+  const rpcAutoEligible = !!prioActive && !!studentId && (flags.old || flags.badAcc);
+  const rpcEnabled = (rpcMode !== 'off') && rpcAutoEligible;
 
   const rpcCalls = [];
   const rpcUsedStages = new Set();
   let rpcTried = false;
   let rpcFallbackUsed = false;
+  let statsNeeded01 = false;
 
   async function rpcPick({ stage, topicId = null, typeId = null, want, protosReq = null, topicsReq = null, byId }) {
     const w = Math.max(0, Math.floor(Number(want || 0)));
@@ -636,6 +645,7 @@ export async function pickQuestionsScopedForList({
     let statsMap = undefined;
     const ensureStatsMap = async () => {
       if (statsMap !== undefined) return statsMap;
+      statsNeeded01 = true;
       statsMap = (prioActive && topicWrapped.length)
         ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: topicWrapped })
         : null;
@@ -715,7 +725,8 @@ for (const sec of sections || []) {
     const left = (Number(want || 0) || 0) - pickedCount;
     if (left <= 0) continue;
 
-    const statsMap = (prioActive && wrappedPool.length)
+    statsNeeded01 = true;
+        const statsMap = (prioActive && wrappedPool.length)
       ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: wrappedPool })
       : null;
 
@@ -950,11 +961,14 @@ for (const sec of sections || []) {
       const trace2 = {
         ...trace,
         rpc: {
+          mode: rpcMode,
           enabled: !!rpcEnabled,
+          autoEligible: !!rpcAutoEligible,
           tried: !!rpcTried,
           usedStages: Array.from(rpcUsedStages),
           calls: rpcCalls,
           fallbackUsed: !!rpcFallbackUsed,
+          statsSkipped: !!(rpcEnabled && rpcUsedStages.size && !statsNeeded01),
         },
       };
       sessionStorage.setItem('last_pick_trace_v2', JSON.stringify(trace2));
