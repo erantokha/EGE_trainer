@@ -11,10 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-8';
+} from '../app/core/pick.js?v=2026-03-05-3';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-8';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-8';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-3';
+
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2 } from '../app/providers/homework.js?v=2026-03-05-3';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-3';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -46,6 +48,16 @@ function getRpcPickMode() {
     if (v === '1') return 'force';
   } catch (_) {}
   return 'auto';
+}
+
+function getRpcSectionsMode() {
+  // Отдельный флаг для ускорения стадии "sections".
+  // '1' -> включить, иначе выключено (по умолчанию OFF, чтобы раскатывать безопасно).
+  try {
+    const v = localStorage.getItem('pick_rpc_sections_v1');
+    if (v === '1') return 'on';
+  } catch (_) {}
+  return 'off';
 }
 
 function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
@@ -535,11 +547,18 @@ export async function pickQuestionsScopedForList({
   const rpcAutoEligible = !!prioActive && !!studentId && (flags.old || flags.badAcc);
   const rpcEnabled = (rpcMode !== 'off') && rpcAutoEligible;
 
+  const rpcSectionsMode = getRpcSectionsMode();
+  const rpcSectionsEnabled = (rpcSectionsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc);
+
   const rpcCalls = [];
   const rpcUsedStages = new Set();
   let rpcTried = false;
   let rpcFallbackUsed = false;
   let statsNeeded01 = false;
+
+  // Кэш манифестов/индексов на одну сборку (для RPC sections)
+  const _manifestCache = new Map();      // absUrl -> manifest json
+  const _manifestIndexCache = new Map(); // absUrl -> Map<question_id, {manifest,type,proto}>
 
   async function rpcPick({ stage, topicId = null, typeId = null, want, protosReq = null, topicsReq = null, byId }) {
     const w = Math.max(0, Math.floor(Number(want || 0)));
@@ -602,6 +621,37 @@ export async function pickQuestionsScopedForList({
     if (res?.ok && qs.length) rpcUsedStages.add(stage);
 
     return { ok: !!res?.ok, qs, rows: ids.length, picked: qs.length, ms };
+  }
+
+  function buildIndexForManifest(manifest) {
+    const idx = new Map();
+    const types = Array.isArray(manifest?.types) ? manifest.types : [];
+    for (const t of types) {
+      const prots = Array.isArray(t?.prototypes) ? t.prototypes : [];
+      for (const p of prots) {
+        const id = String(p?.id || '').trim();
+        if (!id) continue;
+        if (!idx.has(id)) idx.set(id, { manifest, type: t, proto: p });
+      }
+    }
+    return idx;
+  }
+
+  async function getManifestIndex(manifestPath) {
+    const abs = toAbsUrl(manifestPath);
+    if (_manifestIndexCache.has(abs)) return _manifestIndexCache.get(abs);
+
+    let manifest = _manifestCache.get(abs);
+    if (!manifest) {
+      const r = await fetch(abs);
+      if (!r.ok) throw new Error('Failed to load manifest: ' + abs + ' (' + r.status + ')');
+      manifest = await r.json();
+      _manifestCache.set(abs, manifest);
+    }
+
+    const idx = buildIndexForManifest(manifest);
+    _manifestIndexCache.set(abs, idx);
+    return idx;
   }
 
   // Кэш статистики по теме на одну сборку списка
@@ -759,9 +809,128 @@ for (const sec of sections || []) {
 }
 
 // ---------- 2) sectionId -> k (добор по разделам) ----------
+
+  // Быстрый путь: один RPC на все выбранные разделы (включается флагом pick_rpc_sections_v1='1').
+  // Идея: БД возвращает приоритезированный список question_id + manifest_path, а фронт грузит только нужные манифесты.
+  let rpcSecOk = false;
+  let rpcSecBySection = null; // Map<section_id, row[]>
+  let rpcSecByQid = null;     // Map<question_id, row>
+
+  if (rpcSectionsEnabled) {
+    const sectionsReqAll = Object.entries(choiceSections || {})
+      .map(([id, n]) => ({ id: String(id), n: Number(n || 0) || 0 }))
+      .filter(x => x.n > 0);
+
+    if (sectionsReqAll.length) {
+      const t0 = Date.now();
+      let res;
+      try {
+        res = await pickQuestionsForTeacherV2({
+          student_id: studentId,
+          sections: sectionsReqAll,
+          flags,
+          exclude_ids: Array.from(usedIds),
+          exclude_topic_ids: Array.from(excludeTopicIds),
+          overfetch: 4,
+          shuffle: false,
+          seed: null,
+          timeoutMs: 12000,
+        });
+      } catch (e) {
+        res = { ok: false, rows: null, fn: null, error: e };
+      }
+
+      const ms = Date.now() - t0;
+      const rows = (res?.ok && Array.isArray(res.rows)) ? res.rows : [];
+
+      rpcCalls.push({
+        stage: 'sections_v2',
+        topicId: null,
+        typeId: null,
+        want: sectionsReqAll.reduce((s, x) => s + x.n, 0),
+        ok: !!res?.ok,
+        rows: rows.length,
+        picked: 0,
+        ms,
+        fn: res?.fn || null,
+        err: res?.ok ? null : String(res?.error?.code || res?.error?.message || 'ERR'),
+      });
+
+      if (res?.ok && rows.length) {
+        rpcSecBySection = new Map();
+        rpcSecByQid = new Map();
+        for (const row of rows) {
+          const sid = String(row?.section_id || '').trim();
+          const qid = String(row?.question_id || '').trim();
+          if (!sid || !qid) continue;
+          if (!rpcSecBySection.has(sid)) rpcSecBySection.set(sid, []);
+          rpcSecBySection.get(sid).push(row);
+          if (!rpcSecByQid.has(qid)) rpcSecByQid.set(qid, row);
+        }
+        rpcSecOk = rpcSecBySection.size > 0;
+      }
+
+      if (res?.ok && !rows.length) {
+        // ok, но пусто -> падаем в старую логику ниже
+      }
+      if (!res?.ok) {
+        // ошибка -> падаем в старую логику ниже
+      }
+    }
+  }
+
   for (const sec of sections || []) {
     const wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
     if (wantSection <= 0) continue;
+
+    // RPC sections fast-path: берём готовые question_id из БД и грузим только нужные манифесты.
+    if (rpcSecOk && rpcSecBySection && rpcSecByQid) {
+      const secId = String(sec.id);
+      const rows = rpcSecBySection.get(secId) || [];
+      if (rows.length) {
+        const ids = rows.map(x => String(x?.question_id || '').trim()).filter(Boolean);
+        const pickIds = takeIdsInOrderPreferFreshBases(ids, wantSection, usedIds, usedBases);
+
+        let pickedHere = 0;
+        for (const qid of pickIds) {
+          const row = rpcSecByQid.get(qid);
+          const mp = String(row?.manifest_path || '').trim();
+          if (!mp) continue;
+
+          let idx;
+          try {
+            idx = await getManifestIndex(mp);
+          } catch (_) {
+            continue;
+          }
+
+          const rec = idx.get(qid);
+          if (!rec) continue;
+          if (usedIds.has(qid)) continue;
+
+          usedIds.add(qid);
+          usedBases.add(baseIdFromProtoId(qid));
+          outQuestions.push(buildQuestion(rec.manifest, rec.type, rec.proto));
+          pickedHere += 1;
+
+          if (pickedHere >= wantSection) break;
+        }
+
+        // обновим агрегат picked у последнего вызова sections_v2 (для диагностики)
+        try {
+          const last = rpcCalls[rpcCalls.length - 1];
+          if (last && last.stage === 'sections_v2') last.picked = (last.picked || 0) + pickedHere;
+        } catch (_) {}
+
+        if (pickedHere >= wantSection) {
+          rpcUsedStages.add('sections_v2');
+          continue; // важно: не проваливаемся в старую логику, не грузим все темы раздела
+        }
+
+        // Недобор: разрешаем fallback только для этой секции
+        rpcFallbackUsed = true;
+      }
+    }
 
     // темы-кандидаты в разделе
     let candidates = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)) && !excludeTopicIds.has(String(t.id)));
@@ -963,6 +1132,8 @@ for (const sec of sections || []) {
           mode: rpcMode,
           enabled: !!rpcEnabled,
           autoEligible: !!rpcAutoEligible,
+          sectionsMode: rpcSectionsMode,
+          sectionsEnabled: !!rpcSectionsEnabled,
           tried: !!rpcTried,
           usedStages: Array.from(rpcUsedStages),
           calls: rpcCalls,
