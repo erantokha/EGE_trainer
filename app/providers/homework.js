@@ -624,3 +624,101 @@ export async function pickQuestionsForTeacherV2({
     return { ok: false, rows: null, fn: null, error: e };
   }
 }
+
+
+// ===== Rollup по темам для учителя (v1) =====
+// Возвращает { ok, rows, fn, error }.
+// rows: массив строк (ожидаем {topic_id, total_questions, attempted_questions, never_questions, last_attempt_at_max, acc_avg, acc_min}).
+export async function teacherTopicRollupV1({
+  student_id,
+  topic_ids,
+  timeoutMs = 8000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    const ids = Array.from(new Set((topic_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !ids.length) return { ok: true, rows: [], fn: null, error: null };
+
+    const r = await rpcWithFallback(
+      ['teacher_topic_rollup_v1'],
+      { p_student_id: sid, p_topic_ids: ids },
+      { timeoutMs: Number(timeoutMs || 8000) || 8000 },
+    );
+
+    if (!r.ok) return { ok: false, rows: null, fn: r.fn, error: r.error };
+    const rows = Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []);
+    return { ok: true, rows, fn: r.fn, error: null };
+  } catch (e) {
+    return { ok: false, rows: null, fn: null, error: e };
+  }
+}
+
+
+// ===== Подбор задач по темам с квотами (учительские фильтры, v1) =====
+// Возвращает { ok, rows, fn, error }.
+// rows: массив строк (ожидаем {question_id, topic_id, type_id, section_id, manifest_path, ...}).
+export async function pickQuestionsForTeacherTopicsV1({
+  student_id,
+  topics = null, // array[{id,n}] or map
+  flags = null,
+  exclude_ids = null,
+  exclude_topic_ids = null,
+  overfetch = 4,
+  shuffle = false,
+  seed = null,
+  timeoutMs = 12000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: true, rows: [], fn: null, error: null };
+
+    const mapToReqArray = (x) => {
+      if (!x) return [];
+      if (Array.isArray(x)) {
+        return x
+          .map(it => ({ id: String(it?.id || '').trim(), n: Number(it?.n || 0) || 0 }))
+          .filter(it => it.id && it.n > 0);
+      }
+      if (typeof x === 'object') {
+        return Object.entries(x)
+          .map(([id, n]) => ({ id: String(id || '').trim(), n: Number(n || 0) || 0 }))
+          .filter(it => it.id && it.n > 0);
+      }
+      return [];
+    };
+
+    const p_topics = mapToReqArray(topics);
+
+    const ex = Array.from(new Set((exclude_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    const exTopics = Array.from(new Set((exclude_topic_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+
+    const p_flags = {
+      old: !!flags?.old,
+      badAcc: !!flags?.badAcc,
+    };
+    if (flags?.daysOld != null) p_flags.daysOld = Number(flags.daysOld) || 0;
+    if (flags?.badAccLt != null) p_flags.badAccLt = Number(flags.badAccLt) || 0;
+
+    const r = await rpcWithFallback(
+      ['pick_questions_for_teacher_topics_v1'],
+      {
+        p_student_id: sid,
+        p_topics,
+        p_flags,
+        p_exclude_ids: ex,
+        p_exclude_topic_ids: exTopics,
+        p_overfetch: Math.max(1, Number(overfetch || 4) || 4),
+        p_shuffle: !!shuffle,
+        p_seed: seed == null ? null : String(seed),
+      },
+      { timeoutMs: Number(timeoutMs || 12000) || 12000 },
+    );
+
+    if (!r.ok) return { ok: false, rows: null, fn: r.fn, error: r.error };
+
+    const rows = Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []);
+    return { ok: true, rows, fn: r.fn, error: null };
+  } catch (e) {
+    return { ok: false, rows: null, fn: null, error: e };
+  }
+}
