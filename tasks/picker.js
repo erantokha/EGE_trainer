@@ -11,7 +11,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 import { withBuild } from '../app/build.js?v=2026-03-06-2';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-2';
 import { CONFIG } from '../app/config.js?v=2026-03-06-2';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-06-2';
+import { listMyStudents, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-06-2';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-06-2';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-06-2';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-2';
@@ -678,6 +678,44 @@ function fmtPct(p) {
   if (!isFinite(v)) return '—';
   return `${v}%`;
 }
+
+function fmtDateShort(ts) {
+  try {
+    if (!ts) return '';
+    const d = new Date(ts);
+    if (!isFinite(d.getTime())) return '';
+    const day = d.getDate(); // без ведущего нуля
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}.${month}.${year}`;
+  } catch (_) {
+    return '';
+  }
+}
+
+function badgeClassByRecency(ts, now = Date.now()) {
+  try {
+    if (!ts) return 'gray';
+    const t = Date.parse(ts);
+    if (!isFinite(t)) return 'gray';
+    const ageDays = Math.floor((Number(now) - t) / 86400000);
+    if (!isFinite(ageDays)) return 'gray';
+    if (ageDays < 7) return 'green';
+    if (ageDays <= 14) return 'lime';
+    if (ageDays <= 60) return 'yellow'; // 14–30 и 30–60 -> yellow (чтобы не было "дыры")
+    return 'red';
+  } catch (_) {
+    return 'gray';
+  }
+}
+
+function makeBadge(text, cls) {
+  const el = document.createElement('span');
+  el.className = `badge ${cls || 'gray'}`.trim();
+  el.textContent = String(text || '').trim();
+  return el;
+}
+
 
 function fmtCnt(total, correct) {
   const t = Math.max(0, Number(total || 0) || 0);
@@ -3155,7 +3193,12 @@ async function syncAddedTasksToSelection(opts = {}) {
 
   // если модалка открыта — перерисуем
   if (ADDED_TASKS_MODAL_OPEN) {
-    renderAddedTasksPreview(sortAddedQuestions(flattenAddedQuestions()), { wantTotal });
+    const arr = sortAddedQuestions(flattenAddedQuestions());
+    renderAddedTasksPreview(arr, { wantTotal });
+    try {
+      const qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
+      hydrateAddedTasksBadges(qids);
+    } catch (_) {}
     const { listWrap, list } = getAddedTasksModalEls();
     await typesetMathIfNeeded(listWrap || list);
   }
@@ -3181,6 +3224,10 @@ async function openAddedTasksModal() {
   const wantTotal = getTotalSelected();
   const arr = sortAddedQuestions(flattenAddedQuestions());
   renderAddedTasksPreview(arr, { wantTotal });
+  try {
+    const qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
+    hydrateAddedTasksBadges(qids);
+  } catch (_) {}
 
   await typesetMathIfNeeded(listWrap || list);
 }
@@ -3307,6 +3354,69 @@ function buildQuestionForPreview(manifest, type, proto) {
   };
 }
 
+let _ADDED_BADGES_SEQ = 0;
+
+async function hydrateAddedTasksBadges(questionIds) {
+  try {
+    if (!IS_TEACHER_HOME) return;
+    if (!ADDED_TASKS_MODAL_OPEN) return;
+
+    const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+    const ids = Array.from(new Set((questionIds || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !ids.length) return;
+
+    const seq = ++_ADDED_BADGES_SEQ;
+
+    const { hint, list } = getAddedTasksModalEls();
+
+    const r = await questionStatsForTeacherV1({
+      student_id: sid,
+      question_ids: ids,
+      timeoutMs: 8000,
+      chunkSize: 500,
+    });
+
+    if (seq !== _ADDED_BADGES_SEQ) return;
+    if (!ADDED_TASKS_MODAL_OPEN) return;
+
+    if (!r || !r.ok) {
+      if (hint && !hint.textContent) hint.textContent = 'Статистика недоступна.';
+      return;
+    }
+
+    const map = r.map || new Map();
+    const nodes = $$('.task-card-badges', list || document);
+    for (const wrap of nodes) {
+      const qid = String(wrap?.dataset?.qid || '').trim();
+      if (!qid) continue;
+
+      wrap.innerHTML = '';
+      const row = map.get(qid) || null;
+      const total = Number(row?.total || 0) || 0;
+      const correct = Number(row?.correct || 0) || 0;
+      const lastAt = row?.last_attempt_at ?? null;
+
+      if (!total) {
+        wrap.appendChild(makeBadge('Не решалась', 'gray'));
+        continue;
+      }
+
+      const pct = Math.round((correct / Math.max(1, total)) * 100);
+      const accCls = badgeClassByPct(pct);
+      wrap.appendChild(makeBadge(`Точность ${pct}% (${correct}/${total})`, accCls));
+
+      const ds = fmtDateShort(lastAt);
+      if (ds) {
+        const recCls = badgeClassByRecency(lastAt);
+        wrap.appendChild(makeBadge(`Последнее решение ${ds}`, recCls));
+      }
+    }
+  } catch (_) {
+    const { hint } = getAddedTasksModalEls();
+    if (hint && !hint.textContent) hint.textContent = 'Статистика недоступна.';
+  }
+}
+
 function renderAddedTasksPreview(questions, opts = {}) {
   const { meta, list, hint } = getAddedTasksModalEls();
   const arr = Array.isArray(questions) ? questions : [];
@@ -3330,6 +3440,15 @@ function renderAddedTasksPreview(questions, opts = {}) {
   arr.forEach((q, idx) => {
     const card = document.createElement('article');
     card.className = 'task-card';
+
+    // бейджи статистики (учитель: предпросмотр «Добавленные задачи»)
+    // контейнер заполняется позже, после батч-запроса к БД
+    card.style.position = card.style.position || 'relative';
+    const badges = document.createElement('div');
+    badges.className = 'task-card-badges';
+    const qid = String(q?.question_id || '').trim();
+    if (qid) badges.dataset.qid = qid;
+    card.appendChild(badges);
 
     const num = document.createElement('div');
     num.className = 'task-num';
