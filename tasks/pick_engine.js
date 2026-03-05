@@ -11,10 +11,10 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-4';
+} from '../app/core/pick.js?v=2026-03-05-3';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-4';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-4';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-05-3';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-3';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -37,6 +37,50 @@ function topicIdFromTypeId(typeId) {
 function shuffleArr(arr, rnd = Math.random) {
   shuffleInPlace(arr, rnd);
   return arr;
+}
+
+function isRpcPickEnabled() {
+  try { return localStorage.getItem('pick_rpc_v1') === '1'; } catch (_) { return false; }
+}
+
+function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
+  const k = Math.max(0, Math.floor(Number(want || 0)));
+  if (!k) return [];
+
+  const out = [];
+  const seenIds = new Set();
+  const seenBases = new Set();
+  const norm = (x) => String(x || '').trim();
+
+  // pass 1: новые базы (относительно usedBases), без повторов баз внутри пачки
+  for (const raw of (ids || [])) {
+    if (out.length >= k) break;
+    const id = norm(raw);
+    if (!id) continue;
+    if (usedIds && usedIds.has(id)) continue;
+    if (seenIds.has(id)) continue;
+    const b = baseIdFromProtoId(id);
+    if (usedBases && usedBases.has(b)) continue;
+    if (seenBases.has(b)) continue;
+    seenIds.add(id);
+    seenBases.add(b);
+    out.push(id);
+  }
+
+  // pass 2: добивка любыми (только без дублей id)
+  if (out.length < k) {
+    for (const raw of (ids || [])) {
+      if (out.length >= k) break;
+      const id = norm(raw);
+      if (!id) continue;
+      if (usedIds && usedIds.has(id)) continue;
+      if (seenIds.has(id)) continue;
+      seenIds.add(id);
+      out.push(id);
+    }
+  }
+
+  return out;
 }
 
 function distributeNonNegative(buckets, total) {
@@ -482,6 +526,76 @@ export async function pickQuestionsScopedForList({
   const studentId = String(teacherStudentId || '').trim();
   const nowMs = Date.now();
 
+  const rpcEnabled = isRpcPickEnabled() && !!prioActive && !!studentId && (flags.old || flags.badAcc);
+
+  const rpcCalls = [];
+  const rpcUsedStages = new Set();
+  let rpcTried = false;
+  let rpcFallbackUsed = false;
+
+  async function rpcPick({ stage, topicId = null, typeId = null, want, protosReq = null, topicsReq = null, byId }) {
+    const w = Math.max(0, Math.floor(Number(want || 0)));
+    if (!rpcEnabled || w <= 0) return { ok: false, picked: 0, rows: 0, ms: 0, qs: [] };
+
+    rpcTried = true;
+    const t0 = Date.now();
+
+    let res;
+    try {
+      res = await pickQuestionsForTeacherV1({
+        student_id: studentId,
+        protos: protosReq,
+        topics: topicsReq,
+        sections: null,
+        flags,
+        exclude_ids: Array.from(usedIds),
+        shuffle: false,
+        seed: null,
+        timeoutMs: 12000,
+      });
+    } catch (e) {
+      res = { ok: false, rows: null, fn: null, error: e };
+    }
+
+    const ms = Date.now() - t0;
+
+    const rowsArr = res?.ok ? (res.rows || []) : [];
+    const ids = rowsArr.map(r => String(r?.question_id || '').trim()).filter(Boolean);
+
+    const pickIds = (res?.ok && ids.length)
+      ? takeIdsInOrderPreferFreshBases(ids, w, usedIds, usedBases)
+      : [];
+
+    const wrappedPicked = [];
+    if (res?.ok && byId && pickIds.length) {
+      for (const id of pickIds) {
+        const ww = byId.get(id);
+        if (ww) wrappedPicked.push(ww);
+      }
+    }
+
+    const qs = wrappedPicked.length
+      ? buildQuestionsFromPickedWrapped({ wrappedPicked, usedIds, usedBases, buildQuestion })
+      : [];
+
+    rpcCalls.push({
+      stage,
+      topicId: topicId ? String(topicId) : null,
+      typeId: typeId ? String(typeId) : null,
+      want: w,
+      ok: !!res?.ok,
+      rows: ids.length,
+      picked: qs.length,
+      ms,
+      fn: res?.fn || null,
+      err: res?.ok ? null : String(res?.error?.code || res?.error?.message || 'ERR'),
+    });
+
+    if (res?.ok && qs.length) rpcUsedStages.add(stage);
+
+    return { ok: !!res?.ok, qs, rows: ids.length, picked: qs.length, ms };
+  }
+
   // Кэш статистики по теме на одну сборку списка
   const statsCache = new Map(); // topicId -> Promise<Map|null> | Map | null
 
@@ -519,16 +633,48 @@ export async function pickQuestionsScopedForList({
     const topicPool = await buildCandidatesForTopic({ topic, loadTopicPool });
     const topicWrapped = wrapCandidates(topicPool);
 
-    const statsMap = (prioActive && topicWrapped.length)
-      ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: topicWrapped })
-      : null;
+    let statsMap = undefined;
+    const ensureStatsMap = async () => {
+      if (statsMap !== undefined) return statsMap;
+      statsMap = (prioActive && topicWrapped.length)
+        ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: topicWrapped })
+        : null;
+      return statsMap;
+    };
 
     // для каждого type берём строго внутри type
     for (const t of items) {
       const cands = await buildCandidatesForType({ topic, typeId: t.id, loadTopicPool });
       const wrapped = wrapCandidates(cands);
-      const pickedW = pickWrapped({ wrapped, want: t.want, statsMap, flags, nowMs, usedIds });
-      pushQuestions(buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion }));
+      const byId = new Map((wrapped || []).map(w => [w.id, w]));
+
+      let pickedCount = 0;
+
+      if (rpcEnabled) {
+        const rr = await rpcPick({
+          stage: 'types',
+          topicId,
+          typeId: t.id,
+          want: t.want,
+          protosReq: [{ id: String(t.id), n: Number(t.want || 0) || 0 }],
+          topicsReq: null,
+          byId,
+        });
+
+        if (rr?.ok && rr.qs?.length) {
+          pushQuestions(rr.qs);
+          pickedCount = rr.qs.length;
+        }
+
+        if (rr?.ok && pickedCount < t.want) rpcFallbackUsed = true;
+      }
+
+      const left = (Number(t.want || 0) || 0) - pickedCount;
+      if (left > 0) {
+        const sm = await ensureStatsMap();
+        const pickedW = pickWrapped({ wrapped, want: left, statsMap: sm, flags, nowMs, usedIds });
+        pushQuestions(buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion }));
+      }
     }
   }
 
@@ -543,6 +689,31 @@ for (const sec of sections || []) {
     const topicId = String(topic.id);
     const pool = await buildCandidatesForTopic({ topic, loadTopicPool });
     const wrappedPool = wrapCandidates(pool);
+    const byId = new Map((wrappedPool || []).map(w => [w.id, w]));
+
+    let pickedCount = 0;
+
+    if (rpcEnabled) {
+      const rr = await rpcPick({
+        stage: 'topics',
+        topicId,
+        typeId: null,
+        want,
+        protosReq: null,
+        topicsReq: [{ id: String(topicId), n: Number(want || 0) || 0 }],
+        byId,
+      });
+
+      if (rr?.ok && rr.qs?.length) {
+        pushQuestions(rr.qs);
+        pickedCount = rr.qs.length;
+      }
+
+      if (rr?.ok && pickedCount < want) rpcFallbackUsed = true;
+    }
+
+    const left = (Number(want || 0) || 0) - pickedCount;
+    if (left <= 0) continue;
 
     const statsMap = (prioActive && wrappedPool.length)
       ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: wrappedPool })
@@ -560,7 +731,7 @@ for (const sec of sections || []) {
     // случайную выборку, но всё равно строго внутри темы.
     if (statsMap instanceof Map && (flags.old || flags.badAcc)) {
       const qs = buildQuestionsTopicTypePriority({
-        want,
+        want: left,
         wrappedPool,
         statsMap,
         flags,
@@ -571,7 +742,7 @@ for (const sec of sections || []) {
       });
       pushQuestions(qs);
     } else {
-      const pickedW = pickWrapped({ wrapped: wrappedPool, want, statsMap: null, flags, nowMs, usedIds });
+      const pickedW = pickWrapped({ wrapped: wrappedPool, want: left, statsMap: null, flags, nowMs, usedIds });
       pushQuestions(buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion }));
     }
   }
@@ -775,6 +946,19 @@ for (const sec of sections || []) {
       wantSections,
     };
     sessionStorage.setItem('last_pick_trace_v1', JSON.stringify(trace));
+    try {
+      const trace2 = {
+        ...trace,
+        rpc: {
+          enabled: !!rpcEnabled,
+          tried: !!rpcTried,
+          usedStages: Array.from(rpcUsedStages),
+          calls: rpcCalls,
+          fallbackUsed: !!rpcFallbackUsed,
+        },
+      };
+      sessionStorage.setItem('last_pick_trace_v2', JSON.stringify(trace2));
+    } catch (_) {}
     if (prioActive && wantTotal && outQuestions.length < wantTotal) {
       console.warn('[pick] Набрано меньше, чем запрошено:', trace);
     }
