@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-03-05-9';
-import { requireSession } from './supabase.js?v=2026-03-05-9';
-import { supaRest } from './supabase-rest.js?v=2026-03-05-9';
+import { CONFIG } from '../config.js?v=2026-03-05-3';
+import { requireSession } from './supabase.js?v=2026-03-05-3';
+import { supaRest } from './supabase-rest.js?v=2026-03-05-3';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -541,6 +541,75 @@ export async function pickQuestionsForTeacherV1({
         p_sections,
         p_flags,
         p_exclude_ids: ex,
+        p_shuffle: !!shuffle,
+        p_seed: seed == null ? null : String(seed),
+      },
+      { timeoutMs: Number(timeoutMs || 12000) || 12000 },
+    );
+
+    if (!r.ok) return { ok: false, rows: null, fn: r.fn, error: r.error };
+
+    const rows = Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []);
+    return { ok: true, rows, fn: r.fn, error: null };
+  } catch (e) {
+    return { ok: false, rows: null, fn: null, error: e };
+  }
+}
+
+
+// ===== Подбор задач по разделам через RPC (учительские фильтры, v2) =====
+// Возвращает { ok, rows, fn, error }.
+// rows: массив строк (ожидаем {question_id, section_id, topic_id, type_id, manifest_path, ...}).
+export async function pickQuestionsForTeacherV2({
+  student_id,
+  sections = null,
+  flags = null,
+  exclude_ids = null,
+  exclude_topic_ids = null,
+  overfetch = 4,
+  shuffle = false,
+  seed = null,
+  timeoutMs = 12000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: true, rows: [], fn: null, error: null };
+
+    const mapToReqArray = (x) => {
+      if (!x) return [];
+      if (Array.isArray(x)) {
+        return x
+          .map(it => ({ id: String(it?.id || '').trim(), n: Number(it?.n || 0) || 0 }))
+          .filter(it => it.id && it.n > 0);
+      }
+      if (typeof x === 'object') {
+        return Object.entries(x)
+          .map(([id, n]) => ({ id: String(id || '').trim(), n: Number(n || 0) || 0 }))
+          .filter(it => it.id && it.n > 0);
+      }
+      return [];
+    };
+
+    const p_sections = mapToReqArray(sections);
+    const ex = Array.from(new Set((exclude_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    const exTopics = Array.from(new Set((exclude_topic_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+
+    const p_flags = {
+      old: !!flags?.old,
+      badAcc: !!flags?.badAcc,
+    };
+    if (flags?.daysOld != null) p_flags.daysOld = Number(flags.daysOld) || 0;
+    if (flags?.badAccLt != null) p_flags.badAccLt = Number(flags.badAccLt) || 0;
+
+    const r = await rpcWithFallback(
+      ['pick_questions_for_teacher_v2', 'pickQuestionsForTeacherV2'],
+      {
+        p_student_id: sid,
+        p_sections,
+        p_flags,
+        p_exclude_ids: ex,
+        p_exclude_topic_ids: exTopics,
+        p_overfetch: Math.max(1, Number(overfetch || 4) || 4),
         p_shuffle: !!shuffle,
         p_seed: seed == null ? null : String(seed),
       },
