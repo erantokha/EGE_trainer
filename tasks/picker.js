@@ -8,13 +8,13 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-05-10';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-05-10';
-import { CONFIG } from '../app/config.js?v=2026-03-05-10';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-05-10';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-05-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-05-10';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-10';
+import { withBuild } from '../app/build.js?v=2026-03-04-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-04-20';
+import { CONFIG } from '../app/config.js?v=2026-03-04-20';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-03-04-20';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-04-20';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-04-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-19';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3026,9 +3026,9 @@ async function syncAddedTasksToSelection(opts = {}) {
     .filter(k => k.startsWith('section:'))
     .sort((a, b) => compareId(a.slice(8), b.slice(8)));
 
-  const ordered = [...protoKeys, ...topicKeys, ...sectionKeys];
+  const ordered = [...protoKeys, ...topicKeys];
 
-  // --- 2) добор (строго в порядке движка: protos -> topics -> sections) ---
+  // --- 2) добор (строго в порядке движка: protos -> topics) ---
   for (const bk of ordered) {
     if (seq !== _ADDED_SYNC_SEQ) return;
 
@@ -3058,6 +3058,96 @@ async function syncAddedTasksToSelection(opts = {}) {
       incIdCount(id);
     }
     ctx.buckets[bk] = cur;
+  }
+
+  // --- 3) добор секций батчем: section:* одним вызовом движка ---
+  if (seq !== _ADDED_SYNC_SEQ) return;
+
+  const sectionNeedMap = new Map(); // sectionId -> delta
+  for (const bk of sectionKeys) {
+    const need = Number(desired.get(bk) || 0) || 0;
+    const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
+    const have = cur.length;
+    const delta = need - have;
+    if (delta > 0) {
+      const sectionId = bk.slice('section:'.length);
+      sectionNeedMap.set(String(sectionId), delta);
+    }
+  }
+
+  if (sectionNeedMap.size > 0) {
+    const excludeSet2 = getExcludeSet();
+
+    // Исключаем явные темы, чтобы при доборе по разделам не тратить квоты на уже выбранные темы.
+    const excludeTopics = new Set(
+      Object.entries(CHOICE_TOPICS || {})
+        .filter(([, v]) => (Number(v || 0) || 0) > 0)
+        .map(([id]) => String(id)),
+    );
+
+    const sectionsTmp = [];
+    const choiceSectionsDelta = {};
+    for (const [sectionId, delta] of sectionNeedMap.entries()) {
+      const sec = SECTION_BY_ID.get(String(sectionId));
+      if (!sec) continue;
+
+      const filteredTopics = (sec.topics || []).filter(t => !excludeTopics.has(String(t?.id)));
+      const secTmp = { ...sec, topics: filteredTopics.length ? filteredTopics : (sec.topics || []) };
+
+      sectionsTmp.push(secTmp);
+      choiceSectionsDelta[String(sectionId)] = delta;
+    }
+
+    if (sectionsTmp.length) {
+      const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+      const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
+      const prioActive = !!sid && (filters.old || filters.badAcc);
+
+      const pickedAll = await pickQuestionsScopedForList({
+        sections: sectionsTmp,
+        topicById: TOPIC_BY_ID,
+        choiceProtos: {},
+        choiceTopics: CHOICE_TOPICS || {},
+        choiceSections: choiceSectionsDelta,
+        shuffleTasks: false,
+        teacherStudentId: sid,
+        teacherFilters: filters,
+        prioActive,
+        loadTopicPool: loadTopicPoolForPreview,
+        buildQuestion: buildQuestionForPreview,
+        excludeQuestionIds: excludeSet2,
+      });
+
+      if (seq !== _ADDED_SYNC_SEQ) return;
+
+      const arrAll = Array.isArray(pickedAll) ? pickedAll : [];
+      const bySection = new Map();
+      for (const q of arrAll) {
+        const sid2 = String(q?.section_id || '').trim();
+        if (!sid2) continue;
+        if (!bySection.has(sid2)) bySection.set(sid2, []);
+        bySection.get(sid2).push(q);
+      }
+
+      // Разложим по bucket'ам и докинем в ctx.idCounts
+      for (const [sectionId, delta] of sectionNeedMap.entries()) {
+        const bk = `section:${String(sectionId)}`;
+        const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
+
+        const got = bySection.get(String(sectionId)) || [];
+        const takeN = Math.min(delta, got.length);
+
+        for (let i = 0; i < takeN; i++) {
+          const q = got[i];
+          const id = String(q?.question_id || '').trim();
+          if (!id) continue;
+          cur.push(q);
+          incIdCount(id);
+        }
+
+        ctx.buckets[bk] = cur;
+      }
+    }
   }
 
   // сохраняем контекст
