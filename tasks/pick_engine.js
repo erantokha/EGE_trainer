@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-05-13';
+} from '../app/core/pick.js?v=2026-03-05-11';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-13';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-11';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1 } from '../app/providers/homework.js?v=2026-03-05-13';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-13';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1 } from '../app/providers/homework.js?v=2026-03-05-11';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-05-11';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -829,7 +829,7 @@ for (const sec of sections || []) {
   let rpcSecBySection = null; // Map<section_id, row[]>
   let rpcSecByQid = null;     // Map<question_id, row>
 
-  if (rpcSectionsEnabled) {
+  if (rpcSectionsEnabled && !expandSectionsTopicsEnabled) {
     const sectionsReqAll = Object.entries(choiceSections || {})
       .map(([id, n]) => ({ id: String(id), n: Number(n || 0) || 0 }))
       .filter(x => x.n > 0);
@@ -892,80 +892,116 @@ for (const sec of sections || []) {
     }
   }
 
-  for (const sec of sections || []) {
-    const wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
-    if (wantSection <= 0) continue;
+// Вариант A (topics_v1): оптимизированный путь — 1 rollup + 1 pick_topics на весь набор выбранных разделов.
+// Никаких RPC внутри цикла секций.
+let topicsV1Ok = false;
+let topicsV1ReqBySection = null; // Map<sectionId, { wantSection, topicsReq: [{id,n}...] }>
+let topicsV1RowsByTopic = null;  // Map<topicId, row[]>
+let topicsV1PickedTotal = 0;
 
-    // Вариант A (topics_v1): при доборе по разделу сначала берём темы, которые ученик вообще не решал,
-    // затем по давности (и опционально по худшей точности). Включается флагом:
-    // localStorage pick_expand_sections_topics_v1 = '1'
-    if (expandSectionsTopicsEnabled) {
-      // темы-кандидаты в разделе (с учётом уже выбранных конкретных тем)
-      let candidatesTopics = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)) && !excludeTopicIds.has(String(t.id)));
-      if (!candidatesTopics.length) {
-        candidatesTopics = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)));
+if (expandSectionsTopicsEnabled) {
+  const secWanted = (sections || [])
+    .map(sec => ({
+      sec,
+      secId: String(sec?.id ?? '').trim(),
+      want: Number((choiceSections || {})[sec?.id] || 0) || 0,
+    }))
+    .filter(x => x.secId && x.want > 0);
+
+  if (secWanted.length) {
+    const secTopics = new Map(); // sectionId -> topicId[]
+    const allSet = new Set();
+
+    for (const x of secWanted) {
+      const sec = x.sec;
+      const sid = x.secId;
+
+      let cand = (sec?.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)) && !excludeTopicIds.has(String(t?.id)));
+      if (!cand.length) {
+        cand = (sec?.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)));
       }
 
-      const topicIds = candidatesTopics.map(t => String(t?.id || '').trim()).filter(Boolean);
+      const ids = cand.map(t => String(t?.id || '').trim()).filter(Boolean);
+      if (!ids.length) continue;
 
-      if (topicIds.length) {
-        // 1) rollup по темам (быстро, без загрузки манифестов)
-        const t0r = Date.now();
-        let roll;
-        try {
-          roll = await teacherTopicRollupV1({ student_id: studentId, topic_ids: topicIds, timeoutMs: 8000 });
-        } catch (e) {
-          roll = { ok: false, rows: null, fn: null, error: e };
+      secTopics.set(sid, ids);
+      for (const tid of ids) allSet.add(tid);
+    }
+
+    const allTopicIds = Array.from(allSet);
+
+    if (allTopicIds.length) {
+      // 1) один rollup по всем темам
+      const t0r = Date.now();
+      let roll;
+      try {
+        roll = await teacherTopicRollupV1({ student_id: studentId, topic_ids: allTopicIds, timeoutMs: 8000 });
+      } catch (e) {
+        roll = { ok: false, rows: null, fn: null, error: e };
+      }
+      const msr = Date.now() - t0r;
+
+      rpcCalls.push({
+        stage: 'sections_topics_rollup_v1_all',
+        topicId: null,
+        typeId: null,
+        want: allTopicIds.length,
+        ok: !!roll?.ok,
+        rows: (roll?.ok && Array.isArray(roll.rows)) ? roll.rows.length : 0,
+        picked: 0,
+        ms: msr,
+        fn: roll?.fn || null,
+        err: roll?.ok ? null : String(roll?.error?.code || roll?.error?.message || 'ERR'),
+      });
+
+      if (roll?.ok && Array.isArray(roll.rows) && roll.rows.length) {
+        const byTopic = new Map();
+        for (const r of roll.rows) {
+          const tid = String(r?.topic_id || '').trim();
+          if (!tid) continue;
+          if (!byTopic.has(tid)) byTopic.set(tid, r);
         }
-        const msr = Date.now() - t0r;
 
-        rpcCalls.push({
-          stage: 'sections_topics_rollup_v1',
-          topicId: null,
-          typeId: null,
-          want: topicIds.length,
-          ok: !!roll?.ok,
-          rows: (roll?.ok && Array.isArray(roll.rows)) ? roll.rows.length : 0,
-          picked: 0,
-          ms: msr,
-          fn: roll?.fn || null,
-          err: roll?.ok ? null : String(roll?.error?.code || roll?.error?.message || 'ERR'),
-        });
+        const tsVal = (x) => {
+          const s = x?.last_attempt_at_max;
+          const t = s ? Date.parse(s) : NaN;
+          return Number.isFinite(t) ? t : Infinity;
+        };
+        const accVal = (x) => {
+          const v = x?.acc_min;
+          const n = (v === null || v === undefined) ? NaN : Number(v);
+          return Number.isFinite(n) ? n : Infinity;
+        };
 
-        if (roll?.ok && Array.isArray(roll.rows) && roll.rows.length) {
-          const byTopic = new Map();
-          for (const r of roll.rows) {
-            const tid = String(r?.topic_id || '').trim();
-            if (!tid) continue;
-            if (!byTopic.has(tid)) byTopic.set(tid, r);
-          }
+        topicsV1ReqBySection = new Map();
+        const agg = new Map(); // topicId -> total want across sections (обычно темы уникальны по секциям)
 
-          const tsVal = (x) => {
-            const s = x?.last_attempt_at_max;
-            const t = s ? Date.parse(s) : NaN;
-            return Number.isFinite(t) ? t : Infinity;
-          };
-          const accVal = (x) => {
-            const v = x?.acc_min;
-            const n = (v === null || v === undefined) ? NaN : Number(v);
-            return Number.isFinite(n) ? n : Infinity;
-          };
+        for (const x of secWanted) {
+          const sid = x.secId;
+          const wantSection = x.want;
+          const topicIds = secTopics.get(sid) || [];
+          if (!topicIds.length) continue;
 
-          // порядок тем: сначала совсем не решал, затем по давности (старые выше), + tie-break по худшей точности
-          const ordered = Array.from(byTopic.entries()).map(([tid, r]) => ({
-            topicId: tid,
-            total_questions: Number(r?.total_questions || 0) || 0,
-            attempted_questions: Number(r?.attempted_questions || 0) || 0,
-            last_attempt_at_max: r?.last_attempt_at_max ?? null,
-            acc_min: r?.acc_min ?? null,
-          }));
+          const ordered = topicIds
+            .map(tid => {
+              const r = byTopic.get(tid);
+              return {
+                topicId: tid,
+                total_questions: Number(r?.total_questions || 0) || 0,
+                attempted_questions: Number(r?.attempted_questions || 0) || 0,
+                last_attempt_at_max: r?.last_attempt_at_max ?? null,
+                acc_min: r?.acc_min ?? null,
+              };
+            })
+            .filter(t => (Number(t.total_questions || 0) || 0) > 0);
+
+          if (!ordered.length) continue;
 
           ordered.sort((a, b) => {
             const an = (a.attempted_questions <= 0) ? 0 : 1;
             const bn = (b.attempted_questions <= 0) ? 0 : 1;
             if (an !== bn) return an - bn;
 
-            // attempted group: по давности (старые выше)
             if (an === 1) {
               const ta = tsVal(a);
               const tb = tsVal(b);
@@ -976,7 +1012,6 @@ for (const sec of sections || []) {
                 if (aa !== ab) return aa - ab;
               }
             } else {
-              // never group: опциональный tie-break по acc_min (обычно null)
               if (flags.badAcc) {
                 const aa = accVal(a);
                 const ab = accVal(b);
@@ -987,7 +1022,6 @@ for (const sec of sections || []) {
             return compareId(a.topicId, b.topicId);
           });
 
-          // распределяем wantSection по темам "в первую очередь"
           let remaining = wantSection;
           const topicsReq = [];
 
@@ -999,153 +1033,177 @@ for (const sec of sections || []) {
             const give = Math.min(remaining, Math.max(1, Math.min(cap, remaining)));
             if (give > 0) {
               topicsReq.push({ id: String(t.topicId), n: give });
+              agg.set(String(t.topicId), (agg.get(String(t.topicId)) || 0) + give);
               remaining -= give;
             }
           }
 
           if (topicsReq.length) {
-            // 2) один RPC по темам (с квотами)
-            const t0p = Date.now();
-            let pres;
-            try {
-              pres = await pickQuestionsForTeacherTopicsV1({
-                student_id: studentId,
-                topics: topicsReq,
-                flags,
-                exclude_ids: Array.from(usedIds),
-                exclude_topic_ids: Array.from(excludeTopicIds),
-                overfetch: 4,
-                shuffle: false,
-                seed: null,
-                timeoutMs: 12000,
-              });
-            } catch (e) {
-              pres = { ok: false, rows: null, fn: null, error: e };
-            }
-            const msp = Date.now() - t0p;
+            topicsV1ReqBySection.set(sid, { wantSection, topicsReq });
+          }
+        }
 
-            const rows = (pres?.ok && Array.isArray(pres.rows)) ? pres.rows : [];
-            rpcCalls.push({
-              stage: 'sections_topics_v1',
-              topicId: null,
-              typeId: null,
-              want: topicsReq.reduce((s, x) => s + (Number(x?.n || 0) || 0), 0),
-              ok: !!pres?.ok,
-              rows: rows.length,
-              picked: 0,
-              ms: msp,
-              fn: pres?.fn || null,
-              err: pres?.ok ? null : String(pres?.error?.code || pres?.error?.message || 'ERR'),
+        if (agg.size) {
+          const topicsReqAll = Array.from(agg.entries()).map(([id, n]) => ({ id: String(id), n: Number(n || 0) || 0 })).filter(x => x.n > 0);
+          const wantAll = topicsReqAll.reduce((s, x) => s + (Number(x?.n || 0) || 0), 0);
+
+          // 2) один RPC pick_topics по всем темам
+          const t0p = Date.now();
+          let pres;
+          try {
+            pres = await pickQuestionsForTeacherTopicsV1({
+              student_id: studentId,
+              topics: topicsReqAll,
+              flags,
+              exclude_ids: Array.from(usedIds),
+              exclude_topic_ids: Array.from(excludeTopicIds),
+              overfetch: 4,
+              shuffle: false,
+              seed: null,
+              timeoutMs: 12000,
             });
+          } catch (e) {
+            pres = { ok: false, rows: null, fn: null, error: e };
+          }
+          const msp = Date.now() - t0p;
 
-            if (pres?.ok && rows.length) {
-              // индексируем кандидатов
-              const byTopicIds = new Map(); // topicId -> row[]
-              for (const row of rows) {
-                const tid = String(row?.topic_id || '').trim();
-                const qid = String(row?.question_id || '').trim();
-                if (!tid || !qid) continue;
-                if (!byTopicIds.has(tid)) byTopicIds.set(tid, []);
-                byTopicIds.get(tid).push(row);
-              }
+          const rows = (pres?.ok && Array.isArray(pres.rows)) ? pres.rows : [];
+          rpcCalls.push({
+            stage: 'sections_topics_v1_all',
+            topicId: null,
+            typeId: null,
+            want: wantAll,
+            ok: !!pres?.ok,
+            rows: rows.length,
+            picked: 0,
+            ms: msp,
+            fn: pres?.fn || null,
+            err: pres?.ok ? null : String(pres?.error?.code || pres?.error?.message || 'ERR'),
+          });
 
-              // сортируем внутри темы по rn (как отдала БД)
-              for (const [tid, arr] of byTopicIds.entries()) {
-                arr.sort((a, b) => {
-                  const ra = Number(a?.rn || 0) || 0;
-                  const rb = Number(b?.rn || 0) || 0;
-                  if (ra !== rb) return ra - rb;
-                  return compareId(a?.question_id, b?.question_id);
-                });
-              }
-
-              // собираем вопросы строго по квотам тем, предпочитая новые baseId
-              let pickedHere = 0;
-
-              for (const req of topicsReq) {
-                if (pickedHere >= wantSection) break;
-
-                const tid = String(req?.id || '').trim();
-                const wantT = Math.max(0, Math.floor(Number(req?.n || 0)));
-                if (!tid || wantT <= 0) continue;
-
-                const candRows = byTopicIds.get(tid) || [];
-                if (!candRows.length) continue;
-
-                let gotT = 0;
-                const seenBases = new Set();
-                const seenIds = new Set();
-
-                const tryAdd = async (row, preferFreshBase) => {
-                  if (!row || gotT >= wantT || pickedHere >= wantSection) return false;
-
-                  const qid = String(row?.question_id || '').trim();
-                  if (!qid) return false;
-                  if (usedIds.has(qid) || seenIds.has(qid)) return false;
-
-                  const b = baseIdFromProtoId(qid);
-                  if (preferFreshBase) {
-                    if (usedBases.has(b) || seenBases.has(b)) return false;
-                  }
-
-                  const mp = String(row?.manifest_path || '').trim();
-                  if (!mp) return false;
-
-                  let idx;
-                  try {
-                    idx = await getManifestIndex(mp);
-                  } catch (_) {
-                    return false;
-                  }
-
-                  const rec = idx.get(qid);
-                  if (!rec) return false;
-
-                  usedIds.add(qid);
-                  usedBases.add(b);
-                  seenIds.add(qid);
-                  seenBases.add(b);
-
-                  outQuestions.push(buildQuestion(rec.manifest, rec.type, rec.proto));
-                  gotT += 1;
-                  pickedHere += 1;
-                  return true;
-                };
-
-                // pass 1: только новые базы
-                for (const row of candRows) {
-                  if (gotT >= wantT || pickedHere >= wantSection) break;
-                  await tryAdd(row, true);
-                }
-
-                // pass 2: добивка любыми (id не повторяем)
-                if (gotT < wantT && pickedHere < wantSection) {
-                  for (const row of candRows) {
-                    if (gotT >= wantT || pickedHere >= wantSection) break;
-                    await tryAdd(row, false);
-                  }
-                }
-              }
-
-              // обновим агрегат picked у последнего вызова (для диагностики)
-              try {
-                const last = rpcCalls[rpcCalls.length - 1];
-                if (last && last.stage === 'sections_topics_v1') last.picked = pickedHere;
-              } catch (_) {}
-
-              if (pickedHere >= wantSection) {
-                rpcUsedStages.add('sections_topics_v1');
-                continue; // важно: не проваливаемся в sections_v2 / старую логику
-              }
-
-              if (pickedHere > 0) {
-                rpcFallbackUsed = true; // недобор -> разрешаем fallback ниже
-              }
+          if (pres?.ok && rows.length) {
+            topicsV1RowsByTopic = new Map(); // topicId -> row[]
+            for (const row of rows) {
+              const tid = String(row?.topic_id || '').trim();
+              const qid = String(row?.question_id || '').trim();
+              if (!tid || !qid) continue;
+              if (!topicsV1RowsByTopic.has(tid)) topicsV1RowsByTopic.set(tid, []);
+              topicsV1RowsByTopic.get(tid).push(row);
             }
+
+            for (const [tid, arr] of topicsV1RowsByTopic.entries()) {
+              arr.sort((a, b) => {
+                const ra = Number(a?.rn || 0) || 0;
+                const rb = Number(b?.rn || 0) || 0;
+                if (ra !== rb) return ra - rb;
+                return compareId(a?.question_id, b?.question_id);
+              });
+            }
+
+            topicsV1Ok = true;
           }
         }
       }
     }
+  }
+}
+
+  for (const sec of sections || []) {
+    const wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
+    if (wantSection <= 0) continue;
+
+
+// Вариант A (topics_v1): используем заранее подготовленные данные (1 rollup + 1 pick_topics на весь выбор секций).
+// Внутри цикла секций RPC не делаем.
+if (expandSectionsTopicsEnabled && topicsV1Ok && topicsV1ReqBySection instanceof Map && topicsV1RowsByTopic instanceof Map) {
+  const secId = String(sec?.id ?? '').trim();
+  const box = secId ? topicsV1ReqBySection.get(secId) : null;
+  const topicsReq = box?.topicsReq || null;
+
+  if (Array.isArray(topicsReq) && topicsReq.length) {
+    let pickedHere = 0;
+
+    for (const req of topicsReq) {
+      if (pickedHere >= wantSection) break;
+
+      const tid = String(req?.id || '').trim();
+      const wantT = Math.max(0, Math.floor(Number(req?.n || 0)));
+      if (!tid || wantT <= 0) continue;
+
+      const candRows = topicsV1RowsByTopic.get(tid) || [];
+      if (!candRows.length) continue;
+
+      let gotT = 0;
+      const seenBases = new Set();
+      const seenIds = new Set();
+
+      const tryAdd = async (row, preferFreshBase) => {
+        if (!row || gotT >= wantT || pickedHere >= wantSection) return false;
+
+        const qid = String(row?.question_id || '').trim();
+        if (!qid) return false;
+        if (usedIds.has(qid) || seenIds.has(qid)) return false;
+
+        const b = baseIdFromProtoId(qid);
+        if (preferFreshBase) {
+          if (usedBases.has(b) || seenBases.has(b)) return false;
+        }
+
+        const mp = String(row?.manifest_path || '').trim();
+        if (!mp) return false;
+
+        let idx;
+        try {
+          idx = await getManifestIndex(mp);
+        } catch (_) {
+          return false;
+        }
+
+        const rec = idx.get(qid);
+        if (!rec) return false;
+
+        usedIds.add(qid);
+        usedBases.add(b);
+        seenIds.add(qid);
+        seenBases.add(b);
+
+        outQuestions.push(buildQuestion(rec.manifest, rec.type, rec.proto));
+        gotT += 1;
+        pickedHere += 1;
+        return true;
+      };
+
+      // pass 1: только новые базы
+      for (const row of candRows) {
+        if (gotT >= wantT || pickedHere >= wantSection) break;
+        await tryAdd(row, true);
+      }
+
+      // pass 2: добивка любыми (id не повторяем)
+      if (gotT < wantT && pickedHere < wantSection) {
+        for (const row of candRows) {
+          if (gotT >= wantT || pickedHere >= wantSection) break;
+          await tryAdd(row, false);
+        }
+      }
+    }
+
+    topicsV1PickedTotal += pickedHere;
+    try {
+      const last = rpcCalls[rpcCalls.length - 1];
+      if (last && last.stage === 'sections_topics_v1_all') last.picked = topicsV1PickedTotal;
+    } catch (_) {}
+
+    if (pickedHere >= wantSection) {
+      rpcUsedStages.add('sections_topics_v1');
+      continue; // важно: не проваливаемся в sections_v2 / старую логику
+    }
+
+    if (pickedHere > 0) {
+      rpcFallbackUsed = true; // недобор -> разрешаем fallback ниже
+    }
+  }
+}
 
 
     // RPC sections fast-path: берём готовые question_id из БД и грузим только нужные манифесты.
