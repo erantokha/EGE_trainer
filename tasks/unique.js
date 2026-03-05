@@ -35,10 +35,10 @@ function ensureUniqueVideoStyles() {
   document.head.appendChild(style);
 }
 
-import { withBuild } from '../app/build.js?v=2026-03-05-4';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-05-4';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-03-05-4';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-4';
+import { withBuild } from '../app/build.js?v=2026-03-05-5';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-05-5';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-03-05-5';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-05-5';
 
 const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
