@@ -5,8 +5,8 @@
 import { CONFIG } from '../app/config.js?v=2026-03-06-1';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-1';
 import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-06-1';
-import {
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-1';
+import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
