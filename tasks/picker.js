@@ -8,13 +8,13 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-07-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-07-2';
-import { CONFIG } from '../app/config.js?v=2026-03-07-2';
-import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-07-2';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-07-2';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-07-2';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-2';
+import { withBuild } from '../app/build.js?v=2026-03-06-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-2';
+import { CONFIG } from '../app/config.js?v=2026-03-06-2';
+import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-06-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-06-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-06-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3195,12 +3195,26 @@ async function syncAddedTasksToSelection(opts = {}) {
   if (ADDED_TASKS_MODAL_OPEN) {
     const arr = sortAddedQuestions(flattenAddedQuestions());
     renderAddedTasksPreview(arr, { wantTotal });
-    try {
-      const qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
-      hydrateAddedTasksBadges(qids);
-    } catch (_) {}
+
     const { listWrap, list } = getAddedTasksModalEls();
     await typesetMathIfNeeded(listWrap || list);
+
+    let qids = [];
+    try {
+      qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
+    } catch (_) { qids = []; }
+
+    if (qids.length) {
+      // После MathJax DOM может быть переписан (SVG typeset).
+      // Гидратируем бейджи ТОЛЬКО после typeset и делаем страховочный повтор в следующем тике.
+      hydrateAddedTasksBadges(qids);
+      setTimeout(() => {
+        try {
+          if (ADDED_TASKS_MODAL_OPEN) hydrateAddedTasksBadges(qids);
+        } catch (_) {}
+      }, 0);
+    }
+
   }
 }
 
@@ -3224,12 +3238,24 @@ async function openAddedTasksModal() {
   const wantTotal = getTotalSelected();
   const arr = sortAddedQuestions(flattenAddedQuestions());
   renderAddedTasksPreview(arr, { wantTotal });
+
+  let qids = [];
   try {
-    const qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
-    hydrateAddedTasksBadges(qids);
-  } catch (_) {}
+    qids = arr.map(x => String(x?.question_id || '').trim()).filter(Boolean);
+  } catch (_) { qids = []; }
 
   await typesetMathIfNeeded(listWrap || list);
+
+  if (qids.length) {
+    // После MathJax DOM может быть переписан (SVG typeset).
+    // Гидратируем бейджи ТОЛЬКО после typeset и делаем страховочный повтор в следующем тике.
+    hydrateAddedTasksBadges(qids);
+    setTimeout(() => {
+      try {
+        if (ADDED_TASKS_MODAL_OPEN) hydrateAddedTasksBadges(qids);
+      } catch (_) {}
+    }, 0);
+  }
 }
 
 function closeAddedTasksModal() {
