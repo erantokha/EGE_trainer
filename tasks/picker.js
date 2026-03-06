@@ -8,13 +8,13 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-07-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-07-1';
-import { CONFIG } from '../app/config.js?v=2026-03-07-1';
-import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-07-1';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-07-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-07-1';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-1';
+import { withBuild } from '../app/build.js?v=2026-03-06-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-2';
+import { CONFIG } from '../app/config.js?v=2026-03-06-2';
+import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-06-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-06-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-06-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3430,10 +3430,27 @@ async function hydrateAddedTasksBadges(questionIds) {
     }
 
     const map = r.map || new Map();
-    const nodes = $$('.task-card-badges', list || document);
-    for (const wrap of nodes) {
-      const qid = String(wrap?.dataset?.qid || '').trim();
+
+    // В некоторых сборках карточки могли рендериться без контейнера .task-card-badges.
+    // Делаем гидратацию устойчивой: создаём контейнер сами на каждой карточке.
+    const cards = $$('.task-card', list || document);
+
+    for (const card of cards) {
+      if (!card) continue;
+
+      let wrap = $('.task-card-badges', card);
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'task-card-badges';
+        card.appendChild(wrap);
+      }
+
+      const qid = String(card?.dataset?.qid || wrap?.dataset?.qid || '').trim();
       if (!qid) continue;
+
+      // сохраняем qid для дебага и последующих проходов
+      wrap.dataset.qid = qid;
+
       const unic = toUnicId(qid, proto2unic);
       if (unic) wrap.dataset.unic = unic;
 
@@ -3494,6 +3511,7 @@ function renderAddedTasksPreview(questions, opts = {}) {
     const badges = document.createElement('div');
     badges.className = 'task-card-badges';
     const qid = String(q?.question_id || '').trim();
+    if (qid) card.dataset.qid = qid;
     if (qid) badges.dataset.qid = qid;
     card.appendChild(badges);
 
