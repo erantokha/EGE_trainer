@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-03-06-4';
-import { requireSession } from './supabase.js?v=2026-03-06-4';
-import { supaRest } from './supabase-rest.js?v=2026-03-06-4';
+import { CONFIG } from '../config.js?v=2026-03-06-2';
+import { requireSession } from './supabase.js?v=2026-03-06-2';
+import { supaRest } from './supabase-rest.js?v=2026-03-06-2';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -489,6 +489,49 @@ export async function questionStatsForTeacherV1({
 // ===== Подбор задач через RPC (учительские фильтры) =====
 // Возвращает { ok, rows, fn, error }.
 // rows: массив строк (ожидаем {question_id,...}).
+// RPC: статистика по задачам, схлопнутая по уникальным прототипам (unic_question_id).
+// Принимает список unic_question_id, но учитывает все варианты (answer_events.question_id),
+// которые маппятся на эти unic_question_id через public.question_canon_map.
+export async function questionStatsForTeacherUnicV1({
+  student_id,
+  unic_question_ids,
+  timeoutMs = 8000,
+  chunkSize = 500,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    const ids = Array.from(new Set((unic_question_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !ids.length) return { ok: true, map: new Map(), fromCache: false, error: null };
+
+    // батчим, чтобы не превышать лимиты на параметры RPC
+    const all = [];
+    for (let i = 0; i < ids.length; i += chunkSize) {
+      const chunk = ids.slice(i, i + chunkSize);
+      const r = await supaRest.rpcAny(
+        ['question_stats_for_teacher_unic_v1'],
+        { p_student_id: sid, p_unic_question_ids: chunk },
+        { timeoutMs }
+      );
+      if (!r.ok) return { ok: false, map: null, fromCache: false, error: r.error || r };
+      if (Array.isArray(r.data)) all.push(...r.data);
+    }
+
+    const map = new Map();
+    for (const row of all) {
+      const qid = String(row.unic_question_id || row.question_id || '').trim();
+      if (!qid) continue;
+      map.set(qid, {
+        total: Number(row.total || 0) || 0,
+        correct: Number(row.correct || 0) || 0,
+        last_attempt_at: row.last_attempt_at || null,
+      });
+    }
+    return { ok: true, map, fromCache: false, error: null };
+  } catch (e) {
+    return { ok: false, map: null, fromCache: false, error: e };
+  }
+}
+
 export async function pickQuestionsForTeacherV1({
   student_id,
   protos = null,
