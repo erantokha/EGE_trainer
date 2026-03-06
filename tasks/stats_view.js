@@ -1,7 +1,7 @@
 // tasks/stats_view.js
 // Рендер статистики на основе JSON, который возвращает student_dashboard_* (Patch 1 backend).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-4';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-5';
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
