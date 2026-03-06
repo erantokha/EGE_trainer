@@ -8,13 +8,13 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-07-8';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-07-8';
-import { CONFIG } from '../app/config.js?v=2026-03-07-8';
-import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-07-8';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-07-8';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-07-8';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-8';
+import { withBuild } from '../app/build.js?v=2026-03-07-9';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-07-9';
+import { CONFIG } from '../app/config.js?v=2026-03-07-9';
+import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-07-9';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-07-9';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-07-9';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-9';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
