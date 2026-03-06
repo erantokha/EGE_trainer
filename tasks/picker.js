@@ -8,13 +8,13 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-03-06-5';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-5';
-import { CONFIG } from '../app/config.js?v=2026-03-06-5';
-import { listMyStudents, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-06-5';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-06-5';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-06-5';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-5';
+import { withBuild } from '../app/build.js?v=2026-03-06-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-06-2';
+import { CONFIG } from '../app/config.js?v=2026-03-06-2';
+import { listMyStudents, questionStatsForTeacherV1, questionStatsForTeacherUnicV1 } from '../app/providers/homework.js?v=2026-03-06-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-06-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-06-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3356,22 +3356,67 @@ function buildQuestionForPreview(manifest, type, proto) {
 
 let _ADDED_BADGES_SEQ = 0;
 
+
+// ===== Канонизация прототипов (prototype_id -> unic_prototype_id) =====
+// Для статистики хотим схлопывать аналоги в уникальный прототип.
+let _PROTO2UNIC_MAP = null;
+let _PROTO2UNIC_PROMISE = null;
+
+async function getPrototypeToUnicMap() {
+  try {
+    if (_PROTO2UNIC_MAP) return _PROTO2UNIC_MAP;
+    if (_PROTO2UNIC_PROMISE) return await _PROTO2UNIC_PROMISE;
+
+    _PROTO2UNIC_PROMISE = (async () => {
+      const url = toAbsUrl('/content/tasks/prototype_to_unic.json');
+      const resp = await fetch(url, { cache: 'force-cache' });
+      if (!resp.ok) throw new Error('prototype_to_unic load failed: ' + resp.status);
+      const obj = await resp.json();
+      const map = new Map();
+      for (const [k, v] of Object.entries(obj || {})) {
+        const kk = String(k || '').trim();
+        const vv = String(v || '').trim();
+        if (kk && vv) map.set(kk, vv);
+      }
+      _PROTO2UNIC_MAP = map;
+      return map;
+    })();
+
+    return await _PROTO2UNIC_PROMISE;
+  } catch (e) {
+    // безопасный фолбэк: если карта не загрузилась, считаем unic = prototype
+    _PROTO2UNIC_MAP = new Map();
+    return _PROTO2UNIC_MAP;
+  }
+}
+
+function toUnicId(protoId, proto2unic) {
+  const id = String(protoId || '').trim();
+  if (!id) return '';
+  const m = proto2unic || _PROTO2UNIC_MAP;
+  return (m && m.get(id)) ? m.get(id) : id;
+}
+
 async function hydrateAddedTasksBadges(questionIds) {
   try {
     if (!IS_TEACHER_HOME) return;
     if (!ADDED_TASKS_MODAL_OPEN) return;
 
     const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-    const ids = Array.from(new Set((questionIds || []).map(x => String(x || '').trim()).filter(Boolean)));
-    if (!sid || !ids.length) return;
+    const protoIds = Array.from(new Set((questionIds || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !protoIds.length) return;
+
+    const proto2unic = await getPrototypeToUnicMap();
+    const unicIds = Array.from(new Set(protoIds.map(id => toUnicId(id, proto2unic)).filter(Boolean)));
+    if (!unicIds.length) return;
 
     const seq = ++_ADDED_BADGES_SEQ;
 
     const { hint, list } = getAddedTasksModalEls();
 
-    const r = await questionStatsForTeacherV1({
+    const r = await questionStatsForTeacherUnicV1({
       student_id: sid,
-      question_ids: ids,
+      unic_question_ids: unicIds,
       timeoutMs: 8000,
       chunkSize: 500,
     });
@@ -3389,9 +3434,11 @@ async function hydrateAddedTasksBadges(questionIds) {
     for (const wrap of nodes) {
       const qid = String(wrap?.dataset?.qid || '').trim();
       if (!qid) continue;
+      const unic = toUnicId(qid, proto2unic);
+      if (unic) wrap.dataset.unic = unic;
 
       wrap.innerHTML = '';
-      const row = map.get(qid) || null;
+      const row = map.get(unic) || null;
       const total = Number(row?.total || 0) || 0;
       const correct = Number(row?.correct || 0) || 0;
       const lastAt = row?.last_attempt_at ?? null;
