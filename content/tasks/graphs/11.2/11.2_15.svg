@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+
+  <rect x="0" y="0" width="220" height="220" fill="white" />
+
+  <defs>
+    <!-- стрелка для осей -->
+    <marker id="axis-arrow"
+            viewBox="0 0 15 8"
+            refX="13" refY="4"
+            markerWidth="12" markerHeight="6.4"
+            orient="auto"
+            markerUnits="userSpaceOnUse">
+      <path d="M 3 0 L 15 4 L 3 8 L 7 4 Z"
+            fill="black" />
+    </marker>
+  </defs>
+
+  <!-- тонкая клетчатая сетка: по x и y от -7 до 3 (10×10), без окаймления -->
+  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+    <!-- вертикальные линии: только внутренние -->
+    <line x1="30"  y1="10" x2="30"  y2="210" />
+    <line x1="50"  y1="10" x2="50"  y2="210" />
+    <line x1="70"  y1="10" x2="70"  y2="210" />
+    <line x1="90"  y1="10" x2="90"  y2="210" />
+    <line x1="110" y1="10" x2="110" y2="210" />
+    <line x1="130" y1="10" x2="130" y2="210" />
+    <line x1="150" y1="10" x2="150" y2="210" />
+    <line x1="170" y1="10" x2="170" y2="210" />
+    <line x1="190" y1="10" x2="190" y2="210" />
+
+    <!-- горизонтальные линии: только внутренние -->
+    <line x1="10" y1="30"  x2="210" y2="30"  />
+    <line x1="10" y1="50"  x2="210" y2="50"  />
+    <line x1="10" y1="70"  x2="210" y2="70"  />
+    <line x1="10" y1="90"  x2="210" y2="90"  />
+    <line x1="10" y1="110" x2="210" y2="110" />
+    <line x1="10" y1="130" x2="210" y2="130" />
+    <line x1="10" y1="150" x2="210" y2="150" />
+    <line x1="10" y1="170" x2="210" y2="170" />
+    <line x1="10" y1="190" x2="210" y2="190" />
+  </g>
+
+  <!-- оси x и y (0 находится в точке (150;70)) -->
+  <g stroke="#111827" stroke-width="1.25">
+    <line x1="10" y1="70" x2="210" y2="70"
+          marker-end="url(#axis-arrow)" />
+    <line x1="150" y1="210" x2="150" y2="10"
+          marker-end="url(#axis-arrow)" />
+  </g>
+
+  <!-- подписи осей и делений -->
+  <g font-family="sans-serif" font-size="11" fill="#111827">
+    <text x="146" y="83" text-anchor="end"
+          font-size="13" font-style="italic"
+          font-family="Georgia, 'Times New Roman', serif">O</text>
+
+    <rect x="167" y="73" width="7" height="12" fill="white" />
+    <text x="170" y="84" text-anchor="middle" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="143" y="54" text-anchor="end" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="206" y="83" text-anchor="start"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">x</text>
+
+    <text x="147" y="13" text-anchor="end"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">y</text>
+  </g>
+
+  <!-- парабола через (-4;-1), (-2;-1), (-3;2): y = -3(x+3)^2 + 2 -->
+  <g stroke="#2d70b3" stroke-width="1.25" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 55.359 210.000 L 56.236 201.001 L 57.113 192.234 L 57.990 183.697 L 58.867 175.390 L 59.744 167.315 L 60.621 159.470 L 61.498 151.855 L 62.375 144.472 L 63.252 137.319 L 64.129 130.397 L 65.006 123.706 L 65.883 117.246 L 66.760 111.016 L 67.637 105.017 L 68.514 99.249 L 69.391 93.711 L 70.268 88.404 L 71.145 83.328 L 72.022 78.483 L 72.899 73.868 L 73.776 69.484 L 74.653 65.331 L 75.530 61.408 L 76.407 57.717 L 77.284 54.256 L 78.161 51.025 L 79.038 48.026 L 79.915 45.257 L 80.792 42.719 L 81.669 40.412 L 82.546 38.335 L 83.423 36.489 L 84.300 34.874 L 85.177 33.490 L 86.054 32.336 L 86.931 31.413 L 87.808 30.721 L 88.685 30.260 L 89.562 30.029 L 90.438 30.029 L 91.315 30.260 L 92.192 30.721 L 93.069 31.413 L 93.946 32.336 L 94.823 33.490 L 95.700 34.874 L 96.577 36.489 L 97.454 38.335 L 98.331 40.412 L 99.208 42.719 L 100.085 45.257 L 100.962 48.026 L 101.839 51.025 L 102.716 54.256 L 103.593 57.717 L 104.470 61.408 L 105.347 65.331 L 106.224 69.484 L 107.101 73.868 L 107.978 78.483 L 108.855 83.328 L 109.732 88.404 L 110.609 93.711 L 111.486 99.249 L 112.363 105.017 L 113.240 111.016 L 114.117 117.246 L 114.994 123.706 L 115.871 130.397 L 116.748 137.319 L 117.625 144.472 L 118.502 151.855 L 119.379 159.470 L 120.256 167.315 L 121.133 175.390 L 122.010 183.697 L 122.887 192.234 L 123.764 201.001 L 124.641 210.000" />
+  </g>
+
+  <!-- точки на параболе (радиус 2.2) -->
+  <circle cx="70" cy="90" r="2.2" fill="#2d70b3" />
+  <circle cx="110" cy="90" r="2.2" fill="#2d70b3" />
+  <circle cx="90" cy="30" r="2.2" fill="#2d70b3" />
+
+  <!-- подпись f(x) в (-2;-2) -->
+  <text x="119" y="110"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-size="13"
+        fill="#2d70b3">
+    f(x)
+  </text>
+
+</svg>

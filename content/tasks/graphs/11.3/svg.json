@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220" viewBox="0 0 220 220">
+
+  <rect x="0" y="0" width="220" height="220" fill="white" />
+
+  <defs>
+    <!-- стрелка для осей -->
+    <marker id="axis-arrow"
+            viewBox="0 0 15 8"
+            refX="13" refY="4"
+            markerWidth="12" markerHeight="6.4"
+            orient="auto"
+            markerUnits="userSpaceOnUse">
+      <path d="M 3 0 L 15 4 L 3 8 L 7 4 Z"
+            fill="black" />
+    </marker>
+  </defs>
+
+  <!-- тонкая клетчатая сетка: по x и y от -5 до 5 (10×10), без окаймления -->
+  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+    <!-- вертикальные линии: только внутренние -->
+    <line x1="30"  y1="10" x2="30"  y2="210" />
+    <line x1="50"  y1="10" x2="50"  y2="210" />
+    <line x1="70"  y1="10" x2="70"  y2="210" />
+    <line x1="90"  y1="10" x2="90"  y2="210" />
+    <line x1="110" y1="10" x2="110" y2="210" />
+    <line x1="130" y1="10" x2="130" y2="210" />
+    <line x1="150" y1="10" x2="150" y2="210" />
+    <line x1="170" y1="10" x2="170" y2="210" />
+    <line x1="190" y1="10" x2="190" y2="210" />
+
+    <!-- горизонтальные линии: только внутренние -->
+    <line x1="10" y1="30"  x2="210" y2="30"  />
+    <line x1="10" y1="50"  x2="210" y2="50"  />
+    <line x1="10" y1="70"  x2="210" y2="70"  />
+    <line x1="10" y1="90"  x2="210" y2="90"  />
+    <line x1="10" y1="110" x2="210" y2="110" />
+    <line x1="10" y1="130" x2="210" y2="130" />
+    <line x1="10" y1="150" x2="210" y2="150" />
+    <line x1="10" y1="170" x2="210" y2="170" />
+    <line x1="10" y1="190" x2="210" y2="190" />
+  </g>
+
+  <!-- оси x и y (0 находится в точке (110;110)) -->
+  <g stroke="#111827" stroke-width="1.25">
+    <line x1="10" y1="110" x2="210" y2="110"
+          marker-end="url(#axis-arrow)" />
+    <line x1="110" y1="210" x2="110" y2="10"
+          marker-end="url(#axis-arrow)" />
+  </g>
+
+  <!-- подписи осей и делений -->
+  <g font-family="sans-serif" font-size="11" fill="#111827">
+    <text x="106" y="123" text-anchor="end"
+          font-size="13" font-style="italic"
+          font-family="Georgia, 'Times New Roman', serif">O</text>
+
+    <rect x="127" y="113" width="7" height="12" fill="white" />
+    <text x="130" y="124" text-anchor="middle" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="103" y="94" text-anchor="end" font-size="13"
+          font-family="'Times New Roman', serif"
+          font-weight="300">1</text>
+
+    <text x="206" y="123" text-anchor="start"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">x</text>
+
+    <text x="107" y="13" text-anchor="end"
+          font-family="Georgia, 'Times New Roman', serif"
+          font-style="italic" font-size="13">y</text>
+  </g>
+
+  <!-- гипербола y = 1/x (в пределах окна [-5;5]×[-5;5]) -->
+  <g stroke="#2d70b3" stroke-width="1.25" fill="none"
+     stroke-linecap="round" stroke-linejoin="round">
+    <!-- ветвь в III квадранте: от x=-5 до y=-5 -->
+    <polyline points="
+      10.0,114.0 30.0,115.0 50.0,116.7 60.0,118.0 70.0,120.0
+      80.0,123.3 86.0,126.7 90.0,130.0 94.0,135.0 98.0,143.3
+      100.0,150.0 102.0,160.0 103.4,170.6 104.4,181.4 105.0,190.0
+      105.4,198.0 105.6,204.0 106.0,210.0
+    " />
+    <!-- ветвь в I квадранте: от y=5 до x=5 -->
+    <polyline points="
+      114.0,10.0 115.0,30.0 115.6,38.6 116.6,49.4 118.0,60.0 120.0,70.0
+      122.0,76.7 126.0,85.0 130.0,90.0 134.0,93.3 140.0,96.7
+      150.0,100.0 160.0,102.0 170.0,103.3 190.0,105.0 210.0,106.0
+    " />
+  </g>
+
+  <!-- точка (1;1) -->
+  <circle cx="130" cy="90" r="2.2" fill="#2d70b3" />
+
+  <!-- подпись f(x) -->
+  <text x="145" y="85"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-style="italic"
+        font-size="13"
+        fill="#2d70b3">
+    f(x)
+  </text>
+
+</svg>
