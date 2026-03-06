@@ -632,39 +632,6 @@ body[data-home-variant="student"] #accordion .badge.lime{background:rgba(132,204
 body[data-home-variant="student"] #accordion .badge.yellow{background:rgba(245,158,11,.16)}
 body[data-home-variant="student"] #accordion .badge.red{background:rgba(239,68,68,.14)}
 
-/* home_teacher: модалка «Добавленные задачи» — бейджи статистики на карточках */
-#addedTasksModal .task-card{position:relative}
-#addedTasksModal .task-card-badges{
-  position:absolute;
-  top:8px;
-  right:8px;
-  display:flex;
-  gap:6px;
-  z-index:3;
-  align-items:flex-start;
-}
-#addedTasksModal .task-card-badges .badge{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:4px 6px;
-  border-radius:999px;
-  border:1px solid var(--border);
-  background:rgba(148,163,184,.08);
-  font-size:11px;
-  gap:4px;
-  line-height:1;
-  white-space:nowrap;
-  overflow:visible;
-  font-variant-numeric:tabular-nums;
-}
-#addedTasksModal .task-card-badges .badge.gray{background:rgba(148,163,184,.10)}
-#addedTasksModal .task-card-badges .badge.green{background:rgba(16,185,129,.12)}
-#addedTasksModal .task-card-badges .badge.lime{background:rgba(132,204,22,.14)}
-#addedTasksModal .task-card-badges .badge.yellow{background:rgba(245,158,11,.16)}
-#addedTasksModal .task-card-badges .badge.red{background:rgba(239,68,68,.14)}
-
-
 
 /* Плавное обновление цветов/цифр и скелетон, пока статистика не подгрузилась */
 body[data-home-variant="student"] #accordion .badge{
@@ -2911,3 +2878,35 @@ body.teacher-student-view .score-thermo__primary{
   color:var(--text-dim);
   white-space:nowrap;
 }
+
+/* === Added tasks modal badges (overlay) === */
+.task-card{ position: relative; }
+
+.task-card-badges{
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.task-card-badges .badge{
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Palette: keep in sync with accordion badge colors */
+.badge.gray{ background: rgba(148,163,184,.14); }
+.badge.green{ background: rgba(16,185,129,.14); }
+.badge.lime{ background: rgba(132,204,22,.16); }
+.badge.yellow{ background: rgba(245,158,11,.18); }
+.badge.red{ background: rgba(239,68,68,.16); }
+/* === End added tasks modal badges === */
+
