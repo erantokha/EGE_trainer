@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+    <meta name="app-build" content="2026-03-06-2">
+<title>Тренажер по задачам из банка ФИПИ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="./app/diag_bootstrap.js?v=2026-03-06-2"></script>
+
+  <!--
+    Главная страница сайта (/): это "вход" в тренажёр.
+    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
+    подключаем стили и скрипты с корректными путями.
+  -->
+
+  <script id="sentry-loader"
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+<script>
+(function () {
+  if (window.__SENTRY_INITED__) return;
+  window.__SENTRY_INITED__ = true;
+
+  function getRelease() {
+    var m = document.querySelector('meta[name="app-build"]');
+    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+  }
+
+  function getEnv() {
+    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+  }
+
+  function sanitizeEvent(event) {
+    try {
+      if (event && event.request && event.request.url) {
+        event.request.url = event.request.url.split('#')[0].split('?')[0];
+      }
+      if (event && event.request && event.request.headers) {
+        delete event.request.headers.Authorization;
+        delete event.request.headers.authorization;
+        delete event.request.headers.Cookie;
+        delete event.request.headers.cookie;
+      }
+    } catch (e) {}
+    return event;
+  }
+
+  function doInit() {
+    if (!window.Sentry || !window.Sentry.init) return;
+
+    var opts = {
+      release: getRelease(),
+      environment: getEnv(),
+      initialScope: {
+        tags: { page: location.pathname }
+      },
+      beforeSend: sanitizeEvent
+    };
+
+    try {
+      if (window.Sentry.onLoad) {
+        window.Sentry.onLoad(function () {
+          window.Sentry.init(opts);
+        });
+        return;
+      }
+    } catch (e) {}
+
+    window.Sentry.init(opts);
+  }
+
+  doInit();
+})();
+</script>
+
+
+  
+  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-03-06-2">
+  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-03-06-2">
+</head>
+<body data-home-variant="teacher">
+<main class="container">
+    <section id="picker">
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+  <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
+</header>
+<script type="module">
+  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+  const rel = inTasks ? '../' : './';
+  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+</script>
+
+</div>
+
+      <!-- Градусник готовности (учитель: выбранный ученик) -->
+      <div id="scoreThermoSlot" class="score-thermo-slot" aria-label="Готовность по первой части">
+        <div id="scoreThermo" class="score-thermo" data-color="gray">
+          <div class="score-thermo__track">
+            <div id="scoreThermoFill" class="score-thermo__fill"></div>
+            <div class="score-thermo__content">
+              <div class="score-thermo__label">Готовность по первой части</div>
+              <div class="score-thermo__values">
+                <span id="scoreThermoSecondary" class="score-thermo__secondary">—</span>
+                <span id="scoreThermoPrimary" class="score-thermo__primary">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+        <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
+        <div class="controls">
+          <div class="controls-left">
+            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+              <button
+                type="button"
+                class="mode-btn active"
+                id="modeList"
+                data-mode="list"
+                aria-selected="true"
+              >
+                Список задач
+              </button>
+              <button
+                type="button"
+                class="mode-btn"
+                id="modeTest"
+                data-mode="test"
+                aria-selected="false"
+              >
+                Тестирование
+              </button>
+            </div>
+
+            <label class="shuffle">
+              <input type="checkbox" id="shuffleToggle">
+              Перемешать задачи
+            </label>
+
+            <label style="display:flex;align-items:center;gap:6px;user-select:none">
+              <span class="muted">Ученик:</span>
+              <select id="teacherStudentSelect" class="input" style="min-width:240px">
+                <option value="">— ученик не выбран —</option>
+              </select>
+            </label>
+            <span id="teacherStudentStatus" class="muted" style="opacity:.85"></span>
+
+            <div id="teacherFilters" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:6px;user-select:none">
+                <input type="checkbox" id="teacherFilterOld" disabled>
+                <span>Не решал/решал давно</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;user-select:none">
+                <input type="checkbox" id="teacherFilterBadAcc" disabled>
+                <span>Плохая точность</span>
+              </label>
+              <span class="muted" id="teacherFiltersHint" style="opacity:.85">Фильтры работают только при выбранном ученике</span>
+            </div>
+
+          </div>
+
+          <div class="controls-actions-right">
+            <button id="start" disabled>Начать</button>
+            <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
+          </div>
+
+          <div class="theme-toggle">
+            <input
+              type="checkbox"
+              id="themeToggle"
+              class="theme-toggle-input"
+              aria-label="Переключить тему"
+            >
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
+        <div class="sub-controls">
+          <div class="bulk-controls" id="bulkControls">
+            <button id="bulkPickAll" type="button">Выбрать все</button>
+            <button id="bulkResetAll" type="button">Сбросить все</button>
+          </div>
+
+          <button id="addedTasksBtn" type="button" class="sum sum-btn" disabled>
+            Добавленные задачи: <span id="sum">0</span>
+          </button>
+        </div>
+
+        <!-- Ряд 3: аккордеон + прогноз баллов -->
+        <div class="picker-grid">
+          <div class="picker-left">
+            <div id="accordion" class="accordion"></div>
+          </div>
+          <aside class="picker-right" aria-label="Прогноз баллов">
+            <div class="score-forecast" id="scoreForecast">
+              <div class="sf-row">
+                <div class="sf-label">Первичные (до округления)</div>
+                <div class="sf-value" id="sfPrimaryExact">—</div>
+              </div>
+              <div class="sf-row">
+                <div class="sf-label">Вторичные</div>
+                <div class="sf-value" id="sfSecondary">—</div>
+              </div>
+              <div class="sf-note" id="sfNote" hidden></div>
+            </div>
+
+            <div class="home-proto-panel" id="homeProtoPanel" hidden>
+              <div class="home-proto-head">
+                <div class="home-proto-title" id="homeProtoTitle">—</div>
+                <div class="home-proto-note" id="homeProtoNote">Кликните по подтеме слева, чтобы добавить конкретные прототипы.</div>
+              </div>
+              <div class="tp-list" id="homeProtoList"></div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Выбор прототипов (главная учителя): модалка, как на главной ученика -->
+  <div id="protoPickerModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Выбор прототипов">
+      <div class="modal-head">
+        <div class="modal-title" id="protoPickerTitle">Прототипы</div>
+        <div class="tp-main-actions">
+          <div id="protoPickerSelectedCount" class="muted">Выбрано: 0</div>
+          <button id="protoPickerClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+        </div>
+      </div>
+
+      <div class="proto-picker-main">
+        <div id="protoPickerList" class="tp-list"></div>
+        <div id="protoPickerHint" class="muted tp-hint"></div>
+      </div>
+    </div>
+  </div>
+
+<!-- Предпросмотр добавленных задач (главная учителя) -->
+<div id="addedTasksModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Добавленные задачи">
+    <div class="modal-head">
+      <div class="modal-title">Добавленные задачи</div>
+      <div class="tp-main-actions">
+        <div id="addedTasksMeta" class="muted">—</div>
+        <button id="addedTasksClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+      </div>
+    </div>
+
+    <div class="added-tasks-main">
+      <div id="addedTasksListWrap" class="added-tasks-listwrap">
+        <div id="addedTasksList" class="task-list"></div>
+      </div>
+      <div id="addedTasksHint" class="muted tp-hint"></div>
+    </div>
+  </div>
+</div>
+
+
+  <script type="module" src="./tasks/home_guard.js?v=2026-03-06-2"></script>
+
+
+  <script src="./tasks/theme.js?v=2026-03-06-2" defer></script>
+  <script type="module" src="./tasks/picker.js?v=2026-03-06-2"></script>
+</body>
+</html>
