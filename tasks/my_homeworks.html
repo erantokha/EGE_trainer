@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-03-06-2">
+  <title>Мои ДЗ</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="../app/diag_bootstrap.js?v=2026-03-06-2"></script>
+
+  <link rel="stylesheet" href="./trainer.css?v=2026-03-06-2">
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <div class="profile-titlebar">
+            <h1 id="pageTitle">Мои ДЗ</h1>
+            <div class="profile-menu-wrap" id="myHwMenuWrap">
+              <button id="myHwMenuBtn" type="button" class="icon-btn profile-gear-btn" aria-label="Меню" aria-expanded="false">⚙</button>
+              <div id="myHwMenu" class="profile-menu hidden" role="menu" aria-label="Действия">
+                <button id="myHwMenuArchive" type="button" class="profile-menu-item" role="menuitem">Архив работ</button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false }));
+        </script>
+        <div class="myhw-counters" style="margin-top:6px;display:flex;flex-direction:column;align-items:flex-start;gap:2px">
+          <div id="myHwPending" class="muted"></div>
+          <div id="myHwTotal" class="muted"></div>
+          <div id="myHwStatus" class="muted" style="margin-top:4px;display:none"></div>
+        </div>
+
+        <div id="myHwList" class="myhw-list" style="margin-top:10px"></div>
+        <div id="myHwEmpty" class="muted" style="margin-top:10px"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./theme.js?v=2026-03-06-2" defer></script>
+  <script type="module" src="./my_homeworks.js?v=2026-03-06-2"></script>
+</body>
+</html>

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-03-06-2">
+  <title>Авторизация</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="../app/diag_bootstrap.js?v=2026-03-06-2"></script>
+
+
+
+  <script id="sentry-loader"
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+<script>
+(function () {
+  if (window.__SENTRY_INITED__) return;
+  window.__SENTRY_INITED__ = true;
+
+  function getRelease() {
+    var m = document.querySelector('meta[name="app-build"]');
+    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+  }
+
+  function getEnv() {
+    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+  }
+
+  function sanitizeEvent(event) {
+    try {
+      if (event && event.request && event.request.url) {
+        event.request.url = event.request.url.split('#')[0].split('?')[0];
+      }
+      if (event && event.request && event.request.headers) {
+        delete event.request.headers.Authorization;
+        delete event.request.headers.authorization;
+        delete event.request.headers.Cookie;
+        delete event.request.headers.cookie;
+      }
+    } catch (e) {}
+    return event;
+  }
+
+  function doInit() {
+    if (!window.Sentry || !window.Sentry.init) return;
+
+    var opts = {
+      release: getRelease(),
+      environment: getEnv(),
+      initialScope: {
+        tags: { page: location.pathname }
+      },
+      beforeSend: sanitizeEvent
+    };
+
+    try {
+      if (window.Sentry.onLoad) {
+        window.Sentry.onLoad(function () {
+          window.Sentry.init(opts);
+        });
+        return;
+      }
+    } catch (e) {}
+
+    window.Sentry.init(opts);
+  }
+
+  doInit();
+})();
+</script>
+
+  
+  
+  <link rel="stylesheet" href="./trainer.css?v=2026-03-06-2">
+  <script src="./theme.js?v=2026-03-06-2" defer></script>
+  <style>
+    input[type="email"],
+    input[type="password"],
+    input[type="text"],
+    select{
+      background:var(--muted);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      outline:none;
+      width:100%;
+      box-sizing:border-box;
+    }
+
+    /* Заголовок в шапке как на главной */
+    .page-head h1{margin:0}
+
+    .auth-box{max-width:920px;margin:12px auto 0}
+    .auth-grid{display:flex;gap:24px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
+    .auth-col{flex:1 1 320px;min-width:280px}
+
+    .provider-btn{
+      width:100%;
+      max-width:360px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      justify-content:center;
+      padding:14px 16px;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background:var(--panel);
+      color:var(--text);
+      cursor:pointer;
+    }
+    .provider-logo{width:28px;height:28px;object-fit:contain}
+
+    .mail-head{display:flex;align-items:center;gap:12px;margin:2px 0 12px}
+    .mail-logo{width:46px;height:46px;object-fit:contain}
+    .mail-caption{font-size:16px}
+
+    .mail-form-wrap{max-width:260px} /* в 2 раза уже прежних 520px */
+    .form-row{margin:10px 0}
+    .form-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+
+    .auth-links{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+    .auth-links a{color:var(--text);text-decoration:underline}
+    .auth-links a:hover{opacity:.85}
+    .auth-links a.active{text-decoration:none;opacity:.8;cursor:default}
+
+    .status{margin-top:10px;opacity:.85}
+    .status.error{opacity:1;color:#b00}
+    .small{font-size:12px;opacity:.8}
+
+    .radio-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+    .radio-row label{display:flex;gap:6px;align-items:center}
+
+    .pw-wrap{position:relative}
+    .pw-wrap input{padding-right:38px}
+    .pw-toggle{
+      position:absolute;
+      right:8px;
+      top:50%;
+      transform:translateY(-50%);
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      opacity:.75;
+      padding:2px 4px;
+      line-height:1;
+    }
+    .pw-toggle:hover{opacity:1}
+
+    /* На auth странице скрываем кнопку "Войти" из header.js (на всякий случай) */
+    #loginGoogleBtn{display:none !important}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section id="auth">
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <h1>Авторизация</h1>
+          <div class="theme-toggle" data-header-extra="1">
+            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </header>
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false, hideLogin: true }));
+        </script>
+
+        <div class="auth-box">
+          <div class="auth-grid">
+            <div class="auth-col auth-google">
+              <button id="googleBtn" type="button" class="provider-btn">
+                <img class="provider-logo" src="./img/google.png" alt="Google">
+                <span>Войти через Google</span>
+              </button>
+            </div>
+
+            <div class="auth-col auth-mail">
+              <div class="mail-head">
+                <img class="mail-logo" src="./img/post.png" alt="Почта">
+                <div class="mail-caption">Вход через логин и пароль</div>
+              </div>
+
+              <div class="mail-form-wrap">
+                <section id="panelLogin">
+                  <form id="loginForm">
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Email</div>
+                      <input id="loginEmail" type="email" autocomplete="email" required>
+                    </div>
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Пароль</div>
+                      <div class="pw-wrap">
+                        <input id="loginPass" type="password" autocomplete="current-password" required>
+                        <button type="button" class="pw-toggle" data-toggle-for="loginPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
+                      </div>
+                    </div>
+                    <div class="form-actions">
+                      <button id="loginSubmit" type="submit">Войти</button>
+                    </div>
+                    <div id="loginStatus" class="status"></div>
+                  </form>
+                </section>
+
+                <section id="panelSignup" class="hidden">
+                  <form id="signupForm">
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Кто вы?</div>
+                      <div class="radio-row" role="radiogroup" aria-label="Роль">
+                        <label><input type="radio" name="signupRole" value="student" checked> Ученик</label>
+                        <label><input type="radio" name="signupRole" value="teacher"> Учитель</label>
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Фамилия</div>
+                      <input id="signupLastName" type="text" autocomplete="family-name" required>
+                    </div>
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Имя</div>
+                      <input id="signupFirstName" type="text" autocomplete="given-name" required>
+                    </div>
+
+                    <div id="studentFields">
+                      <div class="form-row">
+                        <div class="small" style="margin-bottom:6px">Класс</div>
+                        <select id="signupGrade" required>
+                          <option value="" selected disabled>Выберите класс</option>
+                          <option value="5">5</option>
+                          <option value="6">6</option>
+                          <option value="7">7</option>
+                          <option value="8">8</option>
+                          <option value="9">9</option>
+                          <option value="10">10</option>
+                          <option value="11">11</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div id="teacherFields" class="hidden">
+                      <div class="form-row">
+                        <div class="small" style="margin-bottom:6px">Вы</div>
+                        <select id="signupTeacherType">
+                          <option value="" selected disabled>Выберите вариант</option>
+                          <option value="school">Школьный учитель</option>
+                          <option value="tutor">Репетитор</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Email</div>
+                      <input id="signupEmail" type="email" autocomplete="email" required>
+                    </div>
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Пароль</div>
+                      <div class="pw-wrap">
+                        <input id="signupPass" type="password" autocomplete="new-password" required>
+                        <button type="button" class="pw-toggle" data-toggle-for="signupPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
+                      </div>
+                    </div>
+
+                    <div class="form-actions">
+                      <button id="signupSubmit" type="submit">Зарегистрироваться</button>
+                      <button id="resendBtn" type="button" class="hidden">Отправить письмо ещё раз</button>
+                    </div>
+                    <div id="signupStatus" class="status"></div>
+                    <div class="small" style="margin-top:8px">После регистрации нужно подтвердить почту по ссылке из письма.</div>
+                  </form>
+                </section>
+
+                <section id="panelReset" class="hidden">
+                  <form id="resetForm">
+                    <div class="form-row">
+                      <div class="small" style="margin-bottom:6px">Email</div>
+                      <input id="resetEmail" type="email" autocomplete="email" required>
+                    </div>
+                    <div class="form-actions">
+                      <button id="resetSubmit" type="submit">Отправить письмо</button>
+                    </div>
+                    <div id="resetStatus" class="status"></div>
+                  </form>
+                </section>
+              </div>
+
+              <div class="auth-links" role="navigation" aria-label="Действия">
+                <a id="tabLogin" href="#" class="active" aria-selected="true">Войти</a>
+                <a id="tabSignup" href="#" aria-selected="false">Регистрация</a>
+                <a id="tabReset" href="#" aria-selected="false">Сменить пароль</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./auth.js?v=2026-03-06-2"></script>
+</body>
+</html>

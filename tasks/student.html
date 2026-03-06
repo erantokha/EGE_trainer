@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-03-06-2">
+  <title>Ученик</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="../app/diag_bootstrap.js?v=2026-03-06-2"></script>
+
+
+  <script id="sentry-loader"
+    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+    crossorigin="anonymous"></script>
+
+  <script>
+  (function () {
+    function boot() {
+      if (!window.Sentry || typeof window.Sentry.init !== 'function') return;
+      if (window.__SENTRY_INITED__) return;
+      window.__SENTRY_INITED__ = true;
+
+      var buildMeta = document.querySelector('meta[name="app-build"]');
+      var release = buildMeta ? buildMeta.getAttribute('content') : 'unknown';
+      var env = (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+
+      var integrations = [];
+      try {
+        if (window.Sentry.breadcrumbsIntegration) {
+          integrations.push(window.Sentry.breadcrumbsIntegration({
+            console: true,
+            dom: true,
+            fetch: true,
+            xhr: true,
+            history: true,
+            sentry: true
+          }));
+        }
+        if (window.Sentry.browserApiErrorsIntegration) {
+          integrations.push(window.Sentry.browserApiErrorsIntegration());
+        }
+        if (window.Sentry.globalHandlersIntegration) {
+          integrations.push(window.Sentry.globalHandlersIntegration({
+            onerror: true,
+            onunhandledrejection: true
+          }));
+        }
+      } catch (e) {}
+
+      var opts = {
+        release: release,
+        environment: env,
+        maxBreadcrumbs: 100,
+        initialScope: { tags: { page: location.pathname } },
+        beforeSend: function (event) {
+          try {
+            if (event && event.request) {
+              if (event.request.url && event.request.url.indexOf('?') !== -1) {
+                event.request.url = event.request.url.split('?')[0];
+              }
+              if (event.request.headers) {
+                delete event.request.headers.Authorization;
+                delete event.request.headers.authorization;
+              }
+              delete event.request.query_string;
+            }
+          } catch (e) {}
+          return event;
+        }
+      };
+
+      if (integrations.length) opts.integrations = integrations;
+      window.Sentry.init(opts);
+    }
+
+    if (window.Sentry && typeof window.Sentry.onLoad === 'function') {
+      window.Sentry.onLoad(boot);
+    } else {
+      var s = document.getElementById('sentry-loader');
+      if (s) s.addEventListener('load', boot);
+      if (window.Sentry) boot();
+    }
+  })();
+  </script>
+
+
+
+  <link rel="stylesheet" href="./trainer.css?v=2026-03-06-2">
+  <link rel="stylesheet" href="./stats.css?v=2026-03-06-2">
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <div>
+            <div class="student-page-titlebar">
+              <h1 id="pageTitle">Ученик</h1>
+
+              <div id="studentActions" class="student-menu-wrap" style="display:none">
+                <button id="studentGearBtn" class="btn student-gear-btn" type="button" aria-label="Действия" aria-expanded="false">⚙</button>
+                <div id="studentGearMenu" class="student-menu hidden">
+                  <button id="studentDeleteBtn" class="student-menu-item" type="button">Удалить</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="studentSub" class="muted" style="margin-top:6px;display:none"></div>
+          </div>
+        </header>
+
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+          const rel = inTasks ? '../' : './';
+          import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+        </script>
+
+        <div id="pageStatus" class="muted" style="min-height:20px"></div>
+
+        <div id="smartHwBlock" style="margin-top:14px; display:none">
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+          <div id="smartHwHead" class="smart-hw-head">
+            <div style="font-size:18px">Умное ДЗ</div>
+            <div class="stats-actions">
+              <span id="smartHwChev" class="smart-hw-chev" aria-hidden="true">▾</span>
+            </div>
+          </div>
+
+          <div id="smartHwPanel" class="hidden smart-hw-panel">
+            <div class="smart-tabs">
+              <button id="smartTabRecsBtn" class="smart-tab-btn is-active" type="button">Рекомендации</button>
+              <button id="smartTabVar12Btn" class="smart-tab-btn" type="button">Вариант 12</button>
+            </div>
+
+            <div id="smartTabRecs" class="smart-tab-content">
+
+            <div class="stats-controls smart-hw-controls">
+              <div class="ctrl">
+                <label>Период</label>
+                <select id="smartRecDays">
+                  <option value="7">7 дней</option>
+                  <option value="14">14 дней</option>
+                  <option value="30" selected>30 дней</option>
+                  <option value="90">90 дней</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Источник</label>
+                <select id="smartRecSource">
+                  <option value="all" selected>всё</option>
+                  <option value="self">самостоятельно</option>
+                  <option value="homework">ДЗ</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Рекомендации</label>
+                <select id="smartRecMode">
+                  <option value="mixed" selected>смешанный</option>
+                  <option value="weak">слабые</option>
+                  <option value="low">мало решено</option>
+                  <option value="uncovered">не решал</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Мин. попыток</label>
+                <select id="smartRecMinAttempts">
+                  <option value="1">1</option>
+                  <option value="3" selected>3</option>
+                  <option value="5">5</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>Лимит тем</label>
+                <select id="smartRecLimit">
+                  <option value="10">10</option>
+                  <option value="15" selected>15</option>
+                  <option value="25">25</option>
+                </select>
+              </div>
+
+              <div class="ctrl">
+                <label>По умолчанию</label>
+                <select id="smartRecDefaultCount">
+                  <option value="1">1 задача</option>
+                  <option value="2" selected>2 задачи</option>
+                  <option value="3">3 задачи</option>
+                </select>
+              </div>
+
+              <div class="ctrl" style="min-width:260px;flex:1">
+                <label>Название ДЗ</label>
+                <input id="smartHwTitle" type="text" placeholder="Умное ДЗ" style="width:100%">
+              </div>
+
+              <div class="ctrl" style="min-width:260px">
+                <label style="display:flex; gap:8px; align-items:center">
+                  <input id="smartRecIncludeUncovered" type="checkbox" checked>
+                  включать непокрытые
+                </label>
+              </div>
+            </div>
+
+            <div class="stats-actions" style="margin-top:10px">
+              <button id="smartRecLoad" class="btn" type="button">Подобрать темы</button>
+              <button id="smartRecAddAll" class="btn" type="button">Добавить все</button>
+              <button id="smartRecAddTop5" class="btn" type="button">Топ-5</button>
+              <button id="smartRecAddTop10" class="btn" type="button">Топ-10</button>
+              <button id="smartPlanClear" class="btn" type="button">Очистить план</button>
+              <button id="smartHwClose" class="btn" type="button">Скрыть</button>
+              <span id="smartHwStatus" class="muted"></span>
+            </div>
+
+            <div class="smart-hw-grid" style="margin-top:12px">
+              <div>
+                <div class="smart-hw-subhead">Рекомендованные темы</div>
+                <div class="smart-hw-toolbar">
+                  <input id="smartRecSearch" class="smart-hw-search" type="text" placeholder="Поиск темы…">
+                  <select id="smartRecSort" class="smart-hw-sort">
+                    <option value="score" selected>по важности</option>
+                    <option value="worst">хуже точность</option>
+                    <option value="oldest">давно не решал</option>
+                    <option value="few">мало попыток</option>
+                    <option value="title">по названию</option>
+                  </select>
+                </div>
+                <div id="smartRecList" class="smart-hw-list"></div>
+              </div>
+
+              <div>
+                <div class="smart-hw-subhead">План ДЗ</div>
+                <div id="smartPlanList" class="smart-hw-list"></div>
+
+                <div class="smart-hw-total">
+                  Тем: <span id="smartPlanTopics">0</span> · Всего задач: <span id="smartPlanTotal">0</span>
+                </div>
+
+                <div class="stats-actions" style="margin-top:10px; align-items:center">
+                  <button id="smartHwCreate" class="btn" type="button" disabled>Создать ДЗ</button>
+                  <span id="smartHwCreateHint" class="smart-hw-hint"></span>
+                </div>
+
+                <div id="smartHwResult" class="hidden" style="margin-top:12px">
+                  <div class="stats-controls">
+                    <div class="ctrl" style="flex:1">
+                      <label>Ссылка для ученика</label>
+                      <input id="smartHwLink" type="text" readonly style="width:100%">
+                    </div>
+                    <div class="stats-actions">
+                      <button id="smartHwCopy" class="btn" type="button">Скопировать</button>
+                      <button id="smartHwOpen" class="btn" type="button">Открыть</button>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+            </div>
+
+            <div id="smartTabVar12" class="smart-tab-content hidden">
+              <div class="stats-controls smart-hw-controls">
+                <div class="ctrl">
+                  <label>Фильтр</label>
+                  <select id="var12Mode">
+                    <option value="uncovered" selected>не решал</option>
+                    <option value="worst3">плохая точность (последние 3)</option>
+                  </select>
+                </div>
+
+                <div class="ctrl">
+                  <label>Источник</label>
+                  <select id="var12Source">
+                    <option value="all" selected>всё</option>
+                    <option value="hw">только ДЗ</option>
+                    <option value="test">только тест</option>
+                  </select>
+                </div>
+
+                <div class="ctrl" style="min-width:260px;flex:1">
+                  <label>Название ДЗ</label>
+                  <input id="var12Title" type="text" placeholder="Вариант 12" style="width:100%">
+                </div>
+              </div>
+
+              <div class="stats-actions" style="margin-top:10px; align-items:center">
+                <button id="var12Build" class="btn" type="button">Подобрать вариант (12)</button>
+                <button id="var12Clear" class="btn" type="button">Очистить</button>
+                <button id="var12Create" class="btn" type="button" disabled>Создать ДЗ (12)</button>
+                <span id="var12Status" class="muted"></span>
+              </div>
+
+              <div style="margin-top:12px">
+                <div class="smart-hw-subhead">Выбранные темы (по 1 на каждый раздел)</div>
+                <div id="var12List" class="smart-hw-list"></div>
+
+                <div class="smart-hw-total">
+                  Тем: <span id="var12Topics">0</span> · Всего задач: <span id="var12Total">0</span>
+                </div>
+              </div>
+
+              <div id="var12Result" class="hidden" style="margin-top:12px">
+                <div class="stats-controls">
+                  <div class="ctrl" style="flex:1">
+                    <label>Ссылка для ученика</label>
+                    <input id="var12Link" type="text" readonly style="width:100%">
+                  </div>
+                  <div class="stats-actions">
+                    <button id="var12Copy" class="btn" type="button">Скопировать</button>
+                    <button id="var12Open" class="btn" type="button">Открыть</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+        </div>
+
+
+        <div id="worksBlock" style="margin-top:14px">
+          <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+          <div id="worksHead" class="smart-hw-head">
+            <div style="font-size:18px">Выполненные работы</div>
+            <div class="stats-actions">
+              <span id="worksChev" class="smart-hw-chev" aria-hidden="true">▾</span>
+            </div>
+          </div>
+
+          <div id="worksPanel" class="hidden" style="margin-top:10px">
+            <div id="worksList" style="margin-top:10px"></div>
+          </div>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--border);margin:14px 0">
+
+<div style="margin-top:12px">
+          <div class="student-stat-head">
+            <div class="student-stat-title">Статистика</div>
+            <button id="statsFiltersToggle" class="icon-btn" type="button" aria-label="Фильтры" title="Фильтры">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div id="statsRoot"></div>
+        </div>
+
+        <div style="margin-top:16px">
+          <button id="backBtn" class="btn" type="button">Назад к списку</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./theme.js?v=2026-03-06-2" defer></script>
+  <script type="module">
+    const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+    const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+    import(withV('./student.js'));
+  </script>
+</body>
+</html>

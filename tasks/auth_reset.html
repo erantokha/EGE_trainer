@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-03-06-2">
+  <title>Сброс пароля</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <script src="../app/diag_bootstrap.js?v=2026-03-06-2"></script>
+
+
+  <script id="sentry-loader"
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+<script>
+(function () {
+  if (window.__SENTRY_INITED__) return;
+  window.__SENTRY_INITED__ = true;
+
+  function getRelease() {
+    var m = document.querySelector('meta[name="app-build"]');
+    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+  }
+
+  function getEnv() {
+    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
+  }
+
+  function sanitizeEvent(event) {
+    try {
+      if (event && event.request && event.request.url) {
+        event.request.url = event.request.url.split('#')[0].split('?')[0];
+      }
+      if (event && event.request && event.request.headers) {
+        delete event.request.headers.Authorization;
+        delete event.request.headers.authorization;
+        delete event.request.headers.Cookie;
+        delete event.request.headers.cookie;
+      }
+    } catch (e) {}
+    return event;
+  }
+
+  function doInit() {
+    if (!window.Sentry || !window.Sentry.init) return;
+
+    var opts = {
+      release: getRelease(),
+      environment: getEnv(),
+      initialScope: {
+        tags: { page: location.pathname }
+      },
+      beforeSend: sanitizeEvent
+    };
+
+    try {
+      if (window.Sentry.onLoad) {
+        window.Sentry.onLoad(function () {
+          window.Sentry.init(opts);
+        });
+        return;
+      }
+    } catch (e) {}
+
+    window.Sentry.init(opts);
+  }
+
+  doInit();
+})();
+</script>
+
+
+  
+  <link rel="stylesheet" href="./trainer.css?v=2026-03-06-2">
+  <script src="./theme.js?v=2026-03-06-2" defer></script>
+  <style>
+    input[type="password"],
+    input[type="text"]{
+      background:var(--muted);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:10px;
+      padding:8px 10px;
+      outline:none;
+      width:100%;
+      box-sizing:border-box;
+    }
+    .pw-wrap{position:relative}
+    .pw-wrap input{padding-right:38px}
+    .pw-toggle{
+      position:absolute;
+      right:8px;
+      top:50%;
+      transform:translateY(-50%);
+      border:0;
+      background:transparent;
+      cursor:pointer;
+      opacity:.75;
+      padding:2px 4px;
+      line-height:1;
+    }
+    .pw-toggle:hover{opacity:1}
+    .status{margin-top:10px;opacity:.85}
+    .status.error{opacity:1;color:#b00}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section>
+      <div class="panel">
+        <header id="appHeader" class="page-head">
+          <div class="crumb">Сброс пароля</div>
+          <div class="theme-toggle" data-header-extra="1">
+            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
+            <label for="themeToggle" class="theme-toggle-label">
+              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
+              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+            </label>
+          </div>
+        </header>
+        <script type="module">
+          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false }));
+        </script>
+
+        <form id="resetForm" style="max-width:520px;margin:12px auto 0">
+          <div class="muted" style="margin-bottom:10px">Введите новый пароль.</div>
+          <div class="pw-wrap">
+            <input id="newPass" type="password" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" data-toggle-for="newPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button type="submit">Сохранить пароль</button>
+          </div>
+          <div id="status" class="status"></div>
+        </form>
+
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./auth_reset.js?v=2026-03-06-2"></script>
+</body>
+</html>
