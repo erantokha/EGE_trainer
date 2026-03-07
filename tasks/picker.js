@@ -11,7 +11,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 import { withBuild } from '../app/build.js?v=2026-03-07-5';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-07-5';
 import { CONFIG } from '../app/config.js?v=2026-03-07-5';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-03-07-5';
+import { listMyStudents, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-07-5';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-07-5';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-07-5';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-5';
@@ -684,6 +684,151 @@ function fmtCnt(total, correct) {
   const c = Math.max(0, Number(correct || 0) || 0);
   if (!t) return '0/0';
   return `${c}/${t}`;
+}
+
+function fmtDateTimeRu(s) {
+  if (!s) return '';
+  try {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleString('ru-RU', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch (_) {
+    return '';
+  }
+}
+
+const _TEACHER_MODAL_STATS_CACHE = new Map();
+
+function getTeacherModalStatsCache(studentId, create = false) {
+  const sid = String(studentId || '').trim();
+  if (!sid) return null;
+  let map = _TEACHER_MODAL_STATS_CACHE.get(sid);
+  if (!map && create) {
+    map = new Map();
+    _TEACHER_MODAL_STATS_CACHE.set(sid, map);
+  }
+  return map || null;
+}
+
+function rememberTeacherModalStats(studentId, statsMap) {
+  const cache = getTeacherModalStatsCache(studentId, true);
+  if (!cache || !(statsMap instanceof Map)) return;
+  for (const [qid, st] of statsMap.entries()) {
+    const id = String(qid || '').trim();
+    if (!id) continue;
+    cache.set(id, {
+      total: Number(st?.total || 0) || 0,
+      correct: Number(st?.correct || 0) || 0,
+      last_attempt_at: st?.last_attempt_at ?? null,
+    });
+  }
+}
+
+async function loadTeacherStatsForModal(studentId, questionIds, opts = {}) {
+  const sid = String(studentId || '').trim();
+  const ids = Array.from(new Set((questionIds || []).map(x => String(x || '').trim()).filter(Boolean)));
+  if (!sid || !ids.length) return { ok: true, map: new Map(), error: null };
+
+  const cache = getTeacherModalStatsCache(sid, true);
+  const out = new Map();
+  const missing = [];
+
+  for (const id of ids) {
+    if (cache?.has(id)) out.set(id, cache.get(id));
+    else missing.push(id);
+  }
+
+  if (missing.length) {
+    const topicId = String(opts?.topicId || '').trim() || null;
+    const res = await questionStatsForTeacherV1({
+      student_id: sid,
+      question_ids: topicId ? ids : missing,
+      topic_id: topicId,
+      timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
+    });
+    if (!res?.ok) return { ok: false, map: out, error: res?.error || null };
+    rememberTeacherModalStats(sid, res.map || new Map());
+    const cache2 = getTeacherModalStatsCache(sid, false);
+    for (const id of ids) {
+      if (cache2?.has(id)) out.set(id, cache2.get(id));
+    }
+  }
+
+  return { ok: true, map: out, error: null };
+}
+
+function buildModalBadgeEl(extraClass = '') {
+  const badge = document.createElement('span');
+  badge.className = `badge gray modal-stats-badge ${extraClass}`.trim();
+
+  const b = document.createElement('b');
+  b.textContent = '—';
+  badge.appendChild(b);
+
+  const small = document.createElement('span');
+  small.className = 'small';
+  small.textContent = '0/0';
+  badge.appendChild(small);
+
+  return badge;
+}
+
+function setModalStatsBadge(badgeEl, stat, opts = {}) {
+  if (!badgeEl) return;
+
+  badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
+
+  const baseTitle = String(opts?.baseTitle || 'Статистика ученика').trim();
+  const total = Math.max(0, Number(stat?.total || 0) || 0);
+  const correct = Math.max(0, Number(stat?.correct || 0) || 0);
+  const lastAt = stat?.last_attempt_at || null;
+  const b = badgeEl.querySelector('b');
+  const small = badgeEl.querySelector('.small');
+
+  if (!stat || total <= 0) {
+    badgeEl.classList.add('gray');
+    if (b) b.textContent = '—';
+    if (small) small.textContent = '0/0';
+    const emptyText = String(opts?.emptyText || 'Попыток нет').trim();
+    badgeEl.setAttribute('title', `${baseTitle}: ${emptyText}`);
+    return;
+  }
+
+  const p = pct(total, correct);
+  badgeEl.classList.add(badgeClassByPct(p));
+  if (b) b.textContent = fmtPct(p);
+  if (small) small.textContent = fmtCnt(total, correct);
+
+  let title = `${baseTitle}: ${fmtPct(p)} (${fmtCnt(total, correct)})`;
+  const lastText = fmtDateTimeRu(lastAt);
+  if (lastText) title += ` • последняя попытка: ${lastText}`;
+  badgeEl.setAttribute('title', title);
+}
+
+function aggregateStatsForQuestionIds(questionIds, statsMap) {
+  const ids = Array.isArray(questionIds) ? questionIds : [];
+  let total = 0;
+  let correct = 0;
+  let lastAttemptAt = null;
+  for (const id0 of ids) {
+    const id = String(id0 || '').trim();
+    if (!id) continue;
+    const st = statsMap instanceof Map ? statsMap.get(id) : null;
+    if (!st) continue;
+    total += Math.max(0, Number(st?.total || 0) || 0);
+    correct += Math.max(0, Number(st?.correct || 0) || 0);
+    const cur = st?.last_attempt_at || null;
+    if (cur && (!lastAttemptAt || new Date(cur).getTime() > new Date(lastAttemptAt).getTime())) {
+      lastAttemptAt = cur;
+    }
+  }
+  return { total, correct, last_attempt_at: lastAttemptAt };
 }
 
 function ensureBaseTitle(el) {
@@ -2460,6 +2605,60 @@ function closeProtoPickerModal() {
   if (hint) hint.textContent = '';
 }
 
+let _PROTO_MODAL_BADGE_SEQ = 0;
+
+async function refreshProtoModalBadges(types = [], opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  const { list } = getProtoModalEls();
+  if (!list) return;
+
+  const seq = ++_PROTO_MODAL_BADGE_SEQ;
+  const cards = $$('.tp-item', list);
+  if (!cards.length) return;
+
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  if (!sid) {
+    for (const card of cards) {
+      setModalStatsBadge(card.querySelector('.proto-modal-badge'), null, {
+        baseTitle: 'Статистика ученика по группе',
+        emptyText: 'Ученик не выбран',
+      });
+    }
+    return;
+  }
+
+  const allIds = [];
+  for (const typ of (Array.isArray(types) ? types : [])) {
+    for (const proto of (typ?.prototypes || [])) {
+      const qid = String(proto?.id || '').trim();
+      if (qid) allIds.push(qid);
+    }
+  }
+  if (!allIds.length) return;
+
+  const res = await loadTeacherStatsForModal(sid, allIds, {
+    topicId: String(opts?.topicId || '').trim() || null,
+    timeoutMs: 8000,
+  });
+
+  if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
+
+  const statsMap = res?.map instanceof Map ? res.map : new Map();
+  for (const typ of (Array.isArray(types) ? types : [])) {
+    const typeId = String(typ?.id || '').trim();
+    if (!typeId) continue;
+    const card = list.querySelector(`.tp-item[data-type-id="${CSS.escape(typeId)}"]`);
+    const badge = card?.querySelector('.proto-modal-badge');
+    if (!badge) continue;
+    const ids = (typ?.prototypes || []).map(p => String(p?.id || '').trim()).filter(Boolean);
+    const stat = aggregateStatsForQuestionIds(ids, statsMap);
+    setModalStatsBadge(badge, stat, {
+      baseTitle: 'Статистика ученика по группе',
+      emptyText: res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+    });
+  }
+}
+
 async function openProtoPickerModal(topic) {
   if (!CAN_PROTO_MODAL) return;
   if (!topic || !topic.id) return;
@@ -2478,8 +2677,8 @@ async function openProtoPickerModal(topic) {
   const topicId = String(topic.id).trim();
   title.textContent = `${topicId}. ${topic.title || ''}`.trim();
   list.innerHTML = '<div class="muted">Загрузка…</div>';
-    list.scrollTop = 0;
-hint.textContent = '';
+  list.scrollTop = 0;
+  hint.textContent = '';
   if (cnt) cnt.textContent = 'Выбрано: 0';
 
   const seq = ++_PROTO_MODAL_SEQ;
@@ -2514,6 +2713,7 @@ hint.textContent = '';
 
   updateProtoModalSelectedCount();
   await typesetMathIfNeeded(list);
+  await refreshProtoModalBadges(types, { topicId });
 }
 
 function renderProtoModalCard(manifest, type) {
@@ -2526,16 +2726,30 @@ function renderProtoModalCard(manifest, type) {
   const left = document.createElement('div');
   left.className = 'tp-item-left';
 
+  const head = document.createElement('div');
+  head.className = 'tp-item-head';
+
   const meta = document.createElement('div');
   meta.className = 'tp-item-meta';
   meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
+
+  if (IS_TEACHER_HOME) {
+    const badge = buildModalBadgeEl('proto-modal-badge');
+    setModalStatsBadge(badge, null, {
+      baseTitle: 'Статистика ученика по группе',
+      emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
+    });
+    head.appendChild(meta);
+    head.appendChild(badge);
+  }
 
   const stem = document.createElement('div');
   stem.className = 'tp-item-stem';
   const proto0 = (type.prototypes || [])[0] || null;
   stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
 
-  left.appendChild(meta);
+  if (IS_TEACHER_HOME) left.appendChild(head);
+  else left.appendChild(meta);
   left.appendChild(stem);
 
   const right = document.createElement('div');
@@ -2714,6 +2928,7 @@ let _ADDED_CTX = null; // { buckets: { [bucketKey]: question[] }, idCounts: { [q
 
 let _ADDED_SYNC_T = 0;
 let _ADDED_SYNC_SEQ = 0;
+let _ADDED_BADGE_SEQ = 0;
 
 function getAddedTasksModalEls() {
   return {
@@ -2805,6 +3020,12 @@ function onTeacherContextChanged(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   ensureAddedTasksContextLoaded();
   scheduleSyncAddedTasks({ reason: String(opts?.reason || 'context-change'), immediate: true });
+  if (PROTO_MODAL_OPEN) {
+    queueMicrotask(() => {
+      if (!PROTO_MODAL_OPEN || !PROTO_MODAL_TOPIC) return;
+      refreshProtoModalBadges(PROTO_MODAL_TYPES, { topicId: String(PROTO_MODAL_TOPIC?.id || '').trim() });
+    });
+  }
 }
 
 function scheduleSyncAddedTasks(opts = {}) {
@@ -3155,9 +3376,8 @@ async function syncAddedTasksToSelection(opts = {}) {
 
   // если модалка открыта — перерисуем
   if (ADDED_TASKS_MODAL_OPEN) {
-    renderAddedTasksPreview(sortAddedQuestions(flattenAddedQuestions()), { wantTotal });
-    const { listWrap, list } = getAddedTasksModalEls();
-    await typesetMathIfNeeded(listWrap || list);
+    const arr = sortAddedQuestions(flattenAddedQuestions());
+    await refreshAddedTasksModalView(arr, { wantTotal });
   }
 }
 
@@ -3180,9 +3400,7 @@ async function openAddedTasksModal() {
 
   const wantTotal = getTotalSelected();
   const arr = sortAddedQuestions(flattenAddedQuestions());
-  renderAddedTasksPreview(arr, { wantTotal });
-
-  await typesetMathIfNeeded(listWrap || list);
+  await refreshAddedTasksModalView(arr, { wantTotal });
 }
 
 function closeAddedTasksModal() {
@@ -3307,6 +3525,51 @@ function buildQuestionForPreview(manifest, type, proto) {
   };
 }
 
+async function refreshAddedTasksModalBadges(questions = []) {
+  const { list } = getAddedTasksModalEls();
+  if (!list) return;
+
+  const seq = ++_ADDED_BADGE_SEQ;
+  const cards = $$('.task-card[data-question-id]', list);
+  if (!cards.length) return;
+
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  if (!sid) {
+    for (const card of cards) {
+      setModalStatsBadge(card.querySelector('.added-task-badge'), null, {
+        baseTitle: 'Статистика ученика по задаче',
+        emptyText: 'Ученик не выбран',
+      });
+    }
+    return;
+  }
+
+  const ids = Array.from(new Set((questions || []).map(q => String(q?.question_id || '').trim()).filter(Boolean)));
+  if (!ids.length) return;
+
+  const res = await loadTeacherStatsForModal(sid, ids, { timeoutMs: 8000 });
+  if (seq !== _ADDED_BADGE_SEQ || !ADDED_TASKS_MODAL_OPEN) return;
+
+  const statsMap = res?.map instanceof Map ? res.map : new Map();
+  for (const card of cards) {
+    const qid = String(card.dataset.questionId || '').trim();
+    const badge = card.querySelector('.added-task-badge');
+    if (!badge || !qid) continue;
+    const stat = statsMap.get(qid) || null;
+    setModalStatsBadge(badge, stat, {
+      baseTitle: 'Статистика ученика по задаче',
+      emptyText: res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+    });
+  }
+}
+
+async function refreshAddedTasksModalView(questions, opts = {}) {
+  const { listWrap, list } = getAddedTasksModalEls();
+  renderAddedTasksPreview(questions, opts);
+  await typesetMathIfNeeded(listWrap || list);
+  await refreshAddedTasksModalBadges(questions);
+}
+
 function renderAddedTasksPreview(questions, opts = {}) {
   const { meta, list, hint } = getAddedTasksModalEls();
   const arr = Array.isArray(questions) ? questions : [];
@@ -3329,12 +3592,25 @@ function renderAddedTasksPreview(questions, opts = {}) {
 
   arr.forEach((q, idx) => {
     const card = document.createElement('article');
-    card.className = 'task-card';
+    card.className = 'task-card added-task-card';
+    card.dataset.questionId = String(q?.question_id || '').trim();
+
+    const head = document.createElement('div');
+    head.className = 'added-task-head';
 
     const num = document.createElement('div');
     num.className = 'task-num';
     num.textContent = String(idx + 1);
-    card.appendChild(num);
+    head.appendChild(num);
+
+    const badge = buildModalBadgeEl('added-task-badge');
+    setModalStatsBadge(badge, null, {
+      baseTitle: 'Статистика ученика по задаче',
+      emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
+    });
+    head.appendChild(badge);
+
+    card.appendChild(head);
 
     const parts = [];
     if (q.section_id || q.section_title) {

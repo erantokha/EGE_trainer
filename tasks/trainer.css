@@ -978,6 +978,38 @@ body[data-theme="light"] .task-card{
 .task-num.ok{ border-color:#166534; }
 .task-num.bad{ border-color:#b91c1c; }
 
+.added-task-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:4px;
+}
+
+.modal-stats-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-width:74px;
+  padding:5px 8px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:rgba(148,163,184,.10);
+  color:var(--text);
+  font-size:12px;
+  line-height:1;
+  white-space:nowrap;
+  flex:0 0 auto;
+}
+.modal-stats-badge b{font-weight:600}
+.modal-stats-badge .small{font-size:10px;color:var(--text-dim)}
+.modal-stats-badge.gray{background:rgba(148,163,184,.10)}
+.modal-stats-badge.green{background:rgba(16,185,129,.12)}
+.modal-stats-badge.lime{background:rgba(132,204,22,.14)}
+.modal-stats-badge.yellow{background:rgba(245,158,11,.16)}
+.modal-stats-badge.red{background:rgba(239,68,68,.14)}
+
 /* текст условия */
 .ws-stem,
 .task-stem{
@@ -1448,8 +1480,16 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 }
 
 .tp-item-left { flex:1; min-width:0; }
-.tp-item-meta { font-size:12px; opacity:.8; margin-bottom:6px; }
+.tp-item-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:6px;
+}
+.tp-item-meta { font-size:12px; opacity:.8; margin-bottom:0; }
 .tp-item-stem { font-size:14px; line-height:1.35; }
+.tp-item-head .modal-stats-badge{margin-left:auto}
 
 .tp-preview { display:flex; gap:10px; align-items:flex-start; }
 .tp-fig {

@@ -316,3 +316,13 @@ body[data-home-variant="teacher"] #addedTasksModal #addedTasksHint{
 body[data-home-variant="teacher"] #addedTasksModal .task-list{
   margin-top:0;
 }
+
+body[data-home-variant="teacher"] #addedTasksModal .added-task-head,
+body[data-home-variant="teacher"] #protoPickerModal .tp-item-head{
+  gap:8px;
+}
+body[data-home-variant="teacher"] #addedTasksModal .modal-stats-badge,
+body[data-home-variant="teacher"] #protoPickerModal .modal-stats-badge{
+  min-width:68px;
+  padding:4px 7px;
+}
