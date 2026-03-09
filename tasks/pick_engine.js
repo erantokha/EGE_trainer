@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-03-10-1';
+} from '../app/core/pick.js?v=2026-03-07-5';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-10-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-07-5';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1 } from '../app/providers/homework.js?v=2026-03-10-1';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-10-1';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-03-07-5';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-07-5';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -69,6 +69,157 @@ function getExpandSectionsTopicsMode() {
     if (v === '1' || v === 'on' || v === 'true') return 'on';
   } catch (_) {}
   return 'on';
+}
+
+function getBadAccTypesMode() {
+  // Новый badAcc-алгоритм по уникальным type.id.
+  // По умолчанию AUTO: пытаемся использовать новый RPC-путь, при ошибке/отсутствии функций
+  // мягко падаем в старую фронтовую логику.
+  try {
+    const v = String(localStorage.getItem('pick_badacc_types_v1') || '').trim().toLowerCase();
+    if (v === '0' || v === 'off' || v === 'false') return 'off';
+    if (v === '1' || v === 'on' || v === 'true' || v === 'force') return 'force';
+  } catch (_) {}
+  return 'auto';
+}
+
+function toFiniteNumber(x, fallback = 0) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function stableHash32(input) {
+  const s = String(input || '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pseudoRandomOrderValue(seed, id) {
+  return stableHash32(String(seed || '') + '::' + String(id || ''));
+}
+
+function compareNullableTsAsc(a, b) {
+  const ta = a ? Date.parse(a) : NaN;
+  const tb = b ? Date.parse(b) : NaN;
+  const aa = Number.isFinite(ta) ? ta : Number.POSITIVE_INFINITY;
+  const bb = Number.isFinite(tb) ? tb : Number.POSITIVE_INFINITY;
+  if (aa !== bb) return aa - bb;
+  return 0;
+}
+
+function normalizeTypeRollupRows(rows) {
+  const out = [];
+  for (const row of (rows || [])) {
+    const typeId = String(row?.type_id || '').trim();
+    if (!typeId) continue;
+    const topicId = String(row?.topic_id || topicIdFromTypeId(typeId) || '').trim();
+    const sectionId = String(row?.section_id || (topicId ? String(topicId).split('.')[0] : '') || '').trim();
+    const accRaw = row?.acc;
+    const acc = (accRaw == null || accRaw === '') ? null : toFiniteNumber(accRaw, null);
+    out.push({
+      typeId,
+      topicId,
+      sectionId,
+      unicQuestionId: String(row?.unic_question_id || '').trim(),
+      totalAttempts: Math.max(0, Math.floor(toFiniteNumber(row?.total_attempts, 0))),
+      correctAttempts: Math.max(0, Math.floor(toFiniteNumber(row?.correct_attempts, 0))),
+      attemptedAnalogs: Math.max(0, Math.floor(toFiniteNumber(row?.attempted_analogs, 0))),
+      totalAnalogs: Math.max(0, Math.floor(toFiniteNumber(row?.total_analogs, 0))),
+      acc: (acc == null || !Number.isFinite(acc)) ? null : Math.max(0, Math.min(1, acc)),
+      lastAttemptAtMax: row?.last_attempt_at_max ?? null,
+    });
+  }
+  return out;
+}
+
+function classifyTypePriorityGroup(rec) {
+  if (!rec) return 2;
+  if (rec.acc == null) return 1; // not solved yet: после плохих, но до 100%
+  if (rec.acc < 1) return 0;
+  return 2;
+}
+
+function buildTypePriorityOrder(records, seed = 'badacc-types') {
+  const normalized = Array.isArray(records) ? records.slice() : [];
+  normalized.sort((a, b) => {
+    const ga = classifyTypePriorityGroup(a);
+    const gb = classifyTypePriorityGroup(b);
+    if (ga !== gb) return ga - gb;
+
+    if (ga === 0) {
+      const aa = toFiniteNumber(a?.acc, 1);
+      const ab = toFiniteNumber(b?.acc, 1);
+      if (aa !== ab) return aa - ab;
+      const ra = pseudoRandomOrderValue(seed, a?.typeId);
+      const rb = pseudoRandomOrderValue(seed, b?.typeId);
+      if (ra !== rb) return ra - rb;
+      return compareId(a?.typeId, b?.typeId);
+    }
+
+    if (ga === 1) {
+      const ra = pseudoRandomOrderValue(seed, a?.typeId);
+      const rb = pseudoRandomOrderValue(seed, b?.typeId);
+      if (ra !== rb) return ra - rb;
+      return compareId(a?.typeId, b?.typeId);
+    }
+
+    const tc = compareNullableTsAsc(a?.lastAttemptAtMax, b?.lastAttemptAtMax);
+    if (tc !== 0) return tc;
+    const ra = pseudoRandomOrderValue(seed, a?.typeId);
+    const rb = pseudoRandomOrderValue(seed, b?.typeId);
+    if (ra !== rb) return ra - rb;
+    return compareId(a?.typeId, b?.typeId);
+  });
+  return normalized;
+}
+
+function buildTypeQuotaPlan(orderedRecords, want) {
+  const k = Math.max(0, Math.floor(Number(want || 0)));
+  const ordered = Array.isArray(orderedRecords) ? orderedRecords.filter(Boolean) : [];
+  const out = [];
+  if (!k || !ordered.length) return out;
+
+  let left = k;
+  while (left > 0) {
+    let progressed = false;
+    for (const rec of ordered) {
+      if (left <= 0) break;
+      const typeId = String(rec?.typeId || '').trim();
+      if (!typeId) continue;
+      out.push({ id: typeId, n: 1, topicId: String(rec?.topicId || '').trim(), sectionId: String(rec?.sectionId || '').trim() });
+      left -= 1;
+      progressed = true;
+      if (left <= 0) break;
+    }
+    if (!progressed) break;
+  }
+  return out;
+}
+
+function mergeTypeQuotaPlan(plan) {
+  const merged = new Map();
+  for (const row of (plan || [])) {
+    const id = String(row?.id || '').trim();
+    if (!id) continue;
+    const prev = merged.get(id) || { id, n: 0, topicId: String(row?.topicId || '').trim(), sectionId: String(row?.sectionId || '').trim() };
+    prev.n += Math.max(0, Math.floor(Number(row?.n || 0)));
+    if (!prev.topicId && row?.topicId) prev.topicId = String(row.topicId);
+    if (!prev.sectionId && row?.sectionId) prev.sectionId = String(row.sectionId);
+    merged.set(id, prev);
+  }
+  return Array.from(merged.values());
+}
+
+function buildTypeBadAccPlanFromRows(rows, want, seed = 'badacc-types') {
+  const normalized = normalizeTypeRollupRows(rows);
+  const ordered = buildTypePriorityOrder(normalized, seed);
+  const planExpanded = buildTypeQuotaPlan(ordered, want);
+  const planMerged = mergeTypeQuotaPlan(planExpanded);
+  return { normalized, ordered, planExpanded, planMerged };
 }
 
 function takeIdsInOrderPreferFreshBases(ids, want, usedIds, usedBases) {
@@ -558,11 +709,14 @@ export async function pickQuestionsScopedForList({
   const rpcAutoEligible = !!prioActive && !!studentId && (flags.old || flags.badAcc);
   const rpcEnabled = (rpcMode !== 'off') && rpcAutoEligible;
 
+  const badAccTypesMode = getBadAccTypesMode();
+  const badAccTypesEnabled = (badAccTypesMode !== 'off') && !!prioActive && !!studentId && !!flags.badAcc;
+
   const rpcSectionsMode = getRpcSectionsMode();
-  const rpcSectionsEnabled = (rpcSectionsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc);
+  const rpcSectionsEnabled = (rpcSectionsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc) && !badAccTypesEnabled;
 
   const expandSectionsTopicsMode = getExpandSectionsTopicsMode();
-  const expandSectionsTopicsEnabled = (expandSectionsTopicsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc);
+  const expandSectionsTopicsEnabled = (expandSectionsTopicsMode === 'on') && !!prioActive && !!studentId && (flags.old || flags.badAcc) && !badAccTypesEnabled;
 
   const rpcCalls = [];
   const rpcUsedStages = new Set();
@@ -668,6 +822,87 @@ export async function pickQuestionsScopedForList({
     return idx;
   }
 
+  async function buildQuestionsFromTypeRpcRows({ rows, typesReq }) {
+    const reqMap = new Map((typesReq || []).map(x => [String(x?.id || '').trim(), Math.max(0, Math.floor(Number(x?.n || 0)))]).filter(([id, n]) => id && n > 0));
+    if (!reqMap.size) return [];
+
+    const byType = new Map();
+    for (const row of (rows || [])) {
+      const typeId = String(row?.type_id || '').trim();
+      const qid = String(row?.question_id || '').trim();
+      if (!typeId || !qid || !reqMap.has(typeId)) continue;
+      if (!byType.has(typeId)) byType.set(typeId, []);
+      byType.get(typeId).push(row);
+    }
+
+    for (const arr of byType.values()) {
+      arr.sort((a, b) => {
+        const ra = Number(a?.rn || 0) || 0;
+        const rb = Number(b?.rn || 0) || 0;
+        if (ra !== rb) return ra - rb;
+        return compareId(a?.question_id, b?.question_id);
+      });
+    }
+
+    const out = [];
+    for (const req of (typesReq || [])) {
+      const typeId = String(req?.id || '').trim();
+      const wantT = Math.max(0, Math.floor(Number(req?.n || 0)));
+      if (!typeId || wantT <= 0) continue;
+
+      const candRows = byType.get(typeId) || [];
+      if (!candRows.length) continue;
+
+      let gotT = 0;
+      const seenIds = new Set();
+      const seenBases = new Set();
+
+      const tryAdd = async (row, preferFreshBase) => {
+        if (!row || gotT >= wantT) return false;
+
+        const qid = String(row?.question_id || '').trim();
+        if (!qid || usedIds.has(qid) || seenIds.has(qid)) return false;
+
+        const baseId = baseIdFromProtoId(qid);
+        if (preferFreshBase && (usedBases.has(baseId) || seenBases.has(baseId))) return false;
+
+        const manifestPath = String(row?.manifest_path || '').trim();
+        if (!manifestPath) return false;
+
+        let idx;
+        try {
+          idx = await getManifestIndex(manifestPath);
+        } catch (_) {
+          return false;
+        }
+
+        const rec = idx.get(qid);
+        if (!rec) return false;
+
+        usedIds.add(qid);
+        usedBases.add(baseId);
+        seenIds.add(qid);
+        seenBases.add(baseId);
+        out.push(buildQuestion(rec.manifest, rec.type, rec.proto));
+        gotT += 1;
+        return true;
+      };
+
+      for (const row of candRows) {
+        if (gotT >= wantT) break;
+        await tryAdd(row, true);
+      }
+      if (gotT < wantT) {
+        for (const row of candRows) {
+          if (gotT >= wantT) break;
+          await tryAdd(row, false);
+        }
+      }
+    }
+
+    return out;
+  }
+
   // Кэш статистики по теме на одну сборку списка
   const statsCache = new Map(); // topicId -> Promise<Map|null> | Map | null
 
@@ -756,7 +991,7 @@ export async function pickQuestionsScopedForList({
 // Идём в порядке секций/тем, чтобы соответствовать UI.
 for (const sec of sections || []) {
   for (const topic of (sec?.topics || [])) {
-    const want = Number((choiceTopics || {})[topic.id] || 0) || 0;
+    let want = Number((choiceTopics || {})[topic.id] || 0) || 0;
     if (want <= 0) continue;
 
     const topicId = String(topic.id);
@@ -766,7 +1001,7 @@ for (const sec of sections || []) {
 
     let pickedCount = 0;
 
-    if (rpcEnabled) {
+    if (rpcEnabled && !badAccTypesEnabled) {
       const rr = await rpcPick({
         stage: 'topics',
         topicId,
@@ -785,11 +1020,86 @@ for (const sec of sections || []) {
       if (rr?.ok && pickedCount < want) rpcFallbackUsed = true;
     }
 
-    const left = (Number(want || 0) || 0) - pickedCount;
-    if (left <= 0) continue;
+    want -= pickedCount;
+    if (want <= 0) continue;
+
+    if (badAccTypesEnabled && wrappedPool.length) {
+      const seed = `topic:${topicId}:${want}:${usedIds.size}`;
+      const t0r = Date.now();
+      let roll;
+      try {
+        roll = await teacherTypeRollupV1({ student_id: studentId, topic_ids: [topicId], timeoutMs: 8000 });
+      } catch (e) {
+        roll = { ok: false, rows: null, fn: null, error: e };
+      }
+      const msr = Date.now() - t0r;
+
+      rpcCalls.push({
+        stage: 'topic_types_rollup_v1',
+        topicId,
+        typeId: null,
+        want,
+        ok: !!roll?.ok,
+        rows: (roll?.ok && Array.isArray(roll.rows)) ? roll.rows.length : 0,
+        picked: 0,
+        ms: msr,
+        fn: roll?.fn || null,
+        err: roll?.ok ? null : String(roll?.error?.code || roll?.error?.message || 'ERR'),
+      });
+
+      if (roll?.ok && Array.isArray(roll.rows) && roll.rows.length) {
+        const plan = buildTypeBadAccPlanFromRows(roll.rows, want, seed);
+        const typesReq = (plan.planMerged || []).map(x => ({ id: String(x?.id || '').trim(), n: Number(x?.n || 0) || 0 })).filter(x => x.id && x.n > 0);
+        if (typesReq.length) {
+          const t0p = Date.now();
+          let pres;
+          try {
+            pres = await pickQuestionsForTeacherTypesV1({
+              student_id: studentId,
+              types: typesReq,
+              flags,
+              exclude_ids: Array.from(usedIds),
+              overfetch: 4,
+              shuffle: false,
+              seed,
+              timeoutMs: 12000,
+            });
+          } catch (e) {
+            pres = { ok: false, rows: null, fn: null, error: e };
+          }
+          const msp = Date.now() - t0p;
+
+          let typeQs = [];
+          if (pres?.ok && Array.isArray(pres.rows) && pres.rows.length) {
+            typeQs = await buildQuestionsFromTypeRpcRows({ rows: pres.rows, typesReq });
+            if (typeQs.length) {
+              pushQuestions(typeQs);
+              rpcUsedStages.add('topic_types_v1');
+            }
+          }
+
+          rpcCalls.push({
+            stage: 'topic_types_v1',
+            topicId,
+            typeId: null,
+            want,
+            ok: !!pres?.ok,
+            rows: (pres?.ok && Array.isArray(pres.rows)) ? pres.rows.length : 0,
+            picked: typeQs.length,
+            ms: msp,
+            fn: pres?.fn || null,
+            err: pres?.ok ? null : String(pres?.error?.code || pres?.error?.message || 'ERR'),
+          });
+
+          want -= typeQs.length;
+          if (want <= 0) continue;
+          if (typeQs.length > 0) rpcFallbackUsed = true;
+        }
+      }
+    }
 
     statsNeeded01 = true;
-        const statsMap = (prioActive && wrappedPool.length)
+    const statsMap = (prioActive && wrappedPool.length)
       ? await getStatsMapForTopic({ cache: statsCache, topicId, studentId, flags, poolWrapped: wrappedPool })
       : null;
 
@@ -805,7 +1115,7 @@ for (const sec of sections || []) {
     // случайную выборку, но всё равно строго внутри темы.
     if (statsMap instanceof Map && (flags.old || flags.badAcc)) {
       const qs = buildQuestionsTopicTypePriority({
-        want: left,
+        want,
         wrappedPool,
         statsMap,
         flags,
@@ -816,7 +1126,7 @@ for (const sec of sections || []) {
       });
       pushQuestions(qs);
     } else {
-      const pickedW = pickWrapped({ wrapped: wrappedPool, want: left, statsMap: null, flags, nowMs, usedIds });
+      const pickedW = pickWrapped({ wrapped: wrappedPool, want, statsMap: null, flags, nowMs, usedIds });
       pushQuestions(buildQuestionsFromPickedWrapped({ wrappedPicked: pickedW, usedIds, usedBases, buildQuestion }));
     }
   }
@@ -1150,9 +1460,92 @@ if (expandSectionsTopicsEnabled) {
 }
 
   for (const sec of sections || []) {
-    const wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
+    let wantSection = Number((choiceSections || {})[sec.id] || 0) || 0;
     if (wantSection <= 0) continue;
 
+    let candidates = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)) && !excludeTopicIds.has(String(t.id)));
+    if (!candidates.length) {
+      candidates = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)));
+    }
+    if (!candidates.length) continue;
+
+    if (badAccTypesEnabled) {
+      const topicIdsForTypes = candidates.map(t => String(t?.id || '').trim()).filter(Boolean);
+      if (topicIdsForTypes.length) {
+        const seed = `section:${String(sec?.id || '')}:${wantSection}:${usedIds.size}`;
+        const t0r = Date.now();
+        let roll;
+        try {
+          roll = await teacherTypeRollupV1({ student_id: studentId, topic_ids: topicIdsForTypes, timeoutMs: 8000 });
+        } catch (e) {
+          roll = { ok: false, rows: null, fn: null, error: e };
+        }
+        const msr = Date.now() - t0r;
+
+        rpcCalls.push({
+          stage: 'section_types_rollup_v1',
+          topicId: null,
+          typeId: null,
+          want: wantSection,
+          ok: !!roll?.ok,
+          rows: (roll?.ok && Array.isArray(roll.rows)) ? roll.rows.length : 0,
+          picked: 0,
+          ms: msr,
+          fn: roll?.fn || null,
+          err: roll?.ok ? null : String(roll?.error?.code || roll?.error?.message || 'ERR'),
+        });
+
+        if (roll?.ok && Array.isArray(roll.rows) && roll.rows.length) {
+          const plan = buildTypeBadAccPlanFromRows(roll.rows, wantSection, seed);
+          const typesReq = (plan.planMerged || []).map(x => ({ id: String(x?.id || '').trim(), n: Number(x?.n || 0) || 0 })).filter(x => x.id && x.n > 0);
+          if (typesReq.length) {
+            const t0p = Date.now();
+            let pres;
+            try {
+              pres = await pickQuestionsForTeacherTypesV1({
+                student_id: studentId,
+                types: typesReq,
+                flags,
+                exclude_ids: Array.from(usedIds),
+                overfetch: 4,
+                shuffle: false,
+                seed,
+                timeoutMs: 12000,
+              });
+            } catch (e) {
+              pres = { ok: false, rows: null, fn: null, error: e };
+            }
+            const msp = Date.now() - t0p;
+
+            let typeQs = [];
+            if (pres?.ok && Array.isArray(pres.rows) && pres.rows.length) {
+              typeQs = await buildQuestionsFromTypeRpcRows({ rows: pres.rows, typesReq });
+              if (typeQs.length) {
+                pushQuestions(typeQs);
+                rpcUsedStages.add('section_types_v1');
+              }
+            }
+
+            rpcCalls.push({
+              stage: 'section_types_v1',
+              topicId: null,
+              typeId: null,
+              want: wantSection,
+              ok: !!pres?.ok,
+              rows: (pres?.ok && Array.isArray(pres.rows)) ? pres.rows.length : 0,
+              picked: typeQs.length,
+              ms: msp,
+              fn: pres?.fn || null,
+              err: pres?.ok ? null : String(pres?.error?.code || pres?.error?.message || 'ERR'),
+            });
+
+            wantSection -= typeQs.length;
+            if (wantSection <= 0) continue;
+            if (typeQs.length > 0) rpcFallbackUsed = true;
+          }
+        }
+      }
+    }
 
 // Вариант A (topics_v1): используем заранее подготовленные данные (1 rollup + 1 pick_topics на весь выбор секций).
 // Внутри цикла секций RPC не делаем.
@@ -1295,13 +1688,6 @@ if (expandSectionsTopicsEnabled && topicsV1Ok && topicsV1ReqBySection instanceof
         rpcFallbackUsed = true;
       }
     }
-
-    // темы-кандидаты в разделе
-    let candidates = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)) && !excludeTopicIds.has(String(t.id)));
-    if (!candidates.length) {
-      candidates = (sec.topics || []).filter(t => (t?.path || (Array.isArray(t?.paths) && t.paths.length)));
-    }
-    if (!candidates.length) continue;
 
     // Если включены фильтры учителя (и выбран ученик), то при доборе по РАЗДЕЛУ
     // сначала приоритезируем ТЕМЫ (topicId) по статистике:
