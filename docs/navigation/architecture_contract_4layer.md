@@ -7,6 +7,7 @@
 Связанные документы:
 - [Рамка этапа 0](migration_stage0_scope.md)
 - [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
+- [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 - [Текущий снимок схемы Supabase](../../supabase_schema_overview_updated_2026-03-07.md)
 
 ## 1. Словарь сущностей
@@ -159,6 +160,9 @@ Source-правило:
 ## 9. Temporary Migration Exceptions
 
 Временные отклонения от целевой архитектуры должны жить в отдельном разделе `Temporary Migration Exceptions` и не считаются нормой архитектуры.
+
+Актуальный реестр временных отклонений:
+- [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 
 Для каждой exception-записи обязательны поля:
 - `id`
