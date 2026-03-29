@@ -2,19 +2,19 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-29-10';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-10';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-10';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-10';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-10';
+import { CONFIG } from '../app/config.js?v=2026-03-29-11';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-11';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-11';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-11';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-11';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-29-10';
+} from '../app/core/pick.js?v=2026-03-29-11';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-10';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-11';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
