@@ -1,7 +1,7 @@
 // tasks/stats_view.js
-// Рендер статистики на основе JSON, который возвращает student_dashboard_* (Patch 1 backend).
+// Renders student/teacher statistics using student_dashboard_* payloads.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-8';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-03-29-8';
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
@@ -53,47 +53,7 @@ function fmtPct(p) {
 }
 
 export async function loadCatalog() {
-  // /content/tasks/index.json (всегда от корня сайта)
-  const url = toAbsUrl('content/tasks/index.json');
-  const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
-  const items = await res.json();
-  if (!Array.isArray(items)) throw new Error('Каталог задач имеет неверный формат');
-
-  const sections = new Map(); // '1'..'12' -> title
-  const topicTitle = new Map(); // '1.1' -> title
-  const topicsBySection = new Map(); // '1' -> [{id,title}]
-  let totalTopics = 0;
-
-  for (const it of items) {
-    const id = String(it?.id || '').trim();
-    const title = String(it?.title || '').trim();
-    if (!id || !title) continue;
-
-    if (String(it?.type || '') === 'group') {
-      sections.set(id, title);
-      continue;
-    }
-
-    const hidden = !!it?.hidden;
-    const enabled = (it?.enabled === undefined) ? true : !!it?.enabled;
-    if (hidden || !enabled) continue;
-
-    if (/^\d+\.\d+/.test(id)) {
-      totalTopics += 1;
-      topicTitle.set(id, title);
-      const parent = String(it?.parent || '').trim() || id.split('.')[0];
-      if (!topicsBySection.has(parent)) topicsBySection.set(parent, []);
-      topicsBySection.get(parent).push({ id, title });
-    }
-  }
-
-  // сортировки
-  for (const [sid, arr] of topicsBySection) {
-    arr.sort((a, b) => a.id.localeCompare(b.id, 'ru'));
-  }
-
-  return { sections, topicTitle, topicsBySection, totalTopics };
+  return await loadCatalogLegacy();
 }
 
 function makeBadge(label, total, correct) {
