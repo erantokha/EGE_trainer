@@ -2,18 +2,18 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-03-29-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-2';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-2';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-2';
+import { CONFIG } from '../app/config.js?v=2026-03-29-3';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-3';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-3';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-3';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-03-29-2';
+} from '../app/core/pick.js?v=2026-03-29-3';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-3';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
