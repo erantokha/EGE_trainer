@@ -25,12 +25,11 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `1`
+- `standalone_sql`: `2`
 - `snapshot_only`: `23`
-- `missing_in_repo`: `3`
+- `missing_in_repo`: `2`
 
 Наиболее критичные пробелы на старте:
-- `subtopic_coverage_for_teacher_v1`
 - `teacher_type_rollup_v1`
 - `pick_questions_for_teacher_types_v1`
 
@@ -72,7 +71,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Канонизирован как `v2`; текущий фронт всё ещё использует fallback и не везде в одном порядке. |
 | `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Канонизирован как `v2`; по snapshot `v2` пока оборачивает legacy-функцию. |
-| `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `TBD` | `TBD` | `missing_in_repo` | Критичный SQL-gap: используется в runtime, но в первом проходе не найден в репозитории. |
+| `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 
 ## Teacher Picking / Prioritization
 
@@ -89,7 +88,7 @@
 ## Открытые вопросы после первого прохода
 
 - Подтвердить, что `student_dashboard_self_v2` и `student_dashboard_for_teacher_v2` действительно являются целевыми каноническими именами, а не временными compat-обёртками.
-- Выгрузить в репозиторий SQL для `subtopic_coverage_for_teacher_v1`, `teacher_type_rollup_v1`, `pick_questions_for_teacher_types_v1`.
+- Выгрузить в репозиторий SQL для `teacher_type_rollup_v1` и `pick_questions_for_teacher_types_v1`.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
 - Назначить owner для каждой строки реестра и завести правило, где это хранится в git дополнительно к этому файлу.
 
