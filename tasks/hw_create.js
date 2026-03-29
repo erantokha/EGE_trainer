@@ -6,6 +6,7 @@ import { CONFIG } from '../app/config.js?v=2026-03-29-10';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-10';
 import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-10';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-10';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-10';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
@@ -157,8 +158,6 @@ async function loadAssignStudents(){
 }
 
 
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
-
 // "Пикер" задач на этой странице: выбираем подтему → видим только уникальные прототипы (baseId)
 // и задаём количество задач по каждому прототипу.
 const TASK_PICKER_STATE = {
@@ -211,9 +210,7 @@ let TOPIC_BY_ID = new Map();
 
 async function loadCatalog() {
   if (CATALOG && SECTIONS.length) return;
-  const res = await fetch(withV(INDEX_URL), { cache: 'force-cache' });
-  if (!res.ok) throw new Error(`index.json not found: ${res.status}`);
-  CATALOG = await res.json();
+  CATALOG = await loadCatalogIndexLike();
 
   const sections = (CATALOG || []).filter(x => x.type === 'group');
   const topics = (CATALOG || []).filter(x => !!x.parent && x.enabled !== false && x.hidden !== true);
@@ -224,7 +221,7 @@ async function loadCatalog() {
   for (const t of topics) TOPIC_BY_ID.set(t.id, t);
 
   for (const sec of sections) {
-    // В index.json есть "служебные" подтемы вида "1.0", "2.0" и т.п.
+    // В runtime-каталоге есть "служебные" подтемы вида "1.0", "2.0" и т.п.
     // Они дублируют сам раздел и не должны появляться в списках выбора.
     const secId = String(sec.id);
     sec.topics = topics
@@ -1195,7 +1192,7 @@ function openTaskPicker() {
       console.error(e);
       nav.innerHTML = '<div class="muted">Не удалось загрузить каталог.</div>';
       pathEl.textContent = 'Ошибка';
-      hint.textContent = 'Не удалось загрузить каталог тем (index.json).';
+      hint.textContent = 'Не удалось загрузить runtime-каталог тем.';
     });
 }
 
@@ -1269,7 +1266,7 @@ async function selectPickerTopic(topicId) {
   const topic = TOPIC_BY_ID.get(topicId);
   if (!topic) {
     if (pathEl) pathEl.textContent = 'Тема не найдена';
-    if (listEl) listEl.innerHTML = '<div class="muted">Тема не найдена в index.json</div>';
+    if (listEl) listEl.innerHTML = '<div class="muted">Тема не найдена в runtime-каталоге</div>';
     updatePickerSelectedUI();
     return;
   }

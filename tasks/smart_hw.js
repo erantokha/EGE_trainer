@@ -7,6 +7,7 @@
 import { buildSmartPlan } from './smart_select.js?v=2026-03-29-10';
 import { sampleKByBase, interleaveBatches, shuffleInPlace } from '../app/core/pick.js?v=2026-03-29-10';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-10';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-10';
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
@@ -20,10 +21,7 @@ let __idxCache = null;
 
 async function loadIndex() {
   if (__idxCache) return __idxCache;
-  const url = withV(toAbsUrl('content/tasks/index.json'));
-  const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
-  const items = await res.json();
+  const items = await loadCatalogIndexLike();
   if (!Array.isArray(items)) throw new Error('Каталог задач имеет неверный формат');
 
   const topicPath = new Map(); // topic_id -> path
