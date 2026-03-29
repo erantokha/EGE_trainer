@@ -25,11 +25,12 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `2`
+- `standalone_sql`: `4`
 - `snapshot_only`: `23`
-- `missing_in_repo`: `2`
+- `missing_in_repo`: `0`
 
-Наиболее критичные пробелы на старте:
+Жёсткие SQL-gap блокеры `Wave 0` закрыты:
+- `subtopic_coverage_for_teacher_v1`
 - `teacher_type_rollup_v1`
 - `pick_questions_for_teacher_types_v1`
 
@@ -79,22 +80,21 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `question_stats_for_teacher_v1` | `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Базовый teacher stats RPC для question-level приоритезации. |
 | `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Legacy/compat picking-контур для teacher filters. |
-| `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `TBD` | `standalone_sql` | Единственный runtime-RPC, для которого в первом проходе уже найден отдельный SQL-файл. |
-| `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `TBD` | `TBD` | `missing_in_repo` | Используется teacher type-picking, но в первом проходе не найден ни в snapshot, ни в standalone SQL. |
-| `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `TBD` | `TBD` | `missing_in_repo` | Используется teacher type-picking, но в первом проходе не найден ни в snapshot, ни в standalone SQL. |
+| `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `TBD` | `standalone_sql` | Standalone SQL-файл уже присутствовал в репозитории до закрытия `Wave 0`. |
+| `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
+| `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Rollup по темам для section/topic picking. |
 | `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Topic-quota RPC для teacher picking. |
 
 ## Открытые вопросы после первого прохода
 
 - Подтвердить, что `student_dashboard_self_v2` и `student_dashboard_for_teacher_v2` действительно являются целевыми каноническими именами, а не временными compat-обёртками.
-- Выгрузить в репозиторий SQL для `teacher_type_rollup_v1` и `pick_questions_for_teacher_types_v1`.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
 - Назначить owner для каждой строки реестра и завести правило, где это хранится в git дополнительно к этому файлу.
 
 ## Следующий практический шаг
 
 После утверждения этого реестра нужно:
-- вынести недостающие SQL-функции в отдельные файлы по плану из [Backlog: SQL Gap для runtime-RPC](runtime_rpc_sql_gap_backlog.md);
+- переходить к `Wave 1` по плану из [Backlog: SQL Gap для runtime-RPC](runtime_rpc_sql_gap_backlog.md);
 - определить owner по каждой строке;
 - дополнить CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре.
