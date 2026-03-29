@@ -11,6 +11,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 import { withBuild } from '../app/build.js?v=2026-03-29-12';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-12';
 import { CONFIG } from '../app/config.js?v=2026-03-29-12';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-12';
 import { listMyStudents, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-29-12';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-12';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-12';
@@ -18,8 +19,6 @@ import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-12';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
-
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
@@ -1786,7 +1785,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const host = $('#accordion');
     if (host) {
       host.innerHTML =
-        '<div style="opacity:.8">Не найден content/tasks/index.json или JSON невалиден.</div>';
+        '<div style="opacity:.8">Не удалось загрузить runtime-каталог.</div>';
     }
   }
 
@@ -2207,9 +2206,7 @@ function refreshCountsUI() {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(withBuild(INDEX_URL), { cache: 'no-store' });
-  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-  CATALOG = await resp.json();
+  CATALOG = await loadCatalogIndexLike();
 
   const sections = CATALOG.filter(x => x.type === 'group');
 

@@ -3,6 +3,7 @@
 
 import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-29-12';
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-29-12';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-12';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-12';
 
 import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-03-29-12';
@@ -17,9 +18,6 @@ import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solution
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-12';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-12';
 const $ = (sel, root = document) => root.querySelector(sel);
-
-// индекс и манифесты лежат в корне репозитория относительно /tasks/
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
 const SHEET_MODE = !new URLSearchParams(location.search).has('step');
@@ -47,7 +45,7 @@ function perfMark(name) {
 
 function classifyUrl(u) {
   const s = String(u);
-  if (s.includes('content/tasks/index.json')) return 'index';
+  if (s.includes('catalog_tree_v1') || s.includes('catalog_theme_dim') || s.includes('catalog_subtopic_dim')) return 'index';
   if (s.includes('manifest.json')) return 'manifest';
   return 'other';
 }
@@ -530,7 +528,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (host) {
       host.classList.remove('hidden');
       host.innerHTML =
-        '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.</div>';
+        '<div style="opacity:.8;padding:8px 0">Ошибка загрузки задач. Проверьте runtime-каталог и манифесты.</div>';
     }
   } finally {
     // в любом случае убираем оверлей, чтобы пользователь не остался
@@ -542,27 +540,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 });
 
-// ---------- Загрузка каталога ----------
+// ---------- Загрузка runtime-каталога ----------
 async function loadCatalog() {
-  const { resp, fetch_ms } = await fetchTimed(withBuild(INDEX_URL), { cache: 'force-cache' });
-  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-
-  if (!PERF) {
-    CATALOG = await resp.json();
-  } else {
-    const t1 = performance.now();
-    const text = await resp.text();
-    const t2 = performance.now();
-    const j = JSON.parse(text);
-    const t3 = performance.now();
+  const t0 = performance.now();
+  CATALOG = await loadCatalogIndexLike();
+  const t1 = performance.now();
+  if (PERF) {
     PERF_DATA.index = {
-      bytes: text.length,
-      fetch_ms,
-      read_ms: t2 - t1,
-      parse_ms: t3 - t2,
-      total_ms: fetch_ms + (t2 - t1) + (t3 - t2),
+      bytes: 0,
+      fetch_ms: t1 - t0,
+      read_ms: 0,
+      parse_ms: 0,
+      total_ms: t1 - t0,
     };
-    CATALOG = j;
   }
 
   const sections = CATALOG.filter(x => x.type === 'group');

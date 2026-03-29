@@ -24,6 +24,9 @@ jobs:
       - name: Forbid eval/new Function in runtime
         run: node tools/check_no_eval.mjs
 
+      - name: Check runtime catalog reads
+        run: node tools/check_runtime_catalog_reads.mjs
+
       - name: Check runtime RPC registry
         run: node tools/check_runtime_rpc_registry.mjs
 
