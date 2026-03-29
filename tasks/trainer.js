@@ -3,7 +3,10 @@
 
 import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-29-14';
 import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-29-14';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-14';
+import {
+  loadCatalogIndexLike,
+  lookupQuestionsByIdsV1,
+} from '../app/providers/catalog.js?v=2026-03-29-14';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-14';
 
 import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-03-29-14';
@@ -124,6 +127,7 @@ window.tasksPerfReport = tasksPerfReport;
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
+let MANIFEST_BY_PATH_CACHE = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessionStorage)
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
@@ -678,6 +682,59 @@ async function loadTopicPool(topic) {
   return out;
 }
 
+async function fetchManifestByPath(path, { topicId = '', topicTitle = '' } = {}) {
+  const key = String(path || '').trim();
+  if (!key) return null;
+  if (MANIFEST_BY_PATH_CACHE.has(key)) return MANIFEST_BY_PATH_CACHE.get(key);
+
+  const href = toAbsUrl(key);
+  const { resp, fetch_ms } = await fetchTimed(withBuild(href), { cache: 'force-cache' });
+  if (!resp.ok) {
+    MANIFEST_BY_PATH_CACHE.set(key, null);
+    return null;
+  }
+
+  if (!PERF) {
+    const j = await resp.json().catch(() => null);
+    const man = (j && typeof j === 'object') ? j : null;
+    if (man) {
+      if (!man.topic && topicId) man.topic = topicId;
+      if (!man.title && topicTitle) man.title = topicTitle;
+    }
+    MANIFEST_BY_PATH_CACHE.set(key, man);
+    return man;
+  }
+
+  const t1 = performance.now();
+  const text = await resp.text();
+  const t2 = performance.now();
+  let j = null;
+  try {
+    j = JSON.parse(text);
+  } catch (_) {
+    j = null;
+  }
+  const t3 = performance.now();
+
+  PERF_DATA.manifests.push({
+    id: topicId || key,
+    path: key,
+    bytes: text.length,
+    fetch_ms,
+    read_ms: t2 - t1,
+    parse_ms: t3 - t2,
+    total_ms: fetch_ms + (t2 - t1) + (t3 - t2),
+  });
+
+  const man = (j && typeof j === 'object') ? j : null;
+  if (man) {
+    if (!man.topic && topicId) man.topic = topicId;
+    if (!man.title && topicTitle) man.title = topicTitle;
+  }
+  MANIFEST_BY_PATH_CACHE.set(key, man);
+  return man;
+}
+
 function shuffle(a) {
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -744,28 +801,67 @@ function findProtoById(man, qid) {
   return null;
 }
 
+async function loadQuestionLookupById(refs) {
+  const questionIds = Array.from(new Set((refs || [])
+    .map((ref) => String(ref?.question_id || ref?.questionId || '').trim())
+    .filter(Boolean)));
+
+  if (!questionIds.length) return new Map();
+
+  try {
+    const rows = await lookupQuestionsByIdsV1(questionIds);
+    const byQuestionId = new Map();
+    for (const row of (rows || [])) {
+      const questionId = String(row?.question_id || '').trim();
+      if (!questionId || byQuestionId.has(questionId)) continue;
+      byQuestionId.set(questionId, row);
+    }
+    return byQuestionId;
+  } catch (err) {
+    console.warn('trainer: lookupQuestionsByIdsV1 failed, using topic-pool fallback', err);
+    return new Map();
+  }
+}
+
 async function buildQuestionsFromSmartRefs(refs) {
+  const lookupByQuestionId = await loadQuestionLookupById(refs);
   const out = [];
   for (const r0 of refs || []) {
     const r = normalizeSmartRef(r0);
     if (!r) continue;
 
+    const lookup = lookupByQuestionId.get(r.question_id) || null;
+    const lookupTopicId = String(lookup?.subtopic_id || '').trim();
     const topic =
+      TOPIC_BY_ID.get(lookupTopicId) ||
       TOPIC_BY_ID.get(r.topic_id) ||
       SECTIONS.flatMap(s => (s.topics || [])).find(t => String(t.id) === r.topic_id);
-    if (!topic) continue;
 
-    const pool = await loadTopicPool(topic);
-    if (!pool.length) continue;
-
-    const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
-    let it = byQid ? byQid.get(String(r.question_id)) : null;
-    if (!it) {
-      it = pool.find(x => String(x?.proto?.id) === String(r.question_id)) || null;
+    let item = null;
+    if (lookup?.manifest_path) {
+      const man = await fetchManifestByPath(lookup.manifest_path, {
+        topicId: lookupTopicId || r.topic_id,
+        topicTitle: topic?.title || '',
+      });
+      const found = findProtoById(man, r.question_id);
+      if (man && found) {
+        item = { manifest: man, type: found.type, proto: found.proto };
+      }
     }
-    if (!it) continue;
 
-    out.push(buildQuestion(it.manifest, it.type, it.proto));
+    if (!item && topic) {
+      const pool = await loadTopicPool(topic);
+      if (pool.length) {
+        const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
+        item = byQid ? byQid.get(String(r.question_id)) : null;
+        if (!item) {
+          item = pool.find(x => String(x?.proto?.id) === String(r.question_id)) || null;
+        }
+      }
+    }
+    if (!item) continue;
+
+    out.push(buildQuestion(item.manifest, item.type, item.proto));
   }
   return out;
 }

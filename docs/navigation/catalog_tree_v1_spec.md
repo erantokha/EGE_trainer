@@ -9,6 +9,8 @@
 - [Архитектурный контракт 4 слоёв](architecture_contract_4layer.md)
 - [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 - [Этап 0. Рамка и Definition of Done](migration_stage0_scope.md)
+- [Stage 2: Спецификация catalog_subtopic_unics_v1](catalog_subtopic_unics_v1_spec.md)
+- [Stage 2: Спецификация catalog_question_lookup_v1](catalog_question_lookup_v1_spec.md)
 - [catalog_migration_v1.sql](../supabase/catalog_migration_v1.sql)
 - [catalog_upsert_v1.sql](../supabase/catalog_upsert_v1.sql)
 

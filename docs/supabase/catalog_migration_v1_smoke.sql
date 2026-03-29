@@ -46,6 +46,7 @@ select
         when (table_name = 'catalog_question_dim' and column_name = 'unic_id'               and data_type = 'text')                           then 'OK'
         when (table_name = 'catalog_question_dim' and column_name = 'subtopic_id'            and data_type = 'text')                           then 'OK'
         when (table_name = 'catalog_question_dim' and column_name = 'theme_id'               and data_type = 'text')                           then 'OK'
+        when (table_name = 'catalog_question_dim' and column_name = 'manifest_path'          and data_type = 'text')                           then 'OK'
         else 'FAIL — столбец или тип не совпадает'
     end as result
 from information_schema.columns
@@ -66,7 +67,8 @@ where table_schema = 'public'
       ('catalog_question_dim', 'question_id'),
       ('catalog_question_dim', 'unic_id'),
       ('catalog_question_dim', 'subtopic_id'),
-      ('catalog_question_dim', 'theme_id')
+      ('catalog_question_dim', 'theme_id'),
+      ('catalog_question_dim', 'manifest_path')
   )
 order by table_name, column_name;
 
@@ -220,6 +222,18 @@ where not exists (
 
 -- ============================================================
 -- 10. Счётчик строк (после наполнения данными в Etap 4)
+--     Ожидаемый результат: нет question-строк без manifest_path
+-- ============================================================
+
+select
+    'missing question manifest_path' as check_name,
+    count(*) as missing_count,
+    case when count(*) = 0 then 'OK' else 'FAIL — question rows without manifest_path' end as result
+from public.catalog_question_dim
+where nullif(trim(manifest_path), '') is null;
+
+-- ============================================================
+-- 11. Счётчик строк (после наполнения данными в Etap 4)
 --     Ожидаемые значения: 12 тем, 84 подтемы, ~196 уников, ~3561 вопрос
 -- ============================================================
 

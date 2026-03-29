@@ -1,7 +1,7 @@
 // tools/check_runtime_catalog_reads.mjs
-// Guards the stage-1 catalog migration seam:
+// Guards the stage-1 / stage-2 catalog migration seams:
 // - runtime files in tasks/ must not read content/tasks/index.json directly
-// - critical migrated files must use catalog provider adapters instead
+// - critical migrated files must use catalog provider adapters / lookups instead
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -14,29 +14,63 @@ const CRITICAL_FILES = [
   {
     relPath: 'tasks/analog.js',
     mustInclude: [
-      "import { loadCatalogIndexLike } from '../app/providers/catalog.js",
+      'loadCatalogIndexLike',
+      "../app/providers/catalog.js",
       'const catalog = await loadCatalogIndexLike();',
     ],
   },
   {
     relPath: 'tasks/hw.js',
     mustInclude: [
-      "import { loadCatalogIndexLike } from '../app/providers/catalog.js",
+      'loadCatalogIndexLike',
+      "../app/providers/catalog.js",
       'CATALOG = await loadCatalogIndexLike();',
     ],
   },
   {
     relPath: 'tasks/picker.js',
     mustInclude: [
-      "import { loadCatalogIndexLike } from '../app/providers/catalog.js",
+      'loadCatalogIndexLike',
+      "../app/providers/catalog.js",
       'CATALOG = await loadCatalogIndexLike();',
     ],
   },
   {
     relPath: 'tasks/trainer.js',
     mustInclude: [
-      "import { loadCatalogIndexLike } from '../app/providers/catalog.js",
+      'loadCatalogIndexLike',
+      'lookupQuestionsByIdsV1',
+      "../app/providers/catalog.js",
       'CATALOG = await loadCatalogIndexLike();',
+      'const rows = await lookupQuestionsByIdsV1(questionIds);',
+    ],
+  },
+  {
+    relPath: 'tasks/question_preview.js',
+    mustInclude: [
+      'loadCatalogTopicPathMap',
+      'lookupQuestionsByIdsV1',
+      "../app/providers/catalog.js",
+      'const rows = await lookupQuestionsByIdsV1(questionIds);',
+    ],
+  },
+  {
+    relPath: 'tasks/smart_hw_builder.js',
+    mustInclude: [
+      'loadCatalogSubtopicUnicsV1',
+      'lookupQuestionsByUnicsV1',
+      "../app/providers/catalog.js",
+      'const subtopicUnics = await loadCatalogSubtopicUnicsV1(normalizedTopicIds);',
+      'const questionRows = await lookupQuestionsByUnicsV1(unicIds);',
+    ],
+  },
+  {
+    relPath: 'tasks/hw_create.js',
+    mustInclude: [
+      'loadCatalogIndexLike',
+      'lookupQuestionsByIdsV1',
+      "../app/providers/catalog.js",
+      'const rows = await lookupQuestionsByIdsV1(questionIds);',
     ],
   },
 ];

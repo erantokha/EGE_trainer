@@ -178,6 +178,7 @@ async function main() {
               subtopic_id:     e(sid),
               theme_id:        e(tid),
               sort_order:      String(qOrder),
+              manifest_path:   e(rel),
               is_enabled:      b(qEnabled),
               is_hidden:       'false',
               catalog_version: null,
@@ -274,7 +275,7 @@ async function main() {
   const THEME_COLS    = ['theme_id','title','sort_order','is_enabled','is_hidden','is_counted_in_coverage','total_subtopic_count','total_unic_count','total_question_count','catalog_version','source_path','updated_at'];
   const SUBTOPIC_COLS = ['subtopic_id','theme_id','title','sort_order','is_enabled','is_hidden','is_counted_in_coverage','total_unic_count','total_question_count','catalog_version','source_path','updated_at'];
   const UNIC_COLS     = ['unic_id','subtopic_id','theme_id','title','sort_order','is_enabled','is_hidden','is_counted_in_coverage','total_question_count','catalog_version','updated_at'];
-  const Q_COLS        = ['question_id','unic_id','subtopic_id','theme_id','sort_order','is_enabled','is_hidden','catalog_version','updated_at'];
+  const Q_COLS        = ['question_id','unic_id','subtopic_id','theme_id','sort_order','manifest_path','is_enabled','is_hidden','catalog_version','updated_at'];
 
   // ── 8. generate SQL ───────────────────────────────────────────────────────
   const chunk = args.chunk;

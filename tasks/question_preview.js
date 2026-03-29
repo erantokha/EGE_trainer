@@ -3,7 +3,10 @@
 // Используется в умном ДЗ (страница ученика у учителя).
 
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-14';
-import { loadCatalogTopicPathMap } from '../app/providers/catalog.js?v=2026-03-29-14';
+import {
+  loadCatalogTopicPathMap,
+  lookupQuestionsByIdsV1,
+} from '../app/providers/catalog.js?v=2026-03-29-14';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -12,8 +15,8 @@ const withV = (u) => {
   return url.toString();
 };
 
-let __idxCache = null;          // { topicPath: Map }
-let __manifestCache = new Map(); // topicId -> manifest|null
+let __idxCache = null;           // { topicPath: Map }
+let __manifestCache = new Map(); // manifestPath -> manifest|null
 let __mjLoading = null;
 
 function escapeHtml(s) {
@@ -103,23 +106,54 @@ async function loadIndex() {
   return __idxCache;
 }
 
-async function fetchManifestByTopic(topicId) {
-  const tid = String(topicId || '').trim();
-  if (!tid) return null;
-  if (__manifestCache.has(tid)) return __manifestCache.get(tid);
+async function fetchManifestByPath(path) {
+  const key = String(path || '').trim();
+  if (!key) return null;
+  if (__manifestCache.has(key)) return __manifestCache.get(key);
 
-  const { topicPath } = await loadIndex();
-  const path = topicPath.get(tid);
-  if (!path) { __manifestCache.set(tid, null); return null; }
-
-  const url = withV(toAbsUrl(path));
+  const url = withV(toAbsUrl(key));
   const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) { __manifestCache.set(tid, null); return null; }
+  if (!res.ok) {
+    __manifestCache.set(key, null);
+    return null;
+  }
 
   const j = await res.json().catch(() => null);
   const man = (j && typeof j === 'object') ? j : null;
-  __manifestCache.set(tid, man);
+  __manifestCache.set(key, man);
   return man;
+}
+
+async function fetchManifestByTopic(topicId) {
+  const tid = String(topicId || '').trim();
+  if (!tid) return null;
+
+  const { topicPath } = await loadIndex();
+  const path = topicPath.get(tid);
+  if (!path) return null;
+  return await fetchManifestByPath(path);
+}
+
+async function loadQuestionLookupById(refs) {
+  const questionIds = Array.from(new Set((refs || [])
+    .map((ref) => String(ref?.question_id || '').trim())
+    .filter(Boolean)));
+
+  if (!questionIds.length) return new Map();
+
+  try {
+    const rows = await lookupQuestionsByIdsV1(questionIds);
+    const byQuestionId = new Map();
+    for (const row of (rows || [])) {
+      const questionId = String(row?.question_id || '').trim();
+      if (!questionId || byQuestionId.has(questionId)) continue;
+      byQuestionId.set(questionId, row);
+    }
+    return byQuestionId;
+  } catch (err) {
+    console.warn('question_preview: lookupQuestionsByIdsV1 failed, using topic-path fallback', err);
+    return new Map();
+  }
 }
 
 function refKey(ref) {
@@ -159,6 +193,7 @@ function makePreviewCard(n, ref) {
 async function updatePreviews(listEl, refs) {
   if (!listEl) return;
   const cards = Array.from(listEl.querySelectorAll('.fixed-prev-card'));
+  const lookupByQuestionId = await loadQuestionLookupById(refs);
 
   // индексация refs по key, чтобы не искать линейно
   const refByKey = new Map();
@@ -171,14 +206,21 @@ async function updatePreviews(listEl, refs) {
 
     const qid = String(ref.question_id || '');
     const tid = String(ref.topic_id || '');
+    const lookup = lookupByQuestionId.get(qid) || null;
 
     const metaEl = card.querySelector('.fixed-prev-meta');
     const bodyEl = card.querySelector('.fixed-prev-body');
 
-    const man = await fetchManifestByTopic(tid);
+    let man = null;
+    if (lookup?.manifest_path) {
+      man = await fetchManifestByPath(lookup.manifest_path);
+    }
+    if (!man) {
+      man = await fetchManifestByTopic(tid);
+    }
     if (!man) {
       if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = '<span class="muted">Не удалось загрузить манифест темы.</span>';
+      if (bodyEl) bodyEl.innerHTML = '<span class="muted">Не удалось загрузить манифест задачи.</span>';
       continue;
     }
 

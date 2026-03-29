@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-03-29
+Дата обновления: 2026-03-30
 
 Этот файл нужен как быстрый handoff для нового окна/новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -11,13 +11,25 @@
 - HEAD на момент подготовки файла: `a09854369acbcfe53a1ed22650ae594a934b695f`
 - Stage 0: закрыт
 - Stage 1: закрыт
-- Следующий рабочий блок: Stage 2 / следующий слой backend read-contracts
+- Stage 2: закрыт
+- Следующий рабочий блок: Stage 3 / единый layer-4 read API под screen payloads
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
-- `rows=29 standalone_sql=29 snapshot_only=0 missing_in_repo=0`
+- `rows=31 standalone_sql=31 snapshot_only=0 missing_in_repo=0`
 - `runtime catalog read checks ok`
 - в `tasks/` больше нет прямых runtime-чтений `content/tasks/index.json`
+- `catalog_question_dim manifest_path rolled out in live`
+- `catalog_question_lookup_v1 rolled out in live`
+- `catalog stage2 provider seams validated in runtime`
+- `question_preview` uses `lookupQuestionsByIdsV1()` as primary path with topic-path fallback
+- `smart_hw_builder` uses `subtopic -> unic -> question` lookup as primary path with manifest fallback
+- `hw_create` fixed preview uses `lookupQuestionsByIdsV1()` as primary path with topic-manifest fallback
+- `trainer` smart/session restore uses `lookupQuestionsByIdsV1()` as primary path with topic-pool fallback
+- `catalog_stage2_rollout_smoke_summary.sql`: `ok=9 warn=0 fail=0`
+- `catalog_stage2_rollout_bundle.sql` applied in Supabase SQL Editor without errors
+- live catalog is in sync: repo `2026-03-29T19:15_03688ddd` = Supabase `2026-03-29T19:15_03688ddd`
+- `catalog_stage2_browser_smoke`: `ok=7 warn=0 fail=0`
 
 ## 2. Глобальный План
 
@@ -55,6 +67,25 @@
 - Единый provider живёт в [catalog.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/app/providers/catalog.js)
 - `tasks/` больше не читают `content/tasks/index.json`
 - Stage-1 exception про runtime JSON-read снят из [temporary_migration_exceptions.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/temporary_migration_exceptions.md)
+
+### Stage 2
+
+- Stage-2 SQL bundle выкачен в live Supabase:
+  - [catalog_migration_v1.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_migration_v1.sql)
+  - [catalog_upsert_v1.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_upsert_v1.sql)
+  - [catalog_subtopic_unics_v1.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_subtopic_unics_v1.sql)
+  - [catalog_question_lookup_v1.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_question_lookup_v1.sql)
+- SQL smoke зелёный:
+  - [catalog_stage2_rollout_smoke_summary.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_stage2_rollout_smoke_summary.sql)
+  - итог: `ok=9; warn=0; fail=0`
+- Browser smoke зелёный:
+  - [catalog_stage2_browser_smoke.html](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/catalog_stage2_browser_smoke.html)
+  - итог: `ok=7; warn=0; fail=0`
+- Primary paths подтверждены на runtime:
+  - `catalog_subtopic_unics_v1`
+  - `catalog_question_lookup_v1`
+  - `smart_hw_builder`
+  - `question_preview`
 
 ## 4. Как Сейчас Устроен Catalog Runtime
 
@@ -109,14 +140,20 @@ Index-like / path-based path:
 2. [catalog_index_like_v1_spec.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/catalog_index_like_v1_spec.md)
 3. [catalog.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/app/providers/catalog.js)
 
+Если нужно быстро войти в закрытый Stage 2:
+1. [catalog_subtopic_unics_v1_spec.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/catalog_subtopic_unics_v1_spec.md)
+2. [catalog_question_lookup_v1_spec.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/catalog_question_lookup_v1_spec.md)
+3. [catalog_stage2_howto.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/catalog_stage2_howto.md)
+4. [catalog_stage2_browser_smoke.html](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/catalog_stage2_browser_smoke.html)
+
 Если нужно быстро войти в следующий проблемный блок:
 1. [pick_engine.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/pick_engine.js)
 2. [student.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/student.js)
 3. [stats.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats.js)
 
-## 7. Что Остаётся Открытым После Stage 1
+## 7. Что Остаётся Открытым После Stage 2
 
-На 2026-03-29 в [temporary_migration_exceptions.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/temporary_migration_exceptions.md) осталось 6 исключений:
+На 2026-03-30 в [temporary_migration_exceptions.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/temporary_migration_exceptions.md) осталось 6 исключений:
 
 - `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN`
 - `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK`
@@ -130,18 +167,26 @@ Index-like / path-based path:
 ## 8. Рекомендуемый Следующий Шаг
 
 Самый логичный следующий блок:
-- начать Stage 2 с backend read-contracts для `subtopic / unic / question`
+- начать Stage 3 с единого layer-4 read API под screen payloads и backend-driven picking
 
-Практически я бы шёл так:
-1. Спроектировать `catalog_subtopic_unics_v1`
-2. Спроектировать `catalog_question_lookup_v1`
-3. Перевести на них manifest/question lookup сценарии
-4. После этого идти к снятию picker/recommendations exceptions Stage 7
+Что уже подготовлено для старта:
+1. Stage 2 уже закрыт и подтверждён smoke-checks:
+   - SQL: `ok=9; warn=0; fail=0`
+   - browser smoke: `ok=7; warn=0; fail=0`
+2. Открытые исключения уже хорошо указывают на следующий cluster работ:
+   - `EX-PICKER-DIRECT-DASHBOARD-RPC`
+   - `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
+   - `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
+
+Практически следующий шаг теперь такой:
+1. Спроектировать единый layer-4 read API под screen payloads
+2. Начать с `pick_engine`, teacher-picking orchestration и recommendations
+3. Затем вычищать временные compat/fallback-paths по мере стабилизации
 
 Почему именно так:
-- catalog runtime уже закрыт
-- следующий bottleneck теперь не структура каталога, а screen payload / question lookup / picking orchestration
-- это естественный мост от Stage 1 к Stage 2 и Stage 3
+- catalog runtime и Stage 2 lookup-contracts уже закрыты
+- следующий bottleneck теперь не структура каталога, а screen payload / picking orchestration
+- это естественный мост от закрытого Stage 2 к Stage 3 и Stage 7
 
 ## 9. Чего Не Надо Делать
 
@@ -168,4 +213,4 @@ node --check app/providers/catalog.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0 и Stage 1 уже закрыты; сейчас проект на точке перехода от catalog runtime migration к следующему слою backend read-contracts для `subtopic / unic / question`, а главный следующий фронт — снять exceptions вокруг dashboard fallback, recommendations и teacher picking orchestration.
+Stage 0, Stage 1 и Stage 2 уже закрыты; Stage-2 SQL-контракты и primary paths подтверждены SQL smoke (`ok=9`) и browser smoke (`ok=7`), а следующий практический шаг — идти в Stage 3 через `pick_engine`, teacher-picking, recommendations и единый layer-4 screen payload.

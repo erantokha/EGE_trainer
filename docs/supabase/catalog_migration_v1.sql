@@ -30,11 +30,17 @@ comment on column public.catalog_theme_dim.sort_order             is 'Поряд
 comment on column public.catalog_theme_dim.is_counted_in_coverage is 'Учитывать ли тему при расчёте покрытия. Не перезаписывается при upsert.';
 comment on column public.catalog_theme_dim.catalog_version        is 'Версия каталога. Формат: YYYY-MM-DDThh:mm_<sha8>.';
 
+drop trigger if exists trg_catalog_theme_dim_updated_at
+    on public.catalog_theme_dim;
+
 create trigger trg_catalog_theme_dim_updated_at
     before update on public.catalog_theme_dim
     for each row execute function public.set_updated_at();
 
 alter table public.catalog_theme_dim enable row level security;
+
+drop policy if exists "authenticated can read catalog_theme_dim"
+    on public.catalog_theme_dim;
 
 create policy "authenticated can read catalog_theme_dim"
     on public.catalog_theme_dim
@@ -73,11 +79,17 @@ comment on column public.catalog_subtopic_dim.catalog_version        is 'Вер�
 create index if not exists idx_catalog_subtopic_dim_theme_sort
     on public.catalog_subtopic_dim (theme_id, sort_order);
 
+drop trigger if exists trg_catalog_subtopic_dim_updated_at
+    on public.catalog_subtopic_dim;
+
 create trigger trg_catalog_subtopic_dim_updated_at
     before update on public.catalog_subtopic_dim
     for each row execute function public.set_updated_at();
 
 alter table public.catalog_subtopic_dim enable row level security;
+
+drop policy if exists "authenticated can read catalog_subtopic_dim"
+    on public.catalog_subtopic_dim;
 
 create policy "authenticated can read catalog_subtopic_dim"
     on public.catalog_subtopic_dim
@@ -124,11 +136,17 @@ create index if not exists idx_catalog_unic_dim_counted
     on public.catalog_unic_dim (theme_id, subtopic_id)
     where is_counted_in_coverage = true;
 
+drop trigger if exists trg_catalog_unic_dim_updated_at
+    on public.catalog_unic_dim;
+
 create trigger trg_catalog_unic_dim_updated_at
     before update on public.catalog_unic_dim
     for each row execute function public.set_updated_at();
 
 alter table public.catalog_unic_dim enable row level security;
+
+drop policy if exists "authenticated can read catalog_unic_dim"
+    on public.catalog_unic_dim;
 
 create policy "authenticated can read catalog_unic_dim"
     on public.catalog_unic_dim
@@ -149,11 +167,15 @@ create table if not exists public.catalog_question_dim (
     theme_id        text        not null
                                 references public.catalog_theme_dim (theme_id),
     sort_order      integer     not null check (sort_order > 0),
+    manifest_path   text,
     is_enabled      boolean     not null default true,
     is_hidden       boolean     not null default false,
     catalog_version text        not null,
     updated_at      timestamptz not null default now()
 );
+
+alter table public.catalog_question_dim
+    add column if not exists manifest_path text;
 
 comment on table  public.catalog_question_dim             is 'Каталог вопросов (уровень 4, листовой). question_id = question_bank.question_id.';
 comment on column public.catalog_question_dim.question_id is 'Идентификатор вопроса, напр. "1.1.1.1". Совпадает с question_bank.question_id.';
@@ -161,6 +183,7 @@ comment on column public.catalog_question_dim.unic_id     is 'Родительс
 comment on column public.catalog_question_dim.subtopic_id is 'Денормализация: подтема вопроса.';
 comment on column public.catalog_question_dim.theme_id    is 'Денормализация: тема вопроса.';
 comment on column public.catalog_question_dim.sort_order  is 'Порядок внутри уник-группы (1-based, из позиции prototype в JSON-файле).';
+comment on column public.catalog_question_dim.manifest_path is 'Путь к manifest-файлу конкретного question для targeted question-level lookup.';
 comment on column public.catalog_question_dim.catalog_version is 'Версия каталога на момент последней синхронизации.';
 
 create index if not exists idx_catalog_question_dim_unic_sort
@@ -172,11 +195,17 @@ create index if not exists idx_catalog_question_dim_subtopic_id
 create index if not exists idx_catalog_question_dim_theme_id
     on public.catalog_question_dim (theme_id);
 
+drop trigger if exists trg_catalog_question_dim_updated_at
+    on public.catalog_question_dim;
+
 create trigger trg_catalog_question_dim_updated_at
     before update on public.catalog_question_dim
     for each row execute function public.set_updated_at();
 
 alter table public.catalog_question_dim enable row level security;
+
+drop policy if exists "authenticated can read catalog_question_dim"
+    on public.catalog_question_dim;
 
 create policy "authenticated can read catalog_question_dim"
     on public.catalog_question_dim

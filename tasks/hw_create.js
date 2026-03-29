@@ -6,7 +6,10 @@ import { CONFIG } from '../app/config.js?v=2026-03-29-14';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-29-14';
 import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-03-29-14';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-14';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-14';
+import {
+  loadCatalogIndexLike,
+  lookupQuestionsByIdsV1,
+} from '../app/providers/catalog.js?v=2026-03-29-14';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
@@ -207,6 +210,7 @@ function refKey(r) {
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
+let MANIFEST_BY_PATH_CACHE = new Map();
 
 async function loadCatalog() {
   if (CATALOG && SECTIONS.length) return;
@@ -317,6 +321,50 @@ async function loadTopicPool(topic) {
   return topic._poolPromise;
 }
 
+async function fetchManifestByPath(path, { topicId = '', topicTitle = '' } = {}) {
+  const key = String(path || '').trim();
+  if (!key) return null;
+  if (MANIFEST_BY_PATH_CACHE.has(key)) return MANIFEST_BY_PATH_CACHE.get(key);
+
+  const href = withV(toAbsUrl(key));
+  const resp = await fetch(href, { cache: 'force-cache' });
+  if (!resp.ok) {
+    MANIFEST_BY_PATH_CACHE.set(key, null);
+    return null;
+  }
+
+  const j = await resp.json().catch(() => null);
+  const man = (j && typeof j === 'object') ? j : null;
+  if (man) {
+    if (!man.topic && topicId) man.topic = topicId;
+    if (!man.title && topicTitle) man.title = topicTitle;
+  }
+  MANIFEST_BY_PATH_CACHE.set(key, man);
+  return man;
+}
+
+async function loadQuestionLookupById(refs) {
+  const questionIds = Array.from(new Set((refs || [])
+    .map((ref) => String(ref?.question_id || '').trim())
+    .filter(Boolean)));
+
+  if (!questionIds.length) return new Map();
+
+  try {
+    const rows = await lookupQuestionsByIdsV1(questionIds);
+    const byQuestionId = new Map();
+    for (const row of (rows || [])) {
+      const questionId = String(row?.question_id || '').trim();
+      if (!questionId || byQuestionId.has(questionId)) continue;
+      byQuestionId.set(questionId, row);
+    }
+    return byQuestionId;
+  } catch (err) {
+    console.warn('hw_create: lookupQuestionsByIdsV1 failed, using topic-manifest fallback', err);
+    return new Map();
+  }
+}
+
 
 function withV(url) {
   const v = CONFIG?.content?.version;
@@ -346,6 +394,17 @@ function inferTopicIdFromQuestionId(qid) {
   const parts = String(qid || '').trim().split('.');
   if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
   return '';
+}
+
+function findProtoById(manifest, qid) {
+  for (const type of (manifest?.types || [])) {
+    for (const proto of (type?.prototypes || [])) {
+      if (String(proto?.id || '') === String(qid || '')) {
+        return { type, proto };
+      }
+    }
+  }
+  return null;
 }
 
 function parseImportLines(text) {
@@ -839,6 +898,7 @@ async function updateFixedPreviews(seq) {
   await loadCatalog();
 
   const cards = Array.from(box.querySelectorAll('.fixed-prev-card'));
+  const lookupByQuestionId = await loadQuestionLookupById(FIXED_REFS);
   for (const card of cards) {
     if (seq !== FIXED_RENDER_SEQ) return;
 
@@ -847,40 +907,50 @@ async function updateFixedPreviews(seq) {
     if (!ref) continue;
 
     const qid = ref.question_id;
-    const tid = ref.topic_id || inferTopicIdFromQuestionId(qid);
+    const fallbackTopicId = ref.topic_id || inferTopicIdFromQuestionId(qid);
+    const lookup = lookupByQuestionId.get(String(qid)) || null;
+    const lookupTopicId = String(lookup?.subtopic_id || '').trim();
+    const topic = TOPIC_BY_ID.get(String(fallbackTopicId));
+    const lookupTopic = TOPIC_BY_ID.get(lookupTopicId);
 
     const metaEl = card.querySelector('.fixed-prev-meta');
     const bodyEl = card.querySelector('.fixed-prev-body');
 
-    const topic = TOPIC_BY_ID.get(String(tid));
-    if (!topic) {
-      if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(tid))} не найдена в каталоге.</span>`;
-      continue;
+    let item = null;
+    if (lookup?.manifest_path) {
+      const man = await fetchManifestByPath(lookup.manifest_path, {
+        topicId: lookupTopicId || String(fallbackTopicId || ''),
+        topicTitle: lookupTopic?.title || topic?.title || '',
+      });
+      const found = findProtoById(man, qid);
+      if (man && found) {
+        item = { manifest: man, type: found.type, proto: found.proto };
+      }
     }
 
-    const pool = await loadTopicPool(topic);
-    if (!pool || !pool.length) {
-      if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось загрузить манифест(ы) темы.</span>`;
-      continue;
+    if (!item && topic) {
+      const pool = await loadTopicPool(topic);
+      if (pool && pool.length) {
+        const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
+        item = byQid ? byQid.get(String(qid)) : null;
+        if (!item) {
+          item = pool.find(x => String(x?.proto?.id) === String(qid)) || null;
+        }
+      }
     }
 
-    const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
-    let it = byQid ? byQid.get(String(qid)) : null;
-    if (!it) {
-      it = pool.find(x => String(x?.proto?.id) === String(qid)) || null;
-    }
-
-    if (it && it.type && it.proto) {
+    if (item && item.type && item.proto) {
       // В подборке «Добавленные задачи» служебную подпись про количество вариантов не показываем.
-      const meta = `${it.type.id} ${it.type.title || ''}`.trim();
+      const meta = `${item.type.id} ${item.type.title || ''}`.trim();
       if (metaEl) metaEl.textContent = meta;
 
-      if (bodyEl) bodyEl.innerHTML = buildStemPreview(it.manifest, it.type, it.proto);
+      if (bodyEl) bodyEl.innerHTML = buildStemPreview(item.manifest, item.type, item.proto);
+    } else if (!topic && !lookup?.manifest_path) {
+      if (metaEl) metaEl.textContent = qid;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(fallbackTopicId))} не найдена в каталоге.</span>`;
     } else {
       if (metaEl) metaEl.textContent = qid;
-      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось найти задачу в манифестах темы.</span>`;
+      if (bodyEl) bodyEl.innerHTML = `<span class="muted">Не удалось найти задачу в доступных манифестах.</span>`;
     }
   }
 

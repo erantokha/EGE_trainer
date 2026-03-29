@@ -14,6 +14,8 @@
 - [Current Dev Context](current_dev_context.md)
 - [Stage 1: Спецификация catalog_tree_v1](catalog_tree_v1_spec.md)
 - [Stage 1: Спецификация catalog_index_like_v1](catalog_index_like_v1_spec.md)
+- [Stage 2: Спецификация catalog_subtopic_unics_v1](catalog_subtopic_unics_v1_spec.md)
+- [Stage 2: Спецификация catalog_question_lookup_v1](catalog_question_lookup_v1_spec.md)
 - [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 - [Supabase: контракт и данные](supabase.md)
 - [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
@@ -58,6 +60,12 @@
 - добавить новую RPC / поменять схему таблиц
   - [supabase.md](supabase.md)
   - [supabase_schema_overview.md](./supabase_schema_overview.md) (в корне репозитория)
+
+- войти в текущий Stage 2 вокруг `subtopic / unic / question`
+  - [catalog_subtopic_unics_v1_spec.md](catalog_subtopic_unics_v1_spec.md)
+  - [catalog_question_lookup_v1_spec.md](catalog_question_lookup_v1_spec.md)
+  - [current_dev_context.md](current_dev_context.md)
+  - [tasks/pick_engine.js](../../tasks/pick_engine.js), [app/providers/catalog.js](../../app/providers/catalog.js)
 
 - посмотреть, какие таблицы трогаются на конкретном экране
   - [supabase_matrix.md](supabase_matrix.md)

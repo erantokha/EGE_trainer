@@ -4,7 +4,11 @@
 // а возвращает меньше и сообщает о нехватке.
 
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-14';
-import { loadCatalogTopicPathMap } from '../app/providers/catalog.js?v=2026-03-29-14';
+import {
+  loadCatalogSubtopicUnicsV1,
+  loadCatalogTopicPathMap,
+  lookupQuestionsByUnicsV1,
+} from '../app/providers/catalog.js?v=2026-03-29-14';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -70,6 +74,59 @@ function collectPrototypeIds(manifest) {
   return uniq;
 }
 
+async function loadQuestionIdsByTopicsViaCatalog(topicIds) {
+  const normalizedTopicIds = Array.from(new Set((topicIds || [])
+    .map((topicId) => String(topicId || '').trim())
+    .filter(Boolean)));
+  if (!normalizedTopicIds.length) return new Map();
+
+  const subtopicUnics = await loadCatalogSubtopicUnicsV1(normalizedTopicIds);
+  const unicIds = Array.from(new Set((subtopicUnics || [])
+    .map((row) => String(row?.unic_id || '').trim())
+    .filter(Boolean)));
+  if (!unicIds.length) return new Map();
+
+  const questionRows = await lookupQuestionsByUnicsV1(unicIds);
+  const idsByTopic = new Map(normalizedTopicIds.map((topicId) => [topicId, []]));
+  const seenByTopic = new Map(normalizedTopicIds.map((topicId) => [topicId, new Set()]));
+
+  for (const row of (questionRows || [])) {
+    const topicId = String(row?.subtopic_id || '').trim();
+    const questionId = String(row?.question_id || '').trim();
+    if (!topicId || !questionId) continue;
+    if (!idsByTopic.has(topicId)) continue;
+
+    const seen = seenByTopic.get(topicId);
+    if (seen?.has(questionId)) continue;
+    seen?.add(questionId);
+    idsByTopic.get(topicId)?.push(questionId);
+  }
+
+  return idsByTopic;
+}
+
+async function loadQuestionIdsByTopicsViaManifests(topicIds) {
+  const idsByTopic = new Map();
+
+  for (const tid of (topicIds || [])) {
+    const topicId = String(tid || '').trim();
+    if (!topicId) continue;
+    const manifest = await fetchManifestByTopic(topicId);
+    idsByTopic.set(topicId, collectPrototypeIds(manifest));
+  }
+
+  return idsByTopic;
+}
+
+async function loadQuestionIdsByTopics(topicIds) {
+  try {
+    return await loadQuestionIdsByTopicsViaCatalog(topicIds);
+  } catch (err) {
+    console.warn('smart_hw_builder: catalog lookup failed, using manifest scan fallback', err);
+    return await loadQuestionIdsByTopicsViaManifests(topicIds);
+  }
+}
+
 function interleaveBatches(orderIds, batches) {
   const q = orderIds.map((id) => ({ id, arr: (batches.get(id) || []).slice() }));
   const out = [];
@@ -92,13 +149,13 @@ export async function buildFrozenQuestionsForTopics(topics, { shuffle = true } =
 
   const shortages = {};
   const batches = new Map();
+  const questionIdsByTopic = await loadQuestionIdsByTopics(topicIds);
 
   for (const tid of topicIds) {
     const want = safeInt(topics[tid], 0);
     if (want <= 0) continue;
 
-    const manifest = await fetchManifestByTopic(tid);
-    const ids = collectPrototypeIds(manifest);
+    const ids = (questionIdsByTopic.get(tid) || []).slice();
 
     if (!ids.length) {
       shortages[tid] = want;

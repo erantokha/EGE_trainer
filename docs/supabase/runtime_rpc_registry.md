@@ -24,8 +24,8 @@
 
 ## Итог первого прохода
 
-- Всего runtime-RPC в реестре: `29`
-- `standalone_sql`: `29`
+- Всего runtime-RPC в реестре: `31`
+- `standalone_sql`: `31`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -81,6 +81,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `catalog_tree_v1` | `-` | `app/providers/catalog.js` via `loadCatalogTree()` / `loadCatalogLegacy()`, `tasks/stats_view.js`, `tasks/my_students.js` | `docs/supabase/catalog_tree_v1.sql` | `student-analytics` | `standalone_sql` | Stage-1 catalog tree RPC. Deployed in live Supabase on 2026-03-29 and used as the primary path for tree/legacy catalog adapters with fallback to layer-2 tables. |
 | `catalog_index_like_v1` | `-` | `app/providers/catalog.js` via `loadCatalogIndexLike()` / `loadCatalogTopicPathMap()`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/hw_create.js`, `tasks/hw.js`, `tasks/analog.js`, `tasks/list.js`, `tasks/unique.js`, `tasks/question_preview.js`, `tasks/smart_hw.js`, `tasks/smart_hw_builder.js` | `docs/supabase/catalog_index_like_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-1 path-based catalog RPC. Deployed in live Supabase on 2026-03-29 and used as the primary path for manifest/path screens with fallback to `catalog_theme_dim` / `catalog_subtopic_dim`. |
+| `catalog_subtopic_unics_v1` | `-` | `app/providers/catalog.js` via `loadCatalogSubtopicUnicsV1()` | `docs/supabase/catalog_subtopic_unics_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-2 `subtopic -> unic` catalog seam. Provider treats RPC as primary path and falls back to layer-2 catalog tables until rollout in live Supabase. |
+| `catalog_question_lookup_v1` | `-` | `app/providers/catalog.js` via `lookupCatalogQuestionsV1()`, `lookupQuestionsByIdsV1()`, `lookupQuestionsByUnicsV1()` | `docs/supabase/catalog_question_lookup_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-2 targeted `question_id / unic_id` lookup seam. Provider uses RPC as primary path and falls back to `catalog_question_dim` + parent catalog tables while contract is being rolled out. |
 
 ## Dashboard / Coverage
 
