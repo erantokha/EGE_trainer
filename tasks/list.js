@@ -13,6 +13,7 @@ import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-9';
 
 import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-29-9';
 import { pickProtosByPriority } from './pick_priority.js?v=2026-03-29-9';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-9';
 
 import { withBuild } from '../app/build.js?v=2026-03-29-9';
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-9';
@@ -20,8 +21,6 @@ import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-9';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
-
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
@@ -105,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // режим "Все задачи одной темы"
       const topic = findTopicById(topicParam);
       if (!topic) {
-        showListError(`Не найдена тема с id "${topicParam}". Проверьте index.json.`);
+        showListError(`Не найдена тема с id "${topicParam}". Проверьте runtime-каталог.`);
         return;
       }
 
@@ -142,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   } catch (e) {
     console.error(e);
     showListError(
-      'Ошибка загрузки задач. Проверьте content/tasks/index.json и манифесты.',
+      'Ошибка загрузки задач. Проверьте runtime-каталог и манифесты.',
     );
   } finally {
     $('#loadingOverlay')?.classList.add('hidden');
@@ -154,9 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ---------- Загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(withBuild(INDEX_URL), { cache: 'force-cache' });
-  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-  CATALOG = await resp.json();
+  CATALOG = await loadCatalogIndexLike();
 
   const sections = CATALOG.filter(x => x.type === 'group');
   const topics   = CATALOG.filter(

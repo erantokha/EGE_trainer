@@ -3,6 +3,7 @@
 // Используется в умном ДЗ (страница ученика у учителя).
 
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-9';
+import { loadCatalogTopicPathMap } from '../app/providers/catalog.js?v=2026-03-29-9';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -96,25 +97,7 @@ async function typesetMathIfNeeded(rootEl) {
 async function loadIndex() {
   if (__idxCache) return __idxCache;
 
-  const url = withV(toAbsUrl('content/tasks/index.json'));
-  const res = await fetch(url, { cache: 'no-cache' });
-  if (!res.ok) throw new Error('Не удалось загрузить каталог задач (index.json)');
-  const items = await res.json();
-  if (!Array.isArray(items)) throw new Error('Каталог задач имеет неверный формат');
-
-  const topicPath = new Map(); // topic_id -> path
-  for (const it of items) {
-    const id = String(it?.id || '').trim();
-    if (!id) continue;
-    if (!/^\d+\.\d+/.test(id)) continue;
-
-    const hidden = !!it?.hidden;
-    const enabled = (it?.enabled === undefined) ? true : !!it?.enabled;
-    if (hidden || !enabled) continue;
-
-    const path = String(it?.path || '').trim();
-    if (path) topicPath.set(id, path);
-  }
+  const topicPath = await loadCatalogTopicPathMap();
 
   __idxCache = { topicPath };
   return __idxCache;

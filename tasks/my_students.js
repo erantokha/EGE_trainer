@@ -7,7 +7,7 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-9';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-03-29-9';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -162,26 +162,8 @@ function normSource(v) {
 
 async function getTotalTopicsCount() {
   try {
-    const url = toAbsUrl('content/tasks/index.json');
-    const res = await fetch(url, { cache: 'no-cache' });
-    if (!res.ok) return 0;
-    const items = await res.json();
-    if (!Array.isArray(items)) return 0;
-
-    let total = 0;
-    for (const it of items) {
-      const id = String(it?.id || '').trim();
-      const title = String(it?.title || '').trim();
-      const type = String(it?.type || '').trim();
-      const hidden = !!it?.hidden;
-      const enabled = (it?.enabled === undefined) ? true : !!it?.enabled;
-
-      if (!id || !title) continue;
-      if (type === 'group') continue;
-      if (hidden || !enabled) continue;
-      if (/^\d+\.\d+/.test(id)) total += 1;
-    }
-    return total;
+    const catalog = await loadCatalogLegacy();
+    return safeInt(catalog?.totalTopics, 0);
   } catch (_) {
     return 0;
   }

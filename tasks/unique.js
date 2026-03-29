@@ -39,8 +39,7 @@ import { withBuild } from '../app/build.js?v=2026-03-29-9';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-29-9';
 import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-03-29-9';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-9';
-
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-9';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -105,7 +104,7 @@ async function init() {
     console.error(e);
     $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
     $('#uniqSubtitle').textContent =
-      'Не удалось прочитать /content/tasks/index.json';
+      'Не удалось прочитать runtime-каталог задач.';
     return;
   }
 
@@ -196,9 +195,7 @@ async function init() {
 
 // ---------- загрузка каталога ----------
 async function loadCatalog() {
-  const resp = await fetch(withBuild(INDEX_URL), { cache: 'force-cache' });
-  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-  return resp.json();
+  return await loadCatalogIndexLike();
 }
 
 function countUnicInManifest(man) {

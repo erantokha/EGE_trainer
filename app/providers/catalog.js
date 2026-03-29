@@ -9,6 +9,8 @@ import { supaRest } from './supabase-rest.js?v=2026-03-29-9';
 let __treeCache = null;
 let __treePromise = null;
 let __legacyCache = null;
+let __indexLikeCache = null;
+let __indexLikePromise = null;
 
 function asText(value) {
   return String(value ?? '').trim();
@@ -252,8 +254,100 @@ export async function loadCatalogLegacy(opts = {}) {
   return __legacyCache;
 }
 
+function buildIndexLikeFromRows(themeRows, subtopicRows) {
+  const out = [];
+
+  const themes = Array.isArray(themeRows) ? themeRows.slice() : [];
+  themes.sort((a, b) => compareByOrderThenId(a, b, 'theme_id'));
+
+  for (const row of themes) {
+    const themeId = asText(row?.theme_id);
+    const title = asText(row?.title);
+    if (!themeId || !title) continue;
+
+    out.push({
+      id: themeId,
+      title,
+      type: 'group',
+    });
+  }
+
+  const subtopics = Array.isArray(subtopicRows) ? subtopicRows.slice() : [];
+  subtopics.sort((a, b) => {
+    const td = asText(a?.theme_id).localeCompare(asText(b?.theme_id), 'ru');
+    if (td !== 0) return td;
+    return compareByOrderThenId(a, b, 'subtopic_id');
+  });
+
+  for (const row of subtopics) {
+    const subtopicId = asText(row?.subtopic_id);
+    const themeId = asText(row?.theme_id);
+    const title = asText(row?.title);
+    if (!subtopicId || !themeId || !title) continue;
+
+    const path = asText(row?.source_path);
+    out.push({
+      id: subtopicId,
+      title,
+      parent: themeId,
+      path,
+      enabled: true,
+      hidden: false,
+    });
+  }
+
+  return out;
+}
+
+export async function loadCatalogIndexLike(opts = {}) {
+  if (__indexLikeCache) return __indexLikeCache;
+  if (__indexLikePromise) return __indexLikePromise;
+
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 15000) || 15000);
+
+  __indexLikePromise = (async () => {
+    try {
+      const [themes, subtopics] = await Promise.all([
+        supaRest.select(
+          'catalog_theme_dim',
+          'select=theme_id,title,sort_order&is_enabled=eq.true&is_hidden=eq.false&order=sort_order.asc,theme_id.asc',
+          { timeoutMs }
+        ),
+        supaRest.select(
+          'catalog_subtopic_dim',
+          'select=subtopic_id,theme_id,title,sort_order,source_path&is_enabled=eq.true&is_hidden=eq.false&order=theme_id.asc,sort_order.asc,subtopic_id.asc',
+          { timeoutMs }
+        ),
+      ]);
+
+      __indexLikeCache = buildIndexLikeFromRows(themes, subtopics);
+      return __indexLikeCache;
+    } finally {
+      __indexLikePromise = null;
+    }
+  })();
+
+  return __indexLikePromise;
+}
+
+export async function loadCatalogTopicPathMap(opts = {}) {
+  const items = await loadCatalogIndexLike(opts);
+  const topicPath = new Map();
+
+  for (const item of items) {
+    const id = asText(item?.id);
+    const path = asText(item?.path);
+    if (!id || !path) continue;
+    topicPath.set(id, path);
+  }
+
+  return topicPath;
+}
+
 export function invalidateCatalogCache() {
   __treeCache = null;
   __treePromise = null;
   __legacyCache = null;
+  __indexLikeCache = null;
+  __indexLikePromise = null;
 }
