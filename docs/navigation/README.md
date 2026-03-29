@@ -11,6 +11,7 @@
 - [Архитектура (L0)](architecture.md)
 - [Переезд на 4-слойную архитектуру: этап 0](migration_stage0_scope.md)
 - [Архитектурный контракт 4 слоёв](architecture_contract_4layer.md)
+- [Stage 1: Спецификация catalog_tree_v1](catalog_tree_v1_spec.md)
 - [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 - [Supabase: контракт и данные](supabase.md)
 - [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
