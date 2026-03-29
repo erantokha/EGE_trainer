@@ -1,7 +1,7 @@
 // tasks/stats_view.js
 // Рендер статистики на основе JSON, который возвращает student_dashboard_* (Patch 1 backend).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-6';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-06-2';
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
@@ -176,6 +176,7 @@ function renderOverall(root, dash, opts = {}) {
 
 function renderSections(root, dash, catalog, opts = {}) {
   const periodLabel = (opts && opts.periodLabel) ? String(opts.periodLabel) : '30 дней';
+  const coverageMap = (opts.coverageMap instanceof Map) ? opts.coverageMap : new Map();
   const acc = el('div', { class: 'stats-acc' });
 
   const mkSlot = (pos, node) => el('div', { class: `m-slot ${pos}` }, [node]);
@@ -214,9 +215,23 @@ function renderSections(root, dash, catalog, opts = {}) {
     const s = secMap.get(sid) || { section_id: sid, all_time:{total:0,correct:0}, period:{total:0,correct:0}, last10:{total:0,correct:0} };
     const title = sectionTitle(sid, catalog);
 
+    // агрегат покрытия по секции из coverageMap
+    let secAttempted = 0, secTotal = 0;
+    for (const cov of coverageMap.values()) {
+      if (String(cov.theme_id || '') === sid) {
+        secAttempted += Number(cov.unics_attempted) || 0;
+        secTotal     += Number(cov.unics_total)     || 0;
+      }
+    }
+    const secCovPct = secTotal > 0 ? Math.round(secAttempted / secTotal * 100) : null;
+    const secCovEl  = secTotal > 0
+      ? el('span', { class: `badge sec-cov ${clsByPct(secCovPct)}`, text: `${secAttempted} / ${secTotal} юн` })
+      : null;
+
     const head = el('button', { type:'button', class:'acc-head' }, [
       el('div', { class:'acc-left acc-left-head' }, [
         el('div', { class:'title', text: title }),
+        secCovEl,
         el('div', { class:'h-chev small', text:'▾' }),
       ]),
       mkRight(
@@ -253,10 +268,19 @@ function renderSections(root, dash, catalog, opts = {}) {
           }
         })();
 
+        const cov = coverageMap.get(String(r?.topic_id || ''));
+        const covTotal = Number(cov?.unics_total) || 0;
+        const covAttempted = Number(cov?.unics_attempted) || 0;
+        const covPct = covTotal > 0 ? Math.round(covAttempted / covTotal * 100) : null;
+        const covEl = covTotal > 0
+          ? el('span', { class: `badge sub-cov ${clsByPct(covPct)}`, text: `${covAttempted} / ${covTotal} юн` })
+          : null;
+
         const rowNode = el('div', { class:'sub-row' }, [
           el('div', { class:'acc-left acc-left-sub' }, [
             el('div', { text: topicName(r?.topic_id, catalog) }),
             el('div', { class:'small', text: `последняя: ${lastSeenTxt}` }),
+            covEl,
           ]),
           mkRight(
             makeBadgeVal(l10.total, l10.correct, '10 последних'),

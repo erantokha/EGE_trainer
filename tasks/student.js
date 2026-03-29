@@ -413,6 +413,7 @@ async function main() {
   }
 
   let catalog = null;
+  let __coverageMap = null;
 
   // ----- stats -----
   const statsUi = buildStatsUI($('#statsRoot'));
@@ -1382,16 +1383,31 @@ if (statsFiltersToggle && statsControls) {
         try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
       }
 
-      const dash = await supaRest.rpcAny(
-        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
-        { p_student_id: studentId, p_days: days, p_source: normSource(source) },
-        { timeoutMs: 20000 }
-      );
+      const coverageFetch = __coverageMap
+        ? Promise.resolve(__coverageMap)
+        : supaRest.rpc('subtopic_coverage_for_teacher_v1',
+            { p_student_id: studentId, p_theme_ids: null },
+            { timeoutMs: 10000 }
+          )
+          .then(rows => {
+            __coverageMap = new Map((rows || []).map(r => [r.subtopic_id, r]));
+            return __coverageMap;
+          })
+          .catch(() => new Map());
+
+      const [dash, coverageMap] = await Promise.all([
+        supaRest.rpcAny(
+          ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
+          { p_student_id: studentId, p_days: days, p_source: normSource(source) },
+          { timeoutMs: 20000 }
+        ),
+        coverageFetch,
+      ]);
 
       statsUi.hintEl.textContent = '';
       __lastSeenAt = dash?.overall?.last_seen_at || null;
       if (__currentStudentMeta) applyHeader(__currentStudentMeta, __lastSeenAt);
-      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel });
+      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel, coverageMap: coverageMap || new Map() });
     } catch (e) {
       if (isAccessDenied(e)) {
         statsUi.statusEl.innerHTML = '';
