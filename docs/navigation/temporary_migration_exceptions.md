@@ -16,16 +16,6 @@
 
 ## Первый проход по текущему коду
 
-### EX-CATALOG-JSON-RUNTIME-READS
-
-- `id`: `EX-CATALOG-JSON-RUNTIME-READS`
-- `what`: UI читает `content/tasks/index.json` как runtime-источник структуры каталога и бизнес-логики вместо backend catalog / layer-4 read API.
-- `where`: `tasks/analog.js`, `tasks/hw.js`, `tasks/hw_create.js`, `tasks/list.js`, `tasks/my_students.js`, `tasks/picker.js`, `tasks/question_preview.js`, `tasks/smart_hw.js`, `tasks/smart_hw_builder.js`, `tasks/stats_view.js`, `tasks/trainer.js`, `tasks/unique.js`
-- `why_allowed_now`: layer 2 уже существует на backend, но канонический layer-4 read-контракт для дерева каталога и связанных экранных payload пока не внедрён; текущие экраны продолжают восстанавливать структуру задач напрямую из JSON.
-- `target_state`: экраны получают структуру каталога, denominator для coverage и нужные метаданные через backend catalog / layer-4 read API и больше не используют `content/tasks/index.json` как business read-source.
-- `remove_by_stage`: `Stage 1`
-- `owner`: `student-analytics`
-
 ### EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN
 
 - `id`: `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN`

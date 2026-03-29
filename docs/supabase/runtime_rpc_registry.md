@@ -24,8 +24,8 @@
 
 ## Итог первого прохода
 
-- Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `27`
+- Всего runtime-RPC в реестре: `29`
+- `standalone_sql`: `29`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -75,6 +75,13 @@
 | `remove_student` | `-` | `tasks/my_students.js`, `tasks/student.js` | `docs/supabase/remove_student.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Удаляет связь teacher-student после проверки teacher whitelist. |
 | `list_student_attempts` | `-` | `tasks/student.js` | `docs/supabase/list_student_attempts.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает завершённые homework attempts только по привязанному ученику и homework owner текущего teacher. |
 
+## Catalog Runtime
+
+| canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `catalog_tree_v1` | `-` | `app/providers/catalog.js` via `loadCatalogTree()` / `loadCatalogLegacy()`, `tasks/stats_view.js`, `tasks/my_students.js` | `docs/supabase/catalog_tree_v1.sql` | `student-analytics` | `standalone_sql` | Stage-1 catalog tree RPC. Deployed in live Supabase on 2026-03-29 and used as the primary path for tree/legacy catalog adapters with fallback to layer-2 tables. |
+| `catalog_index_like_v1` | `-` | `app/providers/catalog.js` via `loadCatalogIndexLike()` / `loadCatalogTopicPathMap()`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/hw_create.js`, `tasks/hw.js`, `tasks/analog.js`, `tasks/list.js`, `tasks/unique.js`, `tasks/question_preview.js`, `tasks/smart_hw.js`, `tasks/smart_hw_builder.js` | `docs/supabase/catalog_index_like_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-1 path-based catalog RPC. Deployed in live Supabase on 2026-03-29 and used as the primary path for manifest/path screens with fallback to `catalog_theme_dim` / `catalog_subtopic_dim`. |
+
 ## Dashboard / Coverage
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
@@ -103,6 +110,7 @@
 
 ## Следующий практический шаг
 
-После утверждения этого реестра нужно:
-- считать критичный teacher/student read-path `Wave 1` закрытым по SQL-gap и переходить к следующей волне или к owner/CI;
-- поддерживать CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре, без owner и без корректного `source_sql_file`.
+После текущей синхронизации реестра нужно:
+- считать stage-0 runtime-RPC SQL-gap и stage-1 catalog runtime contracts зафиксированными в git;
+- поддерживать CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре, без owner и без корректного `source_sql_file`;
+- следующим архитектурным шагом двигаться к layer-4 screen payload и снятию оставшихся migration exceptions Stage 7/8.

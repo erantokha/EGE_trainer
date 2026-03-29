@@ -27,7 +27,7 @@ function compareByOrderThenId(a, b, idKey) {
   return asText(a?.[idKey]).localeCompare(asText(b?.[idKey]), 'ru');
 }
 
-function isMissingCatalogTreeRpc(err) {
+function isMissingCatalogRpc(err, rpcName) {
   const status = Number(err?.status || err?.httpStatus || 0) || 0;
   const details = err?.details;
 
@@ -46,9 +46,17 @@ function isMissingCatalogTreeRpc(err) {
       text.includes('pgrst202') ||
       text.includes('could not find the function') ||
       text.includes('unknown function') ||
-      (text.includes('catalog_tree_v1') && text.includes('not found'))
+      (text.includes(String(rpcName || '').toLowerCase()) && text.includes('not found'))
     )
   );
+}
+
+function isMissingCatalogTreeRpc(err) {
+  return isMissingCatalogRpc(err, 'catalog_tree_v1');
+}
+
+function isMissingCatalogIndexLikeRpc(err) {
+  return isMissingCatalogRpc(err, 'catalog_index_like_v1');
 }
 
 function normalizeSubtopic(item) {
@@ -299,6 +307,86 @@ function buildIndexLikeFromRows(themeRows, subtopicRows) {
   return out;
 }
 
+function normalizeIndexLikeItem(item) {
+  const type = asText(item?.type).toLowerCase();
+  if (type === 'group') {
+    const themeId = asText(item?.theme_id || item?.id);
+    const title = asText(item?.title);
+    if (!themeId || !title) return null;
+
+    return {
+      id: themeId,
+      theme_id: themeId,
+      title,
+      type: 'group',
+      sort_order: asSort(item?.sort_order),
+    };
+  }
+
+  if (type === 'topic') {
+    const subtopicId = asText(item?.subtopic_id || item?.id);
+    const themeId = asText(item?.parent || item?.theme_id);
+    const title = asText(item?.title);
+    if (!subtopicId || !themeId || !title) return null;
+
+    return {
+      id: subtopicId,
+      subtopic_id: subtopicId,
+      theme_id: themeId,
+      parent: themeId,
+      title,
+      type: 'topic',
+      path: asText(item?.path),
+      enabled: item?.enabled === false ? false : true,
+      hidden: item?.hidden === true ? true : false,
+      sort_order: asSort(item?.sort_order),
+    };
+  }
+
+  return null;
+}
+
+function normalizeIndexLikePayload(payload) {
+  const rawItems = Array.isArray(payload?.items) ? payload.items : [];
+  const items = rawItems.map(normalizeIndexLikeItem).filter(Boolean);
+
+  const groups = items
+    .filter((item) => item.type === 'group')
+    .sort((a, b) => compareByOrderThenId(a, b, 'id'));
+
+  const topics = items
+    .filter((item) => item.type === 'topic')
+    .sort((a, b) => {
+      const td = asText(a?.parent).localeCompare(asText(b?.parent), 'ru');
+      if (td !== 0) return td;
+      return compareByOrderThenId(a, b, 'id');
+    });
+
+  return [...groups, ...topics];
+}
+
+async function loadCatalogIndexLikeViaRpc(timeoutMs) {
+  const data = await supaRest.rpcAny(['catalog_index_like_v1'], {}, { timeoutMs });
+  return normalizeIndexLikePayload(data);
+}
+
+async function loadCatalogIndexLikeViaTables(timeoutMs) {
+  const [themes, subtopics] = await Promise.all([
+    supaRest.select(
+      'catalog_theme_dim',
+      'select=theme_id,title,sort_order&is_enabled=eq.true&is_hidden=eq.false&order=sort_order.asc,theme_id.asc',
+      { timeoutMs }
+    ),
+    supaRest.select(
+      'catalog_subtopic_dim',
+      'select=subtopic_id,theme_id,title,sort_order,source_path&is_enabled=eq.true&is_hidden=eq.false&order=theme_id.asc,sort_order.asc,subtopic_id.asc',
+      { timeoutMs }
+    ),
+  ]);
+
+  return buildIndexLikeFromRows(themes, subtopics);
+}
+
 export async function loadCatalogIndexLike(opts = {}) {
   if (__indexLikeCache) return __indexLikeCache;
   if (__indexLikePromise) return __indexLikePromise;
@@ -307,20 +395,12 @@ export async function loadCatalogIndexLike(opts = {}) {
 
   __indexLikePromise = (async () => {
     try {
-      const [themes, subtopics] = await Promise.all([
-        supaRest.select(
-          'catalog_theme_dim',
-          'select=theme_id,title,sort_order&is_enabled=eq.true&is_hidden=eq.false&order=sort_order.asc,theme_id.asc',
-          { timeoutMs }
-        ),
-        supaRest.select(
-          'catalog_subtopic_dim',
-          'select=subtopic_id,theme_id,title,sort_order,source_path&is_enabled=eq.true&is_hidden=eq.false&order=theme_id.asc,sort_order.asc,subtopic_id.asc',
-          { timeoutMs }
-        ),
-      ]);
-
-      __indexLikeCache = buildIndexLikeFromRows(themes, subtopics);
+      try {
+        __indexLikeCache = await loadCatalogIndexLikeViaRpc(timeoutMs);
+      } catch (err) {
+        if (!isMissingCatalogIndexLikeRpc(err)) throw err;
+        __indexLikeCache = await loadCatalogIndexLikeViaTables(timeoutMs);
+      }
       return __indexLikeCache;
     } finally {
       __indexLikePromise = null;

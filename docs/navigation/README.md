@@ -1,6 +1,6 @@
 # Навигация по проекту EGE_trainer
 
-Дата обновления: 2026-01-16
+Дата обновления: 2026-03-29
 
 Цель этих документов: дать новому разработчику возможность за 60–120 минут понять:
 - как устроен проект (архитектура, сценарии)
@@ -12,6 +12,7 @@
 - [Переезд на 4-слойную архитектуру: этап 0](migration_stage0_scope.md)
 - [Архитектурный контракт 4 слоёв](architecture_contract_4layer.md)
 - [Stage 1: Спецификация catalog_tree_v1](catalog_tree_v1_spec.md)
+- [Stage 1: Спецификация catalog_index_like_v1](catalog_index_like_v1_spec.md)
 - [Temporary Migration Exceptions](temporary_migration_exceptions.md)
 - [Supabase: контракт и данные](supabase.md)
 - [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
