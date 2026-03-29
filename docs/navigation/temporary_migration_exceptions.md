@@ -11,7 +11,7 @@
 
 Правила ведения реестра:
 - каждая запись обязана содержать поля `id`, `what`, `where`, `why_allowed_now`, `target_state`, `remove_by_stage`, `owner`
-- `owner = TBD` допустим только как временный маркер до отдельного owner-этапа и блокирует закрытие этапа 0
+- `owner` должен указывать на доменную зону ответственности (`auth-profile`, `homework-domain`, `teacher-directory`, `student-analytics`, `teacher-picking`) и не должен оставаться `TBD`
 - удаление исключения означает не просто убрать запись из документа, а довести код до целевого `target_state`
 
 ## Первый проход по текущему коду
@@ -24,7 +24,7 @@
 - `why_allowed_now`: layer 2 уже существует на backend, но канонический layer-4 read-контракт для дерева каталога и связанных экранных payload пока не внедрён; текущие экраны продолжают восстанавливать структуру задач напрямую из JSON.
 - `target_state`: экраны получают структуру каталога, denominator для coverage и нужные метаданные через backend catalog / layer-4 read API и больше не используют `content/tasks/index.json` как business read-source.
 - `remove_by_stage`: `Stage 1`
-- `owner`: `TBD`
+- `owner`: `student-analytics`
 
 ### EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN
 
@@ -34,7 +34,7 @@
 - `why_allowed_now`: для этого сценария ещё нет канонического read-контракта, который отдаёт нужный teacher payload без прямого доступа к raw events.
 - `target_state`: teacher/student экран получает готовый backend-driven payload для `variant12` / worst-case аналитики через layer 4, без прямого чтения `answer_events` на уровне UI.
 - `remove_by_stage`: `Stage 6`
-- `owner`: `TBD`
+- `owner`: `student-analytics`
 
 ### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
 
@@ -44,7 +44,7 @@
 - `why_allowed_now`: миграция student read-path ещё не завершена, поэтому экран поддерживает и старое имя RPC, и новое.
 - `target_state`: student UI использует только одно каноническое имя dashboard read API без `rpcAny([old, new])`.
 - `remove_by_stage`: `Stage 8`
-- `owner`: `TBD`
+- `owner`: `student-analytics`
 
 ### EX-TEACHER-DASHBOARD-RPC-FALLBACK
 
@@ -54,7 +54,7 @@
 - `why_allowed_now`: teacher read-path ещё находится в переходном состоянии, а legacy и новая модель некоторое время живут параллельно.
 - `target_state`: teacher UI использует только одно каноническое имя teacher dashboard read API без `rpcAny([old, new])`.
 - `remove_by_stage`: `Stage 8`
-- `owner`: `TBD`
+- `owner`: `student-analytics`
 
 ### EX-PICKER-DIRECT-DASHBOARD-RPC
 
@@ -64,7 +64,7 @@
 - `why_allowed_now`: для picker-сценариев ещё не выделен единый layer-4 контракт, поэтому экран вручную тянет dashboard fragments и склеивает их на клиенте.
 - `target_state`: picker получает готовый экранный payload через канонический layer-4 read API или thin provider-wrapper без ручных REST-обходов и клиентской самосборки dashboard-данных.
 - `remove_by_stage`: `Stage 7`
-- `owner`: `TBD`
+- `owner`: `teacher-picking`
 
 ### EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN
 
@@ -74,7 +74,7 @@
 - `why_allowed_now`: канонические recommendation/smart-plan read-модели ещё не выделены в backend, поэтому текущие экраны используют клиентские функции поверх dashboard + catalog данных.
 - `target_state`: рекомендации и smart-plan формируются через канонические backend read API, использующие одну и ту же модель `covered / solved / weak / stale`.
 - `remove_by_stage`: `Stage 7`
-- `owner`: `TBD`
+- `owner`: `student-analytics`
 
 ### EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION
 
@@ -84,4 +84,4 @@
 - `why_allowed_now`: backend picking-контур ещё не сведен к одному layer-4 контракту; часть логики уже вынесена в RPC, но orchestration и решение "что спрашивать дальше" всё ещё находятся на клиенте.
 - `target_state`: teacher picking работает через один backend-driven contract, который выбирает сначала `unic`, затем конкретный `question`, а UI остаётся thin client.
 - `remove_by_stage`: `Stage 7`
-- `owner`: `TBD`
+- `owner`: `teacher-picking`
