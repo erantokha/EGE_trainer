@@ -25,14 +25,18 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `4`
-- `snapshot_only`: `23`
+- `standalone_sql`: `6`
+- `snapshot_only`: `21`
 - `missing_in_repo`: `0`
 
 Жёсткие SQL-gap блокеры `Wave 0` закрыты:
 - `subtopic_coverage_for_teacher_v1`
 - `teacher_type_rollup_v1`
 - `pick_questions_for_teacher_types_v1`
+
+`Wave 1` уже начата:
+- `student_dashboard_self_v2`
+- `student_dashboard_for_teacher_v2`
 
 ## Auth / Profile
 
@@ -70,8 +74,8 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Канонизирован как `v2`; текущий фронт всё ещё использует fallback и не везде в одном порядке. |
-| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Канонизирован как `v2`; по snapshot `v2` пока оборачивает legacy-функцию. |
+| `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` | `docs/supabase/student_dashboard_self_v2.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. `v2` — самостоятельная SQL-функция, а не excerpt из snapshot. |
+| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`. |
 | `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 
 ## Teacher Picking / Prioritization
@@ -88,13 +92,13 @@
 
 ## Открытые вопросы после первого прохода
 
-- Подтвердить, что `student_dashboard_self_v2` и `student_dashboard_for_teacher_v2` действительно являются целевыми каноническими именами, а не временными compat-обёртками.
+- Подтвердить, нужно ли считать `student_dashboard_for_teacher_v2` финальным каноническим именем, если live-версия пока остаётся compat-обёрткой над `student_dashboard_for_teacher(...)`.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
 - Назначить owner для каждой строки реестра и завести правило, где это хранится в git дополнительно к этому файлу.
 
 ## Следующий практический шаг
 
 После утверждения этого реестра нужно:
-- переходить к `Wave 1` по плану из [Backlog: SQL Gap для runtime-RPC](runtime_rpc_sql_gap_backlog.md);
+- продолжать `Wave 1` по плану из [Backlog: SQL Gap для runtime-RPC](runtime_rpc_sql_gap_backlog.md);
 - определить owner по каждой строке;
 - дополнить CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре.
