@@ -25,8 +25,8 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `11`
-- `snapshot_only`: `16`
+- `standalone_sql`: `21`
+- `snapshot_only`: `6`
 - `missing_in_repo`: `0`
 
 Жёсткие SQL-gap блокеры `Wave 0` закрыты:
@@ -55,15 +55,15 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `get_homework_by_token` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Анонимный / auto-auth read-контракт по токену ДЗ. |
-| `start_homework_attempt` | `start_attempt`, `startHomeworkAttempt` | `tasks/hw.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Каноническим именем зафиксирован snake_case-вариант; алиасы считаются legacy-compat. |
-| `has_homework_attempt` | `has_attempt`, `hasAttempt` | `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | В текущем первом проходе прямой page-caller не найден, но wrapper остаётся частью frontend boundary. |
-| `get_homework_attempt_by_token` | `getHomeworkAttemptByToken`, `get_homework_result_by_token` | `tasks/hw.js`, `tasks/my_homeworks.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Канонический путь чтения результата ДЗ по токену. |
-| `submit_homework_attempt` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Основной write-контракт сдачи ДЗ. |
-| `get_homework_attempt_for_teacher` | `-` | `tasks/hw.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Teacher-only read-контракт для экрана отчёта по attempt_id. |
-| `assign_homework_to_student` | `assignHomeworkToStudent`, `assign_homework` | `tasks/hw_create.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Связывает назначение с конкретным `token`, если он передан. |
-| `student_my_homeworks_summary` | `studentMyHomeworksSummary`, `my_homeworks_summary` | `tasks/my_homeworks.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Student-facing сводка по текущим домашкам. |
-| `student_my_homeworks_archive` | `studentMyHomeworksArchive`, `my_homeworks_archive` | `tasks/my_homeworks_archive.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `homework-domain` | `snapshot_only` | Student-facing архив домашек. |
+| `get_homework_by_token` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/get_homework_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает homework по token и вычисляет `is_active` из `homeworks + homework_links`. |
+| `start_homework_attempt` | `start_attempt`, `startHomeworkAttempt` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/start_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Каноническим именем зафиксирован snake_case-вариант; алиасы считаются legacy-compat. |
+| `has_homework_attempt` | `has_attempt`, `hasAttempt` | `app/providers/homework.js` | `docs/supabase/has_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. В live-версии `p_student_name` фактически не участвует в проверке. |
+| `get_homework_attempt_by_token` | `getHomeworkAttemptByToken`, `get_homework_result_by_token` | `tasks/hw.js`, `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/get_homework_attempt_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает последнюю attempt-строку для `auth.uid()` и token. |
+| `submit_homework_attempt` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/submit_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Делает finish/update только для текущего `auth.uid()` и незавершённой attempt. |
+| `get_homework_attempt_for_teacher` | `-` | `tasks/hw.js` | `docs/supabase/get_homework_attempt_for_teacher.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher-only отчёт по attempt с проверкой owner link и `teacher_students`. |
+| `assign_homework_to_student` | `assignHomeworkToStudent`, `assign_homework` | `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/assign_homework_to_student.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Назначать может только owner homework или admin; `token` сохраняется как часть assignment. |
+| `student_my_homeworks_summary` | `studentMyHomeworksSummary`, `my_homeworks_summary` | `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_summary.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает summary JSON по assignments, pending и archive counts. |
+| `student_my_homeworks_archive` | `studentMyHomeworksArchive`, `my_homeworks_archive` | `tasks/my_homeworks_archive.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_archive.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает paginated archive по assignments текущего `auth.uid()`. |
 
 ## Teacher / Student Management
 
@@ -88,7 +88,7 @@
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `question_stats_for_teacher_v1` | `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/question_stats_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает question-level stats по конкретному набору `question_id`. |
-| `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `teacher-picking` | `snapshot_only` | Legacy/compat picking-контур для teacher filters. |
+| `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Legacy/compat picking-контур для teacher filters, пока ещё живущий в runtime. |
 | `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `teacher-picking` | `standalone_sql` | Standalone SQL-файл уже присутствовал в репозитории до закрытия `Wave 0`. |
 | `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
