@@ -9,7 +9,10 @@
 
 Оглавление
 - [Архитектура (L0)](architecture.md)
+- [Переезд на 4-слойную архитектуру: этап 0](migration_stage0_scope.md)
+- [Архитектурный контракт 4 слоёв](architecture_contract_4layer.md)
 - [Supabase: контракт и данные](supabase.md)
+- [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
 - [Матрица: экран → таблицы/RPC](supabase_matrix.md)
 - [Навигация по файлам (L2)](files/README.md)
 - [Сценарии end-to-end](scenarios/README.md)
