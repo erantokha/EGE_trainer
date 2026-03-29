@@ -7,7 +7,7 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-7';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-8';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
