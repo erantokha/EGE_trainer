@@ -5,18 +5,18 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-29-4';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-4';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-03-29-5';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-5';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-4';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-29-5';
 
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-29-4';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-03-29-4';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-29-5';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-03-29-5';
 
-import { withBuild } from '../app/build.js?v=2026-03-29-4';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-4';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-4';
+import { withBuild } from '../app/build.js?v=2026-03-29-5';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-5';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-5';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
