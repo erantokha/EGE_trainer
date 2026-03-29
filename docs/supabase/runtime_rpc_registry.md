@@ -25,8 +25,8 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `21`
-- `snapshot_only`: `6`
+- `standalone_sql`: `27`
+- `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
 Жёсткие SQL-gap блокеры `Wave 0` закрыты:
@@ -47,9 +47,9 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `auth_email_exists` | `-` | `tasks/auth.js` via `app/providers/supabase.js` | `supabase_schema_overview_updated_2026-03-07.md` | `auth-profile` | `snapshot_only` | Используется как пред-проверка email при auth flow. |
-| `update_my_profile` | `-` | `tasks/google_complete.js`, `tasks/profile.js` | `supabase_schema_overview_updated_2026-03-07.md` | `auth-profile` | `snapshot_only` | Публичный профильный write-контракт. |
-| `delete_my_account` | `-` | `tasks/profile.js` | `supabase_schema_overview_updated_2026-03-07.md` | `auth-profile` | `snapshot_only` | Вызывается ручным `fetch` до `/rest/v1/rpc/delete_my_account`. |
+| `auth_email_exists` | `-` | `tasks/auth.js` via `app/providers/supabase.js` | `docs/supabase/auth_email_exists.sql` | `auth-profile` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Используется как пред-проверка email при auth flow до завершения логина. |
+| `update_my_profile` | `-` | `tasks/google_complete.js`, `tasks/profile.js` | `docs/supabase/update_my_profile.sql` | `auth-profile` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Обновляет profile и teacher whitelist / student grade в зависимости от `p_role`. |
+| `delete_my_account` | `-` | `tasks/profile.js` | `docs/supabase/delete_my_account.sql` | `auth-profile` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Явно чистит attempts, teacher links, homework ownership и затем удаляет пользователя из `auth.users`. |
 
 ## Homework / Student Homework
 
@@ -71,9 +71,9 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | `list_my_students` | `listMyStudents` | `tasks/my_students.js`, `tasks/student.js`, `tasks/picker.js`, `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/list_my_students.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Один из самых широких teacher runtime-контрактов. |
 | `teacher_students_summary` | `-` | `tasks/my_students.js` | `docs/supabase/teacher_students_summary.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher list-level aggregate по связанным ученикам. |
-| `add_student_by_email` | `-` | `tasks/my_students.js` | `supabase_schema_overview_updated_2026-03-07.md` | `teacher-directory` | `snapshot_only` | Teacher write-контракт добавления ученика. |
-| `remove_student` | `-` | `tasks/my_students.js`, `tasks/student.js` | `supabase_schema_overview_updated_2026-03-07.md` | `teacher-directory` | `snapshot_only` | Teacher write-контракт удаления связи с учеником. |
-| `list_student_attempts` | `-` | `tasks/student.js` | `supabase_schema_overview_updated_2026-03-07.md` | `teacher-directory` | `snapshot_only` | Teacher read-контракт списка завершённых работ. |
+| `add_student_by_email` | `-` | `tasks/my_students.js` | `docs/supabase/add_student_by_email.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Проверяет teacher whitelist, ищет `auth.users` по email и идемпотентно создаёт link в `teacher_students`. |
+| `remove_student` | `-` | `tasks/my_students.js`, `tasks/student.js` | `docs/supabase/remove_student.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Удаляет связь teacher-student после проверки teacher whitelist. |
+| `list_student_attempts` | `-` | `tasks/student.js` | `docs/supabase/list_student_attempts.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает завершённые homework attempts только по привязанному ученику и homework owner текущего teacher. |
 
 ## Dashboard / Coverage
 
