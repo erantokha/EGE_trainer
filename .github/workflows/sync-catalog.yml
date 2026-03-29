@@ -33,6 +33,8 @@ jobs:
         run: node tools/export_catalog.mjs --out docs/supabase/catalog_upsert_v1.sql
 
       - name: Commit if changed
+        env:
+          SYNC_PAT: ${{ secrets.SYNC_PAT }}
         run: |
           if [ -n "$(git status --porcelain docs/supabase/catalog_upsert_v1.sql)" ]; then
             git config user.name "github-actions[bot]"
@@ -40,6 +42,7 @@ jobs:
             git add docs/supabase/catalog_upsert_v1.sql
             git commit -m "chore: sync catalog sql"
             git pull --rebase origin main
+            git remote set-url origin https://x-access-token:${SYNC_PAT}@github.com/erantokha/EGE_trainer.git
             git push
           else
             echo "catalog_upsert_v1.sql unchanged — no commit needed."
