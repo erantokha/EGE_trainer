@@ -8,10 +8,10 @@ import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-11';
 import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-29-11';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-29-11';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-11';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-11';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
 const REQ_KEY = 'analog_request_v1';
 const SESSION_KEY = 'analog_session_v1';
 
@@ -342,10 +342,10 @@ async function loadManifest(url) {
 }
 
 async function pickAnalogQuestion(req, sessionState) {
-  const catalog = await fetchJson(INDEX_URL);
+  const catalog = await loadCatalogIndexLike();
   const topicNode = Array.isArray(catalog) ? catalog.find((x) => x && x.id === req.topic_id) : null;
   if (!topicNode) {
-    throw new Error('Тема не найдена в content/tasks/index.json: ' + req.topic_id);
+    throw new Error('Тема не найдена в runtime-каталоге: ' + req.topic_id);
   }
 
   const paths = [];
@@ -353,7 +353,7 @@ async function pickAnalogQuestion(req, sessionState) {
   if (Array.isArray(topicNode.paths)) paths.push(...topicNode.paths);
 
   if (!paths.length) {
-    throw new Error('Для темы нет path/paths в index.json: ' + req.topic_id);
+    throw new Error('Для темы нет path в runtime-каталоге: ' + req.topic_id);
   }
 
   // Загружаем все манифесты темы (кэшируем)

@@ -18,6 +18,7 @@ import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHom
 import { supabase, getSession } from '../app/providers/supabase.js?v=2026-03-29-11';
 import { supaRest } from '../app/providers/supabase-rest.js?v=2026-03-29-11';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-29-11';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-29-11';
 
 
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-11';
@@ -415,8 +416,6 @@ function formatDiag(obj) {
 
 const HOME_URL = new URL('../', location.href).href;
 
-const INDEX_URL = toAbsUrl('content/tasks/index.json');
-
 const HW_TOKEN_STORAGE_KEY = `hw:token:${location.pathname}`;
 function getTeacherAttemptId() {
   try {
@@ -471,7 +470,7 @@ async function showTeacherReport(attemptId) {
     CATALOG_READY = true;
   } catch (e) {
     console.warn('loadCatalog failed', e);
-    if (msgEl) msgEl.textContent = 'Не удалось загрузить контент задач (content/tasks/index.json).';
+    if (msgEl) msgEl.textContent = 'Не удалось загрузить runtime-каталог задач.';
     return;
   }
 
@@ -527,7 +526,7 @@ async function showTeacherReport(attemptId) {
 
 let HOMEWORK = null;   // { id, title, description, spec_json, settings_json }
 let LINK = null;       // строка homework_links (если вернётся)
-let CATALOG = null;    // массив index.json
+let CATALOG = null;    // runtime-каталог тем
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
 
@@ -651,7 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
       CATALOG_READY = true;
     } catch (e) {
       console.warn('loadCatalog failed', e);
-      if (msgEl) msgEl.textContent = 'Не удалось загрузить контент задач (content/tasks/index.json).';
+      if (msgEl) msgEl.textContent = 'Не удалось загрузить runtime-каталог задач.';
 
       const diag = {
         phase: 'load_catalog',
@@ -1172,14 +1171,10 @@ async function maybeProceedFlow(reason = '') {
 
 // ---------- Supabase API (через app/providers/homework.js) ----------
 
-// ---------- Каталог (index.json) ----------
+// ---------- Runtime-каталог ----------
 async function loadCatalog() {
   if (CATALOG) return;
-
-  const url = withV(INDEX_URL);
-  const resp = await fetch(url, { cache: 'force-cache' });
-  if (!resp.ok) throw new Error(`index.json not found: ${resp.status}`);
-  CATALOG = await resp.json();
+  CATALOG = await loadCatalogIndexLike();
 
   const sections = CATALOG.filter(x => x.type === 'group');
   const topics = CATALOG.filter(x => !!x.parent && x.enabled !== false && x.hidden !== true);
