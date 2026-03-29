@@ -25,8 +25,8 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `6`
-- `snapshot_only`: `21`
+- `standalone_sql`: `8`
+- `snapshot_only`: `19`
 - `missing_in_repo`: `0`
 
 Жёсткие SQL-gap блокеры `Wave 0` закрыты:
@@ -37,6 +37,8 @@
 `Wave 1` уже начата:
 - `student_dashboard_self_v2`
 - `student_dashboard_for_teacher_v2`
+- `question_stats_for_teacher_v1`
+- `teacher_topic_rollup_v1`
 
 ## Auth / Profile
 
@@ -82,12 +84,12 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `question_stats_for_teacher_v1` | `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Базовый teacher stats RPC для question-level приоритезации. |
+| `question_stats_for_teacher_v1` | `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/question_stats_for_teacher_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает question-level stats по конкретному набору `question_id`. |
 | `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Legacy/compat picking-контур для teacher filters. |
 | `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `TBD` | `standalone_sql` | Standalone SQL-файл уже присутствовал в репозитории до закрытия `Wave 0`. |
 | `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
-| `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Rollup по темам для section/topic picking. |
+| `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_topic_rollup_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Rollup по темам строится через `question_bank` + `student_question_stats`. |
 | `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Topic-quota RPC для teacher picking. |
 
 ## Открытые вопросы после первого прохода
