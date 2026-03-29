@@ -25,8 +25,8 @@
 ## Итог первого прохода
 
 - Всего runtime-RPC в реестре: `27`
-- `standalone_sql`: `8`
-- `snapshot_only`: `19`
+- `standalone_sql`: `11`
+- `snapshot_only`: `16`
 - `missing_in_repo`: `0`
 
 Жёсткие SQL-gap блокеры `Wave 0` закрыты:
@@ -39,6 +39,9 @@
 - `student_dashboard_for_teacher_v2`
 - `question_stats_for_teacher_v1`
 - `teacher_topic_rollup_v1`
+- `pick_questions_for_teacher_topics_v1`
+- `teacher_students_summary`
+- `list_my_students`
 
 ## Auth / Profile
 
@@ -66,8 +69,8 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `list_my_students` | `listMyStudents` | `tasks/my_students.js`, `tasks/student.js`, `tasks/picker.js`, `tasks/hw_create.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Один из самых широких teacher runtime-контрактов. |
-| `teacher_students_summary` | `-` | `tasks/my_students.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Teacher dashboard list-level aggregate. |
+| `list_my_students` | `listMyStudents` | `tasks/my_students.js`, `tasks/student.js`, `tasks/picker.js`, `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/list_my_students.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Один из самых широких teacher runtime-контрактов. |
+| `teacher_students_summary` | `-` | `tasks/my_students.js` | `docs/supabase/teacher_students_summary.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher list-level aggregate по связанным ученикам. |
 | `add_student_by_email` | `-` | `tasks/my_students.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Teacher write-контракт добавления ученика. |
 | `remove_student` | `-` | `tasks/my_students.js`, `tasks/student.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Teacher write-контракт удаления связи с учеником. |
 | `list_student_attempts` | `-` | `tasks/student.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Teacher read-контракт списка завершённых работ. |
@@ -90,17 +93,18 @@
 | `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_topic_rollup_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Rollup по темам строится через `question_bank` + `student_question_stats`. |
-| `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `supabase_schema_overview_updated_2026-03-07.md` | `TBD` | `snapshot_only` | Topic-quota RPC для teacher picking. |
+| `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_topics_v1.sql` | `TBD` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Topic-quota picking RPC с teacher guards и приоритезацией по `old/badAcc`. |
 
 ## Открытые вопросы после первого прохода
 
 - Подтвердить, нужно ли считать `student_dashboard_for_teacher_v2` финальным каноническим именем, если live-версия пока остаётся compat-обёрткой над `student_dashboard_for_teacher(...)`.
+- Подтвердить, должен ли `teacher_students_summary` в целевой архитектуре считать `covered_topics_all_time` по старому `topic_id` из `answer_events` или позже переехать на catalog-based coverage.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
 - Назначить owner для каждой строки реестра и завести правило, где это хранится в git дополнительно к этому файлу.
 
 ## Следующий практический шаг
 
 После утверждения этого реестра нужно:
-- продолжать `Wave 1` по плану из [Backlog: SQL Gap для runtime-RPC](runtime_rpc_sql_gap_backlog.md);
+- считать критичный teacher/student read-path `Wave 1` закрытым по SQL-gap и переходить к следующей волне или к owner/CI;
 - определить owner по каждой строке;
 - дополнить CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре.
