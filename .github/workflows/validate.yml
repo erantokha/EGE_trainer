@@ -23,3 +23,11 @@ jobs:
 
       - name: Forbid eval/new Function in runtime
         run: node tools/check_no_eval.mjs
+
+      - name: Check catalog DB sync
+        # Только на push в main, не на PR — чтобы не блокировать ревью
+        if: github.event_name == 'push'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: node tools/check_catalog_sync.mjs

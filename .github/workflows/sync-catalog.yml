@@ -1,0 +1,45 @@
+name: Sync catalog SQL
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'content/tasks/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-catalog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    # предотвращаем бесконечную петлю на коммитах бота
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate catalog SQL
+        run: node tools/export_catalog.mjs --out docs/supabase/catalog_upsert_v1.sql
+
+      - name: Commit if changed
+        run: |
+          if [ -n "$(git status --porcelain docs/supabase/catalog_upsert_v1.sql)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/supabase/catalog_upsert_v1.sql
+            git commit -m "chore: sync catalog sql"
+            git push
+          else
+            echo "catalog_upsert_v1.sql unchanged — no commit needed."
+          fi
