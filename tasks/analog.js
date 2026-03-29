@@ -2,12 +2,12 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-03-29-9';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-9';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-9';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-29-9';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-29-9';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-9';
+import { withBuild } from '../app/build.js?v=2026-03-29-10';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-29-10';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-03-29-10';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-03-29-10';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-03-29-10';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-29-10';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
