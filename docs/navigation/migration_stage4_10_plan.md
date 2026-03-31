@@ -1,0 +1,164 @@
+# Migration Plan: Stage 4–10
+
+Дата создания: 2026-03-31
+
+Этот документ фиксирует детальный план перехода на четырёхслойную архитектуру для этапов 4–10.
+
+Связанные документы:
+- [Архитектурный контракт 4 слоёв](architecture_contract_4layer.md)
+- [Текущий контекст](current_dev_context.md)
+- [Временные исключения](temporary_migration_exceptions.md)
+- [Реестр runtime-RPC](../supabase/runtime_rpc_registry.md)
+
+---
+
+## Stage 4 — Dual-run backend
+
+**Суть:** Прежде чем переводить UI, убедиться что новые layer-4 RPC возвращают корректные данные относительно старых. Параллельный запуск нужен чтобы поймать edge cases без риска для пользователей.
+
+### Работы:
+
+- Для `student_analytics_screen_v1` с `p_viewer_scope='self'` — сравнить результат с `student_dashboard_self_v2` на реальных студентах
+- Зафиксировать расхождения (если есть) и устранить на уровне SQL
+- Smoke/rollout check: метрики обоих path'ов совпадают по ключевым полям (`covered`, `solved`, `weak`, `stale`, accuracy)
+- Аналогично для teacher path: `student_analytics_screen_v1(teacher)` vs `student_dashboard_for_teacher_v2`
+
+### Критерий закрытия:
+
+Backend-паритет подтверждён на реальных данных, можно переключать UI.
+
+---
+
+## Stage 5 — Student UI Migration
+
+**Суть:** Перевести `stats.js` (self-аналитика ученика) с fallback `rpcAny([old, new])` на единый `student_analytics_screen_v1`.
+
+### Работы:
+
+- `tasks/stats.js:193-194` — убрать `rpcAny`, использовать `student_analytics_screen_v1` с `p_viewer_scope='self'`
+- `tasks/stats.js:247` — убрать frontend-логику поверх dashboard payload, завязанную на старый формат
+- Написать и прогнать smoke-тест для self-analytics экрана
+- Закрыть `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` в [temporary_migration_exceptions.md](temporary_migration_exceptions.md)
+
+### Критерий закрытия:
+
+`stats.js` читает только `student_analytics_screen_v1`. Один canonical contract для обоих viewers (`teacher` и `self`).
+
+---
+
+## Stage 6 — Teacher UI Migration
+
+**Суть:** Полный перевод teacher-facing экранов на layer-4. Stage 3 дал backend и перевёл `student.js` — Stage 6 закрывает всё оставшееся.
+
+### Работы:
+
+- Проверить `tasks/student.js` на наличие оставшихся legacy dashboard calls
+- Оценить покрытие `subtopic_coverage_for_teacher_v1` — всё ли уже отдаёт `student_analytics_screen_v1`, или нужен отдельный контракт
+- Проверить `tasks/my_students.js` — не собирает ли он аналитику из нескольких сырых фрагментов
+- Оценить `teacher_students_summary` — нужен ли отдельный layer-4 screen contract для списка учеников
+
+### Критерий закрытия:
+
+Teacher UI читает только layer-4 contracts. Нет прямых вызовов dashboard RPC с клиента.
+
+---
+
+## Stage 7 — Recommendations & Smart-plan backend-driven
+
+**Суть:** Рекомендации (`recommendations.js`, `smart_select.js`) сейчас считаются на фронте поверх dashboard payload. Нужно вынести логику на backend.
+
+### Работы:
+
+- Спроектировать и раскатить `student_recommendations_v1` — backend RPC, возвращающий готовый список рекомендаций на основе канонических метрик (`covered / solved / weak / stale`)
+- Спроектировать `student_smart_plan_v1` — заменяет `pickWeakTopicsFromDashboard` в `smart_select.js`
+- Перевести следующие файлы на новые RPC:
+  - `tasks/recommendations.js`
+  - `tasks/smart_select.js`
+  - `tasks/smart_hw.js:104`
+  - `tasks/stats.js:247`
+  - `tasks/student.js` (recommendations block)
+- Закрыть `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` в [temporary_migration_exceptions.md](temporary_migration_exceptions.md)
+
+### Критерий закрытия:
+
+Рекомендации и smart-plan формируются на backend. Фронт только рендерит готовый payload.
+
+---
+
+## Stage 8 — Legacy cleanup
+
+**Суть:** Убрать весь compat/fallback мусор, накопленный за переходный период.
+
+### Работы:
+
+**Teacher picking orchestration:**
+- `tasks/picker.js` — убрать transitional compat restore paths, локальный selection-state, badge-cache
+- `tasks/list.js`, `tasks/trainer.js`, `tasks/hw_create.js` — убрать fallback логику, оставить тонкий клиент вокруг `teacher_picking_screen_v2`
+- Закрыть `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
+
+**Устаревшие RPC:**
+- Удалить `teacher_picking_screen_v1` из реестра и Supabase
+- Оценить и удалить `student_dashboard_for_teacher_v2`, `student_dashboard_self_v2`, `subtopic_coverage_for_teacher_v1` если они больше не нужны ни одному потребителю
+
+### Критерий закрытия:
+
+Нет ни одного fallback/compat path. Реестр migration exceptions пуст (все `closed`). Каждый экран — тонкий клиент над одним layer-4 RPC.
+
+---
+
+## Stage 9 — Write-path на canonical event-контур
+
+**Суть:** Ученик пишет ответы через `attempts` / `homework_attempts` — это operational write-контуры. Layer 1 (`answer_events`) должен стать единственным canonical write target.
+
+### Работы:
+
+- Выяснить как сейчас данные из `attempts` попадают в `answer_events` (sync, триггер, или вообще нет)
+- Перевести write flow: ответ ученика → `answer_events` напрямую
+- `attempts` и `homework_attempts` превращаются в read-проекции (view / materialized view) поверх `answer_events`
+- Проверить что layer-3 aggregates корректны на новом write-path
+- Smoke по всем сценариям записи: тренажёр, домашнее задание, самостоятельная работа
+
+### Критерий закрытия:
+
+Единственный canonical write path — `answer_events`. Нет расщепления между operational и analytical source.
+
+---
+
+## Stage 10 — Финальная зачистка и приёмка
+
+**Суть:** Архитектурная приёмка всего пути миграции.
+
+### Работы:
+
+- Пройти по всем migration exceptions — убедиться что реестр пуст (все `closed`)
+- Удалить deprecated SQL artifacts из Supabase
+- Обновить `architecture_contract_4layer.md` как финальный живой документ
+- Финальный smoke по всем экранам
+- CI guardrails — оставить как постоянный guard или демонтировать по решению
+
+### Критерий закрытия:
+
+Все 10 этапов закрыты. Архитектура полностью соответствует четырёхслойному контракту.
+
+---
+
+## Зависимости между этапами
+
+```
+Stage 4 (dual-run)
+    └── Stage 5 (student UI)
+            └── Stage 7 (recommendations backend)
+                    └── Stage 8 (legacy cleanup)
+                            └── Stage 10 (приёмка)
+
+Stage 6 (teacher UI) ──────────────┘
+Stage 9 (write-path) — независим от 4-8, может идти параллельно
+```
+
+## Открытые migration exceptions и их этапы
+
+| Exception | Где | Remove by |
+|---|---|---|
+| `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` | `tasks/stats.js:193-194` | Stage 5 |
+| `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` | `recommendations.js`, `smart_select.js`, `stats.js`, `student.js` | Stage 7 |
+| `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` | `picker.js`, `list.js`, `trainer.js`, `hw_create.js` | Stage 8 |
