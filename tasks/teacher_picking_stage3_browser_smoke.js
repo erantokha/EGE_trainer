@@ -1,9 +1,9 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-03-31-1';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-03-31-1';
+import { getSession } from '../app/providers/supabase.js?v=2026-03-31-2';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-03-31-2';
 import {
   listMyStudents,
   loadTeacherPickingScreenV1,
-} from '../app/providers/homework.js?v=2026-03-31-1';
+} from '../app/providers/homework.js?v=2026-03-31-2';
 
 const PRIMARY_RPC = 'teacher_picking_screen_v1';
 const LEGACY_DASHBOARD_RPCS = [
