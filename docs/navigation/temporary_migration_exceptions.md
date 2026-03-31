@@ -1,6 +1,6 @@
 # Temporary Migration Exceptions
 
-Дата обновления: 2026-03-29
+Дата обновления: 2026-03-31
 
 Этот документ фиксирует временные отклонения от целевого архитектурного контракта 4 слоёв. Исключения ниже не считаются нормой архитектуры и существуют только как переходное состояние до завершения соответствующих этапов миграции.
 
@@ -46,16 +46,6 @@
 - `remove_by_stage`: `Stage 8`
 - `owner`: `student-analytics`
 
-### EX-PICKER-DIRECT-DASHBOARD-RPC
-
-- `id`: `EX-PICKER-DIRECT-DASHBOARD-RPC`
-- `what`: picker делает прямые REST/RPC-вызовы `student_dashboard_self_v2` и `student_dashboard_for_teacher_v2`, а затем сам собирает экранный payload.
-- `where`: `tasks/picker.js:278`, `tasks/picker.js:1072`
-- `why_allowed_now`: для picker-сценариев ещё не выделен единый layer-4 контракт, поэтому экран вручную тянет dashboard fragments и склеивает их на клиенте.
-- `target_state`: picker получает готовый экранный payload через канонический layer-4 read API или thin provider-wrapper без ручных REST-обходов и клиентской самосборки dashboard-данных.
-- `remove_by_stage`: `Stage 7`
-- `owner`: `teacher-picking`
-
 ### EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN
 
 - `id`: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
@@ -69,9 +59,25 @@
 ### EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION
 
 - `id`: `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
-- `what`: teacher picking остаётся частично frontend-orchestrated: экран вызывает несколько low-level rollup/pick RPC и сам управляет логикой выбора `topic / type / question`.
-- `where`: `tasks/pick_engine.js:1031`, `tasks/pick_engine.js:1057`, `tasks/pick_engine.js:1152`, `tasks/pick_engine.js:1249`, `tasks/pick_engine.js:1405`, `tasks/pick_engine.js:1479`, `tasks/pick_engine.js:1505`, `app/providers/homework.js:563`, `app/providers/homework.js:633`, `app/providers/homework.js:661`, `app/providers/homework.js:726`, `app/providers/homework.js:754`
-- `why_allowed_now`: backend picking-контур ещё не сведен к одному layer-4 контракту; часть логики уже вынесена в RPC, но orchestration и решение "что спрашивать дальше" всё ещё находятся на клиенте.
-- `target_state`: teacher picking работает через один backend-driven contract, который выбирает сначала `unic`, затем конкретный `question`, а UI остаётся thin client.
-- `remove_by_stage`: `Stage 7`
+- `what`: teacher picking всё ещё сохраняет на фронте transitional UI/session orchestration: preview modal rendering, локальный selection-state, badge-cache, compat restore paths и downstream navigation в `list / trainer / hw_create`.
+- `where`: `tasks/picker.js`, `tasks/list.js`, `tasks/trainer.js`, `tasks/hw_create.js`, `app/providers/homework.js`
+- `why_allowed_now`: canonical filter semantics, eligibility, proto/topic/section cascade, `global_all`, seed-based selection и batch resolve уже принадлежат backend-driven `teacher_picking_screen_v2`, но presentation-layer state и часть compat/fallback логики всё ещё живут на клиенте.
+- `target_state`: teacher picking UI становится thin client вокруг `teacher_picking_screen_v2`, а transitional compat restore, лишние fallback-paths и локальная orchestration-логика удаляются или сводятся к минимальному presentation layer.
+- `remove_by_stage`: `Stage 8`
 - `owner`: `teacher-picking`
+
+Notably no longer covered by this exception:
+- filter eligibility semantics
+- `proto / topic / section` cascade
+- `global_all` behavior
+- seed-based picking
+- batch resolve selection
+
+## Closed On 2026-03-31
+
+### EX-PICKER-DIRECT-DASHBOARD-RPC
+
+- `id`: `EX-PICKER-DIRECT-DASHBOARD-RPC`
+- `status`: `closed`
+- `closed_on`: `2026-03-31`
+- `reason`: picker switched to `teacher_picking_screen_v2` and `teacher_picking_resolve_batch_v1` and no longer assembles teacher-picking screen payload from direct dashboard RPC fragments.

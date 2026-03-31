@@ -1,6 +1,6 @@
 # Реестр runtime-RPC
 
-Дата обновления: 2026-03-30
+Дата обновления: 2026-03-31
 
 Это первый проход по runtime-RPC, собранный по текущему фронтенду и `app/providers/*`.
 Реестр фиксирует только публичные RPC-контракты, от которых зависит runtime-поведение продукта.
@@ -24,8 +24,8 @@
 
 ## Итог первого прохода
 
-- Всего runtime-RPC в реестре: `32`
-- `standalone_sql`: `32`
+- Всего runtime-RPC в реестре: `34`
+- `standalone_sql`: `34`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -34,14 +34,10 @@
 - `teacher_type_rollup_v1`
 - `pick_questions_for_teacher_types_v1`
 
-`Wave 1` уже начата:
-- `student_dashboard_self_v2`
-- `student_dashboard_for_teacher_v2`
-- `question_stats_for_teacher_v1`
-- `teacher_topic_rollup_v1`
-- `pick_questions_for_teacher_topics_v1`
-- `teacher_students_summary`
-- `list_my_students`
+Teacher-picking `v2` rollout уже отражён в реестре:
+- `question_stats_for_teacher_v2`
+- `teacher_picking_screen_v2`
+- `teacher_picking_resolve_batch_v1`
 
 ## Auth / Profile
 
@@ -89,32 +85,35 @@
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/student_dashboard_self_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. `v2` — самостоятельная SQL-функция, а не excerpt из snapshot. В `picker.js` direct screen-call снят в пользу provider seam `loadStudentDashboardSelfV1()`. |
-| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`; в `picker.js` direct screen-call снят в пользу `loadTeacherPickingScreenV1()`. |
+| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, legacy compat paths in `app/providers/homework.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`; teacher-picking home больше не использует этот RPC как screen contract после перехода на `teacher_picking_screen_v2`. |
 | `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 
 ## Teacher Picking / Prioritization
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `question_stats_for_teacher_v1` | `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/question_stats_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает question-level stats по конкретному набору `question_id`. |
+| `question_stats_for_teacher_v2` | `question_stats_for_teacher_v1`, `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/question_stats_for_teacher_v2.sql` | `teacher-picking` | `standalone_sql` | Canonical teacher-stats RPC after Stage-3 teacher-picking rollout. Provider prefers `v2` and falls back to `v1`; `v2` carries `last3_total` / `last3_correct` and powers preview badges plus teacher stats cache. |
 | `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Legacy/compat picking-контур для teacher filters, пока ещё живущий в runtime. |
 | `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `teacher-picking` | `standalone_sql` | Standalone SQL-файл уже присутствовал в репозитории до закрытия `Wave 0`. |
 | `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_topic_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Rollup по темам строится через `question_bank` + `student_question_stats`. |
 | `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_topics_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Topic-quota picking RPC с teacher guards и приоритезацией по `old/badAcc`. |
-| `teacher_picking_screen_v1` | `-` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-3 first-pass layer-4 screen payload for teacher-picking init flow. Repo contract added on 2026-03-30; runtime provider keeps compat fallback to `student_dashboard_for_teacher_v2` until rollout in live Supabase. |
+| `teacher_picking_screen_v1` | `-` | `tasks/teacher_picking_stage3_browser_smoke.js`, legacy compat wrapper in `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-3 first-pass screen seam. Kept as legacy/compat artifact and smoke target; no longer the canonical teacher-picking screen contract for `home_teacher.html`. |
+| `teacher_picking_screen_v2` | `-` | `tasks/picker.js`, `tasks/teacher_picking_v2_browser_smoke.js`, `tasks/teacher_picking_filters_browser_smoke.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v2.sql` | `teacher-picking` | `standalone_sql` | Canonical backend-driven teacher-picking screen contract. Powers `init` / `resolve`, canonical filter semantics, `proto/topic/section/global_all`, shortage meta and seed-based picking. Backed by `student_proto_state_v1` and `student_topic_state_v1`. |
+| `teacher_picking_resolve_batch_v1` | `-` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_resolve_batch_v1.sql` | `teacher-picking` | `standalone_sql` | Batch resolve seam for teacher home. Replaces resolve fan-out with grouped backend selection and is the main reason teacher filter picking now stays within the target latency range. |
 
-## Открытые вопросы после первого прохода
+## Открытые вопросы после текущей синхронизации
 
 - Подтвердить, нужно ли считать `student_dashboard_for_teacher_v2` финальным каноническим именем, если live-версия пока остаётся compat-обёрткой над `student_dashboard_for_teacher(...)`.
 - Подтвердить, должен ли `teacher_students_summary` в целевой архитектуре считать `covered_topics_all_time` по старому `topic_id` из `answer_events` или позже переехать на catalog-based coverage.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
+- Решить, в какой момент `teacher_picking_screen_v1` можно официально перевести из legacy-compat в cleanup-кандидаты Stage 8.
 
 ## Следующий практический шаг
 
 После текущей синхронизации реестра нужно:
-- считать stage-0 runtime-RPC SQL-gap и stage-1 catalog runtime contracts зафиксированными в git;
+- считать Stage 0, Stage 1 и Stage 2 зафиксированными в git и подтверждёнными smoke-checks;
+- считать teacher-picking `v2` slice Stage 3 отражённым в реестре как canonical runtime-contract;
 - поддерживать CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре, без owner и без корректного `source_sql_file`;
-- считать Stage-3 init artifact `teacher_picking_screen_v1` уже добавленным в repo и следующим шагом делать live rollout + `resolve`-режим поверх того же screen seam;
-- следующим архитектурным шагом двигаться к layer-4 screen payload и снятию оставшихся migration exceptions Stage 7/8.
+- следующим архитектурным шагом двигаться к student analytics / recommendations / smart-plan contracts и снятию оставшихся migration exceptions Stage 7/8.
