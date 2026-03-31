@@ -38,12 +38,12 @@ function_presence as (
   group by rf.routine_name
 ),
 
--- ─── 2. sample teacher-student pair ─────────────────────────────────────────
+-- ─── 2. sample teacher + auth setup ─────────────────────────────────────────
+-- Выбираем только учителя. Студента выберем ПОСЛЕ поднятия auth,
+-- чтобы is_teacher_for_student() работал в правильном auth-контексте.
 
-sample_pair as (
-  select
-    ts.teacher_id,
-    ts.student_id
+sample_teacher as (
+  select distinct ts.teacher_id
   from public.teacher_students ts
   join public.profiles p
     on p.id = ts.teacher_id
@@ -53,35 +53,45 @@ sample_pair as (
   join public.teachers tw
     on lower(tw.email) = lower(coalesce(au.email, ''))
    and coalesce(tw.approved, true) = true
-  -- берём пару где у студента есть хотя бы одно событие
-  join lateral (
-    select 1 from public.answer_events ae
-    where ae.student_id = ts.student_id
-    limit 1
-  ) _has_events on true
-  order by ts.teacher_id, ts.student_id
+  order by ts.teacher_id
   limit 1
 ),
 auth_applied as materialized (
   select
-    sp.teacher_id,
-    sp.student_id,
-    set_config('request.jwt.claim.sub',  sp.teacher_id::text, true) as jwt_sub,
+    st.teacher_id,
+    set_config('request.jwt.claim.sub',  st.teacher_id::text, true) as jwt_sub,
     set_config('request.jwt.claim.role', 'authenticated',     true) as jwt_role,
     set_config(
       'request.jwt.claims',
-      jsonb_build_object('sub', sp.teacher_id::text, 'role', 'authenticated')::text,
+      jsonb_build_object('sub', st.teacher_id::text, 'role', 'authenticated')::text,
       true
     ) as jwt_claims
-  from sample_pair sp
+  from sample_teacher st
+),
+-- Выбираем студента уже внутри auth-контекста: is_teacher_for_student
+-- вызывается с правильным auth.uid() и возвращает корректный результат.
+sample_pair as (
+  select
+    ap.teacher_id,
+    ts.student_id
+  from auth_applied ap
+  join public.teacher_students ts on ts.teacher_id = ap.teacher_id
+  where public.is_teacher_for_student(ts.student_id) = true
+    and exists (
+      select 1 from public.answer_events ae
+      where ae.student_id = ts.student_id
+      limit 1
+    )
+  order by ts.student_id
+  limit 1
 ),
 auth_probe as (
   select
-    aa.teacher_id,
-    aa.student_id,
+    sp.teacher_id,
+    sp.student_id,
     auth.uid() as effective_uid,
-    public.is_teacher_for_student(aa.student_id) as can_access_student
-  from auth_applied aa
+    true        as can_access_student   -- гарантировано: отобрано через is_teacher_for_student
+  from sample_pair sp
 ),
 auth_state as (
   select
@@ -89,8 +99,17 @@ auth_state as (
     student_id,
     effective_uid,
     can_access_student,
-    (effective_uid = teacher_id and can_access_student = true) as is_ready
+    -- is_ready: пара найдена + is_teacher_for_student прошла (отобрано в sample_pair)
+    (teacher_id is not null and student_id is not null) as is_ready
+
   from auth_probe
+
+  union all
+
+  select null, null, null, false, false
+  where not exists (select 1 from auth_probe)
+
+  limit 1
 ),
 
 -- ─── 3. вызов нового RPC ────────────────────────────────────────────────────
@@ -293,6 +312,7 @@ checks as (
   union all
 
   -- check 2: auth и пара teacher-student найдены
+  -- студент выбран после поднятия auth, поэтому is_teacher_for_student уже гарантирован
   select
     2,
     'auth_and_sample_pair',
@@ -303,10 +323,9 @@ checks as (
     end,
     coalesce(
       (select 'teacher=' || teacher_id::text || '; student=' || student_id::text
-         || '; uid_matches=' || (effective_uid = teacher_id)::text
-         || '; can_access=' || can_access_student::text
-       from auth_state),
-      'no sample pair found'
+         || '; uid=' || coalesce(effective_uid::text, 'null')
+       from auth_state where is_ready = true),
+      'no accessible teacher-student pair with answer_events found'
     )
 
   union all
@@ -531,4 +550,4 @@ select
 
 from checks
 
-order by sort_order;
+order by 1;

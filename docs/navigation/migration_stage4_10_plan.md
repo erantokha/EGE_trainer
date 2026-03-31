@@ -1,6 +1,6 @@
 # Migration Plan: Stage 4–10
 
-Дата создания: 2026-03-31
+Дата обновления: 2026-04-01
 
 Этот документ фиксирует детальный план перехода на четырёхслойную архитектуру для этапов 4–10.
 
@@ -16,6 +16,17 @@
 
 **Суть:** Прежде чем переводить UI, убедиться что новые layer-4 RPC возвращают корректные данные относительно старых. Параллельный запуск нужен чтобы поймать edge cases без риска для пользователей.
 
+**Статус на 2026-04-01:** закрыт.
+
+Фактически закрыто:
+- teacher-path parity для `student_analytics_screen_v1` доведён до green
+- выполнен compat/data fix для legacy `answer_events` без `section_id`
+- browser smoke [stage4_parity_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stage4_parity_browser_smoke.html) завершился с итогом `ok=14 warn=0 fail=0`
+- SQL-артефакты Stage 4 зафиксированы в:
+  - [student_analytics_screen_v1.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/student_analytics_screen_v1.sql)
+  - [stage4_parity_smoke.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/stage4_parity_smoke.sql)
+  - [stage4_backfill_section_id.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/stage4_backfill_section_id.sql)
+
 ### Работы:
 
 - Для `student_analytics_screen_v1` с `p_viewer_scope='self'` — сравнить результат с `student_dashboard_self_v2` на реальных студентах
@@ -26,6 +37,8 @@
 ### Критерий закрытия:
 
 Backend-паритет подтверждён на реальных данных, можно переключать UI.
+
+Следующий активный этап: `Stage 5`.
 
 ---
 

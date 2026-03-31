@@ -1,6 +1,6 @@
 # Temporary Migration Exceptions
 
-Дата обновления: 2026-03-31
+Дата обновления: 2026-04-01
 
 Этот документ фиксирует временные отклонения от целевого архитектурного контракта 4 слоёв. Исключения ниже не считаются нормой архитектуры и существуют только как переходное состояние до завершения соответствующих этапов миграции.
 
@@ -22,8 +22,8 @@
 - `what`: student dashboard использует fallback между legacy и новой RPC вместо одного канонического read-контракта.
 - `where`: `tasks/stats.js:193-194`
 - `why_allowed_now`: миграция student read-path ещё не завершена, поэтому экран поддерживает и старое имя RPC, и новое.
-- `target_state`: student UI использует только одно каноническое имя dashboard read API без `rpcAny([old, new])`.
-- `remove_by_stage`: `Stage 8`
+- `target_state`: student UI использует только `student_analytics_screen_v1` с `p_viewer_scope='self'` без `rpcAny([old, new])`.
+- `remove_by_stage`: `Stage 5`
 - `owner`: `student-analytics`
 
 

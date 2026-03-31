@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net;">
+  <meta name="app-build" content="2026-04-01-stage4diag-1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stage 4 Parity Diagnostic</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f8fc;
+      --card: #fff;
+      --text: #10203a;
+      --muted: #5f6c80;
+      --border: #d7dfeb;
+      --accent: #2563eb;
+      --ok: #166534;
+      --warn: #9a6700;
+      --fail: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #edf4ff 0%, var(--bg) 180px);
+      color: var(--text);
+    }
+    .page { max-width: 1360px; margin: 0 auto; padding: 28px 20px 40px; }
+    .hero, .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 14px 30px rgba(16, 32, 58, 0.06);
+    }
+    .hero { padding: 24px; margin-bottom: 18px; }
+    h1, h2 { margin: 0 0 10px; }
+    h1 { font-size: 34px; line-height: 1.1; }
+    h2 { font-size: 20px; }
+    .muted { color: var(--muted); }
+    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      padding: 12px 18px;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.65; cursor: default; }
+    .summary {
+      min-height: 44px;
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #f8fbff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(340px, 0.92fr) minmax(420px, 1.08fr);
+      gap: 18px;
+    }
+    .panel { padding: 18px; }
+    .log {
+      margin: 0;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #0f172a;
+      color: #e2e8f0;
+      font: 13px/1.45 Consolas, "Courier New", monospace;
+      overflow: auto;
+      white-space: pre-wrap;
+      min-height: 320px;
+      max-height: 700px;
+    }
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f8fbff;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .status-ok { color: var(--ok); }
+    .status-warn { color: var(--warn); }
+    .status-fail { color: var(--fail); }
+    .launch-hint {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: #fffaf0;
+    }
+    .hidden { display: none; }
+    code { font-family: Consolas, "Courier New", monospace; }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Stage 4 Parity Diagnostic</h1>
+      <div class="muted">
+        This page uses the same teacher session as the app, fetches old/new analytics payloads plus raw
+        <code>answer_events</code>, and compares the old dashboard against several candidate aggregation semantics.
+      </div>
+      <div class="hero-actions">
+        <button id="runBtn" type="button">Run diagnostic</button>
+        <div id="summary" class="summary">Waiting to start</div>
+      </div>
+      <div id="launchHint" class="launch-hint hidden"></div>
+    </section>
+
+    <section class="grid">
+      <section class="panel">
+        <h2>Candidate Scores</h2>
+        <div class="muted" style="margin-bottom:12px">
+          Lower mismatch count is better. This helps identify which semantics the legacy dashboard actually uses.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th>overall.all_time</th>
+                <th>topic.all_time</th>
+                <th>topic.last10</th>
+                <th>topic.last3</th>
+              </tr>
+            </thead>
+            <tbody id="scoreBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Diagnostic JSON</h2>
+        <div class="muted" style="margin-bottom:12px">
+          Includes raw event counts, old/new overall blocks, and first mismatches for each candidate.
+        </div>
+        <pre id="diagJson" class="log">diagnostic output will appear here</pre>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var runBtn = document.getElementById('runBtn');
+      var summaryEl = document.getElementById('summary');
+      var launchHint = document.getElementById('launchHint');
+      var browserUrl = 'http://127.0.0.1:8000/tasks/stage4_parity_diagnostic.html';
+
+      if (location.protocol === 'file:') {
+        if (runBtn) runBtn.disabled = true;
+        if (summaryEl) summaryEl.textContent = 'Open via local server URL';
+        if (launchHint) {
+          launchHint.classList.remove('hidden');
+          launchHint.innerHTML = 'Open this page through your local server so it shares origin and teacher session with the app.<br><br><code>' + browserUrl + '</code>';
+        }
+        return;
+      }
+
+      var script = document.createElement('script');
+      script.type = 'module';
+      script.src = './stage4_parity_diagnostic.js?v=2026-04-01-stage4diag-1';
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-03-31
+Дата обновления: 2026-04-01
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -8,12 +8,13 @@
 
 - Репозиторий: `EGE_repo`
 - Ветка: `main`
-- HEAD на момент подготовки файла: `88921328`
+- HEAD на момент подготовки файла: `4552e1dc`
 - Stage 0: закрыт
 - Stage 1: закрыт
 - Stage 2: закрыт
 - Stage 3: **закрыт** (teacher-picking slice + student analytics slice)
-- Следующий рабочий блок: Stage 4+ (dual-run, student/teacher UI на Layer-4, recommendations backend)
+- Stage 4: **закрыт** (dual-run parity for student analytics backend)
+- Следующий рабочий блок: Stage 5 (student self-analytics UI на canonical Layer-4 contract)
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
@@ -31,9 +32,11 @@
 - `teacher_picking_v2_browser_smoke`: green
 - `teacher_picking_filters_browser_smoke`: `ok=19 warn=0 fail=0`
 - `student_analytics_screen_v1_browser_smoke`: `ok=11 warn=0 fail=0`
+- `stage4_parity_browser_smoke`: `ok=14 warn=0 fail=0`
 - `global_all` semantics confirmed in browser smoke
 - batch resolve reduced teacher picking latency to target range
 - `tasks/student.js` fully migrated to `student_analytics_screen_v1`
+- teacher-path parity confirmed: `student_analytics_screen_v1(teacher)` = `student_dashboard_for_teacher_v2`
 
 ## 2. Global Plan
 
@@ -118,6 +121,24 @@
 - Финальный filter smoke:
   - `ok=19; warn=0; fail=0`
 
+### Stage 4 Dual-run Backend
+
+- Stage-4 parity artifacts подготовлены:
+  - [student_analytics_screen_v1.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/student_analytics_screen_v1.sql)
+  - [stage4_parity_smoke.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/stage4_parity_smoke.sql)
+  - [stage4_backfill_section_id.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/stage4_backfill_section_id.sql)
+  - [stage4_parity_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stage4_parity_browser_smoke.html)
+- Для `student_analytics_screen_v1` устранены Stage-4 compat-расхождения:
+  - legacy `answer_events` без `section_id` больше не теряются
+  - `all_time` teacher-compat считает first answer per `question_id`
+  - `overall.last10` считает latest answer per `question_id`
+  - `topic.last10` считает raw recent-k внутри `p_days`
+  - `topic.last3` считает raw recent-k за всё время
+- Финальный browser smoke зелёный:
+  - `ok=14; warn=0; fail=0`
+- Teacher-path parity подтверждён на runtime:
+  - `student_analytics_screen_v1(teacher)` = `student_dashboard_for_teacher_v2` + `subtopic_coverage_for_teacher_v1`
+
 ## 4. Как Сейчас Устроен Catalog Runtime
 
 Канонический runtime-provider:
@@ -186,23 +207,23 @@ Index-like / path-based path:
 5. [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html)
 6. [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 
-## 7. Что Остаётся Открытым После Stage 3
+## 7. Что Остаётся Открытым После Stage 4
 
-Stage 3 полностью закрыт. Открытыми остаются следующие migration exceptions:
-- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` — `stats.js` (target: Stage 8)
+Stage 4 полностью закрыт. Открытыми остаются следующие migration exceptions:
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` — `stats.js` (target: Stage 5)
 - `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7)
 - `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` — transitional UI orchestration в picker/list/trainer (target: Stage 8)
 
-Закрытые в Stage 3:
+Закрытые к концу Stage 4:
 - `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅
 - `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅
 - `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅
 
 ## 8. Рекомендуемый Следующий Шаг
 
-Stage 4+:
-1. Dual-run old/new (A/B test backend) — Stage 4
-2. Перевести student self-analytics UI на layer-4 (`stats.js`) — Stage 5
+Stage 5+:
+1. Перевести student self-analytics UI на layer-4 (`stats.js`) — Stage 5
+2. Перевести teacher-side residual UI paths на чистый layer-4 — Stage 6
 3. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
 4. Cleanup legacy fallback-paths — Stage 8
 
@@ -252,4 +273,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0–3 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, все три browser smoke зелёные (`ok=7`, `ok=19`, `ok=11`), `student.js` переведён на `student_analytics_screen_v1`, три migration exceptions закрыты; следующий рабочий блок — Stage 4+ (student self-analytics через `stats.js`, recommendations backend-driven, cleanup fallback-paths).
+Stage 0–4 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, Stage-4 parity green (`ok=14`), `student.js` переведён на `student_analytics_screen_v1`; следующий рабочий блок — Stage 5 (`stats.js` на `student_analytics_screen_v1(self)`), затем recommendations backend-driven и cleanup fallback-paths.

@@ -104,6 +104,17 @@ begin
     where coalesce(s.is_enabled, true) = true
       and coalesce(s.is_hidden, false) = false
   ),
+  event_catalog_map as (
+    select distinct on (vs.subtopic_id)
+      vs.subtopic_id,
+      vs.theme_id
+    from visible_subtopics vs
+    order by
+      vs.subtopic_id,
+      vs.theme_sort_order,
+      vs.sort_order,
+      vs.theme_id
+  ),
   topic_state as (
     select
       ts.student_id,
@@ -138,33 +149,88 @@ begin
     from params p
     cross join lateral public.student_topic_state_v1(p.student_id, p.source) ts
   ),
-  events as (
+  raw_events as (
+    -- Stage 4 fix:
+    -- Some legacy answer_events rows have topic_id filled but section_id missing.
+    -- We recover theme_id from the catalog by subtopic_id, and accept the row when
+    -- section_id is absent or matches the catalog mapping.
     select
+      ae.id as event_id,
       coalesce(ae.occurred_at, ae.created_at) as ts,
-      nullif(trim(ae.section_id), '') as theme_id,
-      nullif(trim(ae.topic_id), '') as subtopic_id,
+      ecm.theme_id,
+      ecm.subtopic_id,
+      nullif(trim(ae.question_id), '') as question_id,
       coalesce(ae.correct, false) as correct
     from public.answer_events ae
     join params p
       on p.student_id = ae.student_id
-    join visible_subtopics vs
-      on vs.theme_id = nullif(trim(ae.section_id), '')
-     and vs.subtopic_id = nullif(trim(ae.topic_id), '')
-    where v_source = 'all'
-       or ae.source = v_source
+    join event_catalog_map ecm
+      on ecm.subtopic_id = nullif(trim(ae.topic_id), '')
+    where (
+      nullif(trim(ae.section_id), '') is null
+      or ecm.theme_id = nullif(trim(ae.section_id), '')
+    )
+    and (
+      v_source = 'all'
+      or ae.source = v_source
+    )
+  ),
+  question_events_all_time as (
+    -- Stage 4 compat:
+    -- Legacy teacher dashboard all_time metrics are based on the first answer
+    -- per question_id, not the latest snapshot.
+    select
+      x.ts,
+      x.theme_id,
+      x.subtopic_id,
+      x.question_id,
+      x.correct
+    from (
+      select
+        re.*,
+        row_number() over (
+          partition by re.question_id
+          order by re.ts asc, re.event_id asc
+        ) as rn
+      from raw_events re
+      where re.question_id is not null
+    ) x
+    where x.rn = 1
+  ),
+  question_events_recent as (
+    -- Stage 4 compat:
+    -- overall.last10 in the legacy teacher dashboard behaves like the latest
+    -- answer snapshot per question_id.
+    select
+      x.ts,
+      x.theme_id,
+      x.subtopic_id,
+      x.question_id,
+      x.correct
+    from (
+      select
+        re.*,
+        row_number() over (
+          partition by re.question_id
+          order by re.ts desc, re.event_id desc
+        ) as rn
+      from raw_events re
+      where re.question_id is not null
+    ) x
+    where x.rn = 1
   ),
   overall_all as (
     select
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct,
       max(e.ts) as last_seen_at
-    from events e
+    from question_events_all_time e
   ),
   overall_period as (
     select
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct
-    from events e
+    from raw_events e
     cross join params p
     where e.ts >= p.since_ts
   ),
@@ -174,7 +240,7 @@ begin
       coalesce(sum(case when x.correct then 1 else 0 end), 0)::int as correct
     from (
       select e.correct
-      from events e
+      from question_events_recent e
       order by e.ts desc
       limit 10
     ) x
@@ -185,7 +251,7 @@ begin
       coalesce(sum(case when x.correct then 1 else 0 end), 0)::int as correct
     from (
       select e.correct
-      from events e
+      from raw_events e
       order by e.ts desc
       limit 3
     ) x
@@ -196,7 +262,7 @@ begin
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct,
       max(e.ts) as last_seen_at
-    from events e
+    from question_events_all_time e
     group by e.theme_id
   ),
   theme_period as (
@@ -204,7 +270,7 @@ begin
       e.theme_id,
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct
-    from events e
+    from raw_events e
     cross join params p
     where e.ts >= p.since_ts
     group by e.theme_id
@@ -219,7 +285,9 @@ begin
         e.theme_id,
         e.correct,
         row_number() over (partition by e.theme_id order by e.ts desc) as rn
-      from events e
+      from raw_events e
+      cross join params p
+      where e.ts >= p.since_ts
     ) x
     where x.rn <= 10
     group by x.theme_id
@@ -231,7 +299,7 @@ begin
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct,
       max(e.ts) as last_seen_at
-    from events e
+    from question_events_all_time e
     group by e.theme_id, e.subtopic_id
   ),
   topic_period as (
@@ -239,7 +307,7 @@ begin
       e.subtopic_id,
       count(*)::int as total,
       coalesce(sum(case when e.correct then 1 else 0 end), 0)::int as correct
-    from events e
+    from raw_events e
     cross join params p
     where e.ts >= p.since_ts
     group by e.subtopic_id
@@ -254,7 +322,9 @@ begin
         e.subtopic_id,
         e.correct,
         row_number() over (partition by e.subtopic_id order by e.ts desc) as rn
-      from events e
+      from raw_events e
+      cross join params p
+      where e.ts >= p.since_ts
     ) x
     where x.rn <= 10
     group by x.subtopic_id
@@ -269,7 +339,7 @@ begin
         e.subtopic_id,
         e.correct,
         row_number() over (partition by e.subtopic_id order by e.ts desc) as rn
-      from events e
+      from raw_events e
     ) x
     where x.rn <= 3
     group by x.subtopic_id
