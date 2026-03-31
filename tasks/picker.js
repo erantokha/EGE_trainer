@@ -11,8 +11,9 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 import { withBuild } from '../app/build.js?v=2026-04-01-2';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-04-01-2';
 import { CONFIG } from '../app/config.js?v=2026-04-01-2';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-01-2';
 import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-04-01-2';
-import { listMyStudents, questionStatsForTeacherV1, loadStudentDashboardSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-04-01-2';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-04-01-2';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-04-01-2';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-04-01-2';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-04-01-2';
@@ -33,7 +34,7 @@ let SHUFFLE_TASKS = false;
 
 let PICK_MODE = 'manual'; // 'manual' | 'smart' (только для главной ученика)
 let SMART_N = 10;
-let LAST_DASH = null; // dashboard из student_dashboard_self (p_days=30)
+let LAST_DASH = null; // dashboard из student_analytics_screen_v1(self) (p_days=30)
 
 let LAST_SELECTION = null;
 
@@ -1294,54 +1295,6 @@ function clearStudentLast10UI() {
   updateScoreForecast(null, { signedIn: false });
 }
 
-async function fetchStudentDashboardSelf(accessToken, opts = {}) {
-  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
-  if (!base) throw new Error('Supabase URL is empty');
-
-  const url = `${base}/rest/v1/rpc/student_dashboard_self_v2`;
-
-  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || LAST10_RPC_TIMEOUT_MS) || LAST10_RPC_TIMEOUT_MS);
-
-  let controller = null;
-  let t = 0;
-
-  if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
-    controller = new AbortController();
-    t = setTimeout(() => {
-      try { controller.abort(); } catch (_) {}
-    }, timeoutMs);
-  }
-
-  let res;
-  try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: String(CONFIG?.supabase?.anonKey || ''),
-        Authorization: `Bearer ${accessToken}`,
-      },
-      // параметры должны совпадать с RPC student_dashboard_self_v2(p_days int, p_source text)
-      body: JSON.stringify({ p_days: 30, p_source: 'all' }),
-      ...(controller ? { signal: controller.signal } : {}),
-    });
-  } catch (e) {
-    const name = String(e?.name || '');
-    if (name === 'AbortError') {
-      throw new Error('student_dashboard_self failed: timeout');
-    }
-    throw e;
-  } finally {
-    if (t) clearTimeout(t);
-  }
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`student_dashboard_self failed: HTTP ${res.status} ${txt}`);
-  }
-
-  return await res.json();
-}
 function supabaseRefFromUrl(url) {
   const u = String(url || '')
     .trim();
@@ -1502,13 +1455,12 @@ async function refreshStudentLast10(opts = {}) {
   _LAST10_KNOWN_UID = uid;
 
   try {
-    const dashRes = await loadStudentDashboardSelfV1({
-      days: 30,
-      source: 'all',
-      timeoutMs: LAST10_RPC_TIMEOUT_MS,
-    });
-    if (!dashRes?.ok) throw (dashRes?.error || new Error('student_dashboard_self_v2 failed'));
-    const dash = dashRes.dashboard || null;
+    const raw = await supaRest.rpc(
+      'student_analytics_screen_v1',
+      { p_viewer_scope: 'self', p_days: 30, p_source: 'all', p_mode: 'init' },
+      { timeoutMs: LAST10_RPC_TIMEOUT_MS }
+    );
+    const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
     if (seq !== _STATS_SEQ) return;
     if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
 
@@ -1539,8 +1491,6 @@ function invalidateStudentLast10Cache(uid) {
   try { if (kSession) sessionStorage.removeItem(kSession); } catch (_) {}
   try { if (kLocal) localStorage.removeItem(kLocal); } catch (_) {}
 
-  // legacy v2
-  try { sessionStorage.removeItem(`home_student:last10:v2:${uid}`); } catch (_) {}
 }
 
 function scheduleStudentLast10Refresh(opts = {}) {
