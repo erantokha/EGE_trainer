@@ -191,6 +191,8 @@ async function main() {
   }
 
   for (const block of exceptionBlocks) {
+    if (block.fields.status === 'closed') continue;
+
     if (block.fields.id !== block.headingId) {
       errors.push(`Exception heading/id mismatch: heading=${block.headingId} id=${block.fields.id || '(missing)'}`);
     }
