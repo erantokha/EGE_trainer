@@ -57,8 +57,256 @@ async function rpcWithFallback(fnNames, args, opts = {}) {
   return { ok: false, fn: names[0] || null, data: null, error: lastError };
 }
 
+function normalizeRpcJsonPayload(data) {
+  if (Array.isArray(data)) return data[0] ?? null;
+  return data ?? null;
+}
+
+export async function loadStudentDashboardSelfV1({
+  days = 30,
+  source = 'all',
+  timeoutMs = 8000,
+} = {}) {
+  try {
+    const r = await rpcWithFallback(
+      ['student_dashboard_self_v2', 'student_dashboard_self'],
+      { p_days: Math.max(1, Number(days || 30) || 30), p_source: String(source || 'all') },
+      { timeoutMs: Number(timeoutMs || 8000) || 8000, authMode: 'auto' },
+    );
+    if (!r.ok) return { ok: false, dashboard: null, fn: r.fn, error: r.error };
+    return {
+      ok: true,
+      dashboard: normalizeRpcJsonPayload(r.data),
+      fn: r.fn,
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, dashboard: null, fn: null, error: e };
+  }
+}
+
+export async function loadTeacherDashboardForStudentV1({
+  student_id,
+  days = 30,
+  source = 'all',
+  timeoutMs = 8000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: false, dashboard: null, fn: null, error: new Error('student_id is empty') };
+
+    const r = await rpcWithFallback(
+      ['student_dashboard_for_teacher_v2', 'student_dashboard_for_teacher'],
+      {
+        p_student_id: sid,
+        p_days: Math.max(1, Number(days || 30) || 30),
+        p_source: String(source || 'all'),
+      },
+      { timeoutMs: Number(timeoutMs || 8000) || 8000, authMode: 'auto' },
+    );
+    if (!r.ok) return { ok: false, dashboard: null, fn: r.fn, error: r.error };
+    return {
+      ok: true,
+      dashboard: normalizeRpcJsonPayload(r.data),
+      fn: r.fn,
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, dashboard: null, fn: null, error: e };
+  }
+}
+
+export async function loadTeacherPickingScreenV1({
+  student_id,
+  mode = 'init',
+  days = 30,
+  source = 'all',
+  selection = {},
+  teacher_filters = {},
+  exclude_question_ids = null,
+  timeoutMs = 12000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: false, payload: null, fn: null, fallback: false, error: new Error('student_id is empty') };
+
+    const normalizedMode = String(mode || 'init').trim().toLowerCase() || 'init';
+    const pSelection = selection && typeof selection === 'object' ? selection : {};
+    const pTeacherFilters = teacher_filters && typeof teacher_filters === 'object' ? teacher_filters : {};
+    const pExcludeIds = Array.from(new Set((exclude_question_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+
+    const r = await rpcWithFallback(
+      ['teacher_picking_screen_v1'],
+      {
+        p_student_id: sid,
+        p_mode: normalizedMode,
+        p_days: Math.max(1, Number(days || 30) || 30),
+        p_source: String(source || 'all'),
+        p_selection: pSelection,
+        p_teacher_filters: pTeacherFilters,
+        p_exclude_question_ids: pExcludeIds,
+      },
+      { timeoutMs: Number(timeoutMs || 12000) || 12000, authMode: 'auto' },
+    );
+
+    if (r.ok) {
+      return {
+        ok: true,
+        payload: normalizeRpcJsonPayload(r.data),
+        fn: r.fn,
+        fallback: false,
+        error: null,
+      };
+    }
+
+    if (normalizedMode === 'init' && isMissingRpcFunction(r.error)) {
+      const dash = await loadTeacherDashboardForStudentV1({
+        student_id: sid,
+        days,
+        source,
+        timeoutMs,
+      });
+      if (!dash.ok) return { ok: false, payload: null, fn: dash.fn || r.fn, fallback: true, error: dash.error };
+
+      return {
+        ok: true,
+        payload: {
+          student: {
+            student_id: sid,
+            days: Math.max(1, Number(days || 30) || 30),
+            source: String(source || 'all'),
+          },
+          catalog_version: null,
+          screen: {
+            mode: 'init',
+            can_pick: true,
+            source_contract: 'compat_dashboard_for_teacher',
+          },
+          sections: [],
+          recommendations: [],
+          selection: {
+            normalized: pSelection,
+          },
+          picked_questions: [],
+          dashboard: dash.dashboard || null,
+          generated_at: new Date().toISOString(),
+        },
+        fn: dash.fn || r.fn,
+        fallback: true,
+        error: null,
+      };
+    }
+
+    return { ok: false, payload: null, fn: r.fn, fallback: false, error: r.error };
+  } catch (e) {
+    return { ok: false, payload: null, fn: null, fallback: false, error: e };
+  }
+}
+
 // Создать/получить попытку по token+имя. Должно быть разрешено через SECURITY DEFINER RPC.
 // Ожидаем, что функция в БД называется start_homework_attempt (или совместимое имя).
+export async function loadTeacherPickingScreenV2({
+  student_id,
+  mode = 'init',
+  days = 30,
+  source = 'all',
+  filter_id = null,
+  selection = {},
+  request = {},
+  seed = null,
+  exclude_question_ids = null,
+  timeoutMs = 15000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: false, payload: null, fn: null, error: new Error('student_id is empty') };
+
+    const normalizedFilterId = (() => {
+      const raw = filter_id == null ? null : (String(filter_id || '').trim().toLowerCase() || null);
+      return raw || null;
+    })();
+
+    const r = await rpcWithFallback(
+      ['teacher_picking_screen_v2'],
+      {
+        p_student_id: sid,
+        p_mode: String(mode || 'init').trim().toLowerCase() || 'init',
+        p_days: Math.max(1, Number(days || 30) || 30),
+        p_source: String(source || 'all'),
+        p_filter_id: normalizedFilterId,
+        p_selection: selection && typeof selection === 'object' ? selection : {},
+        p_request: request && typeof request === 'object' ? request : {},
+        p_seed: seed == null ? null : (String(seed || '').trim() || null),
+        p_exclude_question_ids: Array.from(new Set((exclude_question_ids || []).map((x) => String(x || '').trim()).filter(Boolean))),
+      },
+      { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
+    );
+
+    if (!r.ok) return { ok: false, payload: null, fn: r.fn, error: r.error };
+    return {
+      ok: true,
+      payload: normalizeRpcJsonPayload(r.data),
+      fn: r.fn,
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, payload: null, fn: null, error: e };
+  }
+}
+
+export async function loadTeacherPickingResolveBatchV1({
+  student_id,
+  source = 'all',
+  filter_id = null,
+  selection = {},
+  requests = [],
+  seed = null,
+  exclude_question_ids = null,
+  timeoutMs = 15000,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: false, payload: null, fn: null, error: new Error('student_id is empty') };
+
+    const normalizedFilterId = (() => {
+      const raw = filter_id == null ? null : (String(filter_id || '').trim().toLowerCase() || null);
+      return raw || null;
+    })();
+
+    const normalizedRequests = Array.isArray(requests)
+      ? requests.map((item) => ({
+        scope_kind: String(item?.scope_kind || '').trim().toLowerCase(),
+        scope_id: item?.scope_id == null ? null : (String(item.scope_id || '').trim() || null),
+        n: Math.max(0, Math.floor(Number(item?.n || 0))),
+      }))
+      : [];
+
+    const r = await rpcWithFallback(
+      ['teacher_picking_resolve_batch_v1'],
+      {
+        p_student_id: sid,
+        p_source: String(source || 'all'),
+        p_filter_id: normalizedFilterId,
+        p_selection: selection && typeof selection === 'object' ? selection : {},
+        p_requests: normalizedRequests,
+        p_seed: seed == null ? null : (String(seed || '').trim() || null),
+        p_exclude_question_ids: Array.from(new Set((exclude_question_ids || []).map((x) => String(x || '').trim()).filter(Boolean))),
+      },
+      { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
+    );
+
+    if (!r.ok) return { ok: false, payload: null, fn: r.fn, error: r.error };
+    return {
+      ok: true,
+      payload: normalizeRpcJsonPayload(r.data),
+      fn: r.fn,
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, payload: null, fn: null, error: e };
+  }
+}
+
 export async function startHomeworkAttempt({ token, student_name } = {}) {
   try {
     const t = String(token || '').trim();
@@ -381,7 +629,7 @@ export async function getStudentMyHomeworksArchive({ offset = 10, limit = 50 } =
 // Teacher stats cache + RPC
 // -----------------------------
 
-const TEACHER_STATS_CACHE_PREFIX = 'teacher_stats_cache_v1:';
+const TEACHER_STATS_CACHE_PREFIX = 'teacher_stats_cache_v2:';
 const TEACHER_STATS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 минут
 
 function _statsCacheKey(studentId, topicId) {
@@ -408,6 +656,8 @@ function _readStatsCache(studentId, topicId) {
         total: Number(st?.total || 0) || 0,
         correct: Number(st?.correct || 0) || 0,
         last_attempt_at: st?.last_attempt_at ?? null,
+        last3_total: Number(st?.last3_total || 0) || 0,
+        last3_correct: Number(st?.last3_correct || 0) || 0,
       });
     }
     return map;
@@ -426,6 +676,8 @@ function _writeStatsCache(studentId, topicId, map) {
         total: Number(st?.total || 0) || 0,
         correct: Number(st?.correct || 0) || 0,
         last_attempt_at: st?.last_attempt_at ?? null,
+        last3_total: Number(st?.last3_total || 0) || 0,
+        last3_correct: Number(st?.last3_correct || 0) || 0,
       };
     }
     sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data }));
@@ -462,7 +714,7 @@ export async function questionStatsForTeacherV1({
     const parts = _chunks(ids, Math.max(50, Number(chunkSize || 500) || 500));
     for (const part of parts) {
       const r = await rpcTry(
-        ['question_stats_for_teacher_v1', 'questionStatsForTeacherV1'],
+        ['question_stats_for_teacher_v2', 'question_stats_for_teacher_v1', 'questionStatsForTeacherV1'],
         { p_student_id: sid, p_question_ids: part },
         { timeoutMs: Number(timeoutMs || 8000) || 8000 },
       );
@@ -474,6 +726,8 @@ export async function questionStatsForTeacherV1({
           total: Number(row?.total || 0) || 0,
           correct: Number(row?.correct || 0) || 0,
           last_attempt_at: row?.last_attempt_at ?? null,
+          last3_total: Number(row?.last3_total || 0) || 0,
+          last3_correct: Number(row?.last3_correct || 0) || 0,
         });
       }
     }

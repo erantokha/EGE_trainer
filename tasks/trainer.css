@@ -986,12 +986,20 @@ body[data-theme="light"] .task-card{
   margin-bottom:4px;
 }
 
-.modal-stats-badge{
+.modal-badge-group{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-left:auto;
+  flex:0 0 auto;
+}
+
+.modal-stats-badge,
+.modal-date-badge{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:6px;
-  min-width:74px;
   padding:5px 8px;
   border-radius:10px;
   border:1px solid var(--border);
@@ -1002,13 +1010,21 @@ body[data-theme="light"] .task-card{
   white-space:nowrap;
   flex:0 0 auto;
 }
+.modal-stats-badge{ min-width:96px; }
+.modal-date-badge{ min-width:74px; font-weight:600; }
+.modal-date-badge[hidden]{ display:none !important; }
 .modal-stats-badge b{font-weight:600}
 .modal-stats-badge .small{font-size:10px;color:var(--text-dim)}
-.modal-stats-badge.gray{background:rgba(148,163,184,.10)}
-.modal-stats-badge.green{background:rgba(16,185,129,.12)}
-.modal-stats-badge.lime{background:rgba(132,204,22,.14)}
-.modal-stats-badge.yellow{background:rgba(245,158,11,.16)}
-.modal-stats-badge.red{background:rgba(239,68,68,.14)}
+.modal-stats-badge.gray,
+.modal-date-badge.gray{background:rgba(148,163,184,.10)}
+.modal-stats-badge.green,
+.modal-date-badge.green{background:rgba(16,185,129,.12)}
+.modal-stats-badge.lime,
+.modal-date-badge.lime{background:rgba(132,204,22,.14)}
+.modal-stats-badge.yellow,
+.modal-date-badge.yellow{background:rgba(245,158,11,.16)}
+.modal-stats-badge.red,
+.modal-date-badge.red{background:rgba(239,68,68,.14)}
 
 /* текст условия */
 .ws-stem,
@@ -1489,7 +1505,7 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
 }
 .tp-item-meta { font-size:12px; opacity:.8; margin-bottom:0; }
 .tp-item-stem { font-size:14px; line-height:1.35; }
-.tp-item-head .modal-stats-badge{margin-left:auto}
+.tp-item-head .modal-badge-group{margin-left:auto}
 
 .tp-preview { display:flex; gap:10px; align-items:flex-start; }
 .tp-fig {
@@ -2098,6 +2114,12 @@ body.vs-modal-open{ overflow:hidden; }
 .stat-mini-label{ font-size:11px; color: var(--text-dim); margin-bottom:2px; }
 .stat-mini-value{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
+.stat-chip   {
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 2px 8px;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
 .stat-gray   { background: rgba(148,163,184,.10); }
 .stat-green  { background: rgba(5,150,105,.12); border-color: rgba(5,150,105,.35); }
 .stat-lime   { background: rgba(132,204,22,.14); border-color: rgba(132,204,22,.35); }

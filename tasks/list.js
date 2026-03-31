@@ -10,10 +10,9 @@ import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-30-1';
 
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-30-1';
 
-
 import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-30-1';
 import { pickProtosByPriority } from './pick_priority.js?v=2026-03-30-1';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-30-1';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-03-30-1';
 
 import { withBuild } from '../app/build.js?v=2026-03-30-1';
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-03-30-1';
@@ -24,6 +23,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 let CATALOG = null;
 let SECTIONS = [];
 let TOPIC_BY_ID = new Map();
+let MANIFEST_BY_PATH_CACHE = new Map();
 
 let CHOICE_TOPICS = {};   // topicId -> count (загружается из sessionStorage)
 let CHOICE_SECTIONS = {}; // sectionId -> count (загружается из sessionStorage)
@@ -33,6 +33,7 @@ let SHUFFLE_TASKS = false; // флаг «перемешать задачи» и�
 // Фильтры приоритезации (главная учителя)
 let TEACHER_STUDENT_ID = '';
 let TEACHER_FILTERS = { old: false, badAcc: false };
+let TEACHER_PICKED_REFS = [];
 let PRIO_ACTIVE = false;
 const STATS_BY_TOPIC = new Map(); // topicId -> Promise<Map>|Map|null
 
@@ -89,6 +90,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     SHUFFLE_TASKS = !!sel.shuffle;
 
     TEACHER_STUDENT_ID = String(sel.teacher_student_id || '').trim();
+    TEACHER_PICKED_REFS = Array.isArray(sel.teacher_picked_refs)
+      ? sel.teacher_picked_refs.map(normalizeTeacherPickedRef).filter(Boolean)
+      : [];
     const tf = sel.teacher_filters || {};
     TEACHER_FILTERS = { old: !!tf.old, badAcc: !!tf.badAcc };
     PRIO_ACTIVE = !!TEACHER_STUDENT_ID && (TEACHER_FILTERS.old || TEACHER_FILTERS.badAcc);
@@ -123,19 +127,28 @@ document.addEventListener('DOMContentLoaded', async () => {
       await renderTaskList(questions, { topic, mode: 'all' });
     } else {
       // стандартный режим: выбор по разделам/темам из picker
-      const questions = await pickQuestionsScopedForList({
-        sections: SECTIONS,
-        topicById: TOPIC_BY_ID,
-        choiceProtos: CHOICE_PROTOS,
-        choiceTopics: CHOICE_TOPICS,
-        choiceSections: CHOICE_SECTIONS,
-        shuffleTasks: SHUFFLE_TASKS,
-        teacherStudentId: TEACHER_STUDENT_ID,
-        teacherFilters: TEACHER_FILTERS,
-        prioActive: PRIO_ACTIVE,
-        loadTopicPool,
-        buildQuestion,
-      });
+      let questions = [];
+      if (TEACHER_PICKED_REFS.length) {
+        const direct = await buildQuestionsFromTeacherRefs(TEACHER_PICKED_REFS);
+        if (direct.length === TEACHER_PICKED_REFS.length) {
+          questions = direct;
+        }
+      }
+      if (!questions.length) {
+        questions = await pickQuestionsScopedForList({
+          sections: SECTIONS,
+          topicById: TOPIC_BY_ID,
+          choiceProtos: CHOICE_PROTOS,
+          choiceTopics: CHOICE_TOPICS,
+          choiceSections: CHOICE_SECTIONS,
+          shuffleTasks: SHUFFLE_TASKS,
+          teacherStudentId: TEACHER_STUDENT_ID,
+          teacherFilters: TEACHER_FILTERS,
+          prioActive: PRIO_ACTIVE,
+          loadTopicPool,
+          buildQuestion,
+        });
+      }
       await renderTaskList(questions);
     }
   } catch (e) {
@@ -197,6 +210,117 @@ async function ensureManifest(topic) {
   })();
 
   return topic._manifestPromise;
+}
+
+async function fetchManifestByPath(path, { topicId = '', topicTitle = '' } = {}) {
+  const key = String(path || '').trim();
+  if (!key) return null;
+  if (MANIFEST_BY_PATH_CACHE.has(key)) return MANIFEST_BY_PATH_CACHE.get(key);
+
+  const href = toAbsUrl(key);
+  const resp = await fetch(withBuild(href), { cache: 'force-cache' });
+  if (!resp.ok) {
+    MANIFEST_BY_PATH_CACHE.set(key, null);
+    return null;
+  }
+
+  const j = await resp.json().catch(() => null);
+  const man = (j && typeof j === 'object') ? j : null;
+  if (man) {
+    if (!man.topic && topicId) man.topic = topicId;
+    if (!man.title && topicTitle) man.title = topicTitle;
+  }
+  MANIFEST_BY_PATH_CACHE.set(key, man);
+  return man;
+}
+
+function inferTopicIdFromQuestionId(qid) {
+  const parts = String(qid || '').trim().split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function normalizeTeacherPickedRef(x) {
+  const topic_id = String(x?.topic_id || x?.topicId || '').trim() || inferTopicIdFromQuestionId(x?.question_id || x?.questionId || '');
+  const question_id = String(x?.question_id || x?.questionId || '').trim();
+  if (!topic_id || !question_id) return null;
+  return { topic_id, question_id };
+}
+
+function findProtoById(man, qid) {
+  for (const t of (man?.types || [])) {
+    for (const p of (t?.prototypes || [])) {
+      if (String(p?.id || '') === String(qid || '')) {
+        return { type: t, proto: p };
+      }
+    }
+  }
+  return null;
+}
+
+async function loadQuestionLookupById(refs) {
+  const questionIds = Array.from(new Set((refs || [])
+    .map((ref) => String(ref?.question_id || ref?.questionId || '').trim())
+    .filter(Boolean)));
+
+  if (!questionIds.length) return new Map();
+
+  try {
+    const rows = await lookupQuestionsByIdsV1(questionIds);
+    const byQuestionId = new Map();
+    for (const row of (rows || [])) {
+      const questionId = String(row?.question_id || '').trim();
+      if (!questionId || byQuestionId.has(questionId)) continue;
+      byQuestionId.set(questionId, row);
+    }
+    return byQuestionId;
+  } catch (err) {
+    console.warn('list: lookupQuestionsByIdsV1 failed, using topic-pool fallback', err);
+    return new Map();
+  }
+}
+
+async function buildQuestionsFromTeacherRefs(refs) {
+  const lookupByQuestionId = await loadQuestionLookupById(refs);
+  const out = [];
+  for (const r0 of refs || []) {
+    const r = normalizeTeacherPickedRef(r0);
+    if (!r) continue;
+
+    const lookup = lookupByQuestionId.get(r.question_id) || null;
+    const lookupTopicId = String(lookup?.subtopic_id || '').trim();
+    const topic =
+      TOPIC_BY_ID.get(lookupTopicId) ||
+      TOPIC_BY_ID.get(r.topic_id) ||
+      SECTIONS.flatMap(s => (s.topics || [])).find(t => String(t.id) === r.topic_id);
+
+    let item = null;
+    if (lookup?.manifest_path) {
+      const man = await fetchManifestByPath(lookup.manifest_path, {
+        topicId: lookupTopicId || r.topic_id,
+        topicTitle: topic?.title || '',
+      });
+      const found = findProtoById(man, r.question_id);
+      if (man && found) {
+        item = { manifest: man, type: found.type, proto: found.proto };
+      }
+    }
+
+    if (!item && topic) {
+      const pool = await loadTopicPool(topic);
+      if (pool.length) {
+        const byQid = topic._poolByQid instanceof Map ? topic._poolByQid : null;
+        item = byQid ? byQid.get(String(r.question_id)) : null;
+        if (!item) {
+          item = pool.find(x => String(x?.proto?.id) === String(r.question_id)) || null;
+        }
+      }
+    }
+
+    if (!item) continue;
+    out.push(buildQuestion(item.manifest, item.type, item.proto));
+  }
+  return out;
 }
 
 

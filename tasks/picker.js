@@ -12,10 +12,11 @@ import { withBuild } from '../app/build.js?v=2026-03-30-1';
 import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-03-30-1';
 import { CONFIG } from '../app/config.js?v=2026-03-30-1';
 import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-03-30-1';
-import { listMyStudents, questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-03-30-1';
+import { listMyStudents, questionStatsForTeacherV1, loadStudentDashboardSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-03-30-1';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-03-30-1';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-03-30-1';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-03-30-1';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-03-30-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -57,68 +58,69 @@ const IS_STUDENT_PAGE = IS_STUDENT_HOME && /\/home_student\.html$/i.test(locatio
 const IS_TEACHER_HOME = HOME_VARIANT === 'teacher' && /\/home_teacher\.html$/i.test(location.pathname);
 const CAN_PROTO_MODAL = IS_STUDENT_PAGE || IS_TEACHER_HOME;
 
-const TEACHER_FILTERS_KEY = 'teacher_pick_filters_v1';
-let TEACHER_PICK_FILTERS = { old: false, badAcc: false };
+const TEACHER_FILTER_ID_KEY = 'teacher_pick_filter_id_v2';
+const VALID_TEACHER_FILTER_IDS = new Set(['unseen_low', 'stale', 'unstable']);
+let TEACHER_PICK_FILTER_ID = null;
 let _TEACHER_FILTERS_WIRED = false;
 
-function loadTeacherPickFilters() {
+function normalizeTeacherFilterId(value) {
+  const raw = value == null ? '' : String(value || '').trim().toLowerCase();
+  return VALID_TEACHER_FILTER_IDS.has(raw) ? raw : null;
+}
+
+function loadTeacherPickFilterId() {
   try {
-    const raw = sessionStorage.getItem(TEACHER_FILTERS_KEY);
-    if (!raw) return { old: false, badAcc: false };
-    const obj = JSON.parse(raw);
-    return {
-      old: !!obj?.old,
-      badAcc: !!obj?.badAcc,
-    };
+    return normalizeTeacherFilterId(sessionStorage.getItem(TEACHER_FILTER_ID_KEY));
   } catch (_) {
-    return { old: false, badAcc: false };
+    return null;
   }
 }
 
-function saveTeacherPickFilters(filters) {
+function saveTeacherPickFilterId(filterId) {
   try {
-    sessionStorage.setItem(TEACHER_FILTERS_KEY, JSON.stringify({
-      old: !!filters?.old,
-      badAcc: !!filters?.badAcc,
-    }));
+    const normalized = normalizeTeacherFilterId(filterId);
+    if (!normalized) {
+      sessionStorage.removeItem(TEACHER_FILTER_ID_KEY);
+      return;
+    }
+    sessionStorage.setItem(TEACHER_FILTER_ID_KEY, normalized);
   } catch (_) {}
 }
 
 function setTeacherPickFiltersEnabled(enabled) {
-  const a = document.getElementById('teacherFilterOld');
-  const b = document.getElementById('teacherFilterBadAcc');
-  if (a) a.disabled = !enabled;
-  if (b) b.disabled = !enabled;
+  const radios = $$('#teacherFilters input[name="teacherFilterMode"]');
+  for (const radio of radios) radio.disabled = !enabled;
 }
 
 function syncTeacherPickFiltersUI() {
-  const a = document.getElementById('teacherFilterOld');
-  const b = document.getElementById('teacherFilterBadAcc');
-  if (a) a.checked = !!TEACHER_PICK_FILTERS.old;
-  if (b) b.checked = !!TEACHER_PICK_FILTERS.badAcc;
+  const none = document.getElementById('teacherFilterNone');
+  const unseenLow = document.getElementById('teacherFilterUnseenLow');
+  const stale = document.getElementById('teacherFilterStale');
+  const unstable = document.getElementById('teacherFilterUnstable');
+  const filterId = normalizeTeacherFilterId(TEACHER_PICK_FILTER_ID);
+
+  if (none) none.checked = !filterId;
+  if (unseenLow) unseenLow.checked = filterId === 'unseen_low';
+  if (stale) stale.checked = filterId === 'stale';
+  if (unstable) unstable.checked = filterId === 'unstable';
 }
 
 function initTeacherPickFiltersUI() {
   if (!IS_TEACHER_HOME || _TEACHER_FILTERS_WIRED) return;
-  const a = document.getElementById('teacherFilterOld');
-  const b = document.getElementById('teacherFilterBadAcc');
-  if (!a || !b) return;
+  const radios = $$('#teacherFilters input[name="teacherFilterMode"]');
+  if (!radios.length) return;
 
   _TEACHER_FILTERS_WIRED = true;
-  TEACHER_PICK_FILTERS = loadTeacherPickFilters();
+  TEACHER_PICK_FILTER_ID = loadTeacherPickFilterId();
   syncTeacherPickFiltersUI();
 
-  const onChange = () => {
-    TEACHER_PICK_FILTERS = {
-      old: !!a.checked,
-      badAcc: !!b.checked,
-    };
-    saveTeacherPickFilters(TEACHER_PICK_FILTERS);
+  const onChange = (event) => {
+    TEACHER_PICK_FILTER_ID = normalizeTeacherFilterId(event?.target?.value);
+    saveTeacherPickFilterId(TEACHER_PICK_FILTER_ID);
     try { onTeacherContextChanged({ reason: 'filters-change' }); } catch (_) {}
   };
 
-  a.addEventListener('change', onChange);
-  b.addEventListener('change', onChange);
+  for (const radio of radios) radio.addEventListener('change', onChange);
 
   // На старте, пока ученик не выбран — фильтры недоступны.
   setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
@@ -126,6 +128,12 @@ function initTeacherPickFiltersUI() {
 }
 
 // Учитель: режим «как у ученика» (показываем статистику/бейджи выбранного ученика)
+function getActiveTeacherFilterId(studentId = null) {
+  const sid = String(studentId == null ? TEACHER_VIEW_STUDENT_ID : studentId).trim();
+  if (!sid) return null;
+  return normalizeTeacherFilterId(TEACHER_PICK_FILTER_ID);
+}
+
 let TEACHER_VIEW_STUDENT_ID = '';
 let _TEACHER_VIEW_PENDING_ID = null;
 
@@ -231,63 +239,6 @@ function setTeacherStudentViewUI(studentId){
 let _TEACHER_STATS_SEQ = 0;
 const TEACHER_DASH_TIMEOUT_MS = 5000;
 
-async function fetchStudentDashboardForTeacher(accessToken, studentId, opts = {}) {
-  const base = String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
-  if (!base) throw new Error('Supabase URL is empty');
-
-  const sid = String(studentId || '').trim();
-  if (!sid) throw new Error('studentId is empty');
-
-  const timeoutMs = Math.max(0, Number(opts?.timeoutMs || TEACHER_DASH_TIMEOUT_MS) || TEACHER_DASH_TIMEOUT_MS);
-
-  let controller = null;
-  let t = 0;
-  if (typeof AbortController !== 'undefined' && timeoutMs > 0) {
-    controller = new AbortController();
-    t = setTimeout(() => {
-      try { controller.abort(); } catch (_) {}
-    }, timeoutMs);
-  }
-
-  const tryCall = async (rpcName) => {
-    const url = `${base}/rest/v1/rpc/${rpcName}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        apikey: String(CONFIG?.supabase?.anonKey || ''),
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify({ p_student_id: sid, p_days: 30, p_source: 'all' }),
-      ...(controller ? { signal: controller.signal } : {}),
-    });
-
-    if (!res.ok) {
-      const txt = await res.text().catch(() => '');
-      const err = new Error(`RPC ${rpcName} failed: ${res.status} ${txt}`);
-      err.status = res.status;
-      err.body = txt;
-      throw err;
-    }
-
-    return await res.json();
-  };
-
-  try {
-    return await tryCall('student_dashboard_for_teacher_v2');
-  } catch (e1) {
-    // fallback на старое имя
-    try {
-      return await tryCall('student_dashboard_for_teacher');
-    } catch (e2) {
-      console.warn('teacher dashboard rpc failed', e1, e2);
-      throw e2;
-    }
-  } finally {
-    if (t) clearTimeout(t);
-  }
-}
-
 async function loadTeacherStudentStats(studentId, opts = {}) {
   if (!IS_TEACHER_HOME) return;
   const sid = String(studentId || '').trim();
@@ -297,14 +248,29 @@ async function loadTeacherStudentStats(studentId, opts = {}) {
   setHomeStatsLoading(true);
 
   try {
-    const session = await getSession({ timeoutMs: 1200, skewSec: 30 }).catch(() => null);
-    const token = session?.access_token;
-    if (!token) throw new Error('no access token');
+    const screenRes = await loadTeacherPickingScreenV2({
+      student_id: sid,
+      mode: 'init',
+      days: 30,
+      source: 'all',
+      filter_id: getActiveTeacherFilterId(sid),
+      seed: getCurrentTeacherPickSessionSeed(sid),
+      timeoutMs: TEACHER_DASH_TIMEOUT_MS,
+    });
+    if (!screenRes?.ok) throw (screenRes?.error || new Error('teacher_picking_screen_v2 failed'));
 
-    const dash = await fetchStudentDashboardForTeacher(token, sid, { timeoutMs: TEACHER_DASH_TIMEOUT_MS });
     if (seq !== _TEACHER_STATS_SEQ) return;
 
-    applyDashboardHomeStats(dash);
+    const payload = screenRes?.payload || null;
+    if (payload?.screen?.session_seed) {
+      setCurrentTeacherPickSessionSeed(String(payload.screen.session_seed || '').trim());
+    }
+
+    if (payload && Array.isArray(payload?.sections)) {
+      applyTeacherPickingHomeStats(payload);
+      return;
+    }
+    throw new Error('teacher_picking_screen_v2 returned invalid init payload');
   } catch (e) {
     if (seq !== _TEACHER_STATS_SEQ) return;
     console.warn('loadTeacherStudentStats failed', e);
@@ -335,6 +301,9 @@ function applyTeacherStudentView(studentId, opts = {}){
   // держим скелетон до прихода статистики
   setHomeStatsLoading(true);
   loadTeacherStudentStats(sid, { reason: opts?.reason || '' });
+  setTimeout(() => {
+    try { warmTeacherModalStatsForStudent(sid, { reason: opts?.reason || '' }); } catch (_) {}
+  }, 0);
 }
 
 async function refreshTeacherStudentSelect(opts = {}){
@@ -702,7 +671,43 @@ function fmtDateTimeRu(s) {
   }
 }
 
+function fmtDateShortRu(s) {
+  if (!s) return '';
+  try {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('ru-RU', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch (_) {
+    return '';
+  }
+}
+
+function badgeClassByLastAttemptAt(lastAt) {
+  if (!lastAt) return 'gray';
+  try {
+    const ts = new Date(lastAt).getTime();
+    if (!Number.isFinite(ts)) return 'gray';
+    const diffDays = Math.max(0, (Date.now() - ts) / 86400000);
+    if (diffDays < 7) return 'green';
+    if (diffDays < 14) return 'lime';
+    if (diffDays <= 30) return 'yellow';
+    return 'red';
+  } catch (_) {
+    return 'gray';
+  }
+}
+
 const _TEACHER_MODAL_STATS_CACHE = new Map();
+const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
+let _TEACHER_MODAL_PRELOAD_SEQ = 0;
+let _TEACHER_MODAL_PRELOAD_PROMISE = null;
+let _TEACHER_MODAL_PRELOAD_SID = '';
+const TEACHER_MODAL_PRELOAD_TTL_MS = 10 * 60 * 1000;
+const TEACHER_MODAL_PRELOAD_CONCURRENCY = 4;
 
 function getTeacherModalStatsCache(studentId, create = false) {
   const sid = String(studentId || '').trim();
@@ -725,8 +730,144 @@ function rememberTeacherModalStats(studentId, statsMap) {
       total: Number(st?.total || 0) || 0,
       correct: Number(st?.correct || 0) || 0,
       last_attempt_at: st?.last_attempt_at ?? null,
+      last3_total: Number(st?.last3_total || 0) || 0,
+      last3_correct: Number(st?.last3_correct || 0) || 0,
     });
   }
+}
+
+function createEmptyTeacherModalStat() {
+  return {
+    total: 0,
+    correct: 0,
+    last_attempt_at: null,
+    last3_total: 0,
+    last3_correct: 0,
+  };
+}
+
+function normalizeTeacherModalStatsMap(questionIds, statsMap) {
+  const ids = Array.from(new Set((questionIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+  const src = statsMap instanceof Map ? statsMap : new Map();
+  const out = new Map();
+
+  for (const id of ids) {
+    const st = src.get(id);
+    if (!st || typeof st !== 'object') {
+      out.set(id, createEmptyTeacherModalStat());
+      continue;
+    }
+    out.set(id, {
+      total: Number(st?.total || 0) || 0,
+      correct: Number(st?.correct || 0) || 0,
+      last_attempt_at: st?.last_attempt_at ?? null,
+      last3_total: Number(st?.last3_total || 0) || 0,
+      last3_correct: Number(st?.last3_correct || 0) || 0,
+    });
+  }
+
+  return out;
+}
+
+function collectManifestQuestionIds(manifest) {
+  const out = [];
+  const seen = new Set();
+  for (const type of (manifest?.types || [])) {
+    for (const proto of (type?.prototypes || [])) {
+      const qid = String(proto?.id || '').trim();
+      if (!qid || seen.has(qid)) continue;
+      seen.add(qid);
+      out.push(qid);
+    }
+  }
+  return out;
+}
+
+function listVisibleTeacherTopicsForPreload() {
+  const out = [];
+  const seen = new Set();
+  for (const sec of (SECTIONS || [])) {
+    for (const topic of (sec?.topics || [])) {
+      const tid = String(topic?.id || '').trim();
+      const hasSinglePath = typeof topic?.path === 'string' && String(topic.path || '').trim();
+      const hasMultiPath = Array.isArray(topic?.paths) && topic.paths.some((p) => typeof p === 'string' && String(p || '').trim());
+      if (!tid || seen.has(tid) || (!hasSinglePath && !hasMultiPath)) continue;
+      seen.add(tid);
+      out.push(topic);
+    }
+  }
+  return out;
+}
+
+async function warmTeacherModalStatsForStudent(studentId, opts = {}) {
+  if (!IS_TEACHER_HOME) return;
+  const sid = String(studentId || '').trim();
+  if (!sid) return;
+
+  const now = Date.now();
+  const lastWarmAt = Number(_TEACHER_MODAL_PRELOAD_WARM_AT.get(sid) || 0) || 0;
+  const force = !!opts?.force;
+  if (!force && lastWarmAt && (now - lastWarmAt) < TEACHER_MODAL_PRELOAD_TTL_MS) return;
+
+  if (!force && _TEACHER_MODAL_PRELOAD_PROMISE && _TEACHER_MODAL_PRELOAD_SID === sid) {
+    return _TEACHER_MODAL_PRELOAD_PROMISE;
+  }
+
+  const seq = ++_TEACHER_MODAL_PRELOAD_SEQ;
+  _TEACHER_MODAL_PRELOAD_SID = sid;
+
+  const topics = listVisibleTeacherTopicsForPreload();
+  const run = (async () => {
+    let cursor = 0;
+    const worker = async () => {
+      while (true) {
+        if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
+        if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
+
+        const topic = topics[cursor++];
+        if (!topic) return;
+
+        try {
+          const pool = await loadTopicPoolForPreview(topic);
+          if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
+          if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
+          const ids = Array.from(new Set(
+            (pool || [])
+              .map((entry) => String(entry?.proto?.id || '').trim())
+              .filter(Boolean),
+          ));
+          if (!ids.length) continue;
+
+          const res = await questionStatsForTeacherV1({
+            student_id: sid,
+            question_ids: ids,
+            topic_id: String(topic?.id || '').trim(),
+            timeoutMs: 8000,
+          });
+          if (res?.ok && res.map instanceof Map) {
+            rememberTeacherModalStats(sid, normalizeTeacherModalStatsMap(ids, res.map));
+          }
+        } catch (e) {
+          console.warn('teacher modal stats warmup failed', { sid, topicId: String(topic?.id || '').trim(), error: e });
+        }
+      }
+    };
+
+    const workerCount = Math.max(1, Math.min(TEACHER_MODAL_PRELOAD_CONCURRENCY, topics.length || 1));
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+    if (seq === _TEACHER_MODAL_PRELOAD_SEQ && String(TEACHER_VIEW_STUDENT_ID || '').trim() === sid) {
+      _TEACHER_MODAL_PRELOAD_WARM_AT.set(sid, Date.now());
+    }
+  })().finally(() => {
+    if (_TEACHER_MODAL_PRELOAD_PROMISE === run) {
+      _TEACHER_MODAL_PRELOAD_PROMISE = null;
+      _TEACHER_MODAL_PRELOAD_SID = '';
+    }
+  });
+
+  _TEACHER_MODAL_PRELOAD_PROMISE = run;
+  return run;
 }
 
 async function loadTeacherStatsForModal(studentId, questionIds, opts = {}) {
@@ -739,8 +880,12 @@ async function loadTeacherStatsForModal(studentId, questionIds, opts = {}) {
   const missing = [];
 
   for (const id of ids) {
-    if (cache?.has(id)) out.set(id, cache.get(id));
-    else missing.push(id);
+    const cached = cache?.get(id) || null;
+    if (cached && Object.prototype.hasOwnProperty.call(cached, 'last3_total') && Object.prototype.hasOwnProperty.call(cached, 'last3_correct')) {
+      out.set(id, cached);
+    } else {
+      missing.push(id);
+    }
   }
 
   if (missing.length) {
@@ -752,10 +897,12 @@ async function loadTeacherStatsForModal(studentId, questionIds, opts = {}) {
       timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
     });
     if (!res?.ok) return { ok: false, map: out, error: res?.error || null };
-    rememberTeacherModalStats(sid, res.map || new Map());
+    const fetchedIds = topicId ? ids : missing;
+    rememberTeacherModalStats(sid, normalizeTeacherModalStatsMap(fetchedIds, res.map || new Map()));
     const cache2 = getTeacherModalStatsCache(sid, false);
     for (const id of ids) {
       if (cache2?.has(id)) out.set(id, cache2.get(id));
+      else out.set(id, createEmptyTeacherModalStat());
     }
   }
 
@@ -778,6 +925,23 @@ function buildModalBadgeEl(extraClass = '') {
   return badge;
 }
 
+function buildModalDateBadgeEl(extraClass = '') {
+  const badge = document.createElement('span');
+  badge.className = `badge gray modal-date-badge ${extraClass}`.trim();
+  badge.hidden = true;
+  return badge;
+}
+
+function buildModalBadgeGroup(statsClass = '', dateClass = '') {
+  const wrap = document.createElement('div');
+  wrap.className = 'modal-badge-group';
+  const dateBadge = buildModalDateBadgeEl(dateClass);
+  const statsBadge = buildModalBadgeEl(statsClass);
+  wrap.appendChild(dateBadge);
+  wrap.appendChild(statsBadge);
+  return { wrap, dateBadge, statsBadge };
+}
+
 function setModalStatsBadge(badgeEl, stat, opts = {}) {
   if (!badgeEl) return;
 
@@ -786,34 +950,72 @@ function setModalStatsBadge(badgeEl, stat, opts = {}) {
   const baseTitle = String(opts?.baseTitle || 'Статистика ученика').trim();
   const total = Math.max(0, Number(stat?.total || 0) || 0);
   const correct = Math.max(0, Number(stat?.correct || 0) || 0);
+  const last3Total = Math.max(0, Number(stat?.last3_total || 0) || 0);
+  const last3Correct = Math.max(0, Number(stat?.last3_correct || 0) || 0);
+  const useLast3 = last3Total > 0;
+  const displayTotal = useLast3 ? last3Total : total;
+  const displayCorrect = useLast3 ? last3Correct : correct;
   const lastAt = stat?.last_attempt_at || null;
   const b = badgeEl.querySelector('b');
   const small = badgeEl.querySelector('.small');
 
-  if (!stat || total <= 0) {
+  if (!stat || displayTotal <= 0) {
     badgeEl.classList.add('gray');
-    if (b) b.textContent = '—';
-    if (small) small.textContent = '0/0';
+    const emptyLabel = String(opts?.emptyLabel || '—').trim() || '—';
+    if (b) b.textContent = emptyLabel;
+    if (small) small.textContent = (emptyLabel === 'Не решал') ? '' : '0/0';
     const emptyText = String(opts?.emptyText || 'Попыток нет').trim();
     badgeEl.setAttribute('title', `${baseTitle}: ${emptyText}`);
     return;
   }
 
-  const p = pct(total, correct);
+  const p = pct(displayTotal, displayCorrect);
   badgeEl.classList.add(badgeClassByPct(p));
   if (b) b.textContent = fmtPct(p);
-  if (small) small.textContent = fmtCnt(total, correct);
+  if (small) small.textContent = fmtCnt(displayTotal, displayCorrect);
 
-  let title = `${baseTitle}: ${fmtPct(p)} (${fmtCnt(total, correct)})`;
+  let title = useLast3
+    ? `${baseTitle}: последние 3 — ${fmtPct(p)} (${fmtCnt(displayTotal, displayCorrect)})`
+    : `${baseTitle}: ${fmtPct(p)} (${fmtCnt(displayTotal, displayCorrect)})`;
+  if (useLast3 && total > 0) {
+    title += ` • за всё время: ${fmtPct(pct(total, correct))} (${fmtCnt(total, correct)})`;
+  }
   const lastText = fmtDateTimeRu(lastAt);
   if (lastText) title += ` • последняя попытка: ${lastText}`;
   badgeEl.setAttribute('title', title);
+}
+
+function setModalDateBadge(badgeEl, stat, opts = {}) {
+  if (!badgeEl) return;
+
+  badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
+
+  const baseTitle = String(opts?.baseTitle || 'Дата последнего решения').trim();
+  const total = Math.max(0, Number(stat?.total || 0) || 0);
+  const last3Total = Math.max(0, Number(stat?.last3_total || 0) || 0);
+  const lastAt = stat?.last_attempt_at || null;
+  const shortText = fmtDateShortRu(lastAt);
+  if (!shortText || (total <= 0 && last3Total <= 0)) {
+    badgeEl.hidden = true;
+    badgeEl.textContent = '';
+    badgeEl.removeAttribute('title');
+    return;
+  }
+
+  badgeEl.hidden = false;
+  badgeEl.classList.add(badgeClassByLastAttemptAt(lastAt));
+  badgeEl.textContent = shortText;
+
+  const fullText = fmtDateTimeRu(lastAt);
+  badgeEl.setAttribute('title', fullText ? `${baseTitle}: ${fullText}` : `${baseTitle}: ${shortText}`);
 }
 
 function aggregateStatsForQuestionIds(questionIds, statsMap) {
   const ids = Array.isArray(questionIds) ? questionIds : [];
   let total = 0;
   let correct = 0;
+  let last3Total = 0;
+  let last3Correct = 0;
   let lastAttemptAt = null;
   for (const id0 of ids) {
     const id = String(id0 || '').trim();
@@ -822,12 +1024,40 @@ function aggregateStatsForQuestionIds(questionIds, statsMap) {
     if (!st) continue;
     total += Math.max(0, Number(st?.total || 0) || 0);
     correct += Math.max(0, Number(st?.correct || 0) || 0);
+    last3Total += Math.max(0, Number(st?.last3_total || 0) || 0);
+    last3Correct += Math.max(0, Number(st?.last3_correct || 0) || 0);
     const cur = st?.last_attempt_at || null;
     if (cur && (!lastAttemptAt || new Date(cur).getTime() > new Date(lastAttemptAt).getTime())) {
       lastAttemptAt = cur;
     }
   }
-  return { total, correct, last_attempt_at: lastAttemptAt };
+  return {
+    total,
+    correct,
+    last3_total: last3Total,
+    last3_correct: last3Correct,
+    last_attempt_at: lastAttemptAt,
+  };
+}
+
+function getTeacherModalCachedAggregate(studentId, questionIds) {
+  const sid = String(studentId || '').trim();
+  const ids = Array.isArray(questionIds)
+    ? Array.from(new Set(questionIds.map((id) => String(id || '').trim()).filter(Boolean)))
+    : [];
+  if (!sid || !ids.length) return null;
+
+  const cache = getTeacherModalStatsCache(sid, false);
+  if (!(cache instanceof Map)) return null;
+
+  for (const id of ids) {
+    const st = cache.get(id);
+    if (!st) return null;
+    if (!Object.prototype.hasOwnProperty.call(st, 'last3_total')) return null;
+    if (!Object.prototype.hasOwnProperty.call(st, 'last3_correct')) return null;
+  }
+
+  return aggregateStatsForQuestionIds(ids, cache);
 }
 
 function ensureBaseTitle(el) {
@@ -1272,7 +1502,13 @@ async function refreshStudentLast10(opts = {}) {
   _LAST10_KNOWN_UID = uid;
 
   try {
-    const dash = await fetchStudentDashboardSelf(token, { timeoutMs: LAST10_RPC_TIMEOUT_MS });
+    const dashRes = await loadStudentDashboardSelfV1({
+      days: 30,
+      source: 'all',
+      timeoutMs: LAST10_RPC_TIMEOUT_MS,
+    });
+    if (!dashRes?.ok) throw (dashRes?.error || new Error('student_dashboard_self_v2 failed'));
+    const dash = dashRes.dashboard || null;
     if (seq !== _STATS_SEQ) return;
     if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
 
@@ -1475,6 +1711,295 @@ function applyDashboardHomeStats(dash) {
   updateSmartHint();
 
   if (isStudentLikeHome()) syncHomeTopicBadgesWidth();
+}
+
+function recommendationPriority(reason) {
+  const r = String(reason || '').trim().toLowerCase();
+  switch (r) {
+    case 'weak': return 0;
+    case 'low': return 1;
+    case 'stale': return 2;
+    case 'uncovered': return 3;
+    default: return 9;
+  }
+}
+
+function recommendationTitleClass(reason) {
+  const r = String(reason || '').trim().toLowerCase();
+  switch (r) {
+    case 'weak': return 'stat-red';
+    case 'low': return 'stat-yellow';
+    case 'stale': return 'stat-lime';
+    default: return '';
+  }
+}
+
+function inferRecommendationReasonFromState(state) {
+  const perf = String(state?.performance_state || '').trim().toLowerCase();
+  const fresh = String(state?.freshness_state || '').trim().toLowerCase();
+  const cov = String(state?.coverage_state || '').trim().toLowerCase();
+  if (perf === 'weak') return 'weak';
+  if (fresh === 'stale') return 'stale';
+  if (cov === 'uncovered') return 'uncovered';
+  return '';
+}
+
+function mergeRecommendationMeta(current, next) {
+  if (!next) return current || null;
+  if (!current) return next;
+  return recommendationPriority(next.reason) < recommendationPriority(current.reason) ? next : current;
+}
+
+function applyTitleRecommendation(el, meta) {
+  if (!el) return;
+  resetTitle(el);
+  const cls = recommendationTitleClass(meta?.reason);
+  if (cls) el.classList.add('stat-chip', cls);
+  const tip = String(meta?.tooltip || '').trim();
+  if (tip) el.setAttribute('title', tip);
+}
+
+function buildTeacherPickingHomeModel(payload) {
+  const days = Math.max(1, Number(payload?.student?.days || 30) || 30);
+  const sections = Array.isArray(payload?.sections) ? payload.sections : [];
+  const recommendations = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
+
+  const recoByTopic = new Map();
+  for (const rec of recommendations) {
+    const tid = String(rec?.topic_id || '').trim();
+    if (!tid) continue;
+    const next = {
+      reason: String(rec?.reason || '').trim().toLowerCase(),
+      tooltip: String(rec?.why || '').trim(),
+      section_id: String(rec?.section_id || '').trim(),
+    };
+    recoByTopic.set(tid, mergeRecommendationMeta(recoByTopic.get(tid), next));
+  }
+
+  const compatTopics = [];
+  const sectionCoverageTopicCount = new Map();
+  const sectionPctAgg = new Map();
+  const sectionPctById = new Map();
+  const sectionTitleMeta = new Map();
+  const topicTitleMeta = new Map();
+  const topicStatsById = new Map();
+
+  for (const section of sections) {
+    const sid = String(section?.section_id || '').trim();
+    const topics = Array.isArray(section?.topics) ? section.topics : [];
+    let coveredTopics = 0;
+    let sectionRecoCount = 0;
+    let sectionReason = '';
+    const sectionExamples = [];
+
+    for (const topic of topics) {
+      const tid = String(topic?.topic_id || '').trim();
+      if (!tid) continue;
+
+      const state = (topic?.state && typeof topic.state === 'object') ? topic.state : {};
+      const progress = (topic?.progress && typeof topic.progress === 'object') ? topic.progress : {};
+      const stats = (topic?.stats && typeof topic.stats === 'object') ? topic.stats : {};
+      const coverage = (topic?.coverage && typeof topic.coverage === 'object') ? topic.coverage : {};
+      const periodTotal = Math.max(0, Number(stats?.period_total || progress?.attempt_count_total || 0) || 0);
+      const periodCorrect = Math.max(0, Number(stats?.period_correct || progress?.correct_count_total || 0) || 0);
+      const rawPeriodPct = Number(stats?.period_pct);
+      const rawLast10Pct = Number(stats?.last10_pct);
+      const rawAllTimePct = Number(progress?.all_time_pct ?? stats?.all_time_pct);
+      const periodPct = Number.isFinite(rawPeriodPct)
+        ? Math.round(rawPeriodPct)
+        : (periodTotal > 0 ? pct(periodTotal, periodCorrect) : null);
+      const last10Pct = Number.isFinite(rawLast10Pct) ? Math.round(rawLast10Pct) : null;
+      const allTimePct = Number.isFinite(rawAllTimePct) ? Math.round(rawAllTimePct) : null;
+      const coveredUnics = Math.max(0, Number(coverage?.covered_unic_count || 0) || 0);
+      const totalUnics = Math.max(0, Number(coverage?.total_unic_count || 0) || 0);
+      let displayPct = null;
+      let displaySource = '';
+
+      if (periodPct !== null && periodTotal > 0) {
+        displayPct = periodPct;
+        displaySource = 'period';
+      } else if (last10Pct !== null) {
+        displayPct = last10Pct;
+        displaySource = 'last10';
+      } else if (allTimePct !== null) {
+        displayPct = allTimePct;
+        displaySource = 'all_time';
+      }
+
+      compatTopics.push({
+        topic_id: tid,
+        section_id: sid,
+        last_seen_at: progress?.last_seen_at || stats?.last_seen_at || null,
+        all_time: { total: 0, correct: 0 },
+        last3: { total: periodTotal, correct: periodCorrect },
+      });
+
+      if (coveredUnics > 0 || String(state?.coverage_state || '').trim().toLowerCase() === 'covered') {
+        coveredTopics += 1;
+      }
+
+      topicStatsById.set(tid, {
+        period_total: periodTotal,
+        period_correct: periodCorrect,
+        period_pct: periodPct,
+        last10_pct: last10Pct,
+        all_time_pct: allTimePct,
+        display_pct: displayPct,
+        display_source: displaySource,
+        last_seen_at: progress?.last_seen_at || stats?.last_seen_at || null,
+      });
+
+      if (sid && displayPct !== null) {
+        const agg = sectionPctAgg.get(sid) || { sumPct: 0, nTopics: 0 };
+        agg.sumPct += Number(displayPct);
+        agg.nTopics += 1;
+        sectionPctAgg.set(sid, agg);
+      }
+
+      const reco = recoByTopic.get(tid) || null;
+      const reason = reco?.reason || inferRecommendationReasonFromState(state);
+      const tooltipParts = [];
+
+      if (reco?.tooltip) {
+        tooltipParts.push(reco.tooltip);
+      } else if (reason === 'stale') {
+        tooltipParts.push('Подтема давно не встречалась в работе ученика.');
+      } else if (reason === 'uncovered') {
+        tooltipParts.push('По подтеме ещё нет покрытия в выбранном периоде.');
+      }
+
+      if (periodTotal > 0 && periodPct !== null) {
+        tooltipParts.push(`За ${days} дн.: ${periodPct}% (${periodCorrect}/${periodTotal}).`);
+      } else if (periodTotal > 0) {
+        tooltipParts.push(`За ${days} дн.: ${periodCorrect}/${periodTotal}.`);
+      } else if (reason === 'uncovered') {
+        tooltipParts.push(`За ${days} дн. попыток нет.`);
+      }
+
+      if (totalUnics > 0) {
+        tooltipParts.push(`Покрытие: ${coveredUnics}/${totalUnics} уник.`);
+      }
+
+      const lastSeenText = fmtDateTimeRu(stats?.last_seen_at || null);
+      if (lastSeenText) tooltipParts.push(`Последняя попытка: ${lastSeenText}.`);
+
+      if (reason || tooltipParts.length) {
+        topicTitleMeta.set(tid, {
+          reason,
+          tooltip: tooltipParts.join(' '),
+        });
+      }
+
+      if (reason) {
+        sectionRecoCount += 1;
+        if (!sectionReason || recommendationPriority(reason) < recommendationPriority(sectionReason)) {
+          sectionReason = reason;
+        }
+        if (sectionExamples.length < 2) {
+          const title = String(topic?.title || tid).trim();
+          sectionExamples.push(`${tid} ${title}`.trim());
+        }
+      }
+    }
+
+    sectionCoverageTopicCount.set(sid, coveredTopics);
+
+    if (sectionRecoCount > 0) {
+      const parts = [`Рекомендованных подтем: ${sectionRecoCount}.`];
+      if (sectionExamples.length) {
+        parts.push(`Например: ${sectionExamples.join('; ')}.`);
+      }
+      sectionTitleMeta.set(sid, {
+        reason: sectionReason,
+        tooltip: parts.join(' '),
+      });
+    }
+  }
+
+  sectionPctAgg.forEach((agg, sid) => {
+    if (!sid || !agg?.nTopics) return;
+    sectionPctById.set(String(sid), Math.round(agg.sumPct / agg.nTopics));
+  });
+
+  return {
+    days,
+    compatDash: { topics: compatTopics },
+    sectionCoverageTopicCount,
+    sectionPctById,
+    sectionTitleMeta,
+    topicTitleMeta,
+    topicStatsById,
+  };
+}
+
+function applyTeacherPickingHomeStats(payload) {
+  if (!isStudentLikeHome()) return;
+  const model = buildTeacherPickingHomeModel(payload);
+  const dashboard = (payload?.dashboard && typeof payload.dashboard === 'object')
+    ? payload.dashboard
+    : null;
+  const hasDashboardTopics = !!(dashboard && Array.isArray(dashboard.topics) && dashboard.topics.length);
+  applyDashboardHomeStats(hasDashboardTopics ? dashboard : model.compatDash);
+
+  const daysLabel = `За ${model.days} дн.`;
+
+  $$('.node.section').forEach((node) => {
+    const sid = String(node?.dataset?.id || '').trim();
+    const sec = (Array.isArray(SECTIONS) ? SECTIONS.find(s => String(s?.id || '').trim() === sid) : null) || null;
+    const totalTopics = Math.max(0, Number(sec?.topics?.length || 0) || 0);
+    const coveredTopics = Math.max(0, Number(model.sectionCoverageTopicCount.get(sid) || 0) || 0);
+    const sectionPct = model.sectionPctById.has(sid) ? model.sectionPctById.get(sid) : null;
+    const badgePct = node.querySelector('.home-last10-badge');
+    const badgeCov = node.querySelector('.home-coverage-badge');
+
+    if (badgePct && !hasDashboardTopics) {
+      setHomeSectionBadge(badgePct, sectionPct, coveredTopics, totalTopics);
+      if (sectionPct !== null) {
+        badgePct.setAttribute('title', `Процент правильных ответов по подтемам: ${sectionPct}%`);
+      } else {
+        badgePct.setAttribute('title', 'Процент правильных ответов');
+      }
+    }
+    setHomeCoverageBadge(badgeCov, coveredTopics, totalTopics);
+    if (badgeCov) badgeCov.setAttribute('title', `Покрытие подтем: ${coveredTopics}/${totalTopics}`);
+
+    applyTitleRecommendation(node.querySelector('.section-title'), model.sectionTitleMeta.get(sid) || null);
+  });
+
+  $$('.node.topic').forEach((node) => {
+    const tid = String(node?.dataset?.id || '').trim();
+    const badge = node.querySelector('.home-last10-badge');
+    const stat = model.topicStatsById.get(tid) || null;
+
+    if (badge && !hasDashboardTopics) {
+      if (stat && stat.display_pct !== null) {
+        let title = '';
+        if (stat.display_source === 'period' && stat.period_total > 0) {
+          title = `${daysLabel}: ${stat.period_pct}% (${stat.period_correct}/${stat.period_total})`;
+        } else if (stat.display_source === 'last10') {
+          title = `Последние 10: ${stat.last10_pct}%`;
+        } else if (stat.display_source === 'all_time') {
+          title = `За всё время: ${stat.all_time_pct}%`;
+        } else {
+          title = 'Процент правильных ответов';
+        }
+        const total = stat.display_source === 'period' ? stat.period_total : 0;
+        const correct = stat.display_source === 'period' ? stat.period_correct : 0;
+        const lastSeenText = fmtDateTimeRu(stat.last_seen_at);
+        if (lastSeenText) title += ` • последняя попытка: ${lastSeenText}`;
+        setHomeBadge(badge, stat.display_pct, total, correct, title);
+      } else {
+        setHomeBadge(badge, null, 0, 0, `${daysLabel}: попыток нет`);
+      }
+    }
+
+    applyTitleRecommendation(node.querySelector('.title'), model.topicTitleMeta.get(tid) || null);
+  });
+
+  if (!hasDashboardTopics) {
+    updateScoreForecast(model.sectionPctById, { signedIn: true });
+    if (isStudentLikeHome()) syncHomeTopicBadgesWidth();
+  }
 }
 
 
@@ -1796,7 +2321,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!ok) return;
       }
     }
-    saveSelectionAndGo();
+    await saveSelectionAndGo();
   });
 });
 
@@ -2104,6 +2629,35 @@ function readSelectionFromDOM() {
   return { topics, sections };
 }
 
+function inferTopicIdFromQuestionId(qid) {
+  const parts = String(qid || '').trim().split('.');
+  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
+  return '';
+}
+
+function normalizeTeacherPickedRef(ref) {
+  const qid = String(ref?.question_id || '').trim();
+  if (!qid) return null;
+  const tid = String(ref?.topic_id || '').trim() || inferTopicIdFromQuestionId(qid);
+  if (!tid) return null;
+  return { topic_id: tid, question_id: qid };
+}
+
+function collectTeacherPickedRefs() {
+  const rows = sortAddedQuestions(flattenAddedQuestions());
+  const out = [];
+  const seen = new Set();
+  for (const row of rows) {
+    const ref = normalizeTeacherPickedRef(row);
+    if (!ref) continue;
+    const key = `${ref.topic_id}::${ref.question_id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ref);
+  }
+  return out;
+}
+
 function buildHwCreatePrefill() {
   const { topics, sections } = readSelectionFromDOM();
   const hasDom = anyPositive(topics) || anyPositive(sections);
@@ -2113,14 +2667,16 @@ function buildHwCreatePrefill() {
   const p = CHOICE_PROTOS || {};
 
   const by = 'mixed';
+  const sid = IS_TEACHER_HOME ? (String(TEACHER_VIEW_STUDENT_ID || '').trim() || null) : null;
   return {
     v: 1,
     by,
     topics: t,
     sections: s,
     protos: p,
-    teacher_student_id: IS_TEACHER_HOME ? (String(TEACHER_VIEW_STUDENT_ID || '').trim() || null) : null,
-    teacher_filters: (IS_TEACHER_HOME && String(TEACHER_VIEW_STUDENT_ID || '').trim()) ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false },
+    teacher_student_id: sid,
+    teacher_filter_id: sid ? getActiveTeacherFilterId(sid) : null,
+    teacher_picked_refs: sid ? collectTeacherPickedRefs() : [],
     shuffle: !!SHUFFLE_TASKS,
     ts: Date.now(),
   };
@@ -2130,7 +2686,7 @@ function initCreateHomeworkButton() {
   const btn = $('#createHwBtn');
   if (!btn) return;
 
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     // Главная учителя: сохраняем выбранного ученика (нужно для автоподстановки на странице создания ДЗ)
     try {
       const sel = $('#teacherStudentSelect');
@@ -2139,6 +2695,7 @@ function initCreateHomeworkButton() {
     } catch (_) {}
 
     try {
+      if (IS_TEACHER_HOME) await flushTeacherAddedTasksSelection('hw-create');
       const prefill = buildHwCreatePrefill();
       const hasAny = anyPositive(prefill.topics) || anyPositive(prefill.sections) || anyPositive(prefill.protos);
       if (hasAny) {
@@ -2182,6 +2739,9 @@ function bulkResetAll() {
   CHOICE_TOPICS = {};
   CHOICE_SECTIONS = {};
   CHOICE_PROTOS = {};
+  if (IS_TEACHER_HOME && String(TEACHER_VIEW_STUDENT_ID || '').trim()) {
+    rotateCurrentTeacherPickSessionSeed();
+  }
   refreshCountsUI();
 }
 
@@ -2618,7 +3178,11 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
     for (const card of cards) {
       setModalStatsBadge(card.querySelector('.proto-modal-badge'), null, {
         baseTitle: 'Статистика ученика по группе',
+        emptyLabel: '—',
         emptyText: 'Ученик не выбран',
+      });
+      setModalDateBadge(card.querySelector('.proto-modal-date-badge'), null, {
+        baseTitle: 'Последнее решение по группе',
       });
     }
     return;
@@ -2651,7 +3215,11 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
     const stat = aggregateStatsForQuestionIds(ids, statsMap);
     setModalStatsBadge(badge, stat, {
       baseTitle: 'Статистика ученика по группе',
+      emptyLabel: res?.ok ? 'Не решал' : '—',
       emptyText: res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+    });
+    setModalDateBadge(card?.querySelector('.proto-modal-date-badge'), stat, {
+      baseTitle: 'Последнее решение по группе',
     });
   }
 }
@@ -2731,13 +3299,17 @@ function renderProtoModalCard(manifest, type) {
   meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
 
   if (IS_TEACHER_HOME) {
-    const badge = buildModalBadgeEl('proto-modal-badge');
-    setModalStatsBadge(badge, null, {
+    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
+    setModalStatsBadge(statsBadge, null, {
       baseTitle: 'Статистика ученика по группе',
+      emptyLabel: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Не решал' : '—',
       emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
     });
+    setModalDateBadge(dateBadge, null, {
+      baseTitle: 'Последнее решение по группе',
+    });
     head.appendChild(meta);
-    head.appendChild(badge);
+    head.appendChild(badgeGroup);
   }
 
   const stem = document.createElement('div');
@@ -2921,11 +3493,25 @@ let ADDED_TASKS_MODAL_OPEN = false;
 let _ADDED_TASKS_MODAL_EVENTS_BOUND = false;
 
 let _ADDED_CTX_KEY = '';
-let _ADDED_CTX = null; // { buckets: { [bucketKey]: question[] }, idCounts: { [question_id]: number } }
+let _ADDED_CTX = null; // { seed: string, buckets: { [bucketKey]: question[] }, idCounts: { [question_id]: number } }
 
 let _ADDED_SYNC_T = 0;
 let _ADDED_SYNC_SEQ = 0;
 let _ADDED_BADGE_SEQ = 0;
+let _ADDED_SYNC_DIRTY = true;
+
+const _TEACHER_RESOLVE_MANIFEST_CACHE = new Map();
+const _TEACHER_RESOLVE_MANIFEST_INDEX_CACHE = new Map();
+
+function createTeacherPickSeed() {
+  try {
+    const bytes = new Uint8Array(12);
+    crypto.getRandomValues(bytes);
+    return `${Date.now().toString(36)}-${Array.from(bytes).map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+  } catch (_) {
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 14)}`;
+  }
+}
 
 function getAddedTasksModalEls() {
   return {
@@ -2942,10 +3528,8 @@ function getAddedTasksModalEls() {
 
 function getTeacherAddedTasksContextKey() {
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim() || 'none';
-  const hasStudent = sid !== 'none';
-  const old = hasStudent && !!TEACHER_PICK_FILTERS?.old ? 1 : 0;
-  const bad = hasStudent && !!TEACHER_PICK_FILTERS?.badAcc ? 1 : 0;
-  return `sid:${sid};old:${old};bad:${bad}`;
+  const filterId = sid !== 'none' ? (normalizeTeacherFilterId(TEACHER_PICK_FILTER_ID) || 'none') : 'none';
+  return `sid:${sid};filter:${filterId}`;
 }
 
 function loadTeacherAddedTasksStore() {
@@ -2970,6 +3554,7 @@ function persistAddedTasksContext() {
   if (!IS_TEACHER_HOME || !_ADDED_CTX_KEY || !_ADDED_CTX) return;
   const store = loadTeacherAddedTasksStore();
   store.contexts[_ADDED_CTX_KEY] = {
+    seed: String(_ADDED_CTX.seed || '').trim() || createTeacherPickSeed(),
     buckets: _ADDED_CTX.buckets || {},
     ts: Date.now(),
   };
@@ -2988,9 +3573,14 @@ function ensureAddedTasksContextLoaded() {
   const store = loadTeacherAddedTasksStore();
   const rawCtx = store?.contexts?.[key] || null;
   const rawBuckets = (rawCtx && typeof rawCtx === 'object') ? rawCtx.buckets : null;
+  const rawSeed = (rawCtx && typeof rawCtx === 'object') ? String(rawCtx.seed || '').trim() : '';
 
   const buckets = (rawBuckets && typeof rawBuckets === 'object') ? rawBuckets : {};
-  const ctx = { buckets: {}, idCounts: {} };
+  const ctx = {
+    seed: rawSeed || createTeacherPickSeed(),
+    buckets: {},
+    idCounts: {},
+  };
 
   for (const [bk, arr0] of Object.entries(buckets)) {
     const arr = Array.isArray(arr0) ? arr0 : [];
@@ -3013,6 +3603,26 @@ function ensureAddedTasksContextLoaded() {
   return _ADDED_CTX;
 }
 
+function getCurrentTeacherPickSessionSeed(studentId = null) {
+  const sid = String(studentId == null ? TEACHER_VIEW_STUDENT_ID : studentId).trim();
+  if (!sid || !IS_TEACHER_HOME) return '';
+  const ctx = ensureAddedTasksContextLoaded();
+  return String(ctx?.seed || '').trim();
+}
+
+function setCurrentTeacherPickSessionSeed(seed) {
+  if (!IS_TEACHER_HOME) return '';
+  const ctx = ensureAddedTasksContextLoaded();
+  if (!ctx) return '';
+  ctx.seed = String(seed || '').trim() || createTeacherPickSeed();
+  try { persistAddedTasksContext(); } catch (_) {}
+  return ctx.seed;
+}
+
+function rotateCurrentTeacherPickSessionSeed() {
+  return setCurrentTeacherPickSessionSeed(createTeacherPickSeed());
+}
+
 function onTeacherContextChanged(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   ensureAddedTasksContextLoaded();
@@ -3027,12 +3637,22 @@ function onTeacherContextChanged(opts = {}) {
 
 function scheduleSyncAddedTasks(opts = {}) {
   if (!IS_TEACHER_HOME) return;
+  _ADDED_SYNC_DIRTY = true;
   if (_ADDED_SYNC_T) clearTimeout(_ADDED_SYNC_T);
   const delay = opts?.immediate ? 0 : 90;
   _ADDED_SYNC_T = setTimeout(() => {
     _ADDED_SYNC_T = 0;
     syncAddedTasksToSelection(opts);
   }, delay);
+}
+
+async function flushTeacherAddedTasksSelection(reason = 'flush') {
+  if (!IS_TEACHER_HOME) return;
+  if (_ADDED_SYNC_T) {
+    clearTimeout(_ADDED_SYNC_T);
+    _ADDED_SYNC_T = 0;
+  }
+  await syncAddedTasksToSelection({ reason, immediate: true });
 }
 
 function incIdCount(id) {
@@ -3109,6 +3729,186 @@ function sortAddedQuestions(arr) {
   return xs;
 }
 
+function buildTeacherResolveSelection({ excludeTopicIds = [] } = {}) {
+  const selection = {};
+  const protos = normalizeResolveReqArray(CHOICE_PROTOS || {});
+  const topics = normalizeResolveReqArray(CHOICE_TOPICS || {});
+  const sections = normalizeResolveReqArray(CHOICE_SECTIONS || {});
+  const extraExcludedTopics = Array.from(new Set((excludeTopicIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+
+  if (protos.length) selection.protos = protos;
+  if (topics.length) selection.topics = topics;
+  if (sections.length) selection.sections = sections;
+  if (extraExcludedTopics.length) selection.exclude_topic_ids = extraExcludedTopics;
+  return selection;
+}
+
+async function pickQuestionsViaTeacherScreenResolve({
+  request = {},
+  excludeTopicIds = [],
+  excludeQuestionIds = [],
+} = {}) {
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  if (!sid) return null;
+
+  const scopeKind = String(request?.scope_kind || '').trim().toLowerCase();
+  if (!scopeKind) return [];
+
+  const normalizedRequest = {
+    scope_kind: scopeKind,
+  };
+
+  if (scopeKind !== 'global_all') {
+    normalizedRequest.scope_id = String(request?.scope_id || '').trim();
+    normalizedRequest.n = Math.max(0, Math.floor(Number(request?.n || 0)));
+    if (!normalizedRequest.scope_id || normalizedRequest.n <= 0) return [];
+  } else if (request?.n != null) {
+    normalizedRequest.n = Math.max(0, Math.floor(Number(request.n || 0)));
+  }
+
+  const normalizedExcludeTopicIds = Array.from(new Set((excludeTopicIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+  const normalizedExcludeQuestionIds = Array.from(new Set(
+    (excludeQuestionIds instanceof Set ? Array.from(excludeQuestionIds) : (excludeQuestionIds || []))
+      .map((id) => String(id || '').trim())
+      .filter(Boolean),
+  ));
+
+  const wantsByBucket = new Map();
+  if (scopeKind === 'global_all') {
+    for (const sec of (SECTIONS || [])) {
+      const sectionId = String(sec?.id || sec?.section_id || '').trim();
+      if (sectionId) wantsByBucket.set(`section:${sectionId}`, 1);
+    }
+  } else {
+    const scopeId = String(normalizedRequest.scope_id || '').trim();
+    const want = Math.max(0, Math.floor(Number(normalizedRequest.n || 0)));
+    if (scopeId && want > 0) wantsByBucket.set(`${scopeKind}:${scopeId}`, want);
+  }
+
+  const res = await loadTeacherPickingScreenV2({
+    student_id: sid,
+    mode: 'resolve',
+    source: 'all',
+    filter_id: getActiveTeacherFilterId(sid),
+    selection: buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds }),
+    request: normalizedRequest,
+    seed: getCurrentTeacherPickSessionSeed(sid),
+    exclude_question_ids: normalizedExcludeQuestionIds,
+    timeoutMs: 15000,
+  });
+
+  if (!res?.ok) return [];
+
+  const payload = res?.payload;
+  const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
+  const rows = Array.isArray(payload?.picked_questions) ? payload.picked_questions : null;
+  if (mode !== 'resolve' || !Array.isArray(rows)) return [];
+
+  if (payload?.screen?.session_seed) {
+    setCurrentTeacherPickSessionSeed(String(payload.screen.session_seed || '').trim());
+  }
+
+  return await buildPreviewQuestionsFromResolveRows({
+    rows,
+    wantsByBucket,
+    excludeQuestionIds: normalizedExcludeQuestionIds,
+  });
+}
+
+async function pickQuestionsViaTeacherScreenResolveBatch({
+  requests = [],
+  excludeTopicIds = [],
+  excludeQuestionIds = [],
+} = {}) {
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  if (!sid) return null;
+
+  const normalizedRequests = Array.isArray(requests)
+    ? requests.map((item) => {
+      const scopeKind = String(item?.scope_kind || '').trim().toLowerCase();
+      const req = { scope_kind: scopeKind };
+      if (scopeKind !== 'global_all') {
+        req.scope_id = String(item?.scope_id || '').trim();
+        req.n = Math.max(0, Math.floor(Number(item?.n || 0)));
+      } else {
+        req.n = 1;
+      }
+      return req;
+    }).filter((item) => {
+      if (!item.scope_kind) return false;
+      if (item.scope_kind === 'global_all') return true;
+      return !!item.scope_id && item.n > 0;
+    })
+    : [];
+
+  if (!normalizedRequests.length) {
+    return { byBucket: new Map(), shortages: [], warnings: [] };
+  }
+
+  const normalizedExcludeTopicIds = Array.from(new Set((excludeTopicIds || []).map((id) => String(id || '').trim()).filter(Boolean)));
+  const normalizedExcludeQuestionIds = Array.from(new Set(
+    (excludeQuestionIds instanceof Set ? Array.from(excludeQuestionIds) : (excludeQuestionIds || []))
+      .map((id) => String(id || '').trim())
+      .filter(Boolean),
+  ));
+
+  const wantsByBucket = new Map();
+  for (const req of normalizedRequests) {
+    if (req.scope_kind === 'global_all') {
+      for (const sec of (SECTIONS || [])) {
+        const sectionId = String(sec?.id || sec?.section_id || '').trim();
+        if (sectionId) wantsByBucket.set(`section:${sectionId}`, 1);
+      }
+      continue;
+    }
+    const bucketKey = buildResolveBucketKey(req.scope_kind, req.scope_id);
+    const want = Math.max(0, Math.floor(Number(req.n || 0)));
+    if (bucketKey && want > 0) wantsByBucket.set(bucketKey, want);
+  }
+
+  const res = await loadTeacherPickingResolveBatchV1({
+    student_id: sid,
+    source: 'all',
+    filter_id: getActiveTeacherFilterId(sid),
+    selection: buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds }),
+    requests: normalizedRequests,
+    seed: getCurrentTeacherPickSessionSeed(sid),
+    exclude_question_ids: normalizedExcludeQuestionIds,
+    timeoutMs: 15000,
+  });
+
+  if (!res?.ok) return null;
+
+  const payload = res?.payload;
+  const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
+  const rows = Array.isArray(payload?.picked_questions) ? payload.picked_questions : null;
+  if (mode !== 'resolve_batch' || !Array.isArray(rows)) return null;
+
+  if (payload?.screen?.session_seed) {
+    setCurrentTeacherPickSessionSeed(String(payload.screen.session_seed || '').trim());
+  }
+
+  const questions = await buildPreviewQuestionsFromResolveRows({
+    rows,
+    wantsByBucket,
+    excludeQuestionIds: normalizedExcludeQuestionIds,
+  });
+
+  const byBucket = new Map();
+  for (const q of (questions || [])) {
+    const bucketKey = String(q?.bucket_key || '').trim();
+    if (!bucketKey) continue;
+    if (!byBucket.has(bucketKey)) byBucket.set(bucketKey, []);
+    byBucket.get(bucketKey).push(q);
+  }
+
+  return {
+    byBucket,
+    shortages: Array.isArray(payload?.shortages) ? payload.shortages : [],
+    warnings: Array.isArray(payload?.warnings) ? payload.warnings : [],
+  };
+}
+
 async function pickDeltaForBucket(bucketKey, delta, seq) {
   const key = String(bucketKey || '').trim();
   const want = Math.max(0, Math.floor(Number(delta || 0)));
@@ -3116,16 +3916,20 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
 
   if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) return [];
 
-  // учительские фильтры применяются только при выбранном ученике
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-  const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
-  const prioActive = !!sid && (filters.old || filters.badAcc);
-
   const excludeSet = getExcludeSet();
 
-  // proto:TYPE_ID
   if (key.startsWith('proto:')) {
     const typeId = key.slice('proto:'.length);
+    if (sid) {
+      const resolved = await pickQuestionsViaTeacherScreenResolve({
+        request: { scope_kind: 'proto', scope_id: typeId, n: want },
+        excludeQuestionIds: excludeSet,
+      });
+      if (seq !== _ADDED_SYNC_SEQ) return [];
+      return Array.isArray(resolved) ? resolved.slice(0, want) : [];
+    }
+
     const qs = await pickQuestionsScopedForList({
       sections: [],
       topicById: TOPIC_BY_ID,
@@ -3133,9 +3937,9 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
       choiceTopics: {},
       choiceSections: {},
       shuffleTasks: false,
-      teacherStudentId: sid,
-      teacherFilters: filters,
-      prioActive,
+      teacherStudentId: '',
+      teacherFilters: { old: false, badAcc: false },
+      prioActive: false,
       loadTopicPool: loadTopicPoolForPreview,
       buildQuestion: buildQuestionForPreview,
       excludeQuestionIds: excludeSet,
@@ -3144,11 +3948,20 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
     return Array.isArray(qs) ? qs : [];
   }
 
-  // topic:TOPIC_ID
   if (key.startsWith('topic:')) {
     const topicId = key.slice('topic:'.length);
     const topic = TOPIC_BY_ID.get(String(topicId));
     if (!topic) return [];
+
+    if (sid) {
+      const resolved = await pickQuestionsViaTeacherScreenResolve({
+        request: { scope_kind: 'topic', scope_id: topicId, n: want },
+        excludeQuestionIds: excludeSet,
+      });
+      if (seq !== _ADDED_SYNC_SEQ) return [];
+      return Array.isArray(resolved) ? resolved.slice(0, want) : [];
+    }
+
     const secId = String(topic?.parent || '').trim();
     const sec = SECTION_BY_ID.get(secId);
     const secTmp = sec ? { ...sec, topics: [topic] } : { id: secId || '0', topics: [topic] };
@@ -3159,9 +3972,9 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
       choiceTopics: { [topicId]: want },
       choiceSections: {},
       shuffleTasks: false,
-      teacherStudentId: sid,
-      teacherFilters: filters,
-      prioActive,
+      teacherStudentId: '',
+      teacherFilters: { old: false, badAcc: false },
+      prioActive: false,
       loadTopicPool: loadTopicPoolForPreview,
       buildQuestion: buildQuestionForPreview,
       excludeQuestionIds: excludeSet,
@@ -3170,21 +3983,29 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
     return Array.isArray(qs) ? qs : [];
   }
 
-  // section:SECTION_ID
   if (key.startsWith('section:')) {
     const sectionId = key.slice('section:'.length);
     const sec = SECTION_BY_ID.get(String(sectionId));
     if (!sec) return [];
+
     const excludeTopics = new Set(
       Object.entries(CHOICE_TOPICS || {})
         .filter(([, v]) => (Number(v || 0) || 0) > 0)
         .map(([id]) => String(id)),
     );
+
+    if (sid) {
+      const resolved = await pickQuestionsViaTeacherScreenResolve({
+        request: { scope_kind: 'section', scope_id: sectionId, n: want },
+        excludeTopicIds: Array.from(excludeTopics),
+        excludeQuestionIds: excludeSet,
+      });
+      if (seq !== _ADDED_SYNC_SEQ) return [];
+      return Array.isArray(resolved) ? resolved.slice(0, want) : [];
+    }
+
     const filteredTopics = (sec.topics || []).filter(t => !excludeTopics.has(String(t?.id)));
     const secTmp = { ...sec, topics: filteredTopics.length ? filteredTopics : (sec.topics || []) };
-
-    // ВАЖНО: передаём choiceTopics (реальный) только чтобы движок исключил явные темы
-    // на шаге добора по разделу, но сами явные темы из secTmp уже выкинули, чтобы шаг 1 не сработал.
     const qs = await pickQuestionsScopedForList({
       sections: [secTmp],
       topicById: TOPIC_BY_ID,
@@ -3192,9 +4013,9 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
       choiceTopics: CHOICE_TOPICS || {},
       choiceSections: { [sectionId]: want },
       shuffleTasks: false,
-      teacherStudentId: sid,
-      teacherFilters: filters,
-      prioActive,
+      teacherStudentId: '',
+      teacherFilters: { old: false, badAcc: false },
+      prioActive: false,
       loadTopicPool: loadTopicPoolForPreview,
       buildQuestion: buildQuestionForPreview,
       excludeQuestionIds: excludeSet,
@@ -3204,6 +4025,21 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
   }
 
   return [];
+}
+
+function appendPickedQuestionsToBucket(ctx, bucketKey, questions = []) {
+  if (!ctx || !bucketKey) return 0;
+  const cur = Array.isArray(ctx.buckets[bucketKey]) ? ctx.buckets[bucketKey] : [];
+  let added = 0;
+  for (const q of (questions || [])) {
+    const id = String(q?.question_id || '').trim();
+    if (!id) continue;
+    cur.push(q);
+    incIdCount(id);
+    added += 1;
+  }
+  ctx.buckets[bucketKey] = cur;
+  return added;
 }
 
 async function syncAddedTasksToSelection(opts = {}) {
@@ -3245,37 +4081,87 @@ async function syncAddedTasksToSelection(opts = {}) {
     .sort((a, b) => compareId(a.slice(8), b.slice(8)));
 
   const ordered = [...protoKeys, ...topicKeys];
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
 
   // --- 2) добор (строго в порядке движка: protos -> topics) ---
+  const protoNeedEntries = [];
+  const topicNeedEntries = [];
   for (const bk of ordered) {
-    if (seq !== _ADDED_SYNC_SEQ) return;
-
     const need = Number(desired.get(bk) || 0) || 0;
     const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
     const have = cur.length;
-
     const delta = need - have;
     if (delta <= 0) {
       if (need <= 0 && !have) delete ctx.buckets[bk];
       else ctx.buckets[bk] = cur;
       continue;
     }
+    if (bk.startsWith('proto:')) protoNeedEntries.push([bk, delta]);
+    else if (bk.startsWith('topic:')) topicNeedEntries.push([bk, delta]);
+  }
 
-    const picked = await pickDeltaForBucket(bk, delta, seq);
+  if (sid && protoNeedEntries.length) {
+    const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
+      requests: protoNeedEntries.map(([bk, delta]) => ({
+        scope_kind: 'proto',
+        scope_id: bk.slice('proto:'.length),
+        n: delta,
+      })),
+      excludeQuestionIds: getExcludeSet(),
+    });
     if (seq !== _ADDED_SYNC_SEQ) return;
 
-    if (!picked.length) {
-      ctx.buckets[bk] = cur;
-      continue;
+    if (batchRes?.byBucket instanceof Map) {
+      for (const [bk] of protoNeedEntries) {
+        appendPickedQuestionsToBucket(ctx, bk, batchRes.byBucket.get(bk) || []);
+      }
+    } else {
+      for (const [bk, delta] of protoNeedEntries) {
+        if (seq !== _ADDED_SYNC_SEQ) return;
+        const picked = await pickDeltaForBucket(bk, delta, seq);
+        if (seq !== _ADDED_SYNC_SEQ) return;
+        appendPickedQuestionsToBucket(ctx, bk, picked);
+      }
     }
+  } else {
+    for (const [bk, delta] of protoNeedEntries) {
+      if (seq !== _ADDED_SYNC_SEQ) return;
+      const picked = await pickDeltaForBucket(bk, delta, seq);
+      if (seq !== _ADDED_SYNC_SEQ) return;
+      appendPickedQuestionsToBucket(ctx, bk, picked);
+    }
+  }
 
-    for (const q of picked) {
-      const id = String(q?.question_id || '').trim();
-      if (!id) continue;
-      cur.push(q);
-      incIdCount(id);
+  if (sid && topicNeedEntries.length) {
+    const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
+      requests: topicNeedEntries.map(([bk, delta]) => ({
+        scope_kind: 'topic',
+        scope_id: bk.slice('topic:'.length),
+        n: delta,
+      })),
+      excludeQuestionIds: getExcludeSet(),
+    });
+    if (seq !== _ADDED_SYNC_SEQ) return;
+
+    if (batchRes?.byBucket instanceof Map) {
+      for (const [bk] of topicNeedEntries) {
+        appendPickedQuestionsToBucket(ctx, bk, batchRes.byBucket.get(bk) || []);
+      }
+    } else {
+      for (const [bk, delta] of topicNeedEntries) {
+        if (seq !== _ADDED_SYNC_SEQ) return;
+        const picked = await pickDeltaForBucket(bk, delta, seq);
+        if (seq !== _ADDED_SYNC_SEQ) return;
+        appendPickedQuestionsToBucket(ctx, bk, picked);
+      }
     }
-    ctx.buckets[bk] = cur;
+  } else {
+    for (const [bk, delta] of topicNeedEntries) {
+      if (seq !== _ADDED_SYNC_SEQ) return;
+      const picked = await pickDeltaForBucket(bk, delta, seq);
+      if (seq !== _ADDED_SYNC_SEQ) return;
+      appendPickedQuestionsToBucket(ctx, bk, picked);
+    }
   }
 
   // --- 3) добор секций батчем: section:* одним вызовом движка ---
@@ -3295,75 +4181,118 @@ async function syncAddedTasksToSelection(opts = {}) {
 
   if (sectionNeedMap.size > 0) {
     const excludeSet2 = getExcludeSet();
-
-    // Исключаем явные темы, чтобы при доборе по разделам не тратить квоты на уже выбранные темы.
     const excludeTopics = new Set(
       Object.entries(CHOICE_TOPICS || {})
         .filter(([, v]) => (Number(v || 0) || 0) > 0)
         .map(([id]) => String(id)),
     );
 
-    const sectionsTmp = [];
-    const choiceSectionsDelta = {};
-    for (const [sectionId, delta] of sectionNeedMap.entries()) {
-      const sec = SECTION_BY_ID.get(String(sectionId));
-      if (!sec) continue;
+    if (sid) {
+      const remaining = new Map(sectionNeedMap);
+      const canUseGlobalAll =
+        remaining.size === (SECTIONS || []).length &&
+        Array.from(remaining.values()).every((delta) => Number(delta || 0) === 1);
 
-      const filteredTopics = (sec.topics || []).filter(t => !excludeTopics.has(String(t?.id)));
-      const secTmp = { ...sec, topics: filteredTopics.length ? filteredTopics : (sec.topics || []) };
+      if (canUseGlobalAll) {
+        const resolved = await pickQuestionsViaTeacherScreenResolve({
+          request: { scope_kind: 'global_all', n: 1 },
+          excludeTopicIds: Array.from(excludeTopics),
+          excludeQuestionIds: excludeSet2,
+        });
+        if (seq !== _ADDED_SYNC_SEQ) return;
 
-      sectionsTmp.push(secTmp);
-      choiceSectionsDelta[String(sectionId)] = delta;
-    }
-
-    if (sectionsTmp.length) {
-      const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-      const filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
-      const prioActive = !!sid && (filters.old || filters.badAcc);
-
-      const pickedAll = await pickQuestionsScopedForList({
-        sections: sectionsTmp,
-        topicById: TOPIC_BY_ID,
-        choiceProtos: {},
-        choiceTopics: CHOICE_TOPICS || {},
-        choiceSections: choiceSectionsDelta,
-        shuffleTasks: false,
-        teacherStudentId: sid,
-        teacherFilters: filters,
-        prioActive,
-        loadTopicPool: loadTopicPoolForPreview,
-        buildQuestion: buildQuestionForPreview,
-        excludeQuestionIds: excludeSet2,
-      });
-
-      if (seq !== _ADDED_SYNC_SEQ) return;
-
-      const arrAll = Array.isArray(pickedAll) ? pickedAll : [];
-      const bySection = new Map();
-      for (const q of arrAll) {
-        const sid2 = String(q?.section_id || '').trim();
-        if (!sid2) continue;
-        if (!bySection.has(sid2)) bySection.set(sid2, []);
-        bySection.get(sid2).push(q);
+        for (const q of (Array.isArray(resolved) ? resolved : [])) {
+          const sectionId = String(q?.section_id || '').trim();
+          const bk = `section:${sectionId}`;
+          if (!sectionId || !remaining.has(sectionId)) continue;
+          appendPickedQuestionsToBucket(ctx, bk, [q]);
+          remaining.delete(sectionId);
+        }
       }
 
-      // Разложим по bucket'ам и докинем в ctx.idCounts
+      if (remaining.size > 0) {
+        const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
+          requests: Array.from(remaining.entries()).map(([sectionId, delta]) => ({
+            scope_kind: 'section',
+            scope_id: sectionId,
+            n: delta,
+          })),
+          excludeTopicIds: Array.from(excludeTopics),
+          excludeQuestionIds: getExcludeSet(),
+        });
+        if (seq !== _ADDED_SYNC_SEQ) return;
+
+        if (batchRes?.byBucket instanceof Map) {
+          for (const [sectionId] of remaining.entries()) {
+            const bk = `section:${String(sectionId)}`;
+            appendPickedQuestionsToBucket(ctx, bk, batchRes.byBucket.get(bk) || []);
+          }
+        } else {
+          for (const [sectionId, delta] of remaining.entries()) {
+            if (seq !== _ADDED_SYNC_SEQ) return;
+            const got = await pickQuestionsViaTeacherScreenResolve({
+              request: { scope_kind: 'section', scope_id: sectionId, n: delta },
+              excludeTopicIds: Array.from(excludeTopics),
+              excludeQuestionIds: getExcludeSet(),
+            });
+            if (seq !== _ADDED_SYNC_SEQ) return;
+            appendPickedQuestionsToBucket(ctx, `section:${String(sectionId)}`, Array.isArray(got) ? got.slice(0, delta) : []);
+          }
+        }
+      }
+    } else {
+      const sectionsTmp = [];
+      const choiceSectionsDelta = {};
       for (const [sectionId, delta] of sectionNeedMap.entries()) {
-        const bk = `section:${String(sectionId)}`;
-        const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
+        const sec = SECTION_BY_ID.get(String(sectionId));
+        if (!sec) continue;
+        const filteredTopics = (sec.topics || []).filter(t => !excludeTopics.has(String(t?.id)));
+        const secTmp = { ...sec, topics: filteredTopics.length ? filteredTopics : (sec.topics || []) };
+        sectionsTmp.push(secTmp);
+        choiceSectionsDelta[String(sectionId)] = delta;
+      }
 
-        const got = bySection.get(String(sectionId)) || [];
-        const takeN = Math.min(delta, got.length);
+      if (sectionsTmp.length) {
+        const pickedAll = await pickQuestionsScopedForList({
+          sections: sectionsTmp,
+          topicById: TOPIC_BY_ID,
+          choiceProtos: {},
+          choiceTopics: CHOICE_TOPICS || {},
+          choiceSections: choiceSectionsDelta,
+          shuffleTasks: false,
+          teacherStudentId: '',
+          teacherFilters: { old: false, badAcc: false },
+          prioActive: false,
+          loadTopicPool: loadTopicPoolForPreview,
+          buildQuestion: buildQuestionForPreview,
+          excludeQuestionIds: excludeSet2,
+        });
 
-        for (let i = 0; i < takeN; i++) {
-          const q = got[i];
-          const id = String(q?.question_id || '').trim();
-          if (!id) continue;
-          cur.push(q);
-          incIdCount(id);
+        if (seq !== _ADDED_SYNC_SEQ) return;
+
+        const arrAll = Array.isArray(pickedAll) ? pickedAll : [];
+        const bySection = new Map();
+        for (const q of arrAll) {
+          const sid2 = String(q?.section_id || '').trim();
+          if (!sid2) continue;
+          if (!bySection.has(sid2)) bySection.set(sid2, []);
+          bySection.get(sid2).push(q);
         }
 
-        ctx.buckets[bk] = cur;
+        for (const [sectionId, delta] of sectionNeedMap.entries()) {
+          const bk = `section:${String(sectionId)}`;
+          const cur = Array.isArray(ctx.buckets[bk]) ? ctx.buckets[bk] : [];
+          const got = bySection.get(String(sectionId)) || [];
+          const takeN = Math.min(delta, got.length);
+          for (let i = 0; i < takeN; i++) {
+            const q = got[i];
+            const id = String(q?.question_id || '').trim();
+            if (!id) continue;
+            cur.push(q);
+            incIdCount(id);
+          }
+          ctx.buckets[bk] = cur;
+        }
       }
     }
   }
@@ -3372,6 +4301,7 @@ async function syncAddedTasksToSelection(opts = {}) {
   try { persistAddedTasksContext(); } catch (_) {}
 
   // если модалка открыта — перерисуем
+  _ADDED_SYNC_DIRTY = false;
   if (ADDED_TASKS_MODAL_OPEN) {
     const arr = sortAddedQuestions(flattenAddedQuestions());
     await refreshAddedTasksModalView(arr, { wantTotal });
@@ -3382,6 +4312,16 @@ async function openAddedTasksModal() {
   const { modal, hint, meta, list, listWrap } = getAddedTasksModalEls();
   if (!modal) return;
   if (ADDED_TASKS_MODAL_OPEN) return;
+  ensureAddedTasksContextLoaded();
+  const wantTotal = getTotalSelected();
+  const currentArr = sortAddedQuestions(flattenAddedQuestions());
+  const renderSig = getAddedTasksRenderSignature(currentArr, { wantTotal });
+  const canReuseRenderedView =
+    !_ADDED_SYNC_DIRTY &&
+    !_ADDED_SYNC_T &&
+    !!list &&
+    list.childElementCount > 0 &&
+    String(list.dataset.renderSig || '').trim() === renderSig;
 
   ADDED_TASKS_MODAL_OPEN = true;
   modal.classList.remove('hidden');
@@ -3395,9 +4335,9 @@ async function openAddedTasksModal() {
 
   if (!ADDED_TASKS_MODAL_OPEN) return;
 
-  const wantTotal = getTotalSelected();
+  const wantTotal2 = getTotalSelected();
   const arr = sortAddedQuestions(flattenAddedQuestions());
-  await refreshAddedTasksModalView(arr, { wantTotal });
+  await refreshAddedTasksModalView(arr, { wantTotal: wantTotal2 });
 }
 
 function closeAddedTasksModal() {
@@ -3406,6 +4346,54 @@ function closeAddedTasksModal() {
   ADDED_TASKS_MODAL_OPEN = false;
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
+}
+
+async function openAddedTasksModalFast() {
+  const { modal, hint, meta, list } = getAddedTasksModalEls();
+  if (!modal) return;
+  if (ADDED_TASKS_MODAL_OPEN) return;
+
+  ensureAddedTasksContextLoaded();
+
+  const wantTotal = getTotalSelected();
+  const currentArr = sortAddedQuestions(flattenAddedQuestions());
+  const renderSig = getAddedTasksRenderSignature(currentArr, { wantTotal });
+  const canReuseRenderedView =
+    !_ADDED_SYNC_DIRTY &&
+    !_ADDED_SYNC_T &&
+    !!list &&
+    list.childElementCount > 0 &&
+    String(list.dataset.renderSig || '').trim() === renderSig;
+
+  ADDED_TASKS_MODAL_OPEN = true;
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+
+  if (canReuseRenderedView) {
+    if (hint) hint.textContent = '';
+    if (meta) {
+      if (wantTotal > 0) meta.textContent = `Показано: ${currentArr.length} из ${wantTotal}`;
+      else meta.textContent = `Всего: ${currentArr.length}`;
+    }
+    hydrateAddedTasksModalBadgesFromCache(currentArr);
+    return;
+  }
+
+  if (meta) meta.textContent = '—';
+  if (hint) hint.textContent = 'Загружаю…';
+  if (list) {
+    list.innerHTML = '';
+    list.dataset.renderSig = '';
+  }
+
+  if (_ADDED_SYNC_DIRTY || _ADDED_SYNC_T) {
+    await flushTeacherAddedTasksSelection('open');
+    if (!ADDED_TASKS_MODAL_OPEN) return;
+    if (list && list.childElementCount > 0) return;
+  }
+
+  const arr = sortAddedQuestions(flattenAddedQuestions());
+  await refreshAddedTasksModalView(arr, { wantTotal: getTotalSelected() });
 }
 
 function initAddedTasksModal() {
@@ -3417,7 +4405,7 @@ function initAddedTasksModal() {
 
   btn.addEventListener('click', () => {
     if (btn.disabled) return;
-    openAddedTasksModal();
+    openAddedTasksModalFast();
   });
   if (close) close.addEventListener('click', () => closeAddedTasksModal());
   if (backdrop) backdrop.addEventListener('click', () => closeAddedTasksModal());
@@ -3516,10 +4504,251 @@ function buildQuestionForPreview(manifest, type, proto) {
     section_title: String(secObj?.title || '').trim(),
     topic_id: topicId,
     topic_title: String(manifest?.title || '').trim(),
+    proto_id: String(type?.id || '').trim(),
     question_id: String(proto?.id || '').trim(),
+    badge_question_ids: (Array.isArray(type?.prototypes) ? type.prototypes : [])
+      .map((p) => String(p?.id || '').trim())
+      .filter(Boolean),
     stem,
     figure: fig,
   };
+}
+
+function normalizeResolveReqArray(source) {
+  if (!source) return [];
+  if (Array.isArray(source)) {
+    return source
+      .map((item) => ({
+        id: String(item?.id || '').trim(),
+        n: Math.max(0, Math.floor(Number(item?.n || 0))),
+      }))
+      .filter((item) => item.id && item.n > 0);
+  }
+  if (typeof source === 'object') {
+    return Object.entries(source)
+      .map(([id, n]) => ({
+        id: String(id || '').trim(),
+        n: Math.max(0, Math.floor(Number(n || 0))),
+      }))
+      .filter((item) => item.id && item.n > 0);
+  }
+  return [];
+}
+
+function buildResolveBucketKey(scopeKind, scopeId) {
+  const kind = String(scopeKind || '').trim().toLowerCase();
+  const id = String(scopeId || '').trim();
+  if (!id) return '';
+  if (kind === 'unic' || kind === 'proto' || kind === 'type') return `proto:${id}`;
+  if (kind === 'topic' || kind === 'subtopic') return `topic:${id}`;
+  if (kind === 'section' || kind === 'theme') return `section:${id}`;
+  return '';
+}
+
+function getResolveRowBucketKey(row) {
+  const kind = String(row?.scope_kind || '').trim().toLowerCase();
+  if (kind === 'global_all') {
+    const sectionId = String(row?.theme_id || row?.section_id || '').trim();
+    if (sectionId) return `section:${sectionId}`;
+  }
+
+  const explicit = buildResolveBucketKey(row?.scope_kind, row?.scope_id);
+  if (explicit) return explicit;
+
+  const unicId = String(row?.unic_id || row?.proto_id || row?.type_id || '').trim();
+  if (unicId) return `proto:${unicId}`;
+
+  const topicId = String(row?.subtopic_id || row?.topic_id || '').trim();
+  if (topicId) return `topic:${topicId}`;
+
+  const sectionId = String(row?.theme_id || row?.section_id || '').trim();
+  if (sectionId) return `section:${sectionId}`;
+
+  return '';
+}
+
+async function getTeacherResolveManifestIndex(manifestPath) {
+  const abs = toAbsUrl(manifestPath);
+  if (_TEACHER_RESOLVE_MANIFEST_INDEX_CACHE.has(abs)) {
+    return _TEACHER_RESOLVE_MANIFEST_INDEX_CACHE.get(abs);
+  }
+
+  let manifest = _TEACHER_RESOLVE_MANIFEST_CACHE.get(abs);
+  if (!manifest) {
+    const resp = await fetch(withBuild(abs), { cache: 'force-cache' });
+    if (!resp.ok) throw new Error(`manifest load failed: ${manifestPath}`);
+    manifest = await resp.json();
+    _TEACHER_RESOLVE_MANIFEST_CACHE.set(abs, manifest);
+  }
+
+  const idx = new Map();
+  const topicId = String(manifest?.topic || '').trim();
+  const topicTitle = String(manifest?.title || '').trim();
+  for (const type of (manifest?.types || [])) {
+    for (const proto of (type?.prototypes || [])) {
+      const qid = String(proto?.id || '').trim();
+      if (!qid) continue;
+      idx.set(qid, {
+        manifest: {
+          ...manifest,
+          topic: topicId,
+          title: topicTitle,
+        },
+        type,
+        proto,
+      });
+    }
+  }
+
+  _TEACHER_RESOLVE_MANIFEST_INDEX_CACHE.set(abs, idx);
+  return idx;
+}
+
+async function buildPreviewQuestionsFromResolveRows({
+  rows,
+  wantsByBucket,
+  excludeQuestionIds = [],
+} = {}) {
+  const wantedEntries = Array.from(wantsByBucket instanceof Map ? wantsByBucket.entries() : [])
+    .map(([bucketKey, want]) => [String(bucketKey || '').trim(), Math.max(0, Math.floor(Number(want || 0)))])
+    .filter(([bucketKey, want]) => bucketKey && want > 0);
+  if (!wantedEntries.length) return [];
+
+  const byBucket = new Map();
+  for (const row of (rows || [])) {
+    const bucketKey = getResolveRowBucketKey(row);
+    if (!bucketKey) continue;
+    if (!byBucket.has(bucketKey)) byBucket.set(bucketKey, []);
+    byBucket.get(bucketKey).push(row);
+  }
+
+  for (const arr of byBucket.values()) {
+    arr.sort((a, b) => {
+      const ra = Math.max(0, Math.floor(Number(a?.pick_rank ?? a?.rn ?? 0) || 0));
+      const rb = Math.max(0, Math.floor(Number(b?.pick_rank ?? b?.rn ?? 0) || 0));
+      if (ra !== rb) return ra - rb;
+      return compareId(a?.question_id, b?.question_id);
+    });
+  }
+
+  const usedIds = new Set(
+    (excludeQuestionIds instanceof Set ? Array.from(excludeQuestionIds) : (excludeQuestionIds || []))
+      .map((id) => String(id || '').trim())
+      .filter(Boolean),
+  );
+  const usedBases = new Set(Array.from(usedIds).map((id) => baseIdFromProtoId(id)));
+
+  const out = [];
+  for (const [bucketKey, want] of wantedEntries) {
+    const candRows = byBucket.get(bucketKey) || [];
+    if (!candRows.length) continue;
+
+    let got = 0;
+    const seenIds = new Set();
+    const seenBases = new Set();
+
+    const tryAdd = async (row, preferFreshBase) => {
+      if (!row || got >= want) return false;
+
+      const qid = String(row?.question_id || '').trim();
+      if (!qid || usedIds.has(qid) || seenIds.has(qid)) return false;
+
+      const baseId = baseIdFromProtoId(qid);
+      if (preferFreshBase && (usedBases.has(baseId) || seenBases.has(baseId))) return false;
+
+      const manifestPath = String(row?.manifest_path || '').trim();
+      if (!manifestPath) return false;
+
+      let idx;
+      try {
+        idx = await getTeacherResolveManifestIndex(manifestPath);
+      } catch (_) {
+        return false;
+      }
+
+      const rec = idx.get(qid);
+      if (!rec) return false;
+
+      const question = buildQuestionForPreview(rec.manifest, rec.type, rec.proto);
+      question.proto_id = String(row?.proto_id || question?.proto_id || '').trim();
+      question.bucket_key = bucketKey;
+      question.pick_rank = Math.max(0, Math.floor(Number(row?.pick_rank ?? row?.rn ?? 0) || 0));
+
+      usedIds.add(qid);
+      usedBases.add(baseId);
+      seenIds.add(qid);
+      seenBases.add(baseId);
+      out.push(question);
+      got += 1;
+      return true;
+    };
+
+    for (const row of candRows) {
+      if (got >= want) break;
+      await tryAdd(row, true);
+    }
+    if (got < want) {
+      for (const row of candRows) {
+        if (got >= want) break;
+        await tryAdd(row, false);
+      }
+    }
+  }
+
+  return out;
+}
+
+function getAddedTasksRenderSignature(questions = [], opts = {}) {
+  const arr = Array.isArray(questions) ? questions : [];
+  const wantTotal = Math.max(0, Math.floor(Number(opts?.wantTotal || 0) || 0));
+  const parts = arr.map((q) => {
+    const bucketKey = String(q?.bucket_key || '').trim();
+    const qid = String(q?.question_id || '').trim();
+    const rank = Math.max(0, Math.floor(Number(q?.pick_rank || 0) || 0));
+    return `${bucketKey}::${qid}::${rank}`;
+  });
+  return `${String(_ADDED_CTX_KEY || '').trim()}|${wantTotal}|${parts.join('|')}`;
+}
+
+function hydrateAddedTasksModalBadgesFromCache(questions = []) {
+  const { list } = getAddedTasksModalEls();
+  if (!list) return false;
+
+  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  if (!sid) return false;
+
+  const cards = $$('.task-card[data-question-id]', list);
+  if (!cards.length) return false;
+
+  const questionById = new Map(
+    (questions || [])
+      .map((q) => [String(q?.question_id || '').trim(), q])
+      .filter(([qid]) => qid),
+  );
+
+  let hydratedAny = false;
+  for (const card of cards) {
+    const qid = String(card.dataset.questionId || '').trim();
+    if (!qid) continue;
+    const question = questionById.get(qid) || null;
+    const badgeIds = Array.isArray(question?.badge_question_ids) && question.badge_question_ids.length
+      ? question.badge_question_ids
+      : [qid];
+    const stat = getTeacherModalCachedAggregate(sid, badgeIds);
+    if (!stat) continue;
+
+    setModalStatsBadge(card.querySelector('.added-task-badge'), stat, {
+      baseTitle: 'Статистика ученика по задаче',
+      emptyLabel: 'Не решал',
+      emptyText: 'Попыток нет',
+    });
+    setModalDateBadge(card.querySelector('.added-task-date-badge'), stat, {
+      baseTitle: 'Последнее решение по задаче',
+    });
+    hydratedAny = true;
+  }
+
+  return hydratedAny;
 }
 
 async function refreshAddedTasksModalBadges(questions = []) {
@@ -3535,13 +4764,29 @@ async function refreshAddedTasksModalBadges(questions = []) {
     for (const card of cards) {
       setModalStatsBadge(card.querySelector('.added-task-badge'), null, {
         baseTitle: 'Статистика ученика по задаче',
+        emptyLabel: '—',
         emptyText: 'Ученик не выбран',
+      });
+      setModalDateBadge(card.querySelector('.added-task-date-badge'), null, {
+        baseTitle: 'Последнее решение по задаче',
       });
     }
     return;
   }
 
-  const ids = Array.from(new Set((questions || []).map(q => String(q?.question_id || '').trim()).filter(Boolean)));
+  const questionById = new Map(
+    (questions || [])
+      .map((q) => [String(q?.question_id || '').trim(), q])
+      .filter(([qid]) => qid),
+  );
+  const ids = Array.from(new Set(
+    (questions || []).flatMap((q) => {
+      const xs = Array.isArray(q?.badge_question_ids) && q.badge_question_ids.length
+        ? q.badge_question_ids
+        : [q?.question_id];
+      return xs.map((id) => String(id || '').trim()).filter(Boolean);
+    }),
+  ));
   if (!ids.length) return;
 
   const res = await loadTeacherStatsForModal(sid, ids, { timeoutMs: 8000 });
@@ -3552,10 +4797,20 @@ async function refreshAddedTasksModalBadges(questions = []) {
     const qid = String(card.dataset.questionId || '').trim();
     const badge = card.querySelector('.added-task-badge');
     if (!badge || !qid) continue;
-    const stat = statsMap.get(qid) || null;
+    const question = questionById.get(qid) || null;
+    const stat = aggregateStatsForQuestionIds(
+      Array.isArray(question?.badge_question_ids) && question.badge_question_ids.length
+        ? question.badge_question_ids
+        : [qid],
+      statsMap,
+    );
     setModalStatsBadge(badge, stat, {
       baseTitle: 'Статистика ученика по задаче',
+      emptyLabel: res?.ok ? 'Не решал' : '—',
       emptyText: res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+    });
+    setModalDateBadge(card.querySelector('.added-task-date-badge'), stat, {
+      baseTitle: 'Последнее решение по задаче',
     });
   }
 }
@@ -3571,8 +4826,12 @@ function renderAddedTasksPreview(questions, opts = {}) {
   const { meta, list, hint } = getAddedTasksModalEls();
   const arr = Array.isArray(questions) ? questions : [];
   const wantTotal = Number(opts?.wantTotal || 0) || 0;
+  const renderSig = getAddedTasksRenderSignature(arr, { wantTotal });
 
-  if (list) list.innerHTML = '';
+  if (list) {
+    list.innerHTML = '';
+    list.dataset.renderSig = renderSig;
+  }
   if (hint) hint.textContent = '';
 
   if (meta) {
@@ -3600,12 +4859,36 @@ function renderAddedTasksPreview(questions, opts = {}) {
     num.textContent = String(idx + 1);
     head.appendChild(num);
 
-    const badge = buildModalBadgeEl('added-task-badge');
-    setModalStatsBadge(badge, null, {
-      baseTitle: 'Статистика ученика по задаче',
-      emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
-    });
-    head.appendChild(badge);
+    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('added-task-badge', 'added-task-date-badge');
+    const sidForBadges = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+    const cachedStat = sidForBadges
+      ? getTeacherModalCachedAggregate(
+        sidForBadges,
+        (Array.isArray(q?.badge_question_ids) && q.badge_question_ids.length)
+          ? q.badge_question_ids
+          : [q?.question_id],
+      )
+      : null;
+    if (cachedStat) {
+      setModalStatsBadge(statsBadge, cachedStat, {
+        baseTitle: 'Статистика ученика по задаче',
+        emptyLabel: 'Не решал',
+        emptyText: 'Попыток нет',
+      });
+      setModalDateBadge(dateBadge, cachedStat, {
+        baseTitle: 'Последнее решение по задаче',
+      });
+    } else {
+      setModalStatsBadge(statsBadge, null, {
+        baseTitle: 'Статистика ученика по задаче',
+        emptyLabel: '—',
+        emptyText: sidForBadges ? 'Загрузка статистики' : 'Ученик не выбран',
+      });
+      setModalDateBadge(dateBadge, null, {
+        baseTitle: 'Последнее решение по задаче',
+      });
+    }
+    head.appendChild(badgeGroup);
 
     card.appendChild(head);
 
@@ -3649,8 +4932,12 @@ function renderAddedTasksPreview(questions, opts = {}) {
 
 
 // ---------- передача выбора в тренажёр / список ----------
-function saveSelectionAndGo() {
+async function saveSelectionAndGo() {
   const mode = IS_STUDENT_PAGE ? 'test' : (CURRENT_MODE || 'list');
+
+  if (IS_TEACHER_HOME) {
+    await flushTeacherAddedTasksSelection('save-selection');
+  }
 
   const selection = {
     topics: CHOICE_TOPICS,
@@ -3662,7 +4949,8 @@ function saveSelectionAndGo() {
   if (IS_TEACHER_HOME) {
     const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
     selection.teacher_student_id = sid || null;
-    selection.teacher_filters = sid ? { ...TEACHER_PICK_FILTERS } : { old: false, badAcc: false };
+    selection.teacher_filter_id = sid ? getActiveTeacherFilterId(sid) : null;
+    selection.teacher_picked_refs = sid ? collectTeacherPickedRefs() : [];
   }
 
   if (IS_STUDENT_PAGE) selection.pick_mode = PICK_MODE;

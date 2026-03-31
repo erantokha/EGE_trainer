@@ -16,8 +16,11 @@
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
-- `rows=31 standalone_sql=31 snapshot_only=0 missing_in_repo=0`
+- `rows=32 standalone_sql=32 snapshot_only=0 missing_in_repo=0`
 - `runtime catalog read checks ok`
+- Stage-3 init slice started: `teacher_picking_screen_v1.sql` added in repo
+- `picker.js` moved off direct dashboard fetches to provider seams `loadTeacherPickingScreenV1()` / `loadStudentDashboardSelfV1()`
+- Stage-3 smoke files prepared: `teacher_picking_screen_v1_rollout_smoke_summary.sql` + `teacher_picking_stage3_browser_smoke.html`
 - в `tasks/` больше нет прямых runtime-чтений `content/tasks/index.json`
 - `catalog_question_dim manifest_path rolled out in live`
 - `catalog_question_lookup_v1 rolled out in live`
@@ -52,7 +55,7 @@
 - Зафиксирован архитектурный контракт: [architecture_contract_4layer.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/architecture_contract_4layer.md)
 - Зафиксирована рамка этапа: [migration_stage0_scope.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/migration_stage0_scope.md)
 - Собран и нормализован реестр runtime-RPC: [runtime_rpc_registry.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/runtime_rpc_registry.md)
-- SQL-gap по runtime-RPC доведён до нуля: `29/29 standalone_sql`
+- SQL-gap по runtime-RPC доведён до нуля: `32/32 standalone_sql`
 - Назначены owner'ы
 - Добавлены CI/check guards
 
@@ -147,9 +150,10 @@ Index-like / path-based path:
 4. [catalog_stage2_browser_smoke.html](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/catalog_stage2_browser_smoke.html)
 
 Если нужно быстро войти в следующий проблемный блок:
-1. [pick_engine.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/pick_engine.js)
-2. [student.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/student.js)
-3. [stats.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats.js)
+1. [teacher_picking_screen_v1_spec.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/teacher_picking_screen_v1_spec.md)
+2. [pick_engine.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/pick_engine.js)
+3. [student.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/student.js)
+4. [stats.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats.js)
 
 ## 7. Что Остаётся Открытым После Stage 2
 
@@ -163,6 +167,14 @@ Index-like / path-based path:
 - `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
 
 Это хороший индикатор того, где именно следующая работа даст наибольший эффект.
+
+Промежуточный прогресс Stage 3 уже начат:
+- в repo добавлен first-pass SQL artifact [teacher_picking_screen_v1.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/teacher_picking_screen_v1.sql)
+- в [homework.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/app/providers/homework.js) добавлены provider seams `loadTeacherPickingScreenV1()` и `loadStudentDashboardSelfV1()`
+- [picker.js](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/picker.js) больше не делает raw dashboard fetch напрямую из UI
+- prepared rollout/browser smoke:
+  - [teacher_picking_screen_v1_rollout_smoke_summary.sql](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/teacher_picking_screen_v1_rollout_smoke_summary.sql)
+  - [teacher_picking_stage3_browser_smoke.html](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_stage3_browser_smoke.html)
 
 ## 8. Рекомендуемый Следующий Шаг
 
@@ -180,6 +192,7 @@ Index-like / path-based path:
 
 Практически следующий шаг теперь такой:
 1. Спроектировать единый layer-4 read API под screen payloads
+   Стартовый документ: [teacher_picking_screen_v1_spec.md](C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/navigation/teacher_picking_screen_v1_spec.md)
 2. Начать с `pick_engine`, teacher-picking orchestration и recommendations
 3. Затем вычищать временные compat/fallback-paths по мере стабилизации
 
@@ -209,6 +222,14 @@ node tools/check_build.mjs
 
 ```powershell
 node --check app/providers/catalog.js
+```
+
+Если работа затрагивает Stage-3 teacher-picking init seam:
+
+```powershell
+node --check app/providers/homework.js
+node --check tasks/picker.js
+node --check tasks/teacher_picking_stage3_browser_smoke.js
 ```
 
 ## 11. Что Сказать Новому Окну Одной Фразой

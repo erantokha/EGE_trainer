@@ -1,6 +1,6 @@
 # Реестр runtime-RPC
 
-Дата обновления: 2026-03-29
+Дата обновления: 2026-03-30
 
 Это первый проход по runtime-RPC, собранный по текущему фронтенду и `app/providers/*`.
 Реестр фиксирует только публичные RPC-контракты, от которых зависит runtime-поведение продукта.
@@ -24,8 +24,8 @@
 
 ## Итог первого прохода
 
-- Всего runtime-RPC в реестре: `31`
-- `standalone_sql`: `31`
+- Всего runtime-RPC в реестре: `32`
+- `standalone_sql`: `32`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -88,8 +88,8 @@
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` | `docs/supabase/student_dashboard_self_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. `v2` — самостоятельная SQL-функция, а не excerpt из snapshot. |
-| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`. |
+| `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/student_dashboard_self_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. `v2` — самостоятельная SQL-функция, а не excerpt из snapshot. В `picker.js` direct screen-call снят в пользу provider seam `loadStudentDashboardSelfV1()`. |
+| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`; в `picker.js` direct screen-call снят в пользу `loadTeacherPickingScreenV1()`. |
 | `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 
 ## Teacher Picking / Prioritization
@@ -103,6 +103,7 @@
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_topic_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Rollup по темам строится через `question_bank` + `student_question_stats`. |
 | `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_topics_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Topic-quota picking RPC с teacher guards и приоритезацией по `old/badAcc`. |
+| `teacher_picking_screen_v1` | `-` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-3 first-pass layer-4 screen payload for teacher-picking init flow. Repo contract added on 2026-03-30; runtime provider keeps compat fallback to `student_dashboard_for_teacher_v2` until rollout in live Supabase. |
 
 ## Открытые вопросы после первого прохода
 
@@ -115,4 +116,5 @@
 После текущей синхронизации реестра нужно:
 - считать stage-0 runtime-RPC SQL-gap и stage-1 catalog runtime contracts зафиксированными в git;
 - поддерживать CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре, без owner и без корректного `source_sql_file`;
+- считать Stage-3 init artifact `teacher_picking_screen_v1` уже добавленным в repo и следующим шагом делать live rollout + `resolve`-режим поверх того же screen seam;
 - следующим архитектурным шагом двигаться к layer-4 screen payload и снятию оставшихся migration exceptions Stage 7/8.

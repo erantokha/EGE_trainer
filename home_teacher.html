@@ -149,14 +149,22 @@
             </label>
             <span id="teacherStudentStatus" class="muted" style="opacity:.85"></span>
 
-            <div id="teacherFilters" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <div id="teacherFilters" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" role="radiogroup" aria-label="Фильтр teacher picking">
               <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="checkbox" id="teacherFilterOld" disabled>
-                <span>Не решал/решал давно</span>
+                <input type="radio" name="teacherFilterMode" id="teacherFilterNone" value="" checked disabled>
+                <span>Без фильтра</span>
               </label>
               <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="checkbox" id="teacherFilterBadAcc" disabled>
-                <span>Плохая точность</span>
+                <input type="radio" name="teacherFilterMode" id="teacherFilterUnseenLow" value="unseen_low" disabled>
+                <span>Не решал / мало решал</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;user-select:none">
+                <input type="radio" name="teacherFilterMode" id="teacherFilterStale" value="stale" disabled>
+                <span>Давно решал</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;user-select:none">
+                <input type="radio" name="teacherFilterMode" id="teacherFilterUnstable" value="unstable" disabled>
+                <span>Нестабильно решает</span>
               </label>
               <span class="muted" id="teacherFiltersHint" style="opacity:.85">Фильтры работают только при выбранном ученике</span>
             </div>

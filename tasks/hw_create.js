@@ -978,6 +978,15 @@ async function importSelectionIntoFixedTable() {
   const choiceProtos = prefill.protos || {};
   const choiceTopics = prefill.topics || {};
   const choiceSections = prefill.sections || {};
+  const directRefs = Array.isArray(prefill.teacher_picked_refs)
+    ? prefill.teacher_picked_refs.map(normalizeFixedRef).filter(Boolean)
+    : [];
+
+  if (directRefs.length) {
+    setFixedRefs(directRefs);
+    setStatus('');
+    return;
+  }
 
   const teacherStudentId = String(prefill.teacher_student_id || '').trim();
   const teacherFilters = prefill.teacher_filters && typeof prefill.teacher_filters === 'object'
