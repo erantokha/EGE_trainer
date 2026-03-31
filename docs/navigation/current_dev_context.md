@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-04-01
+Дата обновления: 2026-04-01 (Stage 5 закрыт)
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -14,7 +14,8 @@
 - Stage 2: закрыт
 - Stage 3: **закрыт** (teacher-picking slice + student analytics slice)
 - Stage 4: **закрыт** (dual-run parity for student analytics backend)
-- Следующий рабочий блок: Stage 5 (student self-analytics UI на canonical Layer-4 contract)
+- Stage 5: **закрыт** (student self-analytics UI на canonical Layer-4 contract)
+- Следующий рабочий блок: Stage 6 (teacher UI — остаточные legacy dashboard calls)
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
@@ -33,10 +34,13 @@
 - `teacher_picking_filters_browser_smoke`: `ok=19 warn=0 fail=0`
 - `student_analytics_screen_v1_browser_smoke`: `ok=11 warn=0 fail=0`
 - `stage4_parity_browser_smoke`: `ok=14 warn=0 fail=0`
+- `stats_self_browser_smoke`: `ok=12 warn=0 fail=0`
 - `global_all` semantics confirmed in browser smoke
 - batch resolve reduced teacher picking latency to target range
 - `tasks/student.js` fully migrated to `student_analytics_screen_v1`
 - teacher-path parity confirmed: `student_analytics_screen_v1(teacher)` = `student_dashboard_for_teacher_v2`
+- `tasks/stats.js` migrated to `student_analytics_screen_v1(self)` — `rpcAny` fallback removed
+- both viewer scopes (`teacher` and `self`) now served by single canonical contract
 
 ## 2. Global Plan
 
@@ -120,6 +124,17 @@
   - [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 - Финальный filter smoke:
   - `ok=19; warn=0; fail=0`
+
+### Stage 5 Student UI Migration
+
+- `tasks/stats.js` переведён на `student_analytics_screen_v1(p_viewer_scope='self')`:
+  - [stats.js](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats.js)
+- Убран `rpcAny(['student_dashboard_self', 'student_dashboard_self_v2'])` — единственный RPC-вызов
+- Исправлен подсчёт покрытия в UI-hint: теперь фильтруется `all_time.total > 0` (новый payload содержит все 84 темы, а не только темы с попытками)
+- Self-analytics smoke green:
+  - [stats_self_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats_self_browser_smoke.html)
+  - итог: `ok=12; warn=0; fail=0`
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` закрыт
 
 ### Stage 4 Dual-run Backend
 
@@ -207,29 +222,29 @@ Index-like / path-based path:
 5. [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html)
 6. [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 
-## 7. Что Остаётся Открытым После Stage 4
+## 7. Что Остаётся Открытым После Stage 5
 
-Stage 4 полностью закрыт. Открытыми остаются следующие migration exceptions:
-- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` — `stats.js` (target: Stage 5)
+Stages 4 и 5 полностью закрыты. Открытыми остаются следующие migration exceptions:
 - `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7)
 - `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` — transitional UI orchestration в picker/list/trainer (target: Stage 8)
 
-Закрытые к концу Stage 4:
-- `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅
-- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅
-- `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅
+Закрытые:
+- `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅ (2026-03-31)
+- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅ (2026-03-31)
+- `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅ (2026-03-31)
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` ✅ (2026-04-01)
 
 ## 8. Рекомендуемый Следующий Шаг
 
-Stage 5+:
-1. Перевести student self-analytics UI на layer-4 (`stats.js`) — Stage 5
-2. Перевести teacher-side residual UI paths на чистый layer-4 — Stage 6
-3. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
-4. Cleanup legacy fallback-paths — Stage 8
+Stage 6+:
+1. Перевести teacher-side residual UI paths на чистый layer-4 — Stage 6
+2. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
+3. Cleanup legacy fallback-paths — Stage 8
 
-Ближайший приоритет:
-- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` в `stats.js` — переход на `student_analytics_screen_v1` с `p_viewer_scope='self'`
-- Это разблокирует единый canonical analytics contract для обоих viewers
+Ближайший приоритет — Stage 6:
+- Проверить `tasks/my_students.js` на прямые вызовы dashboard RPC
+- Проверить `tasks/student.js` на наличие любых остатков legacy dashboard calls
+- Оценить нужен ли отдельный layer-4 contract для списка учеников (`teacher_students_summary`)
 
 ## 9. Чего Не Надо Делать
 
@@ -273,4 +288,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0–4 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, Stage-4 parity green (`ok=14`), `student.js` переведён на `student_analytics_screen_v1`; следующий рабочий блок — Stage 5 (`stats.js` на `student_analytics_screen_v1(self)`), затем recommendations backend-driven и cleanup fallback-paths.
+Stage 0–5 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, оба viewer-scope (`teacher` и `self`) работают через единый canonical contract `student_analytics_screen_v1`, `student.js` и `stats.js` переведены; следующий рабочий блок — Stage 6 (teacher UI residual legacy calls в `my_students.js`), затем recommendations backend-driven и cleanup fallback-paths.

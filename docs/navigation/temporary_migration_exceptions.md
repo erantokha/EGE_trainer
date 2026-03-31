@@ -16,16 +16,6 @@
 
 ## Первый проход по текущему коду
 
-### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
-
-- `id`: `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK`
-- `what`: student dashboard использует fallback между legacy и новой RPC вместо одного канонического read-контракта.
-- `where`: `tasks/stats.js:193-194`
-- `why_allowed_now`: миграция student read-path ещё не завершена, поэтому экран поддерживает и старое имя RPC, и новое.
-- `target_state`: student UI использует только `student_analytics_screen_v1` с `p_viewer_scope='self'` без `rpcAny([old, new])`.
-- `remove_by_stage`: `Stage 5`
-- `owner`: `student-analytics`
-
 
 ### EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN
 
@@ -53,6 +43,15 @@ Notably no longer covered by this exception:
 - `global_all` behavior
 - seed-based picking
 - batch resolve selection
+
+## Closed On 2026-04-01
+
+### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
+
+- `id`: `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK`
+- `status`: `closed`
+- `closed_on`: `2026-04-01`
+- `reason`: `tasks/stats.js` переведён на `student_analytics_screen_v1` с `p_viewer_scope='self'`. Убран `rpcAny(['student_dashboard_self', 'student_dashboard_self_v2'])`. Подсчёт покрытия в hint исправлен для нового формата payload (фильтр `all_time.total > 0`).
 
 ## Closed On 2026-03-31
 

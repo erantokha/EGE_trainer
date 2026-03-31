@@ -1,13 +1,12 @@
 // tasks/stats.js
 // Статистика ученика (самостоятельный просмотр).
 //
-// Требования:
-// - Patch 1 backend: таблица answer_events + RPC student_dashboard_self(days, source)
-// - Источники: all / hw / test
-// - Период: 7/14/30/90
+// Источник данных: student_analytics_screen_v1(p_viewer_scope='self')
+// Источники: all / hw / test
+// Период: 7/14/30/90
 //
 // Реализовано:
-// - загрузка дашборда и отрисовка 12 номеров + подтемы
+// - загрузка аналитики и отрисовка 12 номеров + подтемы
 // - фильтры период/источник
 // - кнопка "Тренировать слабые места" (создаёт выбор topics и открывает trainer.html)
 
@@ -190,15 +189,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const source = String(ui.sourceSel.value || 'all');
 
     try {
-      const dash = await supaRest.rpcAny(
-        ['student_dashboard_self', 'student_dashboard_self_v2'],
-        { p_days: days, p_source: source },
+      const raw = await supaRest.rpc(
+        'student_analytics_screen_v1',
+        { p_viewer_scope: 'self', p_days: days, p_source: source, p_mode: 'init' },
         { timeoutMs: 20000 }
       );
+      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
 
-      // легкая подсказка
+      // легкая подсказка — считаем только темы с хотя бы одной попыткой
       const totalTopics = catalog?.totalTopics;
-      const covered = Array.isArray(dash?.topics) ? new Set(dash.topics.map(t => String(t?.topic_id || '').trim()).filter(Boolean)).size : 0;
+      const covered = Array.isArray(dash?.topics)
+        ? new Set(dash.topics.filter(t => (t?.all_time?.total ?? 0) > 0).map(t => String(t?.topic_id || '').trim()).filter(Boolean)).size
+        : 0;
       ui.hintEl.textContent = totalTopics ? `Покрытие: ${covered}/${totalTopics} подтем` : (covered ? `Покрытие: ${covered} подтем` : '');
 
       setStatus(ui.statusEl, '');

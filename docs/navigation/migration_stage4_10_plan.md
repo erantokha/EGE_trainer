@@ -46,16 +46,16 @@ Backend-паритет подтверждён на реальных данных
 
 **Суть:** Перевести `stats.js` (self-аналитика ученика) с fallback `rpcAny([old, new])` на единый `student_analytics_screen_v1`.
 
-### Работы:
+**Статус на 2026-04-01:** закрыт.
 
-- `tasks/stats.js:193-194` — убрать `rpcAny`, использовать `student_analytics_screen_v1` с `p_viewer_scope='self'`
-- `tasks/stats.js:247` — убрать frontend-логику поверх dashboard payload, завязанную на старый формат
-- Написать и прогнать smoke-тест для self-analytics экрана
-- Закрыть `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` в [temporary_migration_exceptions.md](temporary_migration_exceptions.md)
+Фактически закрыто:
+- `tasks/stats.js` переведён на `student_analytics_screen_v1(p_viewer_scope='self')` — убран `rpcAny`
+- подсчёт покрытия в hint исправлен для нового payload-формата (фильтр `all_time.total > 0`)
+- browser smoke [stats_self_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats_self_browser_smoke.html) завершился с итогом `ok=12 warn=0 fail=0`
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` закрыт в [temporary_migration_exceptions.md](temporary_migration_exceptions.md)
+- единый canonical contract `student_analytics_screen_v1` теперь покрывает оба viewer-scope: `teacher` и `self`
 
-### Критерий закрытия:
-
-`stats.js` читает только `student_analytics_screen_v1`. Один canonical contract для обоих viewers (`teacher` и `self`).
+Следующий активный этап: `Stage 6`.
 
 ---
 
