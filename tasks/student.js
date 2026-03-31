@@ -1,7 +1,7 @@
 // tasks/student.js
 // Учитель: карточка конкретного ученика.
 // Показывает:
-// - статистику (RPC student_dashboard_for_teacher)
+// - статистику (RPC student_analytics_screen_v1)
 // - список выполненных работ (RPC list_student_attempts)
 
 let buildStatsUI, renderDashboard, loadCatalog;
@@ -412,8 +412,8 @@ async function main() {
     } catch (_) {}
   }
 
-  let catalog = null;
-  let __coverageMap = null;
+  let catalog      = null;
+  let __lastPayload = null;
 
   // ----- stats -----
   const statsUi = buildStatsUI($('#statsRoot'));
@@ -603,71 +603,6 @@ if (statsFiltersToggle && statsControls) {
     var12Save();
   }
 
-  async function loadLastKPerTopic({ k = 3, source = 'all', pageSize = 1500, maxPages = 4 } = {}) {
-    const src = normSource(source);
-    const allowedTopics = new Set();
-    try {
-      if (catalog?.topicTitle instanceof Map) {
-        for (const tid of catalog.topicTitle.keys()) allowedTopics.add(String(tid));
-      }
-    } catch (_) {}
-
-    const out = new Map(); // topic_id -> { total, correct }
-    const got = new Map(); // topic_id -> count
-    const coveredSections = new Set();
-
-    const allSections = new Set();
-    try {
-      if (catalog?.topicsBySection instanceof Map) {
-        for (const sid of catalog.topicsBySection.keys()) allSections.add(String(sid));
-      }
-    } catch (_) {}
-
-    for (let page = 0; page < maxPages; page++) {
-      const offset = page * pageSize;
-
-      let qs = `select=topic_id,correct,occurred_at,source&student_id=eq.${encodeURIComponent(studentId)}&order=occurred_at.desc&limit=${pageSize}&offset=${offset}`;
-      if (src === 'hw') qs += '&source=eq.hw';
-      else if (src === 'test') qs += '&source=eq.test';
-      else qs += '&source=in.(hw,test)';
-
-      let rows = [];
-      try {
-        rows = await supaRest.select('answer_events', qs, { timeoutMs: 15000 });
-      } catch (e) {
-        // если таблица/колонки недоступны по RLS — просто вернем пустое
-        console.warn('variant12: cannot load answer_events', e);
-        return new Map();
-      }
-
-      if (!Array.isArray(rows) || rows.length === 0) break;
-
-      for (const r of rows) {
-        const tid = String(r?.topic_id || '').trim();
-        if (!tid) continue;
-        if (allowedTopics.size && !allowedTopics.has(tid)) continue;
-
-        const cur = got.get(tid) || 0;
-        if (cur >= k) continue;
-
-        const rec = out.get(tid) || { total: 0, correct: 0 };
-        rec.total += 1;
-        rec.correct += (r?.correct ? 1 : 0);
-        out.set(tid, rec);
-        got.set(tid, cur + 1);
-
-        if (cur + 1 >= k) {
-          const sid = tid.split('.')[0];
-          if (sid) coveredSections.add(String(sid));
-        }
-      }
-
-      if (coveredSections.size >= allSections.size && allSections.size) break;
-      if (rows.length < pageSize) break;
-    }
-
-    return out;
-  }
 
   async function var12Build() {
     if (!var12BuildBtn) return;
@@ -688,22 +623,22 @@ if (statsFiltersToggle && statsControls) {
 
     let dash = null;
     try {
-      dash = await supaRest.rpcAny(
-        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
-        { p_student_id: studentId, p_days: 3650, p_source: src },
+      const raw = await supaRest.rpc(
+        'student_analytics_screen_v1',
+        { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: 30, p_source: src, p_mode: 'init' },
         { timeoutMs: 20000 }
       );
+      dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
+      if (!dash) throw new Error('null payload');
     } catch (e) {
-      console.warn('variant12: dashboard rpc failed', e);
+      console.warn('variant12: analytics rpc failed', e);
       var12SetStatus('Не удалось загрузить статистику ученика.');
       return;
     }
 
-    let last3 = new Map();
-    if (mode === 'worst3') {
-      var12SetStatus('Считаем точность по последним 3…');
-      last3 = await loadLastKPerTopic({ k: 3, source: src });
-    }
+    const last3 = new Map(
+      (dash.topics || []).map(t => [String(t.topic_id || t.subtopic_id || ''), t.last3 || {}])
+    );
 
     let mod = null;
     try { mod = await import(withV('./variant12.js')); } catch (e) {
@@ -1184,11 +1119,13 @@ if (statsFiltersToggle && statsControls) {
       const limit = safeInt(recLimitEl?.value, 15) || 15;
       const includeUncovered = !!recIncludeUncoveredEl?.checked;
 
-      lastDash = await supaRest.rpcAny(
-        ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
-        { p_student_id: studentId, p_days: days, p_source: normSource(source) },
+      const recRaw = await supaRest.rpc(
+        'student_analytics_screen_v1',
+        { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: days, p_source: normSource(source), p_mode: 'init' },
         { timeoutMs: 20000 }
       );
+      lastDash = Array.isArray(recRaw) ? (recRaw[0] ?? null) : (recRaw ?? null);
+      if (!lastDash) throw new Error('student_analytics_screen_v1 returned null');
 
       const recMod = await import(withV('./recommendations.js'));
       lastRecsRaw = recMod.buildRecommendations(lastDash, catalog, {
@@ -1383,31 +1320,26 @@ if (statsFiltersToggle && statsControls) {
         try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
       }
 
-      const coverageFetch = __coverageMap
-        ? Promise.resolve(__coverageMap)
-        : supaRest.rpc('subtopic_coverage_for_teacher_v1',
-            { p_student_id: studentId, p_theme_ids: null },
-            { timeoutMs: 10000 }
-          )
-          .then(rows => {
-            __coverageMap = new Map((rows || []).map(r => [r.subtopic_id, r]));
-            return __coverageMap;
-          })
-          .catch(() => new Map());
+      const raw = await supaRest.rpc(
+        'student_analytics_screen_v1',
+        { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: days, p_source: normSource(source), p_mode: 'init' },
+        { timeoutMs: 20000 }
+      );
+      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
+      if (!dash) throw new Error('student_analytics_screen_v1 returned null');
+      __lastPayload = dash;
 
-      const [dash, coverageMap] = await Promise.all([
-        supaRest.rpcAny(
-          ['student_dashboard_for_teacher', 'student_dashboard_for_teacher_v2'],
-          { p_student_id: studentId, p_days: days, p_source: normSource(source) },
-          { timeoutMs: 20000 }
-        ),
-        coverageFetch,
-      ]);
+      const coverageMap = new Map(
+        (dash.topics || []).map(t => [
+          String(t.topic_id || t.subtopic_id || ''),
+          { theme_id: String(t.theme_id || t.section_id || ''), ...t.coverage },
+        ])
+      );
 
       statsUi.hintEl.textContent = '';
-      __lastSeenAt = dash?.overall?.last_seen_at || null;
+      __lastSeenAt = dash.overall?.last_seen_at || null;
       if (__currentStudentMeta) applyHeader(__currentStudentMeta, __lastSeenAt);
-      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel, coverageMap: coverageMap || new Map() });
+      renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel, coverageMap });
     } catch (e) {
       if (isAccessDenied(e)) {
         statsUi.statusEl.innerHTML = '';

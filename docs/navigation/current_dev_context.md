@@ -8,13 +8,12 @@
 
 - Репозиторий: `EGE_repo`
 - Ветка: `main`
-- HEAD на момент подготовки файла: `470824e1`
+- HEAD на момент подготовки файла: `88921328`
 - Stage 0: закрыт
 - Stage 1: закрыт
 - Stage 2: закрыт
-- Stage 3 teacher-picking slice: практически закрыт
-- Stage 3 global migration: ещё открыт
-- Следующий рабочий блок: student analytics / recommendations / smart-plan backend-driven contracts
+- Stage 3: **закрыт** (teacher-picking slice + student analytics slice)
+- Следующий рабочий блок: Stage 4+ (dual-run, student/teacher UI на Layer-4, recommendations backend)
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
@@ -27,11 +26,14 @@
 - `teacher_picking_screen_v2` rolled out
 - `teacher_picking_resolve_batch_v1` rolled out
 - `question_stats_for_teacher_v2` rolled out
+- `student_analytics_screen_v1` rolled out
 - `home_teacher.html` switched to canonical filters `unseen_low / stale / unstable`
 - `teacher_picking_v2_browser_smoke`: green
 - `teacher_picking_filters_browser_smoke`: `ok=19 warn=0 fail=0`
+- `student_analytics_screen_v1_browser_smoke`: `ok=11 warn=0 fail=0`
 - `global_all` semantics confirmed in browser smoke
 - batch resolve reduced teacher picking latency to target range
+- `tasks/student.js` fully migrated to `student_analytics_screen_v1`
 
 ## 2. Global Plan
 
@@ -184,39 +186,29 @@ Index-like / path-based path:
 5. [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html)
 6. [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 
-## 7. Что Остаётся Открытым После Teacher-Picking v2
+## 7. Что Остаётся Открытым После Stage 3
 
-На 2026-03-31 teacher-picking slice уже не является главным узким местом Stage 3.
+Stage 3 полностью закрыт. Открытыми остаются следующие migration exceptions:
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` — `stats.js` (target: Stage 8)
+- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7)
+- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` — transitional UI orchestration в picker/list/trainer (target: Stage 8)
 
-Открытыми остаются следующие блоки:
-- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN`
-- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK`
-- `EX-TEACHER-DASHBOARD-RPC-FALLBACK`
-- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
-- сокращённый хвост `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` как transitional UI/session orchestration
-
-Практический смысл:
-- teacher-picking filter semantics, screen contract и batch resolve уже backend-driven;
-- следующий крупный эффект даст не доработка фильтров, а backendization student analytics / recommendations / smart-plan и дальнейшая зачистка fallback-paths.
+Закрытые в Stage 3:
+- `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅
+- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅
+- `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅
 
 ## 8. Рекомендуемый Следующий Шаг
 
-Самый логичный следующий блок:
-- обновить handoff и migration exceptions под новое состояние teacher-picking `v2`;
-- затем идти в student analytics / recommendations / smart-plan backend-driven contracts;
-- после стабилизации готовить Stage 8 cleanup legacy read/fallback-paths.
+Stage 4+:
+1. Dual-run old/new (A/B test backend) — Stage 4
+2. Перевести student self-analytics UI на layer-4 (`stats.js`) — Stage 5
+3. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
+4. Cleanup legacy fallback-paths — Stage 8
 
-Практически следующий шаг теперь такой:
-1. Обновить [temporary_migration_exceptions.md](temporary_migration_exceptions.md):
-   - закрыть `EX-PICKER-DIRECT-DASHBOARD-RPC`
-   - сузить `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
-2. Пересмотреть `current_dev_context` как canonical handoff после `teacher_picking_screen_v2`
-3. Дальше переходить к student analytics / recommendations / smart-plan
-
-Почему именно так:
-- catalog runtime и Stage 2 lookup-contracts уже закрыты
-- teacher-picking slice Stage 3 уже подтверждён browser smoke
-- следующий bottleneck теперь не каталог и не teacher filters, а оставшиеся analytics/recommendations read contracts
+Ближайший приоритет:
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` в `stats.js` — переход на `student_analytics_screen_v1` с `p_viewer_scope='self'`
+- Это разблокирует единый canonical analytics contract для обоих viewers
 
 ## 9. Чего Не Надо Делать
 
@@ -260,4 +252,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0, Stage 1 и Stage 2 уже закрыты, а Stage 3 teacher-picking slice практически закрыт: `teacher_picking_screen_v2`, layer-3 proto/topic states, batch resolve и filter browser smoke уже зелёные; следующий реальный рабочий блок — student analytics / recommendations / smart-plan и cleanup оставшихся migration exceptions.
+Stage 0–3 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, все три browser smoke зелёные (`ok=7`, `ok=19`, `ok=11`), `student.js` переведён на `student_analytics_screen_v1`, три migration exceptions закрыты; следующий рабочий блок — Stage 4+ (student self-analytics через `stats.js`, recommendations backend-driven, cleanup fallback-paths).

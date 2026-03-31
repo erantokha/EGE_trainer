@@ -16,16 +16,6 @@
 
 ## Первый проход по текущему коду
 
-### EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN
-
-- `id`: `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN`
-- `what`: teacher-facing экран читает raw `answer_events` напрямую с клиента для логики `variant12` / `worst3`, обходя layer-3 aggregates и layer-4 read API.
-- `where`: `tasks/student.js:636`, `tasks/variant12.js`
-- `why_allowed_now`: для этого сценария ещё нет канонического read-контракта, который отдаёт нужный teacher payload без прямого доступа к raw events.
-- `target_state`: teacher/student экран получает готовый backend-driven payload для `variant12` / worst-case аналитики через layer 4, без прямого чтения `answer_events` на уровне UI.
-- `remove_by_stage`: `Stage 6`
-- `owner`: `student-analytics`
-
 ### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
 
 - `id`: `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK`
@@ -36,15 +26,6 @@
 - `remove_by_stage`: `Stage 8`
 - `owner`: `student-analytics`
 
-### EX-TEACHER-DASHBOARD-RPC-FALLBACK
-
-- `id`: `EX-TEACHER-DASHBOARD-RPC-FALLBACK`
-- `what`: teacher dashboard использует fallback между legacy и новой RPC вместо одного канонического read-контракта.
-- `where`: `tasks/student.js:691-692`, `tasks/student.js:1187-1188`, `tasks/student.js:1399-1400`
-- `why_allowed_now`: teacher read-path ещё находится в переходном состоянии, а legacy и новая модель некоторое время живут параллельно.
-- `target_state`: teacher UI использует только одно каноническое имя teacher dashboard read API без `rpcAny([old, new])`.
-- `remove_by_stage`: `Stage 8`
-- `owner`: `student-analytics`
 
 ### EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN
 
@@ -74,6 +55,20 @@ Notably no longer covered by this exception:
 - batch resolve selection
 
 ## Closed On 2026-03-31
+
+### EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN
+
+- `id`: `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN`
+- `status`: `closed`
+- `closed_on`: `2026-03-31`
+- `reason`: `tasks/student.js` переведён на `student_analytics_screen_v1` во всех трёх call sites (variant12, recommendations, main dashboard). Прямого чтения raw `answer_events` с клиента больше нет. `variant12` и `worst3` блоки получаются из готового backend-driven payload.
+
+### EX-TEACHER-DASHBOARD-RPC-FALLBACK
+
+- `id`: `EX-TEACHER-DASHBOARD-RPC-FALLBACK`
+- `status`: `closed`
+- `closed_on`: `2026-03-31`
+- `reason`: `tasks/student.js` больше не содержит `rpcAny([old, new])` fallback и не обращается к `student_dashboard_for_teacher`. Единственный canonical read contract — `student_analytics_screen_v1`.
 
 ### EX-PICKER-DIRECT-DASHBOARD-RPC
 
