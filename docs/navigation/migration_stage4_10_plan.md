@@ -79,7 +79,11 @@ Backend-паритет подтверждён на реальных данных
 
 **Суть:** Рекомендации (`recommendations.js`, `smart_select.js`) сейчас считаются на фронте поверх dashboard payload. Нужно вынести логику на backend.
 
-### Работы:
+**Статус на 2026-04-01:** отложен (deferred).
+
+Причина отсрочки: алгоритмы рекомендаций и smart-plan будут дорабатываться отдельно, в удобное время. Текущие frontend-вычисления (`buildRecommendations`, `buildSmartPlan`) работают корректно поверх нового payload `student_analytics_screen_v1`, поэтому нет технического долга, блокирующего Stage 8. `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` остаётся открытым до момента, когда принято решение о переводе алгоритмов на backend.
+
+### Работы (при возобновлении):
 
 - Спроектировать и раскатить `student_recommendations_v1` — backend RPC, возвращающий готовый список рекомендаций на основе канонических метрик (`covered / solved / weak / stale`)
 - Спроектировать `student_smart_plan_v1` — заменяет `pickWeakTopicsFromDashboard` в `smart_select.js`

@@ -22,10 +22,11 @@
 - `id`: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
 - `what`: рекомендации и smart-plan считаются на фронте вместо backend-driven layer-4 модели.
 - `where`: `tasks/recommendations.js`, `tasks/smart_select.js`, `tasks/student.js:1194`, `tasks/stats.js:247`, `tasks/smart_hw.js:104`
-- `why_allowed_now`: канонические recommendation/smart-plan read-модели ещё не выделены в backend, поэтому текущие экраны используют клиентские функции поверх dashboard + catalog данных.
+- `why_allowed_now`: канонические recommendation/smart-plan read-модели ещё не выделены в backend, поэтому текущие экраны используют клиентские функции поверх dashboard + catalog данных. Frontend-вычисления работают корректно поверх нового payload `student_analytics_screen_v1`, блокера для Stage 8 нет.
 - `target_state`: рекомендации и smart-plan формируются через канонические backend read API, использующие одну и ту же модель `covered / solved / weak / stale`.
-- `remove_by_stage`: `Stage 7`
+- `remove_by_stage`: `Stage 7` (deferred — без конкретной даты)
 - `owner`: `student-analytics`
+- `note`: этап отложен до принятия решения об алгоритмах рекомендаций. Stage 8 начинается без закрытия этого исключения.
 
 ### EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION
 
