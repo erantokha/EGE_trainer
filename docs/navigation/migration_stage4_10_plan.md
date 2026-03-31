@@ -63,16 +63,15 @@ Backend-паритет подтверждён на реальных данных
 
 **Суть:** Полный перевод teacher-facing экранов на layer-4. Stage 3 дал backend и перевёл `student.js` — Stage 6 закрывает всё оставшееся.
 
-### Работы:
+**Статус на 2026-04-01:** закрыт (аудит подтвердил — работ по коду не потребовалось).
 
-- Проверить `tasks/student.js` на наличие оставшихся legacy dashboard calls
-- Оценить покрытие `subtopic_coverage_for_teacher_v1` — всё ли уже отдаёт `student_analytics_screen_v1`, или нужен отдельный контракт
-- Проверить `tasks/my_students.js` — не собирает ли он аналитику из нескольких сырых фрагментов
-- Оценить `teacher_students_summary` — нужен ли отдельный layer-4 screen contract для списка учеников
+Аудит teacher-facing файлов:
+- `tasks/student.js` — 3 call site на `student_analytics_screen_v1(teacher)`, legacy dashboard calls отсутствуют ✅
+- `tasks/my_students.js` — использует `teacher_students_summary` (собственный легковесный контракт, не dashboard RPC) ✅
+- `tasks/picker.js` teacher-режим — использует `teacher_picking_screen_v2` ✅; вызов `student_dashboard_self_v2` присутствует только в student-режиме и покрыт `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` (Stage 8)
+- `teacher_students_summary` — достаточен как есть; отдельный layer-4 screen contract для списка учеников не требуется на данном этапе
 
-### Критерий закрытия:
-
-Teacher UI читает только layer-4 contracts. Нет прямых вызовов dashboard RPC с клиента.
+Следующий активный этап: `Stage 7`.
 
 ---
 

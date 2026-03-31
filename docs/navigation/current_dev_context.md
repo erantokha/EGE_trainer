@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-04-01 (Stage 5 закрыт)
+Дата обновления: 2026-04-01 (Stage 6 закрыт)
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -15,7 +15,8 @@
 - Stage 3: **закрыт** (teacher-picking slice + student analytics slice)
 - Stage 4: **закрыт** (dual-run parity for student analytics backend)
 - Stage 5: **закрыт** (student self-analytics UI на canonical Layer-4 contract)
-- Следующий рабочий блок: Stage 6 (teacher UI — остаточные legacy dashboard calls)
+- Stage 6: **закрыт** (аудит teacher UI — legacy dashboard calls отсутствуют, работ по коду не потребовалось)
+- Следующий рабочий блок: Stage 7 (recommendations и smart-plan на backend)
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
@@ -222,9 +223,9 @@ Index-like / path-based path:
 5. [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html)
 6. [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 
-## 7. Что Остаётся Открытым После Stage 5
+## 7. Что Остаётся Открытым После Stage 6
 
-Stages 4 и 5 полностью закрыты. Открытыми остаются следующие migration exceptions:
+Stages 4, 5 и 6 полностью закрыты. Открытыми остаются следующие migration exceptions:
 - `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7)
 - `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` — transitional UI orchestration в picker/list/trainer (target: Stage 8)
 
@@ -236,15 +237,15 @@ Stages 4 и 5 полностью закрыты. Открытыми остают
 
 ## 8. Рекомендуемый Следующий Шаг
 
-Stage 6+:
-1. Перевести teacher-side residual UI paths на чистый layer-4 — Stage 6
-2. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
-3. Cleanup legacy fallback-paths — Stage 8
+Stage 7+:
+1. Перевести recommendations / smart-plan в backend-driven режим — Stage 7
+2. Cleanup legacy fallback-paths — Stage 8
 
-Ближайший приоритет — Stage 6:
-- Проверить `tasks/my_students.js` на прямые вызовы dashboard RPC
-- Проверить `tasks/student.js` на наличие любых остатков legacy dashboard calls
-- Оценить нужен ли отдельный layer-4 contract для списка учеников (`teacher_students_summary`)
+Ближайший приоритет — Stage 7:
+- Спроектировать `student_recommendations_v1` — backend RPC для рекомендаций (covered / solved / weak / stale)
+- Спроектировать `student_smart_plan_v1` — заменяет `pickWeakTopicsFromDashboard` в `smart_select.js`
+- Перевести `tasks/recommendations.js`, `tasks/smart_select.js`, `tasks/smart_hw.js`, `tasks/stats.js:247`, `tasks/student.js` (recommendations block)
+- Закрыть `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
 
 ## 9. Чего Не Надо Делать
 
@@ -288,4 +289,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0–5 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, оба viewer-scope (`teacher` и `self`) работают через единый canonical contract `student_analytics_screen_v1`, `student.js` и `stats.js` переведены; следующий рабочий блок — Stage 6 (teacher UI residual legacy calls в `my_students.js`), затем recommendations backend-driven и cleanup fallback-paths.
+Stage 0–6 закрыты полностью: каталог на backend, teacher-picking v2 и student analytics screen v1 live, оба viewer-scope (`teacher` и `self`) работают через единый canonical contract `student_analytics_screen_v1`, `student.js` и `stats.js` переведены, teacher UI аудит подтвердил отсутствие legacy dashboard calls; следующий рабочий блок — Stage 7 (recommendations и smart-plan в backend-driven режим).
