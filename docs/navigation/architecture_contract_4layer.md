@@ -204,8 +204,6 @@ Source-правило:
 - Stage 8: legacy cleanup (compat paths, legacy providers, deprecated RPC удалены)
 - Stage 9: write-path на canonical event-контур (`write_answer_events_v1`, `submit_homework_attempt_v2`)
 
-Отложено:
-- Stage 7: recommendations/smart-plan backend-driven — deferred без конкретной даты
-- Открытый exception: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` (frontend-вычисления поверх `student_analytics_screen_v1` работают корректно; backend-driven алгоритм не утверждён)
+Все migration exceptions закрыты.
 
-Acceptance DoD Stage 10 достигнут: Stage 7 явно пересогласован как deferred track, не блокирующий финальный acceptance. Все остальные migration exceptions закрыты. Финальный runtime/read/write contract соответствует целевой 4-layer модели.
+Acceptance DoD Stage 10 достигнут: все migration exceptions закрыты, финальный runtime/read/write contract соответствует целевой 4-layer модели. Рекомендации и smart-plan (бывший Stage 7) выведены за рамки migration track — frontend-вычисления работают корректно поверх `student_analytics_screen_v1`; backend-driven алгоритм реализуется отдельно по решению команды.

@@ -9,9 +9,9 @@
 - Репозиторий: `EGE_repo`
 - Ветка: `main`
 - Stages 0–9: **закрыты**
-- Stage 7: **отложен** (`deferred` — без конкретной даты)
+- Stage 7: **выведен за рамки миграции** (product backlog track)
 - Stage 10: **закрыт** (финальный acceptance)
-- Следующий рабочий блок: нет активной миграции; deferred Stage 7 возобновляется отдельно по решению команды
+- Следующий рабочий блок: миграция завершена полностью; рекомендации/smart-plan — отдельная продуктовая задача вне migration track
 
 Быстрые маркеры финального состояния:
 - `runtime_rpc_registry ok`
@@ -35,14 +35,11 @@
 | Layer 4 | `student_analytics_screen_v1`, `teacher_picking_screen_v2` | ✅ |
 | Write path | `write_answer_events_v1`, `submit_homework_attempt_v2` | ✅ |
 
-## 3. Что Отложено
+## 3. Открытые Migration Exceptions
 
-Открытых migration exceptions: **1**
+Открытых migration exceptions: **0**. Миграция завершена.
 
-- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations и smart-plan считаются на фронте поверх `student_analytics_screen_v1` payload.
-  - Затрагивает: `recommendations.js`, `smart_select.js`, `student.js:1194`, `stats.js:247`, `smart_hw.js:104`
-  - Целевой этап: Stage 7 (deferred)
-  - Frontend-вычисления работают корректно; backend-driven алгоритм не утверждён
+Рекомендации и smart-plan (`recommendations.js`, `smart_select.js`, `student.js`, `stats.js`, `smart_hw.js`) работают на фронте поверх `student_analytics_screen_v1` — это принятое продуктовое решение, не migration exception. Реализация backend-driven алгоритма ведётся отдельно по решению команды вне migration track.
 
 ## 4. Финальный Smoke (подтверждён 2026-04-01)
 
@@ -89,4 +86,4 @@ node tools/check_build.mjs
 
 ## 7. Что Сказать Новому Окну Одной Фразой
 
-Миграция на 4-layer архитектуру завершена (Stages 0–9 закрыты, Stage 10 acceptance получен): `answer_events` — source of truth, canonical read-contracts `student_analytics_screen_v1` и `teacher_picking_screen_v2`, canonical write-contracts `write_answer_events_v1` и `submit_homework_attempt_v2`; deferred exception `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` (Stage 7) остаётся открытым без блокирующего влияния.
+Миграция на 4-layer архитектуру завершена полностью (Stages 0–10, ноль открытых migration exceptions): `answer_events` — source of truth, canonical read-contracts `student_analytics_screen_v1` и `teacher_picking_screen_v2`, canonical write-contracts `write_answer_events_v1` и `submit_homework_attempt_v2`; рекомендации/smart-plan — отдельный product backlog item вне migration track.

@@ -53,12 +53,13 @@
 
 ## Stage 7 - Recommendations & Smart-plan backend-driven
 
-Статус на 2026-04-01: отложен (`deferred`).
+Статус на 2026-04-01: **выведен за рамки migration track**.
 
 Итоговое состояние:
-- frontend-вычисления recommendations/smart-plan работают поверх нового payload
-- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` остаётся открытым
-- Stage 7 не блокировал Stage 8 и Stage 9, но блокирует идеальный финальный DoD Stage 10, если не будет явно пересогласован
+- frontend-вычисления recommendations/smart-plan работают корректно поверх `student_analytics_screen_v1` payload — регрессии нет
+- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` закрыт как accepted deviation (product backlog track)
+- backend-driven алгоритм рекомендаций не запланирован в рамках миграции; при необходимости реализуется как самостоятельная продуктовая задача
+- Stage 7 не является частью migration DoD
 
 ---
 
@@ -140,6 +141,6 @@ Stage 8 -> Stage 9 -> Stage 10
 
 ## Открытые Migration Exceptions
 
-| Exception | Где | Remove by |
-|---|---|---|
-| `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` | `recommendations.js`, `smart_select.js`, `stats.js`, `student.js` | Stage 7 |
+Нет. Все migration exceptions закрыты.
+
+`EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` закрыт 2026-04-01 как accepted deviation — переведён в product backlog вне migration track.

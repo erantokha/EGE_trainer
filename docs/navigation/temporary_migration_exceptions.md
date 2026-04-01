@@ -1,6 +1,6 @@
 # Temporary Migration Exceptions
 
-Дата обновления: 2026-04-01 (Stage 8 закрыт; Stage 7 deferred)
+Дата обновления: 2026-04-01 (все migration exceptions закрыты)
 
 Этот документ фиксирует временные отклонения от целевого архитектурного контракта 4 слоёв. Исключения ниже не считаются нормой архитектуры и существуют только как переходное состояние до завершения соответствующих этапов миграции.
 
@@ -14,21 +14,16 @@
 - `owner` должен указывать на доменную зону ответственности (`auth-profile`, `homework-domain`, `teacher-directory`, `student-analytics`, `teacher-picking`) и не должен оставаться `TBD`
 - удаление исключения означает не просто убрать запись из документа, а довести код до целевого `target_state`
 
-## Первый проход по текущему коду
-
+## Closed On 2026-04-01 (product backlog)
 
 ### EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN
 
 - `id`: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
-- `what`: рекомендации и smart-plan считаются на фронте вместо backend-driven layer-4 модели.
-- `where`: `tasks/recommendations.js`, `tasks/smart_select.js`, `tasks/student.js:1194`, `tasks/stats.js:247`, `tasks/smart_hw.js:104`
-- `why_allowed_now`: канонические recommendation/smart-plan read-модели ещё не выделены в backend, поэтому текущие экраны используют клиентские функции поверх dashboard + catalog данных. Frontend-вычисления работают корректно поверх нового payload `student_analytics_screen_v1`, блокера для Stage 8 нет.
-- `target_state`: рекомендации и smart-plan формируются через канонические backend read API, использующие одну и ту же модель `covered / solved / weak / stale`.
-- `remove_by_stage`: `Stage 7` (deferred — без конкретной даты)
-- `owner`: `student-analytics`
-- `note`: этап отложен до принятия решения об алгоритмах рекомендаций. Stage 8 завершён без закрытия этого исключения.
-
-## Closed On 2026-04-01
+- `status`: `closed`
+- `closed_on`: `2026-04-01`
+- `reason`: Принято осознанное продуктовое решение. Frontend-вычисления рекомендаций и smart-plan работают корректно поверх `student_analytics_screen_v1` payload — никакой регрессии нет. Backend-driven алгоритм рекомендаций не запланирован в рамках migration track. Задача выведена за рамки миграции и переведена в product backlog как самостоятельная продуктовая фича (отдельный трек, отдельное планирование).
+- `where_was`: `tasks/recommendations.js`, `tasks/smart_select.js`, `tasks/student.js`, `tasks/stats.js`, `tasks/smart_hw.js`
+- `what_to_do_when_resuming`: завести отдельную задачу вне migration-фреймворка; спроектировать backend read API для recommendations; определить алгоритм `covered / solved / weak / stale` на backend.
 
 ### EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION
 
