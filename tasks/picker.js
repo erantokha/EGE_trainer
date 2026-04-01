@@ -1726,7 +1726,6 @@ function buildTeacherPickingHomeModel(payload) {
     recoByTopic.set(tid, mergeRecommendationMeta(recoByTopic.get(tid), next));
   }
 
-  const compatTopics = [];
   const sectionCoverageTopicCount = new Map();
   const sectionPctAgg = new Map();
   const sectionPctById = new Map();
@@ -1775,14 +1774,6 @@ function buildTeacherPickingHomeModel(payload) {
         displayPct = allTimePct;
         displaySource = 'all_time';
       }
-
-      compatTopics.push({
-        topic_id: tid,
-        section_id: sid,
-        last_seen_at: progress?.last_seen_at || stats?.last_seen_at || null,
-        all_time: { total: 0, correct: 0 },
-        last3: { total: periodTotal, correct: periodCorrect },
-      });
 
       if (coveredUnics > 0 || String(state?.coverage_state || '').trim().toLowerCase() === 'covered') {
         coveredTopics += 1;
@@ -1873,7 +1864,6 @@ function buildTeacherPickingHomeModel(payload) {
 
   return {
     days,
-    compatDash: { topics: compatTopics },
     sectionCoverageTopicCount,
     sectionPctById,
     sectionTitleMeta,
@@ -1884,12 +1874,8 @@ function buildTeacherPickingHomeModel(payload) {
 
 function applyTeacherPickingHomeStats(payload) {
   if (!isStudentLikeHome()) return;
+  setHomeStatsLoading(false);
   const model = buildTeacherPickingHomeModel(payload);
-  const dashboard = (payload?.dashboard && typeof payload.dashboard === 'object')
-    ? payload.dashboard
-    : null;
-  const hasDashboardTopics = !!(dashboard && Array.isArray(dashboard.topics) && dashboard.topics.length);
-  applyDashboardHomeStats(hasDashboardTopics ? dashboard : model.compatDash);
 
   const daysLabel = `За ${model.days} дн.`;
 
@@ -1902,7 +1888,7 @@ function applyTeacherPickingHomeStats(payload) {
     const badgePct = node.querySelector('.home-last10-badge');
     const badgeCov = node.querySelector('.home-coverage-badge');
 
-    if (badgePct && !hasDashboardTopics) {
+    if (badgePct) {
       setHomeSectionBadge(badgePct, sectionPct, coveredTopics, totalTopics);
       if (sectionPct !== null) {
         badgePct.setAttribute('title', `Процент правильных ответов по подтемам: ${sectionPct}%`);
@@ -1921,7 +1907,7 @@ function applyTeacherPickingHomeStats(payload) {
     const badge = node.querySelector('.home-last10-badge');
     const stat = model.topicStatsById.get(tid) || null;
 
-    if (badge && !hasDashboardTopics) {
+    if (badge) {
       if (stat && stat.display_pct !== null) {
         let title = '';
         if (stat.display_source === 'period' && stat.period_total > 0) {
@@ -1946,10 +1932,8 @@ function applyTeacherPickingHomeStats(payload) {
     applyTitleRecommendation(node.querySelector('.title'), model.topicTitleMeta.get(tid) || null);
   });
 
-  if (!hasDashboardTopics) {
-    updateScoreForecast(model.sectionPctById, { signedIn: true });
-    if (isStudentLikeHome()) syncHomeTopicBadgesWidth();
-  }
+  updateScoreForecast(model.sectionPctById, { signedIn: true });
+  syncHomeTopicBadgesWidth();
 }
 
 
