@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-04-01 (Stage 7 deferred)
+Дата обновления: 2026-04-01 (Stage 8 steps 1–5 закрыты)
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -17,7 +17,8 @@
 - Stage 5: **закрыт** (student self-analytics UI на canonical Layer-4 contract)
 - Stage 6: **закрыт** (аудит teacher UI — legacy dashboard calls отсутствуют, работ по коду не потребовалось)
 - Stage 7: **отложен** (deferred — алгоритмы рекомендаций и smart-plan дорабатываются отдельно)
-- Следующий рабочий блок: Stage 8 (legacy cleanup: picker orchestration, fallback paths, deprecated RPCs)
+- Stage 8: **в процессе** — steps 1–5 закрыты, `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт; остался step 6 (deprecated RPC removal) и step 7 (CI + smoke)
+- Следующий рабочий блок: Stage 8 step 6 — удаление deprecated RPC из реестра и Supabase
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
@@ -224,11 +225,19 @@ Index-like / path-based path:
 5. [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html)
 6. [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html)
 
-## 7. Что Остаётся Открытым После Stage 6
+## 7. Что Остаётся Открытым
 
-Stages 4, 5 и 6 полностью закрыты. Stage 7 отложен. Открытыми остаются следующие migration exceptions:
-- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7, **deferred**; frontend-вычисления работают корректно, блокера для Stage 8 нет)
-- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` — transitional UI orchestration в picker/list/trainer (target: Stage 8)
+Stages 4, 5 и 6 полностью закрыты. Stage 7 отложен. Stage 8 в процессе (steps 1–5 закрыты).
+
+Открытых migration exceptions: **1**
+- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7, **deferred**; frontend-вычисления работают корректно поверх `student_analytics_screen_v1`)
+
+Закрытые:
+- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` ✅ (2026-04-01, Stage 8 steps 1–5)
+- `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅ (2026-03-31)
+- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅ (2026-03-31)
+- `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅ (2026-03-31)
+- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` ✅ (2026-04-01)
 
 Закрытые:
 - `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅ (2026-03-31)
@@ -287,4 +296,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0–6 закрыты полностью, Stage 7 отложен (deferred): каталог на backend, teacher-picking v2 и student analytics screen v1 live, оба viewer-scope (`teacher` и `self`) работают через единый canonical contract `student_analytics_screen_v1`, `student.js` и `stats.js` переведены, teacher UI аудит подтвердил отсутствие legacy dashboard calls; следующий рабочий блок — Stage 8 (legacy cleanup: picker orchestration, fallback paths, deprecated RPCs).
+Stage 0–6 закрыты, Stage 7 отложен, Stage 8 в процессе (steps 1–5 done): picker.js переведён на `student_analytics_screen_v1(self)`, dead compat paths удалены, legacy providers (`loadStudentDashboardSelfV1`, `loadTeacherDashboardForStudentV1`, `loadTeacherPickingScreenV1`) удалены из homework.js, stage3 smoke удалён, `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт; остался step 6 (deprecated RPC removal из реестра и Supabase) и step 7 (CI + smoke).

@@ -1,6 +1,6 @@
 # Temporary Migration Exceptions
 
-Дата обновления: 2026-04-01
+Дата обновления: 2026-04-01 (Stage 8 steps 1–5)
 
 Этот документ фиксирует временные отклонения от целевого архитектурного контракта 4 слоёв. Исключения ниже не считаются нормой архитектуры и существуют только как переходное состояние до завершения соответствующих этапов миграции.
 
@@ -28,24 +28,19 @@
 - `owner`: `student-analytics`
 - `note`: этап отложен до принятия решения об алгоритмах рекомендаций. Stage 8 начинается без закрытия этого исключения.
 
+## Closed On 2026-04-01
+
 ### EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION
 
 - `id`: `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
-- `what`: teacher picking всё ещё сохраняет на фронте transitional UI/session orchestration: preview modal rendering, локальный selection-state, badge-cache, compat restore paths и downstream navigation в `list / trainer / hw_create`.
-- `where`: `tasks/picker.js`, `tasks/list.js`, `tasks/trainer.js`, `tasks/hw_create.js`, `app/providers/homework.js`
-- `why_allowed_now`: canonical filter semantics, eligibility, proto/topic/section cascade, `global_all`, seed-based selection и batch resolve уже принадлежат backend-driven `teacher_picking_screen_v2`, но presentation-layer state и часть compat/fallback логики всё ещё живут на клиенте.
-- `target_state`: teacher picking UI становится thin client вокруг `teacher_picking_screen_v2`, а transitional compat restore, лишние fallback-paths и локальная orchestration-логика удаляются или сводятся к минимальному presentation layer.
-- `remove_by_stage`: `Stage 8`
-- `owner`: `teacher-picking`
-
-Notably no longer covered by this exception:
-- filter eligibility semantics
-- `proto / topic / section` cascade
-- `global_all` behavior
-- seed-based picking
-- batch resolve selection
-
-## Closed On 2026-04-01
+- `status`: `closed`
+- `closed_on`: `2026-04-01`
+- `reason`: Stage 8 steps 1–5. Все compat/fallback пути убраны:
+  - `picker.js` student home переведён на `student_analytics_screen_v1(self)` — `loadStudentDashboardSelfV1` и мёртвый `fetchStudentDashboardSelf` удалены (Step 1).
+  - `picker.js` teacher home: мёртвый compat path `compatDash`/`hasDashboardTopics`/`applyDashboardHomeStats(compatDash)` удалён — `teacher_picking_screen_v2` никогда не возвращает `payload.dashboard`, compat builder был dead code (Step 2).
+  - `app/providers/homework.js`: удалены `loadStudentDashboardSelfV1`, `loadTeacherDashboardForStudentV1`, `loadTeacherPickingScreenV1` — 141 строка legacy provider кода (Step 3).
+  - `tasks/teacher_picking_stage3_browser_smoke.{js,html}` удалены — единственный оставшийся consumer `teacher_picking_screen_v1` (Step 4).
+  - `list.js`, `trainer.js`, `hw_create.js`: аудит подтвердил отсутствие teacher picking v1 compat. `tasks_selection_v1` — действующий формат selection; catalog fallbacks (`ensureManifest`, `lookupQuestionsByIdsV1`) — не picking compat (Step 5).
 
 ### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
 
