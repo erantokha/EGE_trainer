@@ -9,8 +9,8 @@
 //   old topics[].topic_id   →  new topics[].subtopic_id
 //   old sections[].section_id → new sections[].theme_id (не сравниваем напрямую)
 
-import { getSession } from '../app/providers/supabase.js?v=2026-04-01-3';
-import { supaRest }   from '../app/providers/supabase-rest.js?v=2026-04-01-3';
+import { getSession } from '../app/providers/supabase.js?v=2026-04-01-4';
+import { supaRest }   from '../app/providers/supabase-rest.js?v=2026-04-01-4';
 
 const runBtn        = document.getElementById('runBtn');
 const summaryEl     = document.getElementById('summary');
