@@ -1,4 +1,8 @@
 -- teacher_picking_screen_v1.sql
+-- DEPRECATED (Stage 8, 2026-04-01): no production consumers.
+-- Superseded by teacher_picking_screen_v2.
+-- Drop from Supabase using docs/supabase/stage8_deprecated_rpc_drop.sql.
+--
 -- Stage 3 proposed contract.
 -- First-pass layer-4 screen payload for teacher-picking init/resolve flow.
 -- Designed from docs/navigation/teacher_picking_screen_v1_spec.md.

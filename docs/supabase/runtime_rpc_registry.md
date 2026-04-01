@@ -1,6 +1,6 @@
 # Реестр runtime-RPC
 
-Дата обновления: 2026-03-31
+Дата обновления: 2026-04-01 (Stage 8 step 6)
 
 Это первый проход по runtime-RPC, собранный по текущему фронтенду и `app/providers/*`.
 Реестр фиксирует только публичные RPC-контракты, от которых зависит runtime-поведение продукта.
@@ -22,19 +22,23 @@
 - `snapshot_only` — функция найдена только в schema snapshot / overview, но не вынесена в отдельный SQL-файл.
 - `missing_in_repo` — функция используется рантаймом, но в первом проходе не найдена ни как standalone SQL, ни в snapshot-источнике.
 
-## Итог первого прохода
+## Итог (актуально на 2026-04-01)
 
-- Всего runtime-RPC в реестре: `34`
-- `standalone_sql`: `34`
+- Всего активных runtime-RPC в реестре: `31`
+- `standalone_sql`: `31`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
-Жёсткие SQL-gap блокеры `Wave 0` закрыты:
-- `subtopic_coverage_for_teacher_v1`
-- `teacher_type_rollup_v1`
-- `pick_questions_for_teacher_types_v1`
+Stage 8 cleanup (2026-04-01): удалены из runtime 4 deprecated RPC:
+- `teacher_picking_screen_v1` → superseded by `teacher_picking_screen_v2`
+- `student_dashboard_self_v2` → superseded by `student_analytics_screen_v1(self)`
+- `student_dashboard_for_teacher_v2` → superseded by `student_analytics_screen_v1(teacher)`
+- `subtopic_coverage_for_teacher_v1` → coverage теперь в `student_analytics_screen_v1` payload
 
-Teacher-picking `v2` rollout уже отражён в реестре:
+Добавлен canonical Layer-4 screen contract:
+- `student_analytics_screen_v1`
+
+Teacher-picking `v2` rollout отражён в реестре:
 - `question_stats_for_teacher_v2`
 - `teacher_picking_screen_v2`
 - `teacher_picking_resolve_batch_v1`
@@ -80,13 +84,11 @@ Teacher-picking `v2` rollout уже отражён в реестре:
 | `catalog_subtopic_unics_v1` | `-` | `app/providers/catalog.js` via `loadCatalogSubtopicUnicsV1()` | `docs/supabase/catalog_subtopic_unics_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-2 `subtopic -> unic` catalog seam. Provider treats RPC as primary path and falls back to layer-2 catalog tables until rollout in live Supabase. |
 | `catalog_question_lookup_v1` | `-` | `app/providers/catalog.js` via `lookupCatalogQuestionsV1()`, `lookupQuestionsByIdsV1()`, `lookupQuestionsByUnicsV1()` | `docs/supabase/catalog_question_lookup_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-2 targeted `question_id / unic_id` lookup seam. Provider uses RPC as primary path and falls back to `catalog_question_dim` + parent catalog tables while contract is being rolled out. |
 
-## Dashboard / Coverage
+## Student Analytics
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `student_dashboard_self_v2` | `student_dashboard_self` | `tasks/stats.js`, `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/student_dashboard_self_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. `v2` — самостоятельная SQL-функция, а не excerpt из snapshot. В `picker.js` direct screen-call снят в пользу provider seam `loadStudentDashboardSelfV1()`. |
-| `student_dashboard_for_teacher_v2` | `student_dashboard_for_teacher` | `tasks/student.js`, legacy compat paths in `app/providers/homework.js` | `docs/supabase/student_dashboard_for_teacher_v2.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Live-версия остаётся compat-обёрткой над `student_dashboard_for_teacher(...)` с добавлением `last3`; teacher-picking home больше не использует этот RPC как screen contract после перехода на `teacher_picking_screen_v2`. |
-| `subtopic_coverage_for_teacher_v1` | `-` | `tasks/student.js` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` | `student-analytics` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
+| `student_analytics_screen_v1` | `-` | `tasks/student.js` (teacher scope), `tasks/stats.js` (self scope), `tasks/picker.js` via `app/providers/supabase-rest.js` | `docs/supabase/student_analytics_screen_v1.sql` | `student-analytics` | `standalone_sql` | Canonical layer-4 screen contract. Supports `p_viewer_scope='teacher'` and `p_viewer_scope='self'`. Replaces `student_dashboard_self_v2`, `student_dashboard_for_teacher_v2`, `subtopic_coverage_for_teacher_v1`. Deployed Stage 3–4, fully live as of Stage 8. |
 
 ## Teacher Picking / Prioritization
 
@@ -99,21 +101,21 @@ Teacher-picking `v2` rollout уже отражён в реестре:
 | `pick_questions_for_teacher_types_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_types_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |
 | `teacher_topic_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_topic_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Rollup по темам строится через `question_bank` + `student_question_stats`. |
 | `pick_questions_for_teacher_topics_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_topics_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Topic-quota picking RPC с teacher guards и приоритезацией по `old/badAcc`. |
-| `teacher_picking_screen_v1` | `-` | `tasks/teacher_picking_stage3_browser_smoke.js`, legacy compat wrapper in `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v1.sql` | `teacher-picking` | `standalone_sql` | Stage-3 first-pass screen seam. Kept as legacy/compat artifact and smoke target; no longer the canonical teacher-picking screen contract for `home_teacher.html`. |
 | `teacher_picking_screen_v2` | `-` | `tasks/picker.js`, `tasks/teacher_picking_v2_browser_smoke.js`, `tasks/teacher_picking_filters_browser_smoke.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_screen_v2.sql` | `teacher-picking` | `standalone_sql` | Canonical backend-driven teacher-picking screen contract. Powers `init` / `resolve`, canonical filter semantics, `proto/topic/section/global_all`, shortage meta and seed-based picking. Backed by `student_proto_state_v1` and `student_topic_state_v1`. |
 | `teacher_picking_resolve_batch_v1` | `-` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/teacher_picking_resolve_batch_v1.sql` | `teacher-picking` | `standalone_sql` | Batch resolve seam for teacher home. Replaces resolve fan-out with grouped backend selection and is the main reason teacher filter picking now stays within the target latency range. |
 
-## Открытые вопросы после текущей синхронизации
+## Открытые вопросы
 
-- Подтвердить, нужно ли считать `student_dashboard_for_teacher_v2` финальным каноническим именем, если live-версия пока остаётся compat-обёрткой над `student_dashboard_for_teacher(...)`.
 - Подтвердить, должен ли `teacher_students_summary` в целевой архитектуре считать `covered_topics_all_time` по старому `topic_id` из `answer_events` или позже переехать на catalog-based coverage.
 - Подтвердить, нужны ли runtime-алиасы `start_attempt`, `startHomeworkAttempt`, `has_attempt`, `hasAttempt`, `assign_homework`, `listMyStudents` и другие в реальном миграционном контуре или их можно оставить только как временный compat-layer.
-- Решить, в какой момент `teacher_picking_screen_v1` можно официально перевести из legacy-compat в cleanup-кандидаты Stage 8.
 
-## Следующий практический шаг
+## Deprecated / Removed
 
-После текущей синхронизации реестра нужно:
-- считать Stage 0, Stage 1 и Stage 2 зафиксированными в git и подтверждёнными smoke-checks;
-- считать teacher-picking `v2` slice Stage 3 отражённым в реестре как canonical runtime-contract;
-- поддерживать CI-проверкой, что новый frontend runtime-RPC не появляется без записи в реестре, без owner и без корректного `source_sql_file`;
-- следующим архитектурным шагом двигаться к student analytics / recommendations / smart-plan contracts и снятию оставшихся migration exceptions Stage 7/8.
+Функции ниже удалены из runtime в Stage 8 (2026-04-01). SQL-артефакты сохранены в репозитории с заголовком `DEPRECATED`. DROP-скрипт: `docs/supabase/stage8_deprecated_rpc_drop.sql`.
+
+| canonical_name | removed_by | superseded_by | source_sql_file |
+| --- | --- | --- | --- |
+| `teacher_picking_screen_v1` | Stage 8 | `teacher_picking_screen_v2` | `docs/supabase/teacher_picking_screen_v1.sql` |
+| `student_dashboard_self_v2` | Stage 8 | `student_analytics_screen_v1(self)` | `docs/supabase/student_dashboard_self_v2.sql` |
+| `student_dashboard_for_teacher_v2` | Stage 8 | `student_analytics_screen_v1(teacher)` | `docs/supabase/student_dashboard_for_teacher_v2.sql` |
+| `subtopic_coverage_for_teacher_v1` | Stage 8 | `student_analytics_screen_v1` payload `.coverage` | `docs/supabase/subtopic_coverage_for_teacher_v1.sql` |

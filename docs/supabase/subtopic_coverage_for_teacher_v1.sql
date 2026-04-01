@@ -1,4 +1,8 @@
 -- subtopic_coverage_for_teacher_v1.sql
+-- DEPRECATED (Stage 8, 2026-04-01): no production consumers.
+-- Coverage data now included in student_analytics_screen_v1 payload (topics[].coverage).
+-- Drop from Supabase using docs/supabase/stage8_deprecated_rpc_drop.sql.
+--
 -- Live-BD extract synchronized on 2026-03-29.
 -- Source: pg_get_functiondef('public.subtopic_coverage_for_teacher_v1(uuid,text[])'::regprocedure)
 

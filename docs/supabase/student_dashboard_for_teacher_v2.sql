@@ -1,4 +1,8 @@
 -- student_dashboard_for_teacher_v2.sql
+-- DEPRECATED (Stage 8, 2026-04-01): no production consumers.
+-- Superseded by student_analytics_screen_v1(p_viewer_scope='teacher').
+-- Drop from Supabase using docs/supabase/stage8_deprecated_rpc_drop.sql.
+--
 -- Live-BD extract synchronized on 2026-03-29.
 -- Source: pg_get_functiondef('public.student_dashboard_for_teacher_v2(uuid,integer,text)'::regprocedure)
 
