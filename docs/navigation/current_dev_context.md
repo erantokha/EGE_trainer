@@ -44,23 +44,20 @@
   - Целевой этап: Stage 7 (deferred)
   - Frontend-вычисления работают корректно; backend-driven алгоритм не утверждён
 
-## 4. Pending Ручные Шаги
+## 4. Финальный Smoke (подтверждён 2026-04-01)
 
-Автоматизированные CI-чеки зелёные. Остались ручные шаги:
+Все ручные шаги выполнены:
 
-**Supabase SQL Editor** — выполнить один раз:
-```sql
--- docs/supabase/stage8_deprecated_rpc_drop.sql
-drop function if exists public.teacher_picking_screen_v1(uuid, text, integer, text, jsonb, jsonb, text[]);
-drop function if exists public.student_dashboard_self_v2(integer, text);
-drop function if exists public.student_dashboard_for_teacher_v2(uuid, integer, text);
-drop function if exists public.subtopic_coverage_for_teacher_v1(uuid, text[]);
-```
+**Supabase DROP** — выполнен (`stage8_deprecated_rpc_drop.sql`):
+- `teacher_picking_screen_v1` — dropped ✅
+- `student_dashboard_self_v2` — dropped ✅
+- `student_dashboard_for_teacher_v2` — dropped ✅
+- `subtopic_coverage_for_teacher_v1` — dropped ✅
 
-**Browser smoke** (требуют активной сессии):
-- `teacher_picking_v2_browser_smoke.html` — teacher-сессия
-- `teacher_picking_filters_browser_smoke.html` — teacher-сессия
-- `stats_self_browser_smoke.html` — student-сессия
+**Browser smoke** — все зелёные:
+- `teacher_picking_v2_browser_smoke` → `ok=14 warn=0 fail=0` ✅
+- `teacher_picking_filters_browser_smoke` → `ok=19 warn=0 fail=0` ✅
+- `stats_self_browser_smoke` → `ok=12 warn=0 fail=0` ✅
 
 ## 5. Что Читать Первым (для нового контекста)
 
