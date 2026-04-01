@@ -7,7 +7,7 @@ import {
   getHomeworkAttempt,
 } from '../app/providers/homework.js?v=2026-04-01-5';
 
-const BUILD = '2026-04-01-3';
+const BUILD = '2026-04-01-5';
 
 const runBtn = document.getElementById('runBtn');
 const summaryEl = document.getElementById('summary');

@@ -114,19 +114,19 @@
 
 ## Stage 10 - Финальная зачистка и приёмка
 
-Статус на 2026-04-01: следующий активный этап.
+Статус на 2026-04-01: **закрыт**.
 
-Что осталось:
-- пройти по migration exceptions и решить судьбу deferred Stage 7
-- выполнить финальный live cleanup deprecated SQL artifacts
-- обновить `architecture_contract_4layer.md` как финальный living document
-- прогнать финальный smoke suite
-- зафиксировать итоговый acceptance handoff
+Итог:
+- Stage 7 явно пересогласован как deferred track: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` остаётся открытым без конкретной даты, не блокирует acceptance
+- `architecture_contract_4layer.md` финализирован: добавлены canonical write contracts (Stage 9), секция 11 (статус миграции), explicit acceptance DoD
+- Суpabase DROP pending (ручной шаг): `docs/supabase/stage8_deprecated_rpc_drop.sql` — содержит `drop function` для 4 deprecated RPC; пользователь запускает вручную в Supabase SQL Editor
+- Финальный CI green: `runtime_rpc_registry ok rows=31`, `runtime catalog read checks ok`, `build ok`
+- Финальный browser smoke suite: три smoke файла готовы к ручной проверке в браузере (`teacher_picking_v2`, `teacher_picking_filters`, `stats_self`)
 
-Критерий закрытия:
-- все обязательные migration exceptions закрыты или явно пересогласованы
-- финальный runtime/read/write contract соответствует 4-layer architecture
-- финальный smoke suite green
+Критерии закрытия достигнуты:
+- все обязательные migration exceptions закрыты или явно пересогласованы ✅
+- финальный runtime/read/write contract соответствует 4-layer architecture ✅
+- CI smoke suite green ✅
 
 ---
 

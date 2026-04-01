@@ -1,6 +1,6 @@
 # Архитектурный контракт 4 слоёв
 
-Дата обновления: 2026-03-29
+Дата обновления: 2026-04-01 (Stage 10 — финальный acceptance)
 
 Этот документ фиксирует короткий канонический контракт целевой 4-слойной архитектуры для этапа 0. Он не описывает всю текущую реализацию, а задаёт целевую норму, поверх которой отдельно учитываются временные migration-exceptions.
 
@@ -28,6 +28,10 @@
 
 Канонический `source of truth` слоя 1:
 - `answer_events`
+
+Канонические write-контракты (после Stage 9):
+- non-homework: `write_answer_events_v1` — пишет напрямую в `answer_events`
+- homework: `submit_homework_attempt_v2` — пишет в `homework_attempts` с trigger bridge в `answer_events`
 
 Статус остальных write-источников:
 - `attempts` и `homework_attempts` считаются operational/write-контурами и переходными мостами.
@@ -186,3 +190,22 @@ Source-правило:
 - слой 3 покрывает уровни `question / unic / subtopic / theme`
 - слой 4 является единственным допустимым product read-source для UI
 - временные migration-exceptions удалены или явно закрыты по этапам миграции
+
+## 11. Статус миграции на дату финального acceptance (2026-04-01)
+
+Завершено:
+- Stage 0: архитектурный контракт, реестр RPC, CI-guards
+- Stage 1: catalog runtime (`catalog_tree_v1`, `catalog_index_like_v1`)
+- Stage 2: backend read-contracts subtopic/unic/question
+- Stage 3: layer-4 read API (`teacher_picking_screen_v2`, `student_analytics_screen_v1`)
+- Stage 4: dual-run backend parity
+- Stage 5: student UI migration
+- Stage 6: teacher UI migration
+- Stage 8: legacy cleanup (compat paths, legacy providers, deprecated RPC удалены)
+- Stage 9: write-path на canonical event-контур (`write_answer_events_v1`, `submit_homework_attempt_v2`)
+
+Отложено:
+- Stage 7: recommendations/smart-plan backend-driven — deferred без конкретной даты
+- Открытый exception: `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` (frontend-вычисления поверх `student_analytics_screen_v1` работают корректно; backend-driven алгоритм не утверждён)
+
+Acceptance DoD Stage 10 достигнут: Stage 7 явно пересогласован как deferred track, не блокирующий финальный acceptance. Все остальные migration exceptions закрыты. Финальный runtime/read/write contract соответствует целевой 4-layer модели.

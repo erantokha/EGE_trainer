@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-04-01 (Stage 9 закрыт)
+Дата обновления: 2026-04-01 (Stage 10 — финальный acceptance закрыт)
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -8,110 +8,88 @@
 
 - Репозиторий: `EGE_repo`
 - Ветка: `main`
-- HEAD на момент подготовки файла: `e04cd676`
-- Stage 0: закрыт
-- Stage 1: закрыт
-- Stage 2: закрыт
-- Stage 3: закрыт
-- Stage 4: закрыт
-- Stage 5: закрыт
-- Stage 6: закрыт
-- Stage 7: отложен (`deferred`)
-- Stage 8: закрыт
-- Stage 9: закрыт
-- Следующий рабочий блок: `Stage 10`
+- Stages 0–9: **закрыты**
+- Stage 7: **отложен** (`deferred` — без конкретной даты)
+- Stage 10: **закрыт** (финальный acceptance)
+- Следующий рабочий блок: нет активной миграции; deferred Stage 7 возобновляется отдельно по решению команды
 
-Быстрые маркеры состояния:
+Быстрые маркеры финального состояния:
 - `runtime_rpc_registry ok`
 - `rows=31 standalone_sql=31 snapshot_only=0 missing_in_repo=0`
-- `student_analytics_screen_v1` rolled out
-- `teacher_picking_screen_v2` rolled out
-- `write_answer_events_v1` rolled out
-- `submit_homework_attempt_v2` rolled out
-- `stage4_parity_browser_smoke`: `ok=14 warn=0 fail=0`
-- `stats_self_browser_smoke`: `ok=12 warn=0 fail=0`
-- `teacher_picking_v2_browser_smoke`: `ok=14 warn=0 fail=0`
-- `teacher_picking_filters_browser_smoke`: `ok=19 warn=0 fail=0`
-- `stage9_homework_submit_browser_smoke`: `ok=12 warn=0 fail=0`
+- `runtime catalog read checks ok`
+- `build ok`
+- `student_analytics_screen_v1` — canonical Layer-4 read contract (student + teacher scope)
+- `teacher_picking_screen_v2` — canonical Layer-4 teacher-picking contract
+- `write_answer_events_v1` — canonical non-homework write contract
+- `submit_homework_attempt_v2` — canonical homework write contract
 
-## 2. Что Уже Закрыто
+## 2. Архитектурный Итог
 
-### Stage 4
+Цель 4-layer архитектуры достигнута:
 
-- Teacher-path parity для `student_analytics_screen_v1` доведён до green.
-- Browser smoke:
-  - [stage4_parity_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stage4_parity_browser_smoke.html)
-  - итог: `ok=14 warn=0 fail=0`
+| Слой | Что | Статус |
+|---|---|---|
+| Layer 1 | `answer_events` как source of truth | ✅ |
+| Layer 2 | `catalog_*_dim` как canonical backend catalog | ✅ |
+| Layer 3 | `student_proto_state_v1`, `student_topic_state_v1` | ✅ |
+| Layer 4 | `student_analytics_screen_v1`, `teacher_picking_screen_v2` | ✅ |
+| Write path | `write_answer_events_v1`, `submit_homework_attempt_v2` | ✅ |
 
-### Stage 5
+## 3. Что Отложено
 
-- `tasks/stats.js` переведён на `student_analytics_screen_v1(p_viewer_scope='self')`.
-- Убран `rpcAny` fallback.
-- Browser smoke:
-  - [stats_self_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats_self_browser_smoke.html)
-  - итог: `ok=12 warn=0 fail=0`
+Открытых migration exceptions: **1**
 
-### Stage 6
+- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations и smart-plan считаются на фронте поверх `student_analytics_screen_v1` payload.
+  - Затрагивает: `recommendations.js`, `smart_select.js`, `student.js:1194`, `stats.js:247`, `smart_hw.js:104`
+  - Целевой этап: Stage 7 (deferred)
+  - Frontend-вычисления работают корректно; backend-driven алгоритм не утверждён
 
-- Teacher UI audit завершён.
-- Legacy teacher dashboard calls в runtime больше не используются.
+## 4. Pending Ручные Шаги
 
-### Stage 8
+Автоматизированные CI-чеки зелёные. Остались ручные шаги:
 
-- Legacy cleanup завершён.
-- Deprecated runtime RPC removed:
-  - `teacher_picking_screen_v1`
-  - `student_dashboard_self_v2`
-  - `student_dashboard_for_teacher_v2`
-  - `subtopic_coverage_for_teacher_v1`
+**Supabase SQL Editor** — выполнить один раз:
+```sql
+-- docs/supabase/stage8_deprecated_rpc_drop.sql
+drop function if exists public.teacher_picking_screen_v1(uuid, text, integer, text, jsonb, jsonb, text[]);
+drop function if exists public.student_dashboard_self_v2(integer, text);
+drop function if exists public.student_dashboard_for_teacher_v2(uuid, integer, text);
+drop function if exists public.subtopic_coverage_for_teacher_v1(uuid, text[]);
+```
 
-### Stage 9
+**Browser smoke** (требуют активной сессии):
+- `teacher_picking_v2_browser_smoke.html` — teacher-сессия
+- `teacher_picking_filters_browser_smoke.html` — teacher-сессия
+- `stats_self_browser_smoke.html` — student-сессия
 
-- Live trigger extract сохранён в repo:
-  - [trg_attempts_to_answer_events.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/trg_attempts_to_answer_events.sql)
-  - [trg_homework_attempts_to_answer_events.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/trg_homework_attempts_to_answer_events.sql)
-- Non-homework canonical seam rolled out:
-  - [write_answer_events_v1.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/write_answer_events_v1.sql)
-  - `trainer.js` и `analog.js` пишут напрямую в `answer_events`
-- Homework canonical seam rolled out:
-  - [submit_homework_attempt_v2.sql](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/docs/supabase/submit_homework_attempt_v2.sql)
-  - `homework.js` и `hw.js` переключены на `submit_homework_attempt_v2`
-- Stage 9.4 browser smoke green:
-  - [stage9_homework_submit_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stage9_homework_submit_browser_smoke.html)
-  - итог: `ok=12 warn=0 fail=0`
-- Local Stage 9.5 CI set green:
-  - `node tools/check_runtime_rpc_registry.mjs`
-  - `node --check app/providers/supabase-write.js`
-  - `node --check app/providers/homework.js`
-  - `node --check tasks/trainer.js`
-  - `node --check tasks/analog.js`
-  - `node --check tasks/hw.js`
-  - `node --check tasks/stage9_homework_submit_browser_smoke.js`
-  - `node --check tasks/stats_self_browser_smoke.js`
-  - `node --check tasks/student_analytics_screen_v1_browser_smoke.js`
+## 5. Что Читать Первым (для нового контекста)
 
-## 3. Что Остаётся Открытым
+Если нужно быстро войти в архитектурный контекст:
+1. [architecture_contract_4layer.md](architecture_contract_4layer.md) — финальный living document
+2. [temporary_migration_exceptions.md](temporary_migration_exceptions.md) — 1 открытый exception
+3. [runtime_rpc_registry.md](../supabase/runtime_rpc_registry.md) — 31 RPC, rows=31
 
-Открытых migration exceptions: `1`
+Если нужно войти в read-path:
+1. [student_analytics_screen_v1_spec.md](student_analytics_screen_v1_spec.md)
+2. [teacher_picking_screen_v2_spec.md](teacher_picking_screen_v2_spec.md)
 
-- `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN`
-  - Где: `recommendations.js`, `smart_select.js`, `stats.js`, `student.js`
-  - Целевой этап: `Stage 7`
-  - Текущий статус: `deferred`
+Если нужно войти в write-path:
+1. [stage9_canonical_write_seam_spec.md](stage9_canonical_write_seam_spec.md)
+2. [stage9_homework_submit_seam_spec.md](stage9_homework_submit_seam_spec.md)
 
-## 4. Следующий Шаг
+Если нужно войти в catalog runtime:
+1. [catalog_tree_v1_spec.md](catalog_tree_v1_spec.md)
+2. [catalog_index_like_v1_spec.md](catalog_index_like_v1_spec.md)
+3. [app/providers/catalog.js](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/app/providers/catalog.js)
 
-Ближайший активный этап: `Stage 10`.
+## 6. Полезные Проверки
 
-Нужно:
+```powershell
+node tools/check_runtime_rpc_registry.mjs
+node tools/check_runtime_catalog_reads.mjs
+node tools/check_build.mjs
+```
 
-1. Пройти final acceptance по migration exceptions и live SQL cleanup.
-2. Либо закрыть deferred Stage 7, либо явно пересогласовать финальный DoD Stage 10.
-3. Прогнать финальный smoke suite и обновить финальные architecture handoff docs.
+## 7. Что Сказать Новому Окну Одной Фразой
 
-## 5. Что Читать Первым
-
-1. [architecture_contract_4layer.md](architecture_contract_4layer.md)
-2. [migration_stage4_10_plan.md](migration_stage4_10_plan.md)
-3. [temporary_migration_exceptions.md](temporary_migration_exceptions.md)
-4. [runtime_rpc_registry.md](../supabase/runtime_rpc_registry.md)
+Миграция на 4-layer архитектуру завершена (Stages 0–9 закрыты, Stage 10 acceptance получен): `answer_events` — source of truth, canonical read-contracts `student_analytics_screen_v1` и `teacher_picking_screen_v2`, canonical write-contracts `write_answer_events_v1` и `submit_homework_attempt_v2`; deferred exception `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` (Stage 7) остаётся открытым без блокирующего влияния.
