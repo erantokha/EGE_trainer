@@ -1,6 +1,6 @@
 # Current Dev Context
 
-Дата обновления: 2026-04-01 (Stage 8 steps 1–5 закрыты)
+Дата обновления: 2026-04-01 (Stage 8 закрыт)
 
 Этот файл нужен как быстрый handoff для нового окна или новой сессии, чтобы за 5-10 минут войти в контекст текущей миграции.
 
@@ -8,7 +8,7 @@
 
 - Репозиторий: `EGE_repo`
 - Ветка: `main`
-- HEAD на момент подготовки файла: `4552e1dc`
+- HEAD на момент подготовки файла: `e04cd676`
 - Stage 0: закрыт
 - Stage 1: закрыт
 - Stage 2: закрыт
@@ -17,12 +17,12 @@
 - Stage 5: **закрыт** (student self-analytics UI на canonical Layer-4 contract)
 - Stage 6: **закрыт** (аудит teacher UI — legacy dashboard calls отсутствуют, работ по коду не потребовалось)
 - Stage 7: **отложен** (deferred — алгоритмы рекомендаций и smart-plan дорабатываются отдельно)
-- Stage 8: **в процессе** — steps 1–5 закрыты, `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт; остался step 6 (deprecated RPC removal) и step 7 (CI + smoke)
-- Следующий рабочий блок: Stage 8 step 6 — удаление deprecated RPC из реестра и Supabase
+- Stage 8: **закрыт** (legacy cleanup завершён; deprecated RPC removed from runtime, CI и browser smoke green)
+- Следующий рабочий блок: Stage 9 (write-path на canonical event-контур); Stage 7 остаётся deferred
 
 Быстрые маркеры текущего состояния:
 - `runtime_rpc_registry ok`
-- `rows=32 standalone_sql=32 snapshot_only=0 missing_in_repo=0`
+- `rows=31 standalone_sql=31 snapshot_only=0 missing_in_repo=0`
 - `runtime catalog read checks ok`
 - `catalog_stage2_rollout_smoke_summary.sql`: `ok=9 warn=0 fail=0`
 - `catalog_stage2_browser_smoke`: `ok=7 warn=0 fail=0`
@@ -44,6 +44,11 @@
 - teacher-path parity confirmed: `student_analytics_screen_v1(teacher)` = `student_dashboard_for_teacher_v2`
 - `tasks/stats.js` migrated to `student_analytics_screen_v1(self)` — `rpcAny` fallback removed
 - both viewer scopes (`teacher` and `self`) now served by single canonical contract
+- deprecated runtime RPC removed:
+  - `teacher_picking_screen_v1`
+  - `student_dashboard_self_v2`
+  - `student_dashboard_for_teacher_v2`
+  - `subtopic_coverage_for_teacher_v1`
 
 ## 2. Global Plan
 
@@ -139,6 +144,32 @@
   - итог: `ok=12; warn=0; fail=0`
 - `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` закрыт
 
+### Stage 8 Legacy Cleanup
+
+- `picker.js` student home переведён на прямой `student_analytics_screen_v1(self)`:
+  - dead code `fetchStudentDashboardSelf` удалён
+  - legacy cache invalidation для `home_student:last10:v2:*` удалён
+  - provider-wrapper `loadStudentDashboardSelfV1` больше не нужен
+- `picker.js` teacher-mode compat-builder удалён:
+  - `compatTopics` / `compatDash` / `applyDashboardHomeStats(compatDash)` были dead code и убраны
+- `app/providers/homework.js` очищен от legacy provider wrappers:
+  - `loadStudentDashboardSelfV1`
+  - `loadTeacherDashboardForStudentV1`
+  - `loadTeacherPickingScreenV1`
+- stage3 smoke-артефакты удалены:
+  - `tasks/teacher_picking_stage3_browser_smoke.js`
+  - `tasks/teacher_picking_stage3_browser_smoke.html`
+- runtime registry очищен от deprecated RPC:
+  - `teacher_picking_screen_v1`
+  - `student_dashboard_self_v2`
+  - `student_dashboard_for_teacher_v2`
+  - `subtopic_coverage_for_teacher_v1`
+- финальный Stage 8 smoke green:
+  - [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html) → `ok=14 warn=0 fail=0`
+  - [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html) → `ok=19 warn=0 fail=0`
+  - [stats_self_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats_self_browser_smoke.html) → `ok=12 warn=0 fail=0`
+- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт
+
 ### Stage 4 Dual-run Backend
 
 - Stage-4 parity artifacts подготовлены:
@@ -227,19 +258,13 @@ Index-like / path-based path:
 
 ## 7. Что Остаётся Открытым
 
-Stages 4, 5 и 6 полностью закрыты. Stage 7 отложен. Stage 8 в процессе (steps 1–5 закрыты).
+Stages 4, 5, 6 и 8 полностью закрыты. Stage 7 отложен.
 
 Открытых migration exceptions: **1**
 - `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` — recommendations/smart-plan на фронте (target: Stage 7, **deferred**; frontend-вычисления работают корректно поверх `student_analytics_screen_v1`)
 
 Закрытые:
-- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` ✅ (2026-04-01, Stage 8 steps 1–5)
-- `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅ (2026-03-31)
-- `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅ (2026-03-31)
-- `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅ (2026-03-31)
-- `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` ✅ (2026-04-01)
-
-Закрытые:
+- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` ✅ (2026-04-01, Stage 8)
 - `EX-PICKER-DIRECT-DASHBOARD-RPC` ✅ (2026-03-31)
 - `EX-RAW-ANSWER-EVENTS-STUDENT-SCREEN` ✅ (2026-03-31)
 - `EX-TEACHER-DASHBOARD-RPC-FALLBACK` ✅ (2026-03-31)
@@ -247,10 +272,12 @@ Stages 4, 5 и 6 полностью закрыты. Stage 7 отложен. Stag
 
 ## 8. Рекомендуемый Следующий Шаг
 
-Stage 7 отложен (deferred). Ближайший приоритет — Stage 8 (legacy cleanup):
+Stage 7 остаётся deferred. Ближайший активный этап — Stage 9:
 
-1. **Teacher picking orchestration** — убрать transitional compat restore paths, локальный selection-state, badge-cache из `picker.js`; убрать fallback логику из `list.js`, `trainer.js`, `hw_create.js`; закрыть `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
-2. **Устаревшие RPC** — удалить `teacher_picking_screen_v1`; оценить и удалить `student_dashboard_for_teacher_v2`, `student_dashboard_self_v2`, `subtopic_coverage_for_teacher_v1`
+1. Выяснить и формализовать текущий write-path из `attempts` / `homework_attempts` в `answer_events`
+2. Перевести запись ответов на прямой canonical event-контур
+3. Проверить корректность layer-3 aggregates на новом write-path
+4. Подготовить smoke по сценариям записи: тренажёр, домашнее задание, самостоятельная работа
 
 Stage 7 (recommendations / smart-plan backend-driven) возобновляется отдельно по решению команды.
 
@@ -296,4 +323,4 @@ node --check tasks/teacher_picking_filters_browser_smoke.js
 
 ## 11. Что Сказать Новому Окну Одной Фразой
 
-Stage 0–6 закрыты, Stage 7 отложен, Stage 8 в процессе (steps 1–5 done): picker.js переведён на `student_analytics_screen_v1(self)`, dead compat paths удалены, legacy providers (`loadStudentDashboardSelfV1`, `loadTeacherDashboardForStudentV1`, `loadTeacherPickingScreenV1`) удалены из homework.js, stage3 smoke удалён, `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт; остался step 6 (deprecated RPC removal из реестра и Supabase) и step 7 (CI + smoke).
+Stage 0–6 и 8 закрыты: student/teacher analytics переведены на canonical Layer-4 contracts, legacy teacher-picking compat очищен, deprecated RPC removed from runtime, Stage 8 smoke green; Stage 7 deferred, следующий активный блок — Stage 9 write-path.

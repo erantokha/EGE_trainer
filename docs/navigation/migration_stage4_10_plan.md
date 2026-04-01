@@ -68,7 +68,7 @@ Backend-паритет подтверждён на реальных данных
 Аудит teacher-facing файлов:
 - `tasks/student.js` — 3 call site на `student_analytics_screen_v1(teacher)`, legacy dashboard calls отсутствуют ✅
 - `tasks/my_students.js` — использует `teacher_students_summary` (собственный легковесный контракт, не dashboard RPC) ✅
-- `tasks/picker.js` teacher-режим — использует `teacher_picking_screen_v2` ✅; вызов `student_dashboard_self_v2` присутствует только в student-режиме и покрыт `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` (Stage 8)
+- `tasks/picker.js` teacher-режим — использует `teacher_picking_screen_v2` ✅
 - `teacher_students_summary` — достаточен как есть; отдельный layer-4 screen contract для списка учеников не требуется на данном этапе
 
 Следующий активный этап: `Stage 7`.
@@ -105,6 +105,24 @@ Backend-паритет подтверждён на реальных данных
 
 **Суть:** Убрать весь compat/fallback мусор, накопленный за переходный период.
 
+**Статус на 2026-04-01:** закрыт.
+
+Фактически закрыто:
+- `picker.js` student home переведён на прямой `student_analytics_screen_v1(self)`; dead compat path удалён
+- teacher-mode compat builder в `picker.js` удалён как мёртвый код
+- из `app/providers/homework.js` удалены legacy wrappers `loadStudentDashboardSelfV1`, `loadTeacherDashboardForStudentV1`, `loadTeacherPickingScreenV1`
+- удалены Stage-3 smoke артефакты, бывшие единственным runtime-consumer `teacher_picking_screen_v1`
+- runtime registry очищен от deprecated RPC:
+  - `teacher_picking_screen_v1`
+  - `student_dashboard_self_v2`
+  - `student_dashboard_for_teacher_v2`
+  - `subtopic_coverage_for_teacher_v1`
+- browser smoke gate после cleanup зелёный:
+  - [teacher_picking_v2_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_v2_browser_smoke.html) → `ok=14 warn=0 fail=0`
+  - [teacher_picking_filters_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/teacher_picking_filters_browser_smoke.html) → `ok=19 warn=0 fail=0`
+  - [stats_self_browser_smoke.html](/C:/Users/ZimniayaVishnia/Desktop/EGE_repo/tasks/stats_self_browser_smoke.html) → `ok=12 warn=0 fail=0`
+- `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` закрыт; `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` уже был закрыт Stage 5
+
 ### Работы:
 
 **Teacher picking orchestration:**
@@ -118,7 +136,9 @@ Backend-паритет подтверждён на реальных данных
 
 ### Критерий закрытия:
 
-Нет ни одного fallback/compat path. Реестр migration exceptions пуст (все `closed`). Каждый экран — тонкий клиент над одним layer-4 RPC.
+Нет ни одного Stage-8 compat/fallback path. Deprecated RPC убраны из runtime-реестра и live cleanup зафиксирован. Каждый экран — тонкий клиент над одним layer-4 RPC или специализированным canonical contract. Допускается, что Stage-7 deferred exception остаётся открытым отдельно от Stage 8.
+
+Следующий активный этап: `Stage 9`.
 
 ---
 
@@ -175,6 +195,4 @@ Stage 9 (write-path) — независим от 4-8, может идти пар
 
 | Exception | Где | Remove by |
 |---|---|---|
-| `EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK` | `tasks/stats.js:193-194` | Stage 5 |
 | `EX-FRONTEND-RECOMMENDATIONS-AND-SMART-PLAN` | `recommendations.js`, `smart_select.js`, `stats.js`, `student.js` | Stage 7 |
-| `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION` | `picker.js`, `list.js`, `trainer.js`, `hw_create.js` | Stage 8 |

@@ -1,6 +1,6 @@
 # Temporary Migration Exceptions
 
-Дата обновления: 2026-04-01 (Stage 8 steps 1–5)
+Дата обновления: 2026-04-01 (Stage 8 закрыт; Stage 7 deferred)
 
 Этот документ фиксирует временные отклонения от целевого архитектурного контракта 4 слоёв. Исключения ниже не считаются нормой архитектуры и существуют только как переходное состояние до завершения соответствующих этапов миграции.
 
@@ -26,7 +26,7 @@
 - `target_state`: рекомендации и smart-plan формируются через канонические backend read API, использующие одну и ту же модель `covered / solved / weak / stale`.
 - `remove_by_stage`: `Stage 7` (deferred — без конкретной даты)
 - `owner`: `student-analytics`
-- `note`: этап отложен до принятия решения об алгоритмах рекомендаций. Stage 8 начинается без закрытия этого исключения.
+- `note`: этап отложен до принятия решения об алгоритмах рекомендаций. Stage 8 завершён без закрытия этого исключения.
 
 ## Closed On 2026-04-01
 
@@ -35,12 +35,17 @@
 - `id`: `EX-FRONTEND-TEACHER-PICKING-ORCHESTRATION`
 - `status`: `closed`
 - `closed_on`: `2026-04-01`
-- `reason`: Stage 8 steps 1–5. Все compat/fallback пути убраны:
+- `reason`: Stage 8 закрыт. Все compat/fallback пути убраны и финальный smoke green:
   - `picker.js` student home переведён на `student_analytics_screen_v1(self)` — `loadStudentDashboardSelfV1` и мёртвый `fetchStudentDashboardSelf` удалены (Step 1).
   - `picker.js` teacher home: мёртвый compat path `compatDash`/`hasDashboardTopics`/`applyDashboardHomeStats(compatDash)` удалён — `teacher_picking_screen_v2` никогда не возвращает `payload.dashboard`, compat builder был dead code (Step 2).
   - `app/providers/homework.js`: удалены `loadStudentDashboardSelfV1`, `loadTeacherDashboardForStudentV1`, `loadTeacherPickingScreenV1` — 141 строка legacy provider кода (Step 3).
   - `tasks/teacher_picking_stage3_browser_smoke.{js,html}` удалены — единственный оставшийся consumer `teacher_picking_screen_v1` (Step 4).
   - `list.js`, `trainer.js`, `hw_create.js`: аудит подтвердил отсутствие teacher picking v1 compat. `tasks_selection_v1` — действующий формат selection; catalog fallbacks (`ensureManifest`, `lookupQuestionsByIdsV1`) — не picking compat (Step 5).
+  - deprecated RPC removed from runtime registry and Stage 8 cleanup artifacts documented (Step 6).
+  - browser smoke gate green:
+    - `teacher_picking_v2_browser_smoke` → `ok=14 warn=0 fail=0`
+    - `teacher_picking_filters_browser_smoke` → `ok=19 warn=0 fail=0`
+    - `stats_self_browser_smoke` → `ok=12 warn=0 fail=0` (Step 7).
 
 ### EX-STUDENT-DASHBOARD-SELF-RPC-FALLBACK
 

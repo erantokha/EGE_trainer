@@ -1,6 +1,6 @@
 # Реестр runtime-RPC
 
-Дата обновления: 2026-04-01 (Stage 8 step 6)
+Дата обновления: 2026-04-01 (Stage 8 closed)
 
 Это первый проход по runtime-RPC, собранный по текущему фронтенду и `app/providers/*`.
 Реестр фиксирует только публичные RPC-контракты, от которых зависит runtime-поведение продукта.
@@ -34,6 +34,11 @@ Stage 8 cleanup (2026-04-01): удалены из runtime 4 deprecated RPC:
 - `student_dashboard_self_v2` → superseded by `student_analytics_screen_v1(self)`
 - `student_dashboard_for_teacher_v2` → superseded by `student_analytics_screen_v1(teacher)`
 - `subtopic_coverage_for_teacher_v1` → coverage теперь в `student_analytics_screen_v1` payload
+
+Stage 8 финально подтверждён browser smoke gate:
+- `teacher_picking_v2_browser_smoke` → `ok=14 warn=0 fail=0`
+- `teacher_picking_filters_browser_smoke` → `ok=19 warn=0 fail=0`
+- `stats_self_browser_smoke` → `ok=12 warn=0 fail=0`
 
 Добавлен canonical Layer-4 screen contract:
 - `student_analytics_screen_v1`
