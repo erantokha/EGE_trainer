@@ -305,18 +305,22 @@ async function submitPendingAndShowReport() {
         if (!res2?.ok) throw (res2?.error || new Error('SUBMIT_FAILED'));
 
         // фиксируем, чтобы при перезагрузке/повторной попытке было что показать
+        attemptId = res2.attempt_id || attemptId;
         pending.attempt_id = attemptId;
         SESSION.meta.lastSubmit = {
           attempt_id: attemptId,
-          total: pending.total,
-          correct: pending.correct,
-          duration_ms: pending.duration_ms,
+          total: Number(res2.total ?? pending.total ?? 0) || 0,
+          correct: Number(res2.correct ?? pending.correct ?? 0) || 0,
+          duration_ms: Number(res2.duration_ms ?? pending.duration_ms ?? 0) || 0,
+          finished_at: res2.finished_at ?? null,
+          already_submitted: !!res2.already_submitted,
+          written_events: Number(res2.written_events ?? 0) || 0,
         };
 
         showSummaryAfterSave({
-          total: pending.total,
-          correct: pending.correct,
-          duration_ms: pending.duration_ms,
+          total: Number(res2.total ?? pending.total ?? 0) || 0,
+          correct: Number(res2.correct ?? pending.correct ?? 0) || 0,
+          duration_ms: Number(res2.duration_ms ?? pending.duration_ms ?? 0) || 0,
           avg_ms: pending.avg_ms,
         });
         return;

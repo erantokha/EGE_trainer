@@ -380,14 +380,25 @@ export async function submitHomeworkAttempt({ attempt_id, payload, total, correc
   if (!attempt_id) return { ok: false, error: new Error('NO_ATTEMPT_ID') };
 
   try {
-    await supaRest.rpc('submit_homework_attempt', {
+    const data = await supaRest.rpc('submit_homework_attempt_v2', {
       p_attempt_id: attempt_id,
       p_payload: payload ?? {},
       p_total: Number(total ?? 0),
       p_correct: Number(correct ?? 0),
       p_duration_ms: Number(duration_ms ?? 0),
     }, { timeoutMs: 20000 });
-    return { ok: true };
+    const row = Array.isArray(data) ? (data[0] || null) : (data || null);
+    return {
+      ok: true,
+      attempt_id: row?.attempt_id ?? attempt_id,
+      already_submitted: !!(row?.already_submitted ?? false),
+      written_events: Number(row?.written_events ?? 0) || 0,
+      finished_at: row?.finished_at ?? null,
+      total: Number(row?.total ?? total ?? 0) || 0,
+      correct: Number(row?.correct ?? correct ?? 0) || 0,
+      duration_ms: Number(row?.duration_ms ?? duration_ms ?? 0) || 0,
+      error: null,
+    };
   } catch (e) {
     return { ok: false, error: e };
   }

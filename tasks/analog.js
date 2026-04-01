@@ -21,6 +21,7 @@ let ASESSION = null;
 
 let SESSION = {
   started_at: null,
+  attempt_ref: '',
   topic_id: '',
   base_question_id: '',
   return_url: '',
@@ -29,6 +30,13 @@ let SESSION = {
 };
 
 let REVIEW_ONLY_WRONG = false;
+
+function buildAttemptRef() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch (_) {}
+  return `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
 
 function diagReady() {
   try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
@@ -933,6 +941,7 @@ async function finishAnalog() {
   const startedIso = new Date(t0).toISOString();
 
   const attemptRow = {
+    attempt_ref: String(SESSION?.attempt_ref || '').trim() || buildAttemptRef(),
     mode: 'tasks',
     topic_ids: [q.topic_id],
     total: 1,
@@ -997,6 +1006,7 @@ async function startAnalogSolve() {
   }
 
   SESSION.started_at = Date.now();
+  SESSION.attempt_ref = buildAttemptRef();
   SESSION.topic_id = REQ.topic_id;
   SESSION.base_question_id = REQ.base_question_id;
   SESSION.return_url = REQ.return_url || '';

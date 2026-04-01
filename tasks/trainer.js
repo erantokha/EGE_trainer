@@ -145,6 +145,13 @@ const STATS_BY_TOPIC = new Map(); // topicId -> Promise<Map>|Map|null
 
 let SELECTION_KEY = null; // сырой JSON selection (используем как ключ для восстановления сессии в режиме листа)
 
+function buildAttemptRef() {
+  try {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  } catch (_) {}
+  return `attempt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function loadSavedSession() {
   try {
     const raw = sessionStorage.getItem('tasks_session_v1');
@@ -353,6 +360,7 @@ async function tryRestoreReportOnReload() {
       questions,
       idx: 0,
       started_at: Number.isFinite(snap.started_at) ? snap.started_at : (snap.saved_at || Date.now()),
+      attempt_ref: String(snap.attempt_ref || '').trim() || buildAttemptRef(),
       timerId: null,
       total_ms: Number.isFinite(snap.total_ms) ? snap.total_ms : 0,
       t0: null,
@@ -1417,6 +1425,7 @@ async function startTestSession(arr) {
     questions,
     idx: 0,
     started_at: Date.now(),
+    attempt_ref: buildAttemptRef(),
     timerId: null,
     total_ms: 0,
     t0: null,
@@ -1950,6 +1959,7 @@ async function finishSession() {
   const topic_ids = Array.from(new Set(SESSION.questions.map(q => q.topic_id)));
 
   const attemptRow = {
+    attempt_ref: String(SESSION?.attempt_ref || '').trim() || buildAttemptRef(),
     student_id: null,
     student_name: null,
     student_email: null,
@@ -1989,6 +1999,7 @@ async function finishSession() {
       url_key: urlKey(),
       saved_at: Date.now(),
       started_at: SESSION.started_at,
+      attempt_ref: attemptRow.attempt_ref,
       total_ms: SESSION.total_ms,
       refs,
       results,
