@@ -1,0 +1,482 @@
+/* home_teacher.layout.css
+ * Компоновка главной страницы учителя (desktop-first, ≥1025px).
+ * Подключается после trainer.css и home_teacher.mobile.css.
+ */
+
+
+/* ══════════════════════════════════════════════════════════════
+   1. Термометр встроен в поле выбора ученика
+      Заливка реализована через linear-gradient на самом input —
+      это надёжнее чем прозрачный input + div позади.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Базовый фон combo — показывается в незалитой зоне */
+.ht-combo {
+  position: relative;
+  width: 100%;
+  /* НЕТ overflow:hidden — иначе дропдаун будет обрезан */
+}
+
+/* Когда цифры видны — отступ справа для текста имени (цифры + кнопка ×) */
+.ht-combo.has-score .ht-combo-input:not([aria-expanded="true"]) {
+  padding-right: 110px;
+}
+
+/* Цифры — справа, левее кнопки × (34px = ширина кнопки × + зазор) */
+.ht-combo-score {
+  position: absolute;
+  right: 34px;
+  top: 0; bottom: 0;
+  display: none; /* управляется JS через класс is-visible */
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.ht-combo-score.is-visible {
+  display: flex;
+}
+
+/* Гасим цифры пока открыт дропдаун */
+.ht-combo-input[aria-expanded="true"] ~ .ht-combo-score {
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+
+.ht-combo-score__secondary {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ht-combo-score__primary {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   2. Строка ученика
+   ══════════════════════════════════════════════════════════════ */
+body[data-home-variant="teacher"] .ht-student-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.ht-student-label {
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* обёртка комбобокса в строке ученика */
+.ht-student-picker {
+  flex: 2 1 280px;
+  max-width: 600px;
+  min-width: 0;
+}
+
+/* Специфичность input[type="text"].ht-combo-input = (0,2,1) — выше чем
+   input[type="text"] в trainer.css (0,1,1), который ставит background-image:none */
+input[type="text"].ht-combo-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--muted);
+  background-image: linear-gradient(
+    to right,
+    var(--combo-fill-color, transparent) var(--combo-fill-pct, 0%),
+    transparent var(--combo-fill-pct, 0%)
+  );
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+.ht-combo-input:focus,
+.ht-combo-input[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+input[type="text"].ht-combo-input[aria-expanded="true"] {
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  background-image: none; /* гасим заливку при поиске; background-color остаётся */
+}
+.ht-combo-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ht-combo-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Сдвигаем текст вправо когда видна кнопка × */
+.ht-combo:has(> .ht-combo-clear:not([hidden])) .ht-combo-input {
+  padding-right: 32px;
+}
+
+/* Кнопка сброса ученика */
+.ht-combo-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-dim);
+  opacity: 0.5;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+  box-shadow: none;
+}
+.ht-combo-clear:hover {
+  opacity: 1;
+  background: var(--panel-2);
+  filter: none;
+}
+
+/* Выпадающий список */
+.ht-combo-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  margin-top: -1px;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: var(--shadow);
+  overscroll-behavior: contain;
+}
+
+.ht-combo-item {
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.ht-combo-item:last-child {
+  border-bottom: none;
+}
+.ht-combo-item:hover,
+.ht-combo-item--active {
+  background: var(--panel-2);
+}
+.ht-combo-item--empty {
+  color: var(--text-dim);
+  cursor: default;
+  font-style: italic;
+}
+.ht-combo-item mark {
+  background: transparent;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ht-student-status {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   3. Панель рекомендаций — под строкой ученика
+   ══════════════════════════════════════════════════════════════ */
+body[data-home-variant="teacher"] .ht-rec-panel {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Скрываем панель рекомендаций пока ученик не выбран */
+body[data-home-variant="teacher"]:not(.teacher-student-view) .ht-rec-panel {
+  display: none;
+}
+
+/* Заголовок блока */
+.ht-rec-label {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* Список рекомендаций */
+.ht-rec-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Заглушка — одна строка текста */
+.ht-rec-item {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Карточка рекомендации */
+.ht-rec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.ht-rec-card--weak     { border-left-color: #ef4444; }
+.ht-rec-card--low      { border-left-color: #f59e0b; }
+.ht-rec-card--stale    { border-left-color: #84cc16; }
+.ht-rec-card--uncovered { border-left-color: var(--border); }
+
+.ht-rec-tag {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+.ht-rec-tag--weak      { color: #ef4444; }
+.ht-rec-tag--low       { color: #f59e0b; }
+.ht-rec-tag--stale     { color: #84cc16; }
+.ht-rec-tag--uncovered { color: var(--text-dim); }
+
+.ht-rec-card-title {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.ht-rec-card-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.2;
+}
+
+/* Футер блока — кнопка справа внизу */
+.ht-rec-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+/* Кнопка «Начать по рекомендации» — синяя, как .ht-start-btn */
+.ht-rec-start {
+  padding: 8px 16px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ht-rec-start:hover:not(:disabled) {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  filter: none;
+}
+
+.ht-rec-start:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   4. Тулбар над аккордеоном
+   ══════════════════════════════════════════════════════════════ */
+body[data-home-variant="teacher"] .ht-toolbar {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+body[data-home-variant="teacher"] .ht-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* re-scope shuffle: trainer.css привязан к .controls, новый layout — к .ht-toolbar-row */
+body[data-home-variant="teacher"] .ht-toolbar-row .shuffle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+body[data-home-variant="teacher"] .ht-toolbar-row .shuffle input {
+  margin: 0;
+}
+
+/* Дропдаун фильтров teacher picking */
+.ht-filter-dropdown {
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--muted);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.ht-filter-dropdown:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ht-filters-hint {
+  font-size: 12px;
+  transition: opacity 0.15s ease;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   5. Основная область: аккордеон (слева) + панель действий (справа)
+   ══════════════════════════════════════════════════════════════ */
+body[data-home-variant="teacher"] .ht-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+body[data-home-variant="teacher"] .ht-accordion-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* убираем верхний отступ аккордеона — отступ уже задан у .ht-main */
+body[data-home-variant="teacher"] .ht-accordion-col #accordion.accordion {
+  margin-top: 0;
+}
+
+/* Hover на строках аккордеона: лёгкий подъём карточки */
+body[data-home-variant="teacher"] #accordion .section-title {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  border-radius: 10px;
+}
+body[data-home-variant="teacher"] #accordion .section-title:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.09);
+}
+body[data-home-variant="teacher"] #accordion .section-title:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+}
+
+/* Панель действий — sticky, margin-top выравнивается по JS под первую .node.section */
+body[data-home-variant="teacher"] .ht-action-panel {
+  flex: 0 0 196px;
+  width: 196px;
+  position: sticky;
+  top: 30px;
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-home-variant="teacher"] .ht-action-panel button {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* «Добавленные задачи» — пунктирная рамка (как .sum в trainer.css) */
+body[data-home-variant="teacher"] .ht-added-btn {
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* «Начать» — акцентная кнопка */
+body[data-home-variant="teacher"] .ht-start-btn {
+  padding: 10px 12px;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+body[data-home-variant="teacher"] .ht-start-btn:hover:not(:disabled) {
+  background: var(--accent-2);
+  border-color: var(--accent-2);
+  filter: none;
+}
+
+/* «Создать ДЗ» — compact вторичная */
+body[data-home-variant="teacher"] .ht-hw-btn {
+  font-size: 13px;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   6. Адаптив ≤1024px — схлопываем в единую колонку
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  /* Панель рекомендаций на мобайле показывается при выбранном студенте */
+  body[data-home-variant="teacher"].teacher-student-view .ht-rec-panel {
+    display: flex;
+  }
+
+  body[data-home-variant="teacher"] .ht-main {
+    flex-direction: column;
+  }
+
+  body[data-home-variant="teacher"] .ht-action-panel {
+    position: static;
+    width: 100%;
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  body[data-home-variant="teacher"] .ht-action-panel button {
+    flex: 1 1 auto;
+    width: auto;
+  }
+}

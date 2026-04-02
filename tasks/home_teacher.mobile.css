@@ -7,12 +7,6 @@ body[data-home-variant="teacher"] .score-thermo-slot{
 }
 
 @media (max-width: 1024px) {
-  /* Keep parity with home_student: hide the right forecast column on mobile */
-  body.teacher-student-view #picker .picker-right{
-    display:none !important;
-  }
-
-
   /* Responsive sizing tokens (scale with viewport, but stay within sane bounds) */
   body.teacher-student-view #accordion{
     /* keep countbox width compact on phones, default-ish on tablets */
@@ -189,14 +183,14 @@ body[data-home-variant="teacher"] .score-thermo-slot{
   /* Thermometer: horizontal bar between header and mode toggle */
   body.teacher-student-view .score-thermo-slot{
     display:block;
-    margin:clamp(8px, 1.6vw, 12px) 0 clamp(6px, 1.2vw, 10px);
+    margin:0;
     max-width:none;
   }
 
   body.teacher-student-view .score-thermo{
-    --st-h:clamp(52px, 8vw, 64px);
-    --st-radius:clamp(16px, 3.0vw, 22px);
-    --st-pad-x:clamp(10px, 2.6vw, 14px);
+    --st-h:clamp(34px, 5.5vw, 40px);
+    --st-radius:10px;
+    --st-pad-x:clamp(10px, 2.4vw, 14px);
 
     /* match badge tints from trainer.css */
     --st-gray:rgba(148,163,184,.10);
@@ -233,44 +227,44 @@ body[data-home-variant="teacher"] .score-thermo-slot{
   body.teacher-student-view .score-thermo[data-color="lime"] .score-thermo__fill{background:var(--st-lime);}
   body.teacher-student-view .score-thermo[data-color="green"] .score-thermo__fill{background:var(--st-green);}
 
+  /* Горизонтальный layout: метка слева, цифры справа — как на десктопе */
   body.teacher-student-view .score-thermo__content{
     position:absolute;
     inset:0;
     padding:0 var(--st-pad-x);
     display:flex;
-    flex-direction:column;
+    flex-direction:row;
     align-items:center;
-    justify-content:center;
-    text-align:center;
+    justify-content:space-between;
     pointer-events:none;
   }
 
   body.teacher-student-view .score-thermo__label{
-    font-size:clamp(11px, 2.6vw, 13px);
+    font-size:clamp(11px, 2.4vw, 13px);
     line-height:1.1;
     color:var(--text-dim);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
-    max-width:100%;
+    max-width:55%;
   }
 
   body.teacher-student-view .score-thermo__values{
     display:flex;
-    align-items:baseline;
-    justify-content:center;
-    gap:clamp(6px, 1.6vw, 10px);
-    margin-top:2px;
+    align-items:center;
+    gap:clamp(5px, 1.4vw, 8px);
+    flex-shrink:0;
     font-variant-numeric:tabular-nums;
   }
 
   body.teacher-student-view .score-thermo__secondary{
-    font-size:clamp(16px, 4.4vw, 22px);
+    font-size:clamp(15px, 3.8vw, 18px);
+    font-weight:600;
     line-height:1;
   }
 
   body.teacher-student-view .score-thermo__primary{
-    font-size:clamp(11px, 2.9vw, 14px);
+    font-size:clamp(10px, 2.2vw, 12px);
     line-height:1;
     color:var(--text-dim);
     white-space:nowrap;
@@ -286,16 +280,6 @@ body[data-home-variant="teacher"] .score-thermo-slot{
 
 
 /* ---------- Added tasks preview (home_teacher) ---------- */
-body[data-home-variant="teacher"] #picker .sub-controls .sum.sum-btn{
-  appearance:none;
-  -webkit-appearance:none;
-  cursor:pointer;
-}
-body[data-home-variant="teacher"] #picker .sub-controls .sum.sum-btn:disabled{
-  opacity:.55;
-  cursor:default;
-}
-
 body[data-home-variant="teacher"] #addedTasksModal .added-tasks-main{
   display:flex;
   flex-direction:column;

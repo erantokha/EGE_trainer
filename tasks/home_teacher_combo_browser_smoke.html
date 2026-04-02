@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-04-01-5">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Home Teacher Combo Browser Smoke</title>
+
+  <!-- CSS under test — same files as home_teacher.html -->
+  <link rel="stylesheet" href="./trainer.css?v=2026-04-01-5">
+  <link rel="stylesheet" href="./home_teacher.layout.css?v=2026-04-01-5">
+  <link rel="stylesheet" href="./home_teacher.mobile.css?v=2026-04-01-5">
+
+  <style>
+    /* ── CSS-переменные, нужные тестируемым файлам ── */
+    :root {
+      --muted:    #f1f5f9;
+      --border:   #d8e0ec;
+      --text:     #10203a;
+      --text-dim: #5e6b7f;
+      --accent:   #2563eb;
+      --accent-2: #1d4ed8;
+      --panel:    #ffffff;
+      --panel-2:  #f5f7fb;
+      --shadow:   0 4px 14px rgba(0,0,0,.08);
+      --radius:   12px;
+    }
+
+    /* ── служебные стили страницы смока ── */
+    :root {
+      color-scheme: light;
+      --ok-bg: #ecfdf3; --ok-fg: #146c43;
+      --fail-bg: #fff1f2; --fail-fg: #b42318;
+      --warn-bg: #fff7e8; --warn-fg: #9a6700;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, #f5f7fb 180px);
+      color: #10203a;
+    }
+    .page { max-width: 960px; margin: 0 auto; padding: 28px 20px 40px; }
+    .hero, .panel {
+      background: #fff;
+      border: 1px solid #d8e0ec;
+      border-radius: 18px;
+      box-shadow: 0 14px 30px rgba(16,32,58,.06);
+    }
+    .hero { padding: 24px; margin-bottom: 18px; }
+    h1 { margin: 0 0 8px; font-size: 34px; line-height: 1.1; }
+    .muted { color: #5e6b7f; }
+    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 18px; }
+    button {
+      appearance: none; border: 0; border-radius: 999px;
+      background: #2563eb; color: #fff;
+      font: inherit; padding: 12px 18px; cursor: pointer;
+    }
+    button:disabled { opacity: 0.65; cursor: default; }
+    .summary {
+      display: inline-flex; align-items: center;
+      min-height: 44px; padding: 10px 14px;
+      border-radius: 14px; border: 1px solid #d8e0ec;
+      background: #f8fbff; color: #10203a;
+    }
+    .launch-hint {
+      margin-top: 14px; padding: 14px 16px;
+      border-radius: 14px; border: 1px solid #d8e0ec;
+      background: #fffaf0; color: #10203a;
+    }
+    .launch-hint code { font-family: Consolas, "Courier New", monospace; font-size: 13px; }
+    .hidden { display: none !important; }
+    .panel { padding: 18px; margin-bottom: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 22px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      text-align: left; vertical-align: top;
+      padding: 12px 10px;
+      border-top: 1px solid #d8e0ec;
+      font-size: 14px;
+    }
+    th { color: #5e6b7f; font-weight: 600; border-top: 0; padding-top: 0; }
+    .status-pill {
+      display: inline-flex; align-items: center;
+      border-radius: 999px; padding: 5px 10px;
+      font-size: 12px; font-weight: 700; letter-spacing: .02em;
+    }
+    .status-ok      { background: var(--ok-bg);   color: var(--ok-fg);   }
+    .status-fail    { background: var(--fail-bg);  color: var(--fail-fg); }
+    .status-warn    { background: var(--warn-bg);  color: var(--warn-fg); }
+    .status-running { background: #eef4ff; color: #1d4ed8; }
+    .log { margin: 0; white-space: pre-wrap; color: #5e6b7f; font-family: Consolas, "Courier New", monospace; font-size: 13px; }
+
+    /* ── фикстура скрыта визуально, но DOM-рендерится — иначе getComputedStyle не работает ── */
+    #fixture-host {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      width: 600px;     /* нужна ширина для проверки padding-right */
+      visibility: hidden;
+    }
+  </style>
+</head>
+
+<!--
+  body[data-home-variant="teacher"] нужен, чтобы сработали CSS-правила
+  из home_teacher.layout.css, привязанные к этому атрибуту.
+-->
+<body data-home-variant="teacher">
+
+  <!-- ── фикстура: точная копия DOM-структуры из home_teacher.html ── -->
+  <div id="fixture-host">
+    <div class="ht-student-bar">
+      <div class="ht-student-picker">
+        <div class="ht-combo" id="fixtureCombo">
+          <input
+            type="text"
+            class="ht-combo-input"
+            id="fixtureInput"
+            aria-expanded="false"
+            placeholder="Ученик"
+          >
+          <button class="ht-combo-clear" id="fixtureClear" hidden>×</button>
+          <div class="ht-combo-score" id="fixtureScore">
+            <span class="ht-combo-score__secondary" id="fixtureScoreSecondary">8 втор.</span>
+            <span class="ht-combo-score__primary"   id="fixtureScorePrimary">6 перв.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── UI смока ── -->
+  <main class="page">
+    <section class="hero">
+      <h1>Home Teacher Combo Smoke</h1>
+      <div class="muted">
+        Проверяет CSS-логику градиентного термометра в поле выбора ученика.<br>
+        Открывать через локальный сервер. Сессия Supabase не требуется.
+      </div>
+      <div class="hero-actions">
+        <button id="runBtn" type="button">Run smoke</button>
+        <div id="summary" class="summary">Ожидание запуска</div>
+      </div>
+      <div id="launchHint" class="launch-hint hidden"></div>
+    </section>
+
+    <div class="panel">
+      <h2>Checks</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:48px">#</th>
+            <th style="width:280px">Check</th>
+            <th style="width:80px">Status</th>
+            <th>Details</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody">
+          <tr><td colspan="4" class="muted">Results will appear after launch.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Trace</h2>
+      <pre id="traceLog" class="log">—</pre>
+    </div>
+  </main>
+
+  <script>
+    (function bootstrap() {
+      var runBtn    = document.getElementById('runBtn');
+      var summaryEl = document.getElementById('summary');
+      var resultsBody = document.getElementById('resultsBody');
+      var launchHint  = document.getElementById('launchHint');
+      var browserUrl  = 'http://127.0.0.1:8000/tasks/home_teacher_combo_browser_smoke.html';
+
+      if (location.protocol === 'file:') {
+        if (runBtn) runBtn.disabled = true;
+        if (summaryEl) {
+          summaryEl.textContent = 'Open via local server URL';
+          summaryEl.classList.add('status-warn');
+        }
+        if (resultsBody) {
+          resultsBody.innerHTML =
+            '<tr><td>0</td><td>launch mode</td>'
+            + '<td><span class="status-pill status-warn">WARN</span></td>'
+            + '<td>Страница не работает как file:///... — CSS-файлы не загрузятся. '
+            + 'Используй локальный сервер: <code>' + browserUrl + '</code></td></tr>';
+        }
+        if (launchHint) {
+          launchHint.classList.remove('hidden');
+          launchHint.innerHTML =
+            '<b>Как открыть:</b> запусти <code>python -m http.server 8000</code> '
+            + 'в корне репо и открой <code>' + browserUrl + '</code>';
+        }
+        return;
+      }
+
+      var script = document.createElement('script');
+      script.type = 'module';
+      script.src  = './home_teacher_combo_browser_smoke.js?v=' + Date.now();
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

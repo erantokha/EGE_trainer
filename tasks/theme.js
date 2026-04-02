@@ -53,6 +53,10 @@
     const current = getInitialTheme();
     applyTheme(current);
 
+    // markReady до раннего return — иначе на страницах без #themeToggle
+    // (например home_teacher.html) watchdog сработает через 18 сек.
+    try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
+
     const toggle = document.getElementById('themeToggle');
     if (!toggle) return;
 
@@ -60,10 +64,7 @@
     toggle.addEventListener('change', () => {
       applyTheme('light');
     });
-  
-
-  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
-}
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

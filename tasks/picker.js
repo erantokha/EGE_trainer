@@ -230,8 +230,6 @@ function wireTeacherStudentSelect(sel){
 function setTeacherStudentViewUI(studentId){
   TEACHER_VIEW_STUDENT_ID = String(studentId || '').trim();
   document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
-  const slot = document.getElementById('scoreThermoSlot');
-  if (slot) slot.hidden = !TEACHER_VIEW_STUDENT_ID;
 
   setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
   try { onTeacherContextChanged({ reason: 'student-view-change' }); } catch (_) {}
@@ -1193,20 +1191,20 @@ function thermoColorByPrimary(primaryRounded) {
 function updateScoreThermo(primaryRounded, secondary, opts = {}) {
   if (!isStudentLikeHome()) return;
 
-  const root = document.getElementById('scoreThermo');
-  const fill = document.getElementById('scoreThermoFill');
-  const elS = document.getElementById('scoreThermoSecondary');
-  const elP = document.getElementById('scoreThermoPrimary');
+  const inputEl    = document.getElementById('studentComboInput');
+  const comboScore = document.getElementById('studentComboScore');
+  const elS        = document.getElementById('comboScoreSecondary');
+  const elP        = document.getElementById('comboScorePrimary');
+  const combo      = document.getElementById('studentCombo');
 
-  if (!root || !fill || !elS || !elP) return;
+  if (!inputEl || !comboScore || !elS || !elP) return;
 
   const signedIn = opts?.signedIn !== false;
   if (!signedIn) {
-    root.dataset.color = 'gray';
-    fill.style.width = '0%';
-    elS.textContent = '—';
-    elP.textContent = '—';
-    root.setAttribute('aria-label', 'Готовность по первой части');
+    inputEl.style.removeProperty('--combo-fill-pct');
+    inputEl.style.removeProperty('--combo-fill-color');
+    comboScore.classList.remove('is-visible');
+    if (combo) combo.classList.remove('has-score');
     return;
   }
 
@@ -1214,13 +1212,21 @@ function updateScoreThermo(primaryRounded, secondary, opts = {}) {
   const p = Math.max(0, Math.min(12, Math.round(isFinite(v) ? v : 0)));
   const s = Math.max(0, Number(secondary || 0) || 0);
 
-  root.dataset.color = thermoColorByPrimary(p);
-  fill.style.width = `${(p / 12) * 100}%`;
+  const COLOR_MAP = {
+    gray:   'rgba(148,163,184,.20)',
+    red:    'rgba(239,68,68,.28)',
+    yellow: 'rgba(245,158,11,.32)',
+    lime:   'rgba(132,204,22,.28)',
+    green:  'rgba(16,185,129,.26)',
+  };
+
+  inputEl.style.setProperty('--combo-fill-pct',   `${(p / 12) * 100}%`);
+  inputEl.style.setProperty('--combo-fill-color',  COLOR_MAP[thermoColorByPrimary(p)] || COLOR_MAP.gray);
 
   elS.textContent = `${s} втор.`;
   elP.textContent = `${p} перв.`;
-
-  root.setAttribute('aria-label', `Готовность по первой части: ${p} первичных, ${s} вторичных`);
+  comboScore.classList.add('is-visible');
+  if (combo) combo.classList.add('has-score');
 }
 
 function updateScoreForecast(sectionPctById, opts = {}) {
@@ -1293,6 +1299,13 @@ function clearStudentLast10UI() {
   });
 
   updateScoreForecast(null, { signedIn: false });
+
+  const listEl = document.getElementById('htRecList');
+  const startBtn = document.getElementById('htRecStart');
+  if (listEl) {
+    listEl.innerHTML = '<li class="ht-rec-item muted">Выберите ученика для получения рекомендаций</li>';
+  }
+  if (startBtn) { startBtn.disabled = true; }
 }
 
 function supabaseRefFromUrl(url) {
@@ -1872,6 +1885,69 @@ function buildTeacherPickingHomeModel(payload) {
   };
 }
 
+function renderTeacherHomeRecs(recs, topicStatsById, days) {
+  const listEl = document.getElementById('htRecList');
+  const startBtn = document.getElementById('htRecStart');
+  if (!listEl) return;
+
+  listEl.innerHTML = '';
+
+  const TAG_LABEL = {
+    weak: 'Слабое место',
+    low: 'Мало решал',
+    stale: 'Давно не решал',
+    uncovered: 'Не решал',
+  };
+
+  const topRecs = (Array.isArray(recs) ? recs : []).slice(0, 3);
+
+  if (topRecs.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'ht-rec-item muted';
+    li.textContent = 'Нет рекомендаций для выбранного ученика';
+    listEl.appendChild(li);
+    if (startBtn) { startBtn.disabled = true; }
+    return;
+  }
+
+  for (const rec of topRecs) {
+    const tid = String(rec.topic_id || '').trim();
+    const reason = String(rec.reason || '').trim().toLowerCase();
+    const stats = (topicStatsById instanceof Map ? topicStatsById.get(tid) : null) || null;
+    const topicObj = (TOPIC_BY_ID instanceof Map ? TOPIC_BY_ID.get(tid) : null) || null;
+    const titleText = topicObj ? `${tid}. ${topicObj.title}` : tid;
+
+    let metaText = '';
+    if (stats && stats.period_pct !== null && stats.period_total > 0) {
+      metaText = `${stats.period_pct}% · ${stats.period_correct}/${stats.period_total} за ${days}дн.`;
+    } else if (stats && stats.display_pct !== null) {
+      metaText = `${stats.display_pct}%`;
+    } else {
+      metaText = `нет данных за ${days}дн.`;
+    }
+
+    const li = document.createElement('li');
+    li.className = `ht-rec-card ht-rec-card--${reason}`;
+
+    const tagEl = document.createElement('span');
+    tagEl.className = `ht-rec-tag ht-rec-tag--${reason}`;
+    tagEl.textContent = TAG_LABEL[reason] || reason;
+
+    const titleEl = document.createElement('span');
+    titleEl.className = 'ht-rec-card-title';
+    titleEl.textContent = titleText;
+
+    const metaEl = document.createElement('span');
+    metaEl.className = 'ht-rec-card-meta';
+    metaEl.textContent = metaText;
+
+    li.append(tagEl, titleEl, metaEl);
+    listEl.appendChild(li);
+  }
+
+  if (startBtn) { startBtn.disabled = false; }
+}
+
 function applyTeacherPickingHomeStats(payload) {
   if (!isStudentLikeHome()) return;
   setHomeStatsLoading(false);
@@ -1934,6 +2010,12 @@ function applyTeacherPickingHomeStats(payload) {
 
   updateScoreForecast(model.sectionPctById, { signedIn: true });
   syncHomeTopicBadgesWidth();
+
+  renderTeacherHomeRecs(
+    Array.isArray(payload?.recommendations) ? payload.recommendations : [],
+    model.topicStatsById,
+    model.days,
+  );
 }
 
 

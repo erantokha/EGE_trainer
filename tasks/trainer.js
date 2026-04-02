@@ -1700,6 +1700,13 @@ function onCheck() {
   } else {
     r.textContent = `Неверно ✖. Правильный ответ: ${correct_text}`;
     r.className = 'result bad';
+    const row = r.closest('.answer-row') || document.querySelector('.answer-row');
+    if (row) {
+      row.classList.remove('shake');
+      void row.offsetWidth; // reflow чтобы анимация сбросилась при повторном неверном ответе
+      row.classList.add('shake');
+      row.addEventListener('animationend', () => row.classList.remove('shake'), { once: true });
+    }
   }
 
   if (SMART_ACTIVE) {

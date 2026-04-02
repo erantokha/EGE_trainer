@@ -3,16 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-04-01-6">
-<title>Тренажер по задачам из банка ФИПИ</title>
+  <meta name="app-build" content="2026-04-01-6">
+  <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <script src="./app/diag_bootstrap.js?v=2026-04-01-6"></script>
-
-  <!--
-    Главная страница сайта (/): это "вход" в тренажёр.
-    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
-    подключаем стили и скрипты с корректными путями.
-  -->
 
   <script id="sentry-loader"
   src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
@@ -74,185 +68,470 @@
 })();
 </script>
 
-
-  
   <link rel="stylesheet" href="./tasks/trainer.css?v=2026-04-01-6">
   <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-04-01-6">
+  <link rel="stylesheet" href="./tasks/home_teacher.layout.css?v=2026-04-01-6">
 </head>
 <body data-home-variant="teacher">
 <main class="container">
-    <section id="picker">
-      <div class="panel">
-        <header id="appHeader" class="page-head">
-  <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
-</header>
-<script type="module">
-  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
-  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
-  const rel = inTasks ? '../' : './';
-  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
-</script>
+  <section id="picker">
+    <div class="panel">
 
-</div>
+      <!-- ═══════════════════════════════════════════════
+           ШАПКА — не трогаем
+      ═══════════════════════════════════════════════ -->
+      <header id="appHeader" class="page-head">
+        <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
+      </header>
+      <script type="module">
+        const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
+        const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
+        const inTasks = /\/tasks(\/|$)/.test(location.pathname);
+        const rel = inTasks ? '../' : './';
+        import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+      </script>
 
-      <!-- Градусник готовности (учитель: выбранный ученик) -->
-      <div id="scoreThermoSlot" class="score-thermo-slot" aria-label="Готовность по первой части">
-        <div id="scoreThermo" class="score-thermo" data-color="gray">
-          <div class="score-thermo__track">
-            <div id="scoreThermoFill" class="score-thermo__fill"></div>
-            <div class="score-thermo__content">
-              <div class="score-thermo__label">Готовность по первой части</div>
-              <div class="score-thermo__values">
-                <span id="scoreThermoSecondary" class="score-thermo__secondary">—</span>
-                <span id="scoreThermoPrimary" class="score-thermo__primary">—</span>
-              </div>
+      <!-- ═══════════════════════════════════════════════
+           СТРОКА УЧЕНИКА
+      ═══════════════════════════════════════════════ -->
+      <div class="ht-student-bar">
+        <span class="ht-student-label muted">Ученик:</span>
+        <div class="ht-student-picker">
+          <div class="ht-combo" id="studentCombo">
+            <input
+              type="text"
+              id="studentComboInput"
+              class="ht-combo-input"
+              placeholder="Поиск ученика..."
+              autocomplete="off"
+              spellcheck="false"
+              role="combobox"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="studentComboList"
+              aria-autocomplete="list"
+              aria-label="Выбор ученика"
+            >
+            <div class="ht-combo-score" id="studentComboScore" hidden>
+              <span class="ht-combo-score__secondary" id="comboScoreSecondary"></span>
+              <span class="ht-combo-score__primary" id="comboScorePrimary"></span>
             </div>
+            <button
+              id="studentComboClear"
+              class="ht-combo-clear"
+              type="button"
+              aria-label="Сбросить выбор ученика"
+              hidden
+            >×</button>
+            <div id="studentComboList" class="ht-combo-list" role="listbox" hidden></div>
           </div>
+          <!-- Скрытый select: picker.js читает/пишет его напрямую -->
+          <select id="teacherStudentSelect" style="display:none" aria-hidden="true">
+            <option value="">— ученик не выбран —</option>
+          </select>
+        </div>
+<span id="teacherStudentStatus" class="muted ht-student-status"></span>
+
+      </div>
+      <script>
+      (function () {
+        var input    = document.getElementById('studentComboInput');
+        var list     = document.getElementById('studentComboList');
+        var sel      = document.getElementById('teacherStudentSelect');
+        var clearBtn = document.getElementById('studentComboClear');
+        if (!input || !list || !sel || !clearBtn) return;
+
+        var _value = '';  // зафиксированный value
+        var _label = '';  // зафиксированный label
+        var _open  = false;
+
+        /* ── утилиты ── */
+        function esc(s) {
+          return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        // 0 = первое слово совпадает, 1 = другое слово, -1 = нет совпадения
+        function scoreItem(text, q) {
+          if (!q) return 0;
+          var words = text.toLowerCase().split(/\s+/);
+          for (var i = 0; i < words.length; i++) {
+            if (words[i].indexOf(q) === 0) return i === 0 ? 0 : 1;
+          }
+          return -1;
+        }
+
+        function hlText(text, q) {
+          if (!q) return esc(text);
+          var parts = text.split(/(\s+)/);
+          var out = '';
+          for (var i = 0; i < parts.length; i++) {
+            var p = parts[i];
+            if (/\s+/.test(p)) { out += p; continue; }
+            if (p.toLowerCase().indexOf(q) === 0) {
+              out += '<mark>' + esc(p.slice(0, q.length)) + '</mark>' + esc(p.slice(q.length));
+            } else {
+              out += esc(p);
+            }
+          }
+          return out;
+        }
+
+        /* ── кнопка × ── */
+        function showClear(on) { clearBtn.hidden = !on; }
+
+        /* ── построение списка ── */
+        function buildItems(q) {
+          list.innerHTML = '';
+          var items = [];
+          for (var i = 0; i < sel.options.length; i++) {
+            var opt = sel.options[i];
+            if (!opt.value) continue;
+            var s = scoreItem(opt.text, q);
+            if (s >= 0) items.push({ value: opt.value, text: opt.text, s: s });
+          }
+          items.sort(function (a, b) {
+            return a.s !== b.s ? a.s - b.s : a.text.localeCompare(b.text, 'ru');
+          });
+
+          if (!items.length) {
+            var empty = document.createElement('div');
+            empty.className = 'ht-combo-item ht-combo-item--empty';
+            empty.textContent = q ? 'Нет совпадений' : 'Ученики не загружены';
+            list.appendChild(empty);
+            return;
+          }
+          for (var j = 0; j < items.length; j++) {
+            (function (it) {
+              var div = document.createElement('div');
+              div.className = 'ht-combo-item';
+              div.setAttribute('role', 'option');
+              div.innerHTML = hlText(it.text, q);
+              div.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+                commit(it.value, it.text);
+              });
+              list.appendChild(div);
+            })(items[j]);
+          }
+        }
+
+        /* ── открыть / закрыть ── */
+        function open() {
+          buildItems(getQ());
+          list.hidden = false;
+          input.setAttribute('aria-expanded', 'true');
+          _open = true;
+        }
+
+        function close() {
+          list.hidden = true;
+          input.setAttribute('aria-expanded', 'false');
+          _open = false;
+          clearActive();
+        }
+
+        function getQ() { return input.value.trim().toLowerCase(); }
+
+        /* ── выбор / сброс / отмена ── */
+        function commit(value, label) {
+          _value = value;
+          _label = label;
+          input.value = label;
+          showClear(true);
+          sel.value = value;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          close();
+          input.blur(); // убираем фокус после выбора — курсор не мигает
+        }
+
+        function deselect() {
+          _value = '';
+          _label = '';
+          input.value = '';
+          showClear(false);
+          sel.value = '';
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          close();
+          input.focus();
+        }
+
+        function abort() {
+          input.value = _label;
+          showClear(!!_label);
+          close();
+        }
+
+        /* ── клавиатурная навигация ── */
+        function liveItems() {
+          return list.querySelectorAll('.ht-combo-item:not(.ht-combo-item--empty)');
+        }
+
+        function clearActive() {
+          var a = list.querySelector('.ht-combo-item--active');
+          if (a) a.classList.remove('ht-combo-item--active');
+        }
+
+        function navigate(dir) {
+          var items = liveItems();
+          if (!items.length) return;
+          var cur = list.querySelector('.ht-combo-item--active');
+          var idx = -1;
+          for (var i = 0; i < items.length; i++) {
+            if (items[i] === cur) { idx = i; break; }
+          }
+          if (cur) cur.classList.remove('ht-combo-item--active');
+          idx = (idx + dir + items.length) % items.length;
+          items[idx].classList.add('ht-combo-item--active');
+          items[idx].scrollIntoView({ block: 'nearest' });
+        }
+
+        /* ── события ── */
+        input.addEventListener('focus', function () {
+          if (input.value && input.value === _label) input.value = '';
+          showClear(false);  // скрываем × пока идёт поиск
+          open();
+        });
+
+        input.addEventListener('input', function () {
+          if (_open) buildItems(getQ());
+        });
+
+        input.addEventListener('blur', function () {
+          // Если студент не подтверждён — сразу сбрасываем градиент,
+          // не дожидаясь picker.js (который может быть ещё не завершил async)
+          if (!_value) {
+            var comboEl = document.getElementById('studentCombo');
+            var scoreEl = document.getElementById('studentComboScore');
+            input.style.removeProperty('--combo-fill-pct');
+            input.style.removeProperty('--combo-fill-color');
+            if (comboEl) comboEl.classList.remove('has-score');
+            if (scoreEl) scoreEl.classList.remove('is-visible');
+          }
+          setTimeout(abort, 120);
+        });
+
+        input.addEventListener('keydown', function (e) {
+          if (e.key === 'Escape') {
+            abort(); input.blur();
+          } else if (e.key === 'Enter') {
+            e.preventDefault();
+            var active = list.querySelector('.ht-combo-item--active');
+            if (active) active.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (!_open) open(); else navigate(1);
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!_open) open(); else navigate(-1);
+          }
+        });
+
+        // mousedown (не click) — чтобы сработало до blur на input
+        clearBtn.addEventListener('mousedown', function (e) {
+          e.preventDefault();
+          deselect();
+        });
+
+        /* ── синхронизация с picker.js ── */
+        new MutationObserver(function () {
+          input.disabled = sel.disabled;
+          if (!sel.disabled && !_open) {
+            var opt = sel.options[sel.selectedIndex];
+            if (opt && opt.value) {
+              _value = opt.value;
+              _label = opt.text;
+              input.value = opt.text;
+              showClear(true);
+            } else {
+              _value = '';
+              _label = '';
+              showClear(false);
+            }
+          }
+        }).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
+
+      })();
+      </script>
+
+      <!-- ═══════════════════════════════════════════════
+           РЕКОМЕНДАЦИИ — под строкой ученика
+      ═══════════════════════════════════════════════ -->
+      <div class="ht-rec-panel">
+        <div class="ht-rec-label">Рекомендую сегодня</div>
+        <ul class="ht-rec-list" id="htRecList">
+          <li class="ht-rec-item muted">Выберите ученика для получения рекомендаций</li>
+        </ul>
+        <div class="ht-rec-footer">
+          <button type="button" class="ht-rec-start" id="htRecStart" disabled>
+            Начать по рекомендации →
+          </button>
         </div>
       </div>
 
-        <!-- Ряд 1: режим + перемешать (слева), старт + создать ДЗ (справа) -->
-        <div class="controls">
-          <div class="controls-left">
-            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-              <button
-                type="button"
-                class="mode-btn active"
-                id="modeList"
-                data-mode="list"
-                aria-selected="true"
-              >
-                Список задач
-              </button>
-              <button
-                type="button"
-                class="mode-btn"
-                id="modeTest"
-                data-mode="test"
-                aria-selected="false"
-              >
-                Тестирование
-              </button>
-            </div>
+      <!-- ═══════════════════════════════════════════════
+           ТУЛБАР АККОРДЕОНА
+      ═══════════════════════════════════════════════ -->
+      <div class="ht-toolbar">
 
-            <label class="shuffle">
-              <input type="checkbox" id="shuffleToggle">
-              Перемешать задачи
-            </label>
-
-            <label style="display:flex;align-items:center;gap:6px;user-select:none">
-              <span class="muted">Ученик:</span>
-              <select id="teacherStudentSelect" class="input" style="min-width:240px">
-                <option value="">— ученик не выбран —</option>
-              </select>
-            </label>
-            <span id="teacherStudentStatus" class="muted" style="opacity:.85"></span>
-
-            <div id="teacherFilters" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap" role="radiogroup" aria-label="Фильтр teacher picking">
-              <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="radio" name="teacherFilterMode" id="teacherFilterNone" value="" checked disabled>
-                <span>Без фильтра</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="radio" name="teacherFilterMode" id="teacherFilterUnseenLow" value="unseen_low" disabled>
-                <span>Не решал / мало решал</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="radio" name="teacherFilterMode" id="teacherFilterStale" value="stale" disabled>
-                <span>Давно решал</span>
-              </label>
-              <label style="display:flex;align-items:center;gap:6px;user-select:none">
-                <input type="radio" name="teacherFilterMode" id="teacherFilterUnstable" value="unstable" disabled>
-                <span>Нестабильно решает</span>
-              </label>
-              <span class="muted" id="teacherFiltersHint" style="opacity:.85">Фильтры работают только при выбранном ученике</span>
-            </div>
-
+        <!-- Строка 1: режим, перемешать, фильтры -->
+        <div class="ht-toolbar-row">
+          <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
+            <button
+              type="button"
+              class="mode-btn active"
+              id="modeList"
+              data-mode="list"
+              aria-selected="true"
+            >Список задач</button>
+            <button
+              type="button"
+              class="mode-btn"
+              id="modeTest"
+              data-mode="test"
+              aria-selected="false"
+            >Тестирование</button>
           </div>
 
-          <div class="controls-actions-right">
-            <button id="start" disabled>Начать</button>
-            <button id="createHwBtn" type="button" class="btn-compact">Создать ДЗ</button>
-          </div>
+          <label class="shuffle">
+            <input type="checkbox" id="shuffleToggle">
+            Перемешать задачи
+          </label>
 
-          <div class="theme-toggle">
-            <input
-              type="checkbox"
-              id="themeToggle"
-              class="theme-toggle-input"
-              aria-label="Переключить тему"
-            >
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-            </label>
+          <select
+            id="teacherFilterDropdown"
+            class="ht-filter-dropdown"
+            disabled
+            aria-label="Фильтр teacher picking"
+          >
+            <option value="">Без фильтра</option>
+            <option value="unseen_low">Не решал / мало решал</option>
+            <option value="stale">Давно решал</option>
+            <option value="unstable">Нестабильно решает</option>
+          </select>
+          <span id="teacherFiltersHint" class="muted ht-filters-hint">
+            Выберите ученика
+          </span>
+
+          <!-- Радиокнопки скрыты визуально; picker.js обращается к ним по id/name -->
+          <div id="teacherFilters" aria-hidden="true" style="display:none">
+            <input type="radio" name="teacherFilterMode" id="teacherFilterNone" value="" checked disabled>
+            <input type="radio" name="teacherFilterMode" id="teacherFilterUnseenLow" value="unseen_low" disabled>
+            <input type="radio" name="teacherFilterMode" id="teacherFilterStale" value="stale" disabled>
+            <input type="radio" name="teacherFilterMode" id="teacherFilterUnstable" value="unstable" disabled>
           </div>
         </div>
 
-        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
-        <div class="sub-controls">
+        <!-- Строка 2: bulk-кнопки -->
+        <div class="ht-toolbar-row ht-toolbar-row--bulk">
           <div class="bulk-controls" id="bulkControls">
             <button id="bulkPickAll" type="button">Выбрать все</button>
             <button id="bulkResetAll" type="button">Сбросить все</button>
           </div>
+        </div>
 
-          <button id="addedTasksBtn" type="button" class="sum sum-btn" disabled>
+      </div>
+      <script>
+      (function () {
+        var FILTER_KEY = 'teacher_pick_filter_id_v2';
+        var VALID     = ['unseen_low', 'stale', 'unstable'];
+        var dropdown  = document.getElementById('teacherFilterDropdown');
+        var radioNone = document.getElementById('teacherFilterNone');
+        var hint      = document.getElementById('teacherFiltersHint');
+        if (!dropdown || !radioNone) return;
+
+        // Инициализация: восстановить выбранный фильтр из sessionStorage
+        // (тот же ключ, что читает picker.js в loadTeacherPickFilterId)
+        try {
+          var stored = sessionStorage.getItem(FILTER_KEY);
+          if (stored && VALID.indexOf(stored) !== -1) dropdown.value = stored;
+        } catch (_) {}
+
+        // Дропдаун → радио: picker.js слушает 'change' на радио и читает event.target.value
+        dropdown.addEventListener('change', function () {
+          var radio = document.querySelector(
+            '#teacherFilters input[name="teacherFilterMode"][value="' + dropdown.value + '"]'
+          );
+          if (radio && !radio.disabled) {
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+
+        // disabled-синхронизация: picker.js выставляет radio.disabled → зеркалим в dropdown
+        // 'disabled' — IDL-рефлексируемый атрибут, MutationObserver его ловит
+        new MutationObserver(function () {
+          var dis = radioNone.disabled;
+          dropdown.disabled = dis;
+          if (hint) hint.style.opacity = dis ? '1' : '0';
+        }).observe(radioNone, { attributes: true, attributeFilter: ['disabled'] });
+      })();
+      </script>
+
+      <!-- ═══════════════════════════════════════════════
+           ОСНОВНАЯ ОБЛАСТЬ: аккордеон (слева) + панель действий (справа)
+      ═══════════════════════════════════════════════ -->
+      <div class="ht-main">
+
+        <div class="ht-accordion-col">
+          <div id="accordion" class="accordion"></div>
+        </div>
+
+        <aside class="ht-action-panel" aria-label="Действия">
+          <button id="addedTasksBtn" type="button" class="sum sum-btn ht-added-btn" disabled>
             Добавленные задачи: <span id="sum">0</span>
           </button>
-        </div>
+          <button id="start" class="ht-start-btn" disabled>Начать</button>
+          <button id="createHwBtn" type="button" class="btn-compact ht-hw-btn">Создать ДЗ</button>
+        </aside>
 
-        <!-- Ряд 3: аккордеон + прогноз баллов -->
-        <div class="picker-grid">
-          <div class="picker-left">
-            <div id="accordion" class="accordion"></div>
-          </div>
-          <aside class="picker-right" aria-label="Прогноз баллов">
-            <div class="score-forecast" id="scoreForecast">
-              <div class="sf-row">
-                <div class="sf-label">Первичные (до округления)</div>
-                <div class="sf-value" id="sfPrimaryExact">—</div>
-              </div>
-              <div class="sf-row">
-                <div class="sf-label">Вторичные</div>
-                <div class="sf-value" id="sfSecondary">—</div>
-              </div>
-              <div class="sf-note" id="sfNote" hidden></div>
-            </div>
-
-            <div class="home-proto-panel" id="homeProtoPanel" hidden>
-              <div class="home-proto-head">
-                <div class="home-proto-title" id="homeProtoTitle">—</div>
-                <div class="home-proto-note" id="homeProtoNote">Кликните по подтеме слева, чтобы добавить конкретные прототипы.</div>
-              </div>
-              <div class="tp-list" id="homeProtoList"></div>
-            </div>
-          </aside>
-        </div>
       </div>
-    </section>
-  </main>
 
-  <!-- Выбор прототипов (главная учителя): модалка, как на главной ученика -->
-  <div id="protoPickerModal" class="modal hidden" aria-hidden="true">
-    <div class="modal-backdrop" data-close="1"></div>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Выбор прототипов">
-      <div class="modal-head">
-        <div class="modal-title" id="protoPickerTitle">Прототипы</div>
-        <div class="tp-main-actions">
-          <div id="protoPickerSelectedCount" class="muted">Выбрано: 0</div>
-          <button id="protoPickerClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+      <!-- ═══════════════════════════════════════════════
+           СКРЫТЫЕ ЭЛЕМЕНТЫ: обязательны в DOM для picker.js,
+           но не отображаются в новом layout
+      ═══════════════════════════════════════════════ -->
+      <div style="display:none" aria-hidden="true">
+        <!-- score forecast (picker.js пишет в эти элементы) -->
+        <div id="scoreForecast">
+          <div id="sfPrimaryExact"></div>
+          <div id="sfSecondary"></div>
+          <div id="sfNote"></div>
+        </div>
+        <!-- inline proto panel (student home feature, в teacher-режиме не показывается) -->
+        <div class="home-proto-panel" id="homeProtoPanel" hidden>
+          <div class="home-proto-title" id="homeProtoTitle"></div>
+          <div class="home-proto-note" id="homeProtoNote"></div>
+          <div class="tp-list" id="homeProtoList"></div>
         </div>
       </div>
 
-      <div class="proto-picker-main">
-        <div id="protoPickerList" class="tp-list"></div>
-        <div id="protoPickerHint" class="muted tp-hint"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ═══════════════════════════════════════════════
+     МОДАЛКА: выбор прототипов
+═══════════════════════════════════════════════ -->
+<div id="protoPickerModal" class="modal hidden" aria-hidden="true">
+  <div class="modal-backdrop" data-close="1"></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Выбор прототипов">
+    <div class="modal-head">
+      <div class="modal-title" id="protoPickerTitle">Прототипы</div>
+      <div class="tp-main-actions">
+        <div id="protoPickerSelectedCount" class="muted">Выбрано: 0</div>
+        <button id="protoPickerClose" class="btn small" type="button" aria-label="Закрыть">×</button>
       </div>
     </div>
+    <div class="proto-picker-main">
+      <div id="protoPickerList" class="tp-list"></div>
+      <div id="protoPickerHint" class="muted tp-hint"></div>
+    </div>
   </div>
+</div>
 
-<!-- Предпросмотр добавленных задач (главная учителя) -->
+<!-- ═══════════════════════════════════════════════
+     МОДАЛКА: предпросмотр добавленных задач
+═══════════════════════════════════════════════ -->
 <div id="addedTasksModal" class="modal hidden" aria-hidden="true">
   <div class="modal-backdrop" data-close="1"></div>
   <div class="modal-card" role="dialog" aria-modal="true" aria-label="Добавленные задачи">
@@ -263,7 +542,6 @@
         <button id="addedTasksClose" class="btn small" type="button" aria-label="Закрыть">×</button>
       </div>
     </div>
-
     <div class="added-tasks-main">
       <div id="addedTasksListWrap" class="added-tasks-listwrap">
         <div id="addedTasksList" class="task-list"></div>
@@ -273,11 +551,38 @@
   </div>
 </div>
 
+<script type="module" src="./tasks/home_guard.js?v=2026-04-01-6"></script>
+<script src="./tasks/theme.js?v=2026-04-01-6" defer></script>
+<script type="module" src="./tasks/picker.js?v=2026-04-01-6"></script>
+<script>
+/* Выравнивает верх .ht-action-panel по первой .node.section аккордеона (десктоп).
+   Аккордеон заполняется асинхронно picker.js, поэтому ждём через MutationObserver. */
+(function () {
+  var panel     = document.querySelector('.ht-action-panel');
+  var main      = document.querySelector('.ht-main');
+  var accordion = document.getElementById('accordion');
+  if (!panel || !main || !accordion) return;
 
-  <script type="module" src="./tasks/home_guard.js?v=2026-04-01-6"></script>
+  function align() {
+    if (window.innerWidth <= 1024) { panel.style.marginTop = ''; return; }
+    var first = accordion.querySelector('.node.section');
+    if (!first) return;
+    var off = Math.max(0,
+      first.getBoundingClientRect().top - main.getBoundingClientRect().top
+    );
+    panel.style.marginTop = off + 'px';
+  }
 
+  var obs = new MutationObserver(function (_, o) {
+    if (!accordion.querySelector('.node.section')) return;
+    o.disconnect();
+    align();
+  });
+  obs.observe(accordion, { childList: true, subtree: true });
 
-  <script src="./tasks/theme.js?v=2026-04-01-6" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-04-01-6"></script>
+  align(); // на случай если аккордеон уже заполнен
+  window.addEventListener('resize', align, { passive: true });
+})();
+</script>
 </body>
 </html>
