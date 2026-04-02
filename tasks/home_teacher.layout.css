@@ -466,17 +466,41 @@ body[data-home-variant="teacher"] .ht-hw-btn {
     flex-direction: column;
   }
 
+  /* Панель в потоке — внизу страницы, пока ничего не выбрано */
   body[data-home-variant="teacher"] .ht-action-panel {
     position: static;
-    width: 100%;
     flex: none;
+    width: 100%;
     flex-direction: row;
     flex-wrap: wrap;
     gap: 8px;
+    padding: 10px 16px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.07);
+    box-sizing: border-box;
+    margin-top: 8px;
   }
 
   body[data-home-variant="teacher"] .ht-action-panel button {
     flex: 1 1 auto;
     width: auto;
+  }
+
+  /* Есть выбранные задачи → прибиваем к низу viewport */
+  body[data-home-variant="teacher"].ht-has-selection .ht-action-panel {
+    position: fixed;
+    top: auto;   /* сбрасываем top:30px от десктопного sticky-правила */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    margin-top: 0;
+  }
+
+  /* Компенсируем высоту фиксированной панели, чтобы аккордеон не прятался под ней */
+  body[data-home-variant="teacher"].ht-has-selection .ht-main {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
 }

@@ -3112,6 +3112,9 @@ function refreshTotalSum() {
     addedBtn.classList.toggle('is-ready', total > 0);
   }
 
+  // Мобильная панель кнопок: фиксируем к низу viewport только когда есть выбор
+  document.body.classList.toggle('ht-has-selection', total > 0);
+
   const startBtn = $('#start');
   if (!startBtn) return;
 
