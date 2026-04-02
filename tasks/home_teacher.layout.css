@@ -218,8 +218,8 @@ body[data-home-variant="teacher"] .ht-rec-panel {
   gap: 8px;
 }
 
-/* Скрываем панель рекомендаций пока ученик не выбран */
-body[data-home-variant="teacher"]:not(.teacher-student-view) .ht-rec-panel {
+/* Рекомендации скрыты на десктопе — только мобайл (см. секцию 6) */
+body[data-home-variant="teacher"] .ht-rec-panel {
   display: none;
 }
 
@@ -454,7 +454,61 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 
 
 /* ══════════════════════════════════════════════════════════════
-   6. Адаптив ≤1024px — схлопываем в единую колонку
+   6. Десктоп ≥1025px: unique-btn под заголовком темы
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 1025px) {
+  /* Строка раздела — 2-колоночный грид: countbox | контент */
+  body[data-home-variant="teacher"] #accordion .node.section > .row {
+    display: grid !important;
+    grid-template-columns: auto 1fr !important;
+    grid-template-rows: auto auto auto !important;
+    column-gap: 12px !important;
+    row-gap: 3px !important;
+    align-items: start !important;
+  }
+
+  /* Countbox — левая колонка, центрирован по всем строкам */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .countbox {
+    grid-column: 1 !important;
+    grid-row: 1 / span 3 !important;
+    align-self: center !important;
+    margin-right: 0 !important;
+    width: var(--home-countbox-w, auto) !important;
+  }
+
+  /* Заголовок — строка 1 правой колонки */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    margin-left: 0 !important;
+  }
+
+  /* Бейджи pct/cov — строка 2 (при teacher-student-view) */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .home-section-badges {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  /* unique-btn — строка 3, под заголовком, компактная высота */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn {
+    grid-column: 2 !important;
+    grid-row: 3 !important;
+    justify-self: start !important;
+    margin-left: 0 !important;
+    padding: 3px 10px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Spacer не нужен в новом гриде */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .spacer {
+    display: none !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   7. Адаптив ≤1024px — схлопываем в единую колонку
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
   /* Панель рекомендаций на мобайле показывается при выбранном студенте */

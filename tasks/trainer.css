@@ -264,46 +264,7 @@ body[data-home-variant="student"] #picker .score-forecast .sf-note{
     justify-content:flex-start;
     flex-wrap:wrap;
   }
-  /* Главная ученика: 2 колонки (аккордеон + прогноз баллов) */
-body[data-home-variant="student"] #picker .picker-grid{
-  display:flex;
-  align-items:flex-start;
-  gap:16px;
-}
-body[data-home-variant="student"] #picker .picker-left{flex:1 1 auto; min-width:0}
-body[data-home-variant="student"] #picker .picker-right{flex:0 0 260px; width:260px}
-body[data-home-variant="student"] #picker .score-forecast{
-  border:1px solid var(--border);
-  border-radius:14px;
-  padding:12px;
-  background:rgba(148,163,184,.06);
-}
-body[data-home-variant="student"] #picker .score-forecast .sf-row{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-  padding:6px 0;
-}
-body[data-home-variant="student"] #picker .score-forecast .sf-label{
-  font-size:12px;
-  color:var(--text-dim);
-}
-body[data-home-variant="student"] #picker .score-forecast .sf-value{
-  font-size:18px;
-  font-variant-numeric:tabular-nums;
-}
-body[data-home-variant="student"] #picker .score-forecast .sf-note{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--text-dim);
-}
-@media (max-width: 900px){
-  body[data-home-variant="student"] #picker .picker-grid{flex-direction:column}
-  body[data-home-variant="student"] #picker .picker-right{width:auto; flex:0 0 auto}
-}
-
-#picker .sub-controls{
+  #picker .sub-controls{
     justify-content:flex-start;
   }
 }
@@ -1885,12 +1846,6 @@ body.vs-modal-open{ overflow:hidden; }
   margin-left: 10px;
 }
 
-.user-menu-item{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 .myhw-actions{
   display: flex;
   gap: 10px;
@@ -1943,7 +1898,7 @@ body.vs-modal-open{ overflow:hidden; }
 .myhw-meta{
   margin-top: 4px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--text-dim);
 }
 
 .myhw-right{
@@ -1972,7 +1927,7 @@ body.vs-modal-open{ overflow:hidden; }
 
 .myhw-submitted{
   font-size: 12px;
-  color: var(--muted);
+  color: var(--text-dim);
 }
 
 .myhw-actions-row{
