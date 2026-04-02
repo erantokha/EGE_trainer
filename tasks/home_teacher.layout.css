@@ -455,44 +455,50 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 
 /* ══════════════════════════════════════════════════════════════
    6. Десктоп ≥1025px: unique-btn под заголовком темы
+   ══════════════════════════════════════════════════════════════
+   DOM-порядок: countbox → [home-section-badges?] → section-title → unique-btn → spacer
+   Нужно: строка 1 = countbox | badges | title
+           строка 2 = countbox (span) | unique-btn (под badges+title)
+   Решение: 3-колоночный грид: [countbox auto] [badges auto] [title 1fr]
+   Когда badges отсутствует (ученик не выбран), col-2 пустая и схлопывается.
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1025px) {
-  /* Строка раздела — 2-колоночный грид: countbox | контент */
   body[data-home-variant="teacher"] #accordion .node.section > .row {
     display: grid !important;
-    grid-template-columns: auto 1fr !important;
-    grid-template-rows: auto auto auto !important;
-    column-gap: 12px !important;
-    row-gap: 3px !important;
-    align-items: start !important;
+    grid-template-columns: auto auto 1fr !important;
+    grid-template-rows: auto auto !important;
+    column-gap: 0 !important;
+    row-gap: 4px !important;
+    align-items: center !important;
   }
 
-  /* Countbox — левая колонка, центрирован по всем строкам */
+  /* countbox — col 1, центрирован вертикально по обеим строкам */
   body[data-home-variant="teacher"] #accordion .node.section > .row > .countbox {
     grid-column: 1 !important;
-    grid-row: 1 / span 3 !important;
+    grid-row: 1 / span 2 !important;
     align-self: center !important;
-    margin-right: 0 !important;
+    margin-right: 12px !important;
     width: var(--home-countbox-w, auto) !important;
   }
 
-  /* Заголовок — строка 1 правой колонки */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
+  /* badges — col 2, строка 1 (рядом с заголовком, как и было) */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .home-section-badges {
     grid-column: 2 !important;
+    grid-row: 1 !important;
+    margin-right: 8px !important;
+  }
+
+  /* section-title — col 3, строка 1 */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
+    grid-column: 3 !important;
     grid-row: 1 !important;
     margin-left: 0 !important;
   }
 
-  /* Бейджи pct/cov — строка 2 (при teacher-student-view) */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .home-section-badges {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-  }
-
-  /* unique-btn — строка 3, под заголовком, компактная высота */
+  /* unique-btn — col 2–3, строка 2 (под badges+title), компактная высота */
   body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn {
-    grid-column: 2 !important;
-    grid-row: 3 !important;
+    grid-column: 2 / span 2 !important;
+    grid-row: 2 !important;
     justify-self: start !important;
     margin-left: 0 !important;
     padding: 3px 10px !important;
@@ -501,7 +507,7 @@ body[data-home-variant="teacher"] .ht-hw-btn {
     line-height: 1.4 !important;
   }
 
-  /* Spacer не нужен в новом гриде */
+  /* spacer не нужен в гриде */
   body[data-home-variant="teacher"] #accordion .node.section > .row > .spacer {
     display: none !important;
   }
