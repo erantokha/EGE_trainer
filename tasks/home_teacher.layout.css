@@ -558,6 +558,23 @@ body[data-home-variant="teacher"] .ht-hw-btn {
     display: block !important;
   }
 
+  /* Ученик не выбран — бейджей нет, col 3 пустой.
+     Без коррекции зазор = col2(3ch) + col3(0) + margin-left(3ch) = 6ch.
+     Сдвигаем title в col 3 и убираем лишний margin → зазор = col2(3ch). */
+  body[data-home-variant="teacher"] #accordion
+      .node.section > .row:not(:has(> .home-section-badges)) > .section-title {
+    grid-column: 3 !important;
+    margin-left: 0 !important;
+  }
+  body[data-home-variant="teacher"] #accordion
+      .node.section > .row:not(:has(> .home-section-badges)) > .unique-btn {
+    grid-column: 4 !important;
+  }
+  body[data-home-variant="teacher"] #accordion
+      .node.section > .row:not(:has(> .home-section-badges)) > .spacer {
+    grid-column: 5 !important;
+  }
+
   /* Фиксированная ширина бейджей = ширина меток шапки → выравнивание колонок */
   body[data-home-variant="teacher"] #accordion .home-section-pct,
   body[data-home-variant="teacher"] #accordion .home-section-cov {
