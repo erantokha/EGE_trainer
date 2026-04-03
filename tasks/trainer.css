@@ -1064,11 +1064,15 @@ mjx-container{
   overflow-x:auto;
 }
 
-/* фокус */
-button:focus,
-input:focus{
+/* фокус — только при навигации с клавиатуры (мышь не подсвечивает) */
+button:focus-visible,
+input:focus-visible{
   outline:2px solid rgba(59,130,246,.35);
   outline-offset:2px;
+}
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible){
+  outline:none;
 }
 
 /* главная ученика: окантовка только при наведении, а фокус-обводка — только для клавиатуры */
