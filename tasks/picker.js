@@ -2907,7 +2907,15 @@ function renderSectionNode(sec) {
       </span>
       ` : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
-      <button class="unique-btn" type="button">Уникальные прототипы</button>
+      <button class="unique-btn" type="button" title="Уникальные прототипы">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+          <rect x="3" y="5" width="5" height="15" rx="1"/>
+          <rect x="10" y="3" width="4" height="17" rx="1"/>
+          <rect x="16" y="6" width="5" height="14" rx="1"/>
+          <line x1="2" y1="21" x2="22" y2="21"/>
+        </svg>
+      </button>
       <div class="spacer"></div>
       
     </div>

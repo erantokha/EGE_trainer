@@ -454,62 +454,122 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 
 
 /* ══════════════════════════════════════════════════════════════
-   6. Десктоп ≥1025px: unique-btn под заголовком темы
+   6. Десктоп ≥1025px: иконка «Уникальные прототипы» справа от заголовка
    ══════════════════════════════════════════════════════════════
-   DOM-порядок: countbox → [home-section-badges?] → section-title → unique-btn → spacer
-   Нужно: строка 1 = countbox | badges | title
-           строка 2 = countbox (span) | unique-btn (под badges+title)
-   Решение: 3-колоночный грид: [countbox auto] [badges auto] [title 1fr]
-   Когда badges отсутствует (ученик не выбран), col-2 пустая и схлопывается.
+   Grid 6 col × 1 строка:
+     col 1 (max-content): countbox
+     col 2 (3ch):         зазор countbox ↔ badges
+     col 3 (max-content): badges (если есть)
+     col 4 (auto):        section-title — по ширине текста
+     col 5 (auto):        .unique-btn — иконка-книги
+     col 6 (1fr):         spacer — забирает остаток строки
+   col 4 = auto (не 1fr!) → title занимает ровно ширину текста,
+   поэтому margin-left: 3ch на иконке = ровно 3ch от последнего символа.
+   Один и тот же grid для шапки и строк разделов → колонки выровнены.
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1025px) {
+  /* CSS-переменные — аналогично student-variant */
+  body[data-home-variant="teacher"] #accordion {
+    --home-badge-w:    60px;
+    --home-badges-gap: 12px;
+  }
+
+  /* Один и тот же 6-col grid для шапки и строк разделов */
+  body[data-home-variant="teacher"] #accordion .home-badges-head .row,
   body[data-home-variant="teacher"] #accordion .node.section > .row {
     display: grid !important;
-    grid-template-columns: auto auto 1fr !important;
-    grid-template-rows: auto auto !important;
+    grid-template-columns: max-content 3ch max-content auto auto 1fr !important;
     column-gap: 0 !important;
-    row-gap: 4px !important;
     align-items: center !important;
   }
 
-  /* countbox — col 1, центрирован вертикально по обеим строкам */
+  /* countbox: col 1 */
+  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .countbox,
   body[data-home-variant="teacher"] #accordion .node.section > .row > .countbox {
     grid-column: 1 !important;
-    grid-row: 1 / span 2 !important;
-    align-self: center !important;
-    margin-right: 12px !important;
-    width: var(--home-countbox-w, auto) !important;
+    width: auto !important;
+    margin-right: 0 !important;
   }
 
-  /* badges — col 2, строка 1 (рядом с заголовком, как и было) */
+  /* badges: col 3 */
+  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .home-section-badges,
   body[data-home-variant="teacher"] #accordion .node.section > .row > .home-section-badges {
-    grid-column: 2 !important;
-    grid-row: 1 !important;
-    margin-right: 8px !important;
-  }
-
-  /* section-title — col 3, строка 1 */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
     grid-column: 3 !important;
     grid-row: 1 !important;
-    margin-left: 0 !important;
+    display: flex !important;
+    gap: var(--home-badges-gap) !important;
+    align-items: center !important;
+    margin-right: 0 !important;
   }
 
-  /* unique-btn — col 2–3, строка 2 (под badges+title), компактная высота */
+  /* spacer шапки: col 4–6 */
+  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .spacer {
+    grid-column: 4 / span 3 !important;
+  }
+
+  /* section-title: col 4 (auto — по ширине текста) */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
+    grid-column: 4 !important;
+    grid-row: 1 !important;
+    margin-left: 3ch !important;
+    width: auto !important;
+    flex: none !important;    /* отменяем flex:1 из trainer.css */
+  }
+
+  /* unique-btn: col 5 — иконка-книги справа от заголовка */
   body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn {
-    grid-column: 2 / span 2 !important;
-    grid-row: 2 !important;
-    justify-self: start !important;
-    margin-left: 0 !important;
-    padding: 3px 10px !important;
-    font-size: 12px !important;
+    grid-column: 5 !important;
+    grid-row: 1 !important;
+    margin-left: 3ch !important;   /* = тому же зазору badges ↔ title */
+    padding: 0 !important;
+    width: 28px !important;
+    height: 28px !important;
     border-radius: 8px !important;
-    line-height: 1.4 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border: none !important;
+    background: none !important;
+    color: #b0bfd0 !important;
+    cursor: pointer !important;
+    transition: background .15s, color .15s !important;
+    font-size: 0 !important;       /* текст скрыт, если SVG не отрисуется */
   }
 
-  /* spacer не нужен в гриде */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn:hover {
+    background: #f0f4f8 !important;
+    color: #2563eb !important;
+  }
+
+  /* SVG внутри кнопки */
+  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-width: 1.8 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* spacer в строках разделов — col 6 (1fr), забирает остаток строки */
   body[data-home-variant="teacher"] #accordion .node.section > .row > .spacer {
-    display: none !important;
+    grid-column: 6 !important;
+    display: block !important;
+  }
+
+  /* Фиксированная ширина бейджей = ширина меток шапки → выравнивание колонок */
+  body[data-home-variant="teacher"] #accordion .home-section-pct,
+  body[data-home-variant="teacher"] #accordion .home-section-cov {
+    width: var(--home-badge-w) !important;
+    min-width: var(--home-badge-w) !important;
+    justify-content: center !important;
+  }
+
+  body[data-home-variant="teacher"] #accordion .home-badge-label {
+    width: var(--home-badge-w) !important;
+    min-width: var(--home-badge-w) !important;
+    text-align: center !important;
   }
 }
 
