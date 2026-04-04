@@ -451,6 +451,16 @@ body[data-home-variant="student"] #accordion .unique-btn{
 .node.section.show-uniq .unique-btn{
   display:inline-flex;
 }
+.unique-btn svg{
+  width:14px;
+  height:14px;
+  flex-shrink:0;
+  stroke:currentColor;
+  fill:none;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
 
 .node .spacer{flex:1}
 
@@ -1063,6 +1073,46 @@ mjx-container{
   max-width:100%;
   overflow-x:auto;
 }
+
+/* ── Кастомный tooltip: data-tip="..." → мгновенный, красивый ── */
+[data-tip]{position:relative;}
+[data-tip]::after,
+[data-tip]::before{
+  position:absolute;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .08s ease;
+  z-index:9999;
+}
+/* Тело tooltip */
+[data-tip]::after{
+  content:attr(data-tip);
+  top:calc(100% + 7px);
+  left:50%;
+  transform:translateX(-50%);
+  background:#3f4a5a;
+  color:#fff;
+  font-size:12px;
+  font-family:"Segoe UI",Arial,sans-serif;
+  font-weight:500;
+  white-space:nowrap;
+  padding:5px 10px;
+  border-radius:7px;
+  line-height:1.4;
+  letter-spacing:.01em;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);
+}
+/* Стрелка tooltip (вверх — указывает на элемент) */
+[data-tip]::before{
+  content:'';
+  top:calc(100% + 3px);
+  left:50%;
+  transform:translateX(-50%);
+  border:4px solid transparent;
+  border-bottom-color:#3f4a5a;
+}
+[data-tip]:hover::after,
+[data-tip]:hover::before{opacity:1;}
 
 /* фокус — только при навигации с клавиатуры (мышь не подсвечивает) */
 button:focus-visible,
