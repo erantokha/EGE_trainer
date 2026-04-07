@@ -3639,9 +3639,11 @@ body.teacher-student-view .score-thermo__primary{
     font-weight: 600;
   }
 
-  /* 7d. Заголовок из диалога печати */
+  /* 7d. Заголовок из диалога печати.
+     !important нужен: body > div {display:none!important} скрывает элемент,
+     если он прямой потомок body; класс с !important перебивает по специфике. */
   .print-custom-title {
-    display: block;
+    display: block !important;
     font-size: 20px;
     font-weight: 700;
     margin-bottom: 16px;

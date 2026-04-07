@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<!--
+  Фикстура для тестирования диалога печати с hideAnswers: true.
+  Чекбокс «с ответами» должен отсутствовать.
+  Кнопка «Печать» должна работать без ошибок (null?.checked ?? false).
+  Запускается через Puppeteer в print-features.js.
+-->
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Fixture: Print Dialog (no answers)</title>
+  <link rel="stylesheet" href="../tasks/trainer.css">
+</head>
+<body>
+  <button id="printBtn" type="button" class="btn small print-btn">Печать</button>
+
+  <script>
+    window.__printCalled = false;
+    window.__lastPrintSettings = null;
+    window.print = function () { window.__printCalled = true; };
+
+    function showPrintDialog({ hideAnswers = false } = {}) {
+      return new Promise(function (resolve, reject) {
+        var overlay = document.createElement('div');
+        overlay.className = 'print-dialog-overlay';
+
+        var dialog = document.createElement('div');
+        dialog.className = 'print-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+
+        dialog.innerHTML =
+          '<h2 class="print-dialog-h">Настройки печати</h2>' +
+          '<div class="print-dialog-field">' +
+            '<label class="print-dialog-label" for="pdTitleInput">Заголовок (необязательно)</label>' +
+            '<input type="text" id="pdTitleInput" class="print-dialog-input" autocomplete="off">' +
+          '</div>' +
+          (hideAnswers ? '' :
+            '<div class="print-dialog-check-row">' +
+              '<input type="checkbox" id="pdWithAnswers" class="print-dialog-check">' +
+              '<label for="pdWithAnswers">Печатать с ответами</label>' +
+            '</div>'
+          ) +
+          '<div class="print-dialog-actions">' +
+            '<button type="button" class="print-dialog-cancel">Отмена</button>' +
+            '<button type="button" class="print-dialog-confirm">Печать</button>' +
+          '</div>';
+
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+
+        function close(result) {
+          overlay.remove();
+          document.removeEventListener('keydown', onKey);
+          if (result !== null) resolve(result);
+          else reject(new Error('cancelled'));
+        }
+
+        function onKey(e) { if (e.key === 'Escape') close(null); }
+        document.addEventListener('keydown', onKey);
+
+        overlay.addEventListener('click', function (e) {
+          if (e.target === overlay) close(null);
+        });
+
+        dialog.querySelector('.print-dialog-cancel').addEventListener('click', function () {
+          close(null);
+        });
+
+        function confirm() {
+          var title = (dialog.querySelector('#pdTitleInput').value || '').trim();
+          var cb = dialog.querySelector('#pdWithAnswers');
+          var withAnswers = cb ? cb.checked : false; // ключевой fix: cb?.checked ?? false
+          close({ title: title, withAnswers: withAnswers });
+        }
+
+        dialog.querySelector('.print-dialog-confirm').addEventListener('click', confirm);
+        dialog.querySelector('#pdTitleInput').addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') confirm();
+        });
+      });
+    }
+
+    function initPrintBtn(opts) {
+      var btn = document.getElementById('printBtn');
+      if (!btn) return;
+      btn.addEventListener('click', async function () {
+        btn.disabled = true;
+        try {
+          var settings;
+          try {
+            settings = await showPrintDialog(opts || {});
+          } catch (_) {
+            return;
+          }
+          window.__lastPrintSettings = settings;
+          window.print();
+        } finally {
+          setTimeout(function () { btn.disabled = false; }, 100);
+        }
+      });
+    }
+
+    // hideAnswers: true — чекбокс должен отсутствовать, Печать должна работать
+    initPrintBtn({ hideAnswers: true });
+  </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<!--
+  Фикстура для тестирования forceLoadImages.
+  Содержит lazy-картинки (не загружаются без скролла).
+  window.__runForceLoad() запускает forceLoadImages из print_btn.js.
+  Запускается через Puppeteer в print-features.js.
+-->
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Fixture: Force Load Images</title>
+</head>
+<body style="height:5000px">
+
+  <!-- Картинки с loading="lazy" — расположены далеко от viewport -->
+  <div style="margin-top:3000px">
+    <img id="img1" loading="lazy" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="test1">
+    <img id="img2" loading="lazy" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="test2">
+    <img id="img3" loading="lazy" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="test3">
+  </div>
+
+  <!-- Обычная картинка (уже загружена) -->
+  <img id="img4" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="eager">
+
+  <script>
+    // Код forceLoadImages из print_btn.js (без изменений)
+    async function forceLoadImages() {
+      for (var img of document.querySelectorAll('img[loading="lazy"]')) {
+        img.loading = 'eager';
+        if (!img.complete) {
+          var src = img.src;
+          img.src = '';
+          img.src = src;
+        }
+      }
+
+      var pending = Array.from(document.querySelectorAll('img'))
+        .filter(function (img) { return img.src && !img.complete; });
+
+      if (!pending.length) return;
+
+      var allLoaded = Promise.all(
+        pending.map(function (img) {
+          return new Promise(function (resolve) {
+            img.addEventListener('load',  resolve, { once: true });
+            img.addEventListener('error', resolve, { once: true });
+          });
+        })
+      );
+
+      await Promise.race([allLoaded, new Promise(function (r) { setTimeout(r, 12000); })]);
+    }
+
+    // Экспортируем для Puppeteer
+    window.__runForceLoad = function () { return forceLoadImages(); };
+  </script>
+</body>
+</html>
