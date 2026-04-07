@@ -49,6 +49,31 @@ if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 
+// Масштаб для печати через beforeprint (см. комментарий в list.js)
+window.addEventListener('beforeprint', () => {
+  document.body.style.zoom = '0.7';
+
+  // Catch-all: скрываем ВСЕ position:fixed элементы (красные иконки связи и т.п.)
+  try {
+    document.querySelectorAll('*').forEach(el => {
+      try {
+        if (window.getComputedStyle(el).position !== 'fixed') return;
+        el.setAttribute('data-print-was-fixed', '1');
+        el.style.setProperty('display', 'none', 'important');
+      } catch (_) {}
+    });
+  } catch (_) {}
+});
+window.addEventListener('afterprint', () => {
+  document.body.style.zoom = '';
+  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
+    try {
+      el.style.removeProperty('display');
+      el.removeAttribute('data-print-was-fixed');
+    } catch (_) {}
+  });
+});
+
 const $ = (sel, root = document) => root.querySelector(sel);
 const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.add(cls); };
 const rmCls  = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.remove(cls); };
@@ -1574,15 +1599,10 @@ function renderHomeworkList() {
     const card = document.createElement('div');
     card.className = 'task-card q-card';
 
-    const head = document.createElement('div');
-    head.className = 'hw-task-head';
-
     const num = document.createElement('div');
     num.className = 'task-num';
     num.textContent = String(idx + 1);
-    head.appendChild(num);
-
-    card.appendChild(head);
+    card.appendChild(num);
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
@@ -1595,20 +1615,24 @@ function renderHomeworkList() {
       figWrap.dataset.figSize = /\/graphs\/|\/vectors\/|\/derivatives\//.test(q.figure.img) ? 'large' : 'small';
       const _ftm = q.figure.img.match(/\/(vectors|graphs|derivatives)\//);
       if (_ftm) figWrap.dataset.figType = _ftm[1];
+      if (/2\.1\.3_1\.svg|2\.2\.2_1\.svg/.test(q.figure.img)) figWrap.dataset.figVariant = 'shifted';
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
       img.addEventListener('load', function() {
         if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (this.naturalWidth <= this.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
       }, { once: true });
-      if (img.complete && img.naturalWidth > 0 && img.naturalWidth <= img.naturalHeight * 1.2)
-        figWrap.dataset.figOrientation = 'portrait';
+      if (img.complete && img.naturalWidth > 0) {
+        if (img.naturalWidth <= img.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (img.naturalWidth <= img.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+      }
       figWrap.appendChild(img);
       card.appendChild(figWrap);
     }
 
     const ansRow = document.createElement('div');
-    ansRow.className = 'hw-answer-row';
+    ansRow.className = 'task-ans';
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -1625,6 +1649,11 @@ function renderHomeworkList() {
 
     ansRow.appendChild(input);
     card.appendChild(ansRow);
+
+    const pal = document.createElement('div');
+    pal.className = 'print-ans-line';
+    pal.textContent = 'Ответ: ________________________';
+    card.appendChild(pal);
 
     listEl.appendChild(card);
   });

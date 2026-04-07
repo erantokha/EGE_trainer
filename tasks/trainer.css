@@ -1810,10 +1810,10 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   flex-direction:column;
   padding-bottom:24px; /* отступ снизу равен отступу над кнопкой */
 }
-.hw-panel .hw-answer-row{
+.hw-panel .q-card .task-ans{
   margin-top:18px; /* увеличенный отступ между условием и полем ответа */
 }
-.hw-panel .hw-answer-row input[type="text"]{
+.hw-panel .q-card .task-ans input[type="text"]{
   width:220px;
 }
 .hw-panel .hw-bottom{
@@ -3288,6 +3288,16 @@ body.teacher-student-view .score-thermo__primary{
     display: none !important;
   }
 
+  /* 3b. hw.html: скрыть кнопки и панели, не нужные при печати */
+  .hw-bottom,
+  .hw-summary-head,
+  .hw-review-controls,
+  #hwGate,
+  #hwDesc,
+  .list-meta {
+    display: none !important;
+  }
+
   /* 3a. Колокольчик — Chrome иногда рендерит кешированные img
          даже внутри display:none. CSS content: url() заменяет
          отображаемую картинку на прозрачный 1×1 пиксель.
@@ -3405,6 +3415,23 @@ body.teacher-student-view .score-thermo__primary{
   .task-card:not(:has(.task-fig)) .print-ans-line,
   .ws-item:not(:has(.ws-fig)) .print-ans-line {
     margin-top: 24px;
+  }
+
+  /* 7b. Vectors (задание 2): картинка занимает обе строки грида ("num stem fig" / ". ans fig"),
+     поэтому строка 2 высокая. align-self:end прибивает «Ответ:» к низу, как у остальных. */
+  .task-card:has(.task-fig[data-fig-type="vectors"]) .print-ans-line,
+  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .print-ans-line {
+    align-self: end;
+    margin-top: 0;
+  }
+
+  /* 7c. Derivatives landscape (задание 8 горизонтальное): грид "num stem" / ". fig" / ". ans" —
+     три строки. print-ans-line по умолчанию падает в строку 2 (поверх картинки).
+     Переносим в строку 3 + отступ 2em от нижней границы картинки. */
+  .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line,
+  .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line {
+    grid-row: 3;
+    margin-top: 2em;
   }
 
   /* 7c. Размер текста задач ×1.5.
