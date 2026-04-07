@@ -129,7 +129,7 @@
   const inTasks = /\/tasks(\/|$)/.test(location.pathname);
   const rel = inTasks ? '../' : './';
   import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
-  import(withV(rel + 'app/ui/print_btn.js')).then((m) => m.initPrintBtn());
+  import(withV(rel + 'app/ui/print_btn.js')).then((m) => m.initPrintBtn({ hideAnswers: true }));
 </script>
 
 

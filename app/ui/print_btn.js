@@ -2,7 +2,7 @@
 // Кнопка «Печать» — показывает диалог настроек, принудительно загружает
 // lazy-картинки, ждёт MathJax и вызывает window.print().
 
-export function initPrintBtn() {
+export function initPrintBtn(opts = {}) {
   const btn = document.getElementById('printBtn');
   if (!btn) return;
 
@@ -11,7 +11,7 @@ export function initPrintBtn() {
     try {
       let settings;
       try {
-        settings = await showPrintDialog();
+        settings = await showPrintDialog(opts);
       } catch (_) {
         return; // пользователь нажал «Отмена» или Escape
       }
@@ -56,7 +56,7 @@ export function initPrintBtn() {
 
 // ── Диалог настроек печати ──────────────────────────────────────────────────
 
-function showPrintDialog() {
+function showPrintDialog({ hideAnswers = false } = {}) {
   return new Promise((resolve, reject) => {
     const overlay = document.createElement('div');
     overlay.className = 'print-dialog-overlay';
@@ -74,10 +74,11 @@ function showPrintDialog() {
         <input type="text" id="pdTitleInput" class="print-dialog-input"
                placeholder="Например: Контрольная работа №1" autocomplete="off" maxlength="200">
       </div>
+      ${hideAnswers ? '' : `
       <div class="print-dialog-check-row">
         <input type="checkbox" id="pdWithAnswers" class="print-dialog-check">
         <label for="pdWithAnswers">Печатать с ответами</label>
-      </div>
+      </div>`}
       <div class="print-dialog-actions">
         <button type="button" class="print-dialog-cancel">Отмена</button>
         <button type="button" class="print-dialog-confirm">Печать</button>
@@ -109,7 +110,7 @@ function showPrintDialog() {
 
     function confirm() {
       const title = dialog.querySelector('#pdTitleInput').value.trim();
-      const withAnswers = dialog.querySelector('#pdWithAnswers').checked;
+      const withAnswers = dialog.querySelector('#pdWithAnswers')?.checked ?? false;
       close({ title, withAnswers });
     }
 
