@@ -8,16 +8,16 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-04-07-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-04-07-3';
-import { CONFIG } from '../app/config.js?v=2026-04-07-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-07-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-04-07-3';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-04-07-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-04-07-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-04-07-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-04-07-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-04-07-3';
+import { withBuild } from '../app/build.js?v=2026-04-07-4';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-04-07-4';
+import { CONFIG } from '../app/config.js?v=2026-04-07-4';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-07-4';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-04-07-4';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-04-07-4';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-04-07-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-04-07-4';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-04-07-4';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-04-07-4';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
