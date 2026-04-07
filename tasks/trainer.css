@@ -3369,6 +3369,13 @@ body.teacher-student-view .score-thermo__primary{
     grid-template-columns: auto 1fr 29% !important;
   }
 
+  /* 5c. unique.html: заголовок темы не отрывается от первого прототипа.
+         break-after:avoid запрещает разрыв страницы сразу после строки с названием темы. */
+  .node.topic > .row {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
   /* 6. Список задач */
   .task-list {
     margin: 0 !important;

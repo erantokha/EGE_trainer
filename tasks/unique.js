@@ -76,8 +76,31 @@ function mapLimit(items, limit, fn) {
 }
 
 // Масштаб для печати через beforeprint (см. комментарий в list.js)
-window.addEventListener('beforeprint', () => { document.body.style.zoom = '0.7'; });
-window.addEventListener('afterprint',  () => { document.body.style.zoom = ''; });
+window.addEventListener('beforeprint', () => {
+  document.body.style.zoom = '0.7';
+
+  // Catch-all: скрываем ВСЕ position:fixed элементы (красные иконки связи и т.п.).
+  // Chrome print повторяет fixed-элементы на каждой странице даже при display:none в CSS.
+  try {
+    document.querySelectorAll('*').forEach(el => {
+      try {
+        if (window.getComputedStyle(el).position !== 'fixed') return;
+        el.setAttribute('data-print-was-fixed', '1');
+        el.style.setProperty('display', 'none', 'important');
+      } catch (_) {}
+    });
+  } catch (_) {}
+});
+window.addEventListener('afterprint', () => {
+  document.body.style.zoom = '';
+
+  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
+    try {
+      el.style.removeProperty('display');
+      el.removeAttribute('data-print-was-fixed');
+    } catch (_) {}
+  });
+});
 
 document.addEventListener('DOMContentLoaded', init);
 
