@@ -16,7 +16,7 @@
   </defs>
 
   <!-- тонкая клетчатая сетка 10×10, без окаймления по периметру -->
-  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+  <g stroke="#d1d5db" stroke-width="1.75" shape-rendering="crispEdges">
     <!-- вертикальные линии: только внутренние -->
     <line x1="30"  y1="10" x2="30"  y2="250" />
     <line x1="50"  y1="10" x2="50"  y2="250" />

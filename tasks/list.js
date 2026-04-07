@@ -37,6 +37,60 @@ let TEACHER_PICKED_REFS = [];
 let PRIO_ACTIVE = false;
 const STATS_BY_TOPIC = new Map(); // topicId -> Promise<Map>|Map|null
 
+// ---------- Масштаб для печати ----------
+// zoom задаётся через beforeprint, а не через @media print CSS.
+// Это позволяет избежать бага Chrome: при zoom в @media print compositing-слой
+// создаётся в середине print-пайплайна → grid-placement ломается на первой странице.
+// С beforeprint inline-стиль уже есть ДО запуска пайплайна → баг не воспроизводится.
+const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+window.addEventListener('beforeprint', () => {
+  document.body.style.zoom = '0.7';
+
+  // Убираем img из DOM полностью — обходит баг Chrome GPU-кэша, когда
+  // cached-текстура рендерится вопреки display:none на родителе.
+  document.querySelectorAll('.hw-bell').forEach(el => {
+    if (!el.hasAttribute('data-print-html')) {
+      el.setAttribute('data-print-html', el.innerHTML);
+      el.innerHTML = '';
+    }
+  });
+
+  // Catch-all: скрываем ВСЕ position:fixed элементы.
+  // В Chrome print fixed-элементы повторяются на каждой странице,
+  // даже если они display:none в CSS. Inline-style перебивает GPU-кэш.
+  // Диагностический лог помогает найти неизвестный элемент — открой
+  // DevTools Console перед Ctrl+P и посмотри "[print-fixed]" записи.
+  try {
+    document.querySelectorAll('*').forEach(el => {
+      try {
+        if (window.getComputedStyle(el).position !== 'fixed') return;
+        // Логируем для диагностики
+        console.log('[print-fixed]', el.tagName, '#' + (el.id || '-'),
+          '.' + (el.className || '-'), el.getBoundingClientRect());
+        // Скрываем
+        el.setAttribute('data-print-was-fixed', '1');
+        el.style.setProperty('display', 'none', 'important');
+      } catch (_) {}
+    });
+  } catch (_) {}
+});
+window.addEventListener('afterprint', () => {
+  document.body.style.zoom = '';
+
+  document.querySelectorAll('.hw-bell[data-print-html]').forEach(el => {
+    el.innerHTML = el.getAttribute('data-print-html');
+    el.removeAttribute('data-print-html');
+  });
+
+  // Восстанавливаем fixed-элементы
+  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
+    try {
+      el.style.removeProperty('display');
+      el.removeAttribute('data-print-was-fixed');
+    } catch (_) {}
+  });
+});
+
 // ---------- Инициализация ----------
 document.addEventListener('DOMContentLoaded', async () => {
   // кнопка «Новая сессия» – возвращаемся к выбору задач
@@ -940,6 +994,7 @@ async function renderTaskList(questions, options = {}) {
   arr.forEach((q, idx) => {
     const card = document.createElement('article');
     card.className = 'task-card';
+    if (q.topic_id) card.dataset.topicId = q.topic_id;
 
     const num = document.createElement('div');
     num.className = 'task-num';
@@ -954,9 +1009,21 @@ async function renderTaskList(questions, options = {}) {
     if (q.figure?.img) {
       const figWrap = document.createElement('div');
       figWrap.className = 'task-fig';
+      figWrap.dataset.figSize = /\/graphs\/|\/vectors\/|\/derivatives\//.test(q.figure.img) ? 'large' : 'small';
+      const _ftm = q.figure.img.match(/\/(vectors|graphs|derivatives)\//);
+      if (_ftm) figWrap.dataset.figType = _ftm[1];
+      if (/2\.1\.3_1\.svg|2\.2\.2_1\.svg/.test(q.figure.img)) figWrap.dataset.figVariant = 'shifted';
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
+      img.addEventListener('load', function() {
+        if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (this.naturalWidth <= this.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+      }, { once: true });
+      if (img.complete && img.naturalWidth > 0) {
+        if (img.naturalWidth <= img.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (img.naturalWidth <= img.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+      }
       figWrap.appendChild(img);
       card.appendChild(figWrap);
     }
@@ -984,6 +1051,11 @@ async function renderTaskList(questions, options = {}) {
       card.appendChild(details);
     }
 
+    const pal = document.createElement('div');
+    pal.className = 'print-ans-line';
+    pal.textContent = 'Ответ: ________________________';
+    card.appendChild(pal);
+
     list.appendChild(card);
   });
 
@@ -992,14 +1064,33 @@ async function renderTaskList(questions, options = {}) {
   if (window.MathJax) {
     try {
       if (window.MathJax.typesetPromise) {
-        window.MathJax.typesetPromise([runner]).catch(err => console.error(err));
+        window.MathJax.typesetPromise([runner])
+          .then(() => _markStemEndsFormula(runner))
+          .catch(err => console.error(err));
       } else if (window.MathJax.typeset) {
         window.MathJax.typeset([runner]);
+        _markStemEndsFormula(runner);
       }
     } catch (e) {
       console.error('MathJax error in list mode', e);
     }
   }
+}
+
+/* Помечает карточки, у которых стем заканчивается блочной формулой ($$...$$).
+   После этого CSS применяет меньший отступ перед ответом. */
+function _markStemEndsFormula(root) {
+  root.querySelectorAll('.task-card, .ws-item').forEach(card => {
+    const stem = card.querySelector('.task-stem, .ws-stem');
+    if (!stem) return;
+    const displays = stem.querySelectorAll(':scope > mjx-container[display="true"]');
+    if (!displays.length) return;
+    const lastDisplay = displays[displays.length - 1];
+    let textAfter = '';
+    let node = lastDisplay.nextSibling;
+    while (node) { textAfter += node.textContent || ''; node = node.nextSibling; }
+    if (!textAfter.trim()) card.dataset.stemEnds = 'formula';
+  });
 }
 
 

@@ -16,7 +16,7 @@
   </defs>
 
   <!-- клетчатая сетка: x от -7 до 7, y от -5 до 7 (клетка 20px, квадратная) -->
-  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+  <g stroke="#d1d5db" stroke-width="2.4" shape-rendering="crispEdges">
     <!-- вертикальные линии: только внутренние -->
     <line x1="30.000" y1="10.000" x2="30.000" y2="250.000" />
     <line x1="50.000" y1="10.000" x2="50.000" y2="250.000" />

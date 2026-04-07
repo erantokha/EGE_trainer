@@ -13,7 +13,7 @@
   </defs>
 
   <!-- сетка: x от -4 до 7, y от -2 до 11 -->
-  <g stroke="#d1d5db" stroke-width="0.5" shape-rendering="crispEdges">
+  <g stroke="#d1d5db" stroke-width="1.75" shape-rendering="crispEdges">
     <line x1="30.769" y1="10.000" x2="30.769" y2="210.000" />
     <line x1="46.154" y1="10.000" x2="46.154" y2="210.000" />
     <line x1="61.538" y1="10.000" x2="61.538" y2="210.000" />
