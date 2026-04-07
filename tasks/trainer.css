@@ -1426,6 +1426,19 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   border-radius:10px;
 }
 
+.print-btn {
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+}
+.print-btn-icon {
+  flex-shrink:0;
+}
+@media (max-width:600px) {
+  .print-btn-label { display:none; }
+  .print-btn { padding:6px 8px; }
+}
+
 .added-head {
   display:flex;
   align-items:center;
@@ -3382,6 +3395,17 @@ body.teacher-student-view .score-thermo__primary{
   /* 5c. unique.html: заголовок темы не отрывается от первого прототипа.
          break-after:avoid запрещает разрыв страницы сразу после строки с названием темы. */
   .node.topic > .row {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* 5d. Название прототипа не отрывается от картинки.
+         У derivatives landscape stem (строка 1 грида) и fig (строка 2) — в разных строках.
+         break-after:avoid на stem гарантирует: если картинка не помещается, stem переходит
+         вместе с ней на следующую страницу. Для остальных раскладок (векторы, графики)
+         stem и fig в одной строке — правило дублирует break-inside:avoid на item (безвредно). */
+  .ws-stem,
+  .task-stem {
     break-after: avoid;
     page-break-after: avoid;
   }

@@ -101,6 +101,14 @@
       <div class="panel">
         <header id="appHeader" class="page-head">
 <h1 id="uniqTitle">Уникальные прототипы</h1>
+        <button id="printBtn" type="button" class="btn small print-btn" data-header-extra="1" data-tip="Печать">
+          <svg class="print-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="6 9 6 2 18 2 18 9"/>
+            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+            <rect x="6" y="14" width="12" height="8"/>
+          </svg>
+          <span class="print-btn-label">Печать</span>
+        </button>
         <div class="theme-toggle" data-header-extra="1">
           <input
             type="checkbox"
@@ -120,6 +128,7 @@
   const inTasks = /\/tasks(\/|$)/.test(location.pathname);
   const rel = inTasks ? '../' : './';
   import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+  import(withV(rel + 'app/ui/print_btn.js')).then((m) => m.initPrintBtn());
 </script>
 
         <p id="uniqSubtitle"></p>
