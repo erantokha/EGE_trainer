@@ -1018,7 +1018,16 @@ async function importSelectionIntoFixedTable() {
   for (const qid of (qids || [])) {
     const id = String(qid || '').trim();
     if (!id) continue;
-    const tid = inferTopicIdFromQuestionId(id);
+    // Ищем topic_id по убывающим префиксам id в TOPIC_BY_ID.
+    // Это важно для секций с трёхчастными subtopic_id (например, "3.2.1"),
+    // где inferTopicIdFromQuestionId("3.2.1.2.1") вернул бы неверное "3.2".
+    let tid = '';
+    const idParts = id.split('.');
+    for (let len = idParts.length - 1; len >= 2; len--) {
+      const candidate = idParts.slice(0, len).join('.');
+      if (TOPIC_BY_ID.has(candidate)) { tid = candidate; break; }
+    }
+    if (!tid) tid = inferTopicIdFromQuestionId(id);
     if (!tid) continue;
     const key = `${tid}::${id}`;
     if (seen.has(key)) continue;

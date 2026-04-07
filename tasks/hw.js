@@ -1247,7 +1247,18 @@ async function buildFixedQuestions(fixed) {
     const qid = item?.question_id;
     if (!topicId || !qid) continue;
 
-    const topic = TOPIC_BY_ID.get(topicId);
+    let topic = TOPIC_BY_ID.get(topicId);
+    if (!topic) {
+      // Фоллбэк: ищем тему по убывающим префиксам question_id.
+      // Нужно для ДЗ, созданных с topic_id вида "3.2" вместо "3.2.1"
+      // (секции с трёхчастными subtopic_id, например Стереометрия).
+      const qidParts = qid.split('.');
+      for (let len = qidParts.length - 1; len >= 2; len--) {
+        const candidate = qidParts.slice(0, len).join('.');
+        topic = TOPIC_BY_ID.get(candidate);
+        if (topic) break;
+      }
+    }
     if (!topic) {
       console.warn('Topic not found in index:', topicId);
       continue;
