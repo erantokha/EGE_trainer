@@ -1,5 +1,5 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-04-07-2';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-07-2';
+import { getSession } from '../app/providers/supabase.js?v=2026-04-07-3';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-07-3';
 
 const runBtn = document.getElementById('runBtn');
 const summaryEl = document.getElementById('summary');
