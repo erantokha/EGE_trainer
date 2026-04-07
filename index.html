@@ -3,274 +3,517 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-04-07-5">
-<title>EGE-trainer — тренажер по задачам из банка ФИПИ</title>
+  <meta name="app-build" content="2026-04-03-7">
+  <title>EGE-trainer — подготовка к ЕГЭ по математике</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="./app/diag_bootstrap.js?v=2026-04-07-5"></script>
+  <meta name="description" content="Тренажёр по задачам из банка ФИПИ. Статистика до каждого прототипа, домашнее задание в два клика, только официальные задания ЕГЭ.">
+  <script src="./app/diag_bootstrap.js?v=2026-04-03-7"></script>
 
-  <!--
-    Главная страница сайта (/): это "вход" в тренажёр.
-    Сама логика тренажёра остаётся в папке /tasks, поэтому здесь только
-    подключаем стили и скрипты с корректными путями.
-  -->
-  
   <script id="sentry-loader"
-  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
-  crossorigin="anonymous"></script>
-<script>
-(function () {
-  if (window.__SENTRY_INITED__) return;
-  window.__SENTRY_INITED__ = true;
-
-  function getRelease() {
-    var m = document.querySelector('meta[name="app-build"]');
-    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
-  }
-
-  function getEnv() {
-    return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
-  }
-
-  function sanitizeEvent(event) {
-    try {
-      if (event && event.request && event.request.url) {
-        event.request.url = event.request.url.split('#')[0].split('?')[0];
-      }
-      if (event && event.request && event.request.headers) {
-        delete event.request.headers.Authorization;
-        delete event.request.headers.authorization;
-        delete event.request.headers.Cookie;
-        delete event.request.headers.cookie;
-      }
-    } catch (e) {}
-    return event;
-  }
-
-  function doInit() {
-    if (!window.Sentry || !window.Sentry.init) return;
-
-    var opts = {
-      release: getRelease(),
-      environment: getEnv(),
-      initialScope: {
-        tags: { page: location.pathname }
-      },
-      beforeSend: sanitizeEvent
-    };
-
-    try {
-      if (window.Sentry.onLoad) {
-        window.Sentry.onLoad(function () {
-          window.Sentry.init(opts);
-        });
-        return;
-      }
-    } catch (e) {}
-
-    window.Sentry.init(opts);
-  }
-
-  doInit();
-})();
-</script>
-
-
-  
-  <link rel="stylesheet" href="./tasks/trainer.css?v=2026-04-07-5">
-  
-  <style>
-    /* Пров */
-    /* Чтобы учитель не видел "мигание" ученической главной до редиректа */
-    body.gate-pending { visibility: hidden; }
-
-    /* Требования Google OAuth branding verification:
-       1) На главной странице должно быть явно указано имя приложения (EGE-trainer).
-       2) Должна быть видимая ссылка на политику конфиденциальности. */
-    .app-brand{
-      font-size:14px;
-      letter-spacing:.08em;
-      text-transform:uppercase;
-      opacity:.75;
-      margin:0 0 6px 0;
+    src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+    crossorigin="anonymous"></script>
+  <script>
+  (function () {
+    if (window.__SENTRY_INITED__) return;
+    window.__SENTRY_INITED__ = true;
+    function getRelease() {
+      var m = document.querySelector('meta[name="app-build"]');
+      return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
     }
-    .site-footer{
-      margin:18px 0 28px;
-      padding:10px 12px;
-      font-size:14px;
-      opacity:.9;
+    function getEnv() {
+      return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging';
     }
-    .site-footer a{
-      text-decoration:underline;
+    function sanitizeEvent(event) {
+      try {
+        if (event && event.request && event.request.url)
+          event.request.url = event.request.url.split('#')[0].split('?')[0];
+        if (event && event.request && event.request.headers) {
+          delete event.request.headers.Authorization;
+          delete event.request.headers.authorization;
+          delete event.request.headers.Cookie;
+          delete event.request.headers.cookie;
+        }
+      } catch (e) {}
+      return event;
     }
-  
+    function doInit() {
+      if (!window.Sentry || !window.Sentry.init) return;
+      var opts = {
+        release: getRelease(),
+        environment: getEnv(),
+        initialScope: { tags: { page: location.pathname } },
+        beforeSend: sanitizeEvent
+      };
+      try {
+        if (window.Sentry.onLoad) { window.Sentry.onLoad(function () { window.Sentry.init(opts); }); return; }
+      } catch (e) {}
+      window.Sentry.init(opts);
+    }
+    doInit();
+  })();
+  </script>
 
-    /* экран-роутер на / для залогиненных: показывается только когда JS его включает */
-    #rootRouterOverlay{
-      position:fixed;
-      inset:0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding:24px;
-      background:var(--bg,#fff);
-      z-index:9999;
-    }
-    #rootRouterOverlay.on{display:flex}
-    #rootRouterCard{
-      width:min(520px,100%);
-      border:1px solid var(--border,#d1d5db);
-      background:var(--panel,#fff);
-      border-radius:16px;
-      padding:16px;
-      box-shadow:var(--shadow,0 8px 20px rgba(15,23,42,.12));
-    }
-    #rootRouterMsg{
-      font-size:16px;
-      margin:0 0 12px 0;
-      color:var(--text,#111827);
-    }
-    #rootRouterBtns{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    #rootRouterBtns button{
-      border:1px solid var(--border,#d1d5db);
-      background:var(--muted,#fff);
-      color:var(--text,#111827);
-      padding:8px 10px;
-      border-radius:10px;
-      cursor:pointer;
-    }
-    #rootRouterRetry{
-      background:var(--accent,#2563eb);
-      border-color:var(--accent,#2563eb);
-      color:#fff;
-    }
-    #rootRouterRetry:hover{filter:brightness(1.05)}
-    #rootRouterCopy:hover{filter:brightness(1.02)}
-    #rootRouterDiag{
-      margin:12px 0 0 0;
-      padding:10px;
-      border:1px solid var(--border,#d1d5db);
-      border-radius:10px;
-      background:var(--muted,#fff);
-      color:var(--text,#111827);
-      max-height:40vh;
-      overflow:auto;
-      font-size:12px;
-      white-space:pre-wrap;
-    }
-
-</style>
-  <noscript><style>body{visibility:visible!important}</style></noscript>
-
+  <link rel="stylesheet" href="./landing.css?v=2026-04-03-7">
+  <noscript><style>body { visibility: visible !important; }</style></noscript>
 </head>
 <body class="gate-pending">
+
+<!-- полоса прокрутки — заполняется по мере скролла страницы -->
+<div id="l-progress" aria-hidden="true"></div>
+
+<!-- ── Оверлей роутера: показывается залогиненным пользователям
+        пока home_router.js определяет роль и делает редирект ── -->
 <div id="rootRouterOverlay" aria-hidden="true">
   <div id="rootRouterCard">
     <div id="rootRouterMsg">Определяем роль…</div>
     <div id="rootRouterBtns">
       <button id="rootRouterRetry" type="button" style="display:none">Повторить</button>
-      <button id="rootRouterCopy" type="button" style="display:none">Скопировать детали</button>
+      <button id="rootRouterCopy"  type="button" style="display:none">Скопировать детали</button>
     </div>
     <pre id="rootRouterDiag" style="display:none"></pre>
   </div>
 </div>
 
-<main class="container">
-    <section id="picker">
-      <div class="panel">
-        <header id="appHeader" class="page-head">
-  <div class="app-brand">EGE-trainer</div>
-  <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
-</header>
-<script type="module">
-  const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
-  const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-  const inTasks = /\/tasks(\/|$)/.test(location.pathname);
-  const rel = inTasks ? '../' : './';
-  import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+<!-- ══════════════════════════════════════════════════════════
+     NAV
+     ══════════════════════════════════════════════════════════ -->
+<nav class="l-nav">
+  <div class="l-nav__inner">
+    <span class="l-nav__logo">EGE<span>-trainer</span></span>
+    <div class="l-nav__roles">
+      <span class="l-nav__role l-nav__role--active">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <circle cx="7" cy="4.5" r="2.5" fill="currentColor"/>
+          <path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+          <rect x="5" y="7.5" width="4" height="3" rx="0.5" fill="currentColor" opacity="0.55"/>
+        </svg>
+        Учитель
+      </span>
+      <a href="/student.html" class="l-nav__role">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+          <circle cx="7" cy="4.5" r="2.5" fill="currentColor"/>
+          <path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        </svg>
+        Ученик
+      </a>
+    </div>
+    <div class="l-nav__actions">
+      <a href="/tasks/auth.html" class="btn btn-primary">Войти</a>
+    </div>
+  </div>
+</nav>
+
+
+
+<!-- ══════════════════════════════════════════════════════════
+     HERO
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-hero">
+  <div class="container">
+    <div class="l-hero__eyebrow">Статистика по каждому прототипу ЕГЭ</div>
+    <h1 class="l-hero__h1">
+      <span class="accent">Ваш ученик хочет 70+ баллов?</span><br>
+      Узнайте, где именно он теряет баллы.
+    </h1>
+    <p class="l-hero__sub">
+      Платформа для учителей, которые хотят работать точнее — а не больше.
+    </p>
+    <div class="l-hero__cta">
+      <a href="/tasks/auth.html" class="btn btn-primary btn-large">Попробовать прямо сейчас →</a>
+      <a href="#demo" class="btn btn-hero-ghost btn-large">Как это работает</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     BEFORE / AFTER
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-compare">
+  <div class="container">
+    <h2 class="l-section__title l-compare__title">Как меняется работа учителя</h2>
+    <p class="l-section__sub">До и после EGE-trainer</p>
+    <div class="l-compare__cards">
+
+      <div class="l-compare__pair">
+        <div class="l-cbox l-cbox--x">
+          <span class="l-cbox__mark">✗</span>
+          <p>«Саша плохо знает геометрию» — и на этом всё</p>
+        </div>
+        <span class="l-compare__arrow">→</span>
+        <div class="l-cbox l-cbox--ok">
+          <span class="l-cbox__mark">✓</span>
+          <p>Прот. 1.3.2, точность 33%, не решал 23 дня — конкретика</p>
+        </div>
+      </div>
+
+      <div class="l-compare__pair">
+        <div class="l-cbox l-cbox--x">
+          <span class="l-cbox__mark">✗</span>
+          <p>Задачи из рабочей тетради — одинаковые для всех</p>
+        </div>
+        <span class="l-compare__arrow">→</span>
+        <div class="l-cbox l-cbox--ok">
+          <span class="l-cbox__mark">✓</span>
+          <p>Персональное ДЗ по слабым местам каждому ученику</p>
+        </div>
+      </div>
+
+      <div class="l-compare__pair">
+        <div class="l-cbox l-cbox--x">
+          <span class="l-cbox__mark">✗</span>
+          <p>Проверка тетрадей и ручное занесение результатов</p>
+        </div>
+        <span class="l-compare__arrow">→</span>
+        <div class="l-cbox l-cbox--ok">
+          <span class="l-cbox__mark">✓</span>
+          <p>Результаты сами приходят в статистику</p>
+        </div>
+      </div>
+
+      <div class="l-compare__pair">
+        <div class="l-cbox l-cbox--x">
+          <span class="l-cbox__mark">✗</span>
+          <p>30–40 минут на подготовку к уроку</p>
+        </div>
+        <span class="l-compare__arrow">→</span>
+        <div class="l-cbox l-cbox--ok">
+          <span class="l-cbox__mark">✓</span>
+          <p>5 минут: открыли профиль, увидели слабые места, выдали ДЗ</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FEATURES
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-features">
+  <div class="container">
+    <h2 class="l-section__title l-compare__title">Почему EGE-trainer</h2>
+    <p class="l-section__sub l-features__sub">Три вещи, которых нет ни на одной другой платформе</p>
+    <div class="l-features__grid">
+
+      <div class="l-feature-card">
+        <div class="l-feature-card__icon">📊</div>
+        <div class="l-feature-card__title">Карта пробелов всего класса</div>
+        <p class="l-feature-card__text">
+          Видите не только одного ученика, но и весь класс сразу: какие прототипы
+          проседают у большинства, где средняя точность ниже 50%,
+          и кому нужно индивидуальное задание.
+        </p>
+      </div>
+
+      <div class="l-feature-card">
+        <div class="l-feature-card__icon">⚡</div>
+        <div class="l-feature-card__title">Домашнее задание в два клика</div>
+        <p class="l-feature-card__text">
+          Выбрали задачи по слабым местам — нажали «Создать ДЗ» — отправили
+          персональную ссылку. Результаты автоматически появляются
+          в статистике ученика.
+        </p>
+      </div>
+
+      <div class="l-feature-card">
+        <div class="l-feature-card__icon">🎯</div>
+        <div class="l-feature-card__title">Только ФИПИ</div>
+        <p class="l-feature-card__text">
+          Никакого лишнего контента. Каждая задача — из официального открытого
+          банка Федерального института педагогических измерений.
+          Именно то, что выйдет на экзамене.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     STATS
+     Замени цифры на реальные перед запуском в прод
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-stats">
+  <div class="container">
+    <div class="l-stats__grid">
+      <div>
+        <div class="l-stat__number">4 000+</div>
+        <div class="l-stat__label">задач из банка ФИПИ</div>
+      </div>
+      <div>
+        <div class="l-stat__number">5 мин</div>
+        <div class="l-stat__label">на подготовку к занятию</div>
+      </div>
+      <div>
+        <div class="l-stat__number">100%</div>
+        <div class="l-stat__label">официальные задания ЕГЭ</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DEMO MOCK
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-demo" id="demo">
+  <div class="container">
+    <h2 class="l-section__title l-compare__title">Вот что видит учитель</h2>
+    <p class="l-section__sub l-features__sub">Профиль ученика — статистика каждого прототипа</p>
+    <div class="l-demo__wrap">
+
+      <div class="mock">
+        <!-- фейковый тайтлбар браузера -->
+        <div class="mock__titlebar">
+          <div class="mock__dot mock__dot--r"></div>
+          <div class="mock__dot mock__dot--y"></div>
+          <div class="mock__dot mock__dot--g"></div>
+        </div>
+
+        <div class="mock__body">
+          <!-- шапка профиля -->
+          <div class="mock__head">
+            <span class="mock__name">Саша К. · цель: 80+ баллов</span>
+            <div class="mock__periods">
+              <span class="mock__period mock__period--active">7д</span>
+              <span class="mock__period">14д</span>
+              <span class="mock__period">30д</span>
+              <span class="mock__period">90д</span>
+            </div>
+          </div>
+
+          <!-- тема 1.1 — хорошо -->
+          <div class="mock__row">
+            <div class="mock__row-head">
+              <span class="mock__row-label">1.1 Площади фигур</span>
+              <div class="mock__row-meta">
+                <span class="mock__badge mock__badge--ok">78%</span>
+                <span>✓ 2 дня назад</span>
+              </div>
+            </div>
+            <div class="mock__bar-wrap">
+              <div class="mock__bar-fill" style="width:78%; background:#16a34a"></div>
+            </div>
+          </div>
+
+          <!-- тема 1.3 — слабая -->
+          <div class="mock__row">
+            <div class="mock__row-head">
+              <span class="mock__row-label">3.2 Прогрессии</span>
+              <div class="mock__row-meta">
+                <span class="mock__badge mock__badge--warn">42%</span>
+                <span>⚠ 23 дня назад</span>
+              </div>
+            </div>
+            <div class="mock__bar-wrap">
+              <div class="mock__bar-fill" style="width:42%; background:#d97706"></div>
+            </div>
+          </div>
+
+          <!-- тема 7.1 — критично -->
+          <div class="mock__row">
+            <div class="mock__row-head">
+              <span class="mock__row-label">7.1 Производная</span>
+              <div class="mock__row-meta">
+                <span class="mock__badge mock__badge--danger">20%</span>
+                <span>✗ не решал</span>
+              </div>
+            </div>
+            <div class="mock__bar-wrap">
+              <div class="mock__bar-fill" style="width:20%; background:#dc2626"></div>
+            </div>
+          </div>
+
+          <!-- прототипы -->
+          <div class="mock__protos">
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 1.3.2</div>
+              <div class="mock__proto-acc mock__proto-acc--warn">точность 33% · 12 дн.</div>
+            </div>
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 1.7.1</div>
+              <div class="mock__proto-acc mock__proto-acc--new">не решал</div>
+            </div>
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 2.4.3</div>
+              <div class="mock__proto-acc mock__proto-acc--warn">точность 25% · 31 дн.</div>
+            </div>
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 3.1.2</div>
+              <div class="mock__proto-acc mock__proto-acc--new">не решал</div>
+            </div>
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 5.2.1</div>
+              <div class="mock__proto-acc mock__proto-acc--warn">точность 40% · 18 дн.</div>
+            </div>
+            <div class="mock__proto">
+              <div class="mock__proto-id">прот. 7.3.4</div>
+              <div class="mock__proto-acc mock__proto-acc--new">не решал</div>
+            </div>
+          </div>
+
+          <!-- CTA внутри мока -->
+          <div class="mock__cta-row">
+            <a href="/tasks/auth.html" class="mock__cta-btn">Создать ДЗ из выбранных (3) →</a>
+          </div>
+        </div>
+      </div>
+
+      <p class="l-demo__caption">
+        Реальный интерфейс — по каждому прототипу видна точность и давность последней попытки
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     TESTIMONIALS
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-testimonials">
+  <div class="container">
+    <h2 class="l-section__title l-compare__title">Что говорят преподаватели</h2>
+    <p class="l-section__sub l-features__sub"> </p>
+    <div class="l-testimonials__grid">
+
+      <div class="l-tcard">
+        <div class="l-tcard__avatar">М</div>
+        <div class="l-tcard__name">Марина</div>
+        <div class="l-tcard__role">Репетитор по математике, Москва</div>
+        <div class="l-tcard__quote">
+          Раньше тратила по полчаса на подготовку к каждому ученику. Теперь открываю профиль,
+          смотрю на красные прототипы и сразу понимаю, что задавать. Это реально экономит время.
+        </div>
+      </div>
+
+      <div class="l-tcard">
+        <div class="l-tcard__avatar">А</div>
+        <div class="l-tcard__name">Алексей</div>
+        <div class="l-tcard__role">Учитель математики, школа №47</div>
+        <div class="l-tcard__quote">
+          У меня 67 учеников. Раньше я просто не мог отслеживать каждого индивидуально —
+          не хватало времени. Теперь вижу в одном месте, кто где застрял, и даю задания точечно.
+        </div>
+      </div>
+
+      <div class="l-tcard">
+        <div class="l-tcard__avatar">О</div>
+        <div class="l-tcard__name">Ольга</div>
+        <div class="l-tcard__role">Онлайн-репетитор</div>
+        <div class="l-tcard__quote">
+          Ценю, что здесь только задачи из реального банка ФИПИ, без авторских «похожих».
+          Ученики решают именно то, что может попасться на экзамене, — и это чувствуется в результатах.
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FAQ
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-faq">
+  <div class="container">
+    <h2 class="l-section__title l-compare__title">Вопросы и ответы</h2>
+    <p class="l-section__sub"> </p>
+    <div class="l-faq__list">
+
+      <details class="l-faq__item">
+        <summary>Зачем ученику регистрироваться?</summary>
+        <div class="l-faq__answer">
+          Без регистрации статистика не накапливается — значит, учитель не видит прогресс
+          и не может точечно подобрать задачи. Регистрация занимает 30 секунд
+          и открывает весь функционал: тренировки, ДЗ, аналитику по темам.
+        </div>
+      </details>
+
+      <details class="l-faq__item">
+        <summary>Задачи актуальны для ЕГЭ 2026?</summary>
+        <div class="l-faq__answer">
+          Да. Используется только официальный открытый банк заданий Федерального института
+          педагогических измерений (ФИПИ). Никакого авторского контента — только то,
+          что выйдет на экзамене.
+        </div>
+      </details>
+
+      <details class="l-faq__item">
+        <summary>Что такое «прототип»?</summary>
+        <div class="l-faq__answer">
+          Каждое задание ЕГЭ из банка ФИПИ имеет «корень» — уникальный прототип.
+          Формулировки у разных задач могут отличаться, но суть одна. EGE-trainer
+          отслеживает, какие прототипы ученик освоил, а какие нет — это точнее,
+          чем просто «тема».
+        </div>
+      </details>
+
+      <details class="l-faq__item">
+        <summary>Как добавить ученика?</summary>
+        <div class="l-faq__answer">
+          После регистрации вы получаете кабинет учителя. Ученик регистрируется
+          самостоятельно и вас находит, или вы приглашаете его по ссылке.
+          Всё готово за несколько минут.
+        </div>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FINAL CTA
+     ══════════════════════════════════════════════════════════ -->
+<section class="l-cta">
+  <div class="container">
+    <h2 class="l-cta__title">Начните с первого ученика</h2>
+    <p class="l-cta__sub">Регистрация за 30 секунд.</p>
+    <div class="l-cta__actions">
+      <a href="/tasks/auth.html" class="btn btn-white btn-large">Зарегистрироваться →</a>
+      <a href="/tasks/auth.html" class="btn btn-outline-white btn-large">Войти через Google</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FOOTER
+     ══════════════════════════════════════════════════════════ -->
+<footer class="l-footer">
+  <span>© 2026 EGE-trainer</span>
+  <span>·</span>
+  <a href="/privacy.html">Политика конфиденциальности</a>
+  <span>·</span>
+  <a href="/terms.html">Условия использования</a>
+  <span>·</span>
+  <a href="mailto:support@ege-trainer.ru">support@ege-trainer.ru</a>
+</footer>
+
+<!-- home_router определяет роль залогиненного пользователя
+     и редиректит на home_student.html / home_teacher.html.
+     Для незалогиненных — снимает gate-pending и показывает лендинг. -->
+<script type="module" src="./tasks/home_router.js?v=2026-04-03-7"></script>
+
+<script>
+// Лендинг — статический HTML, не требует API для отображения.
+// Помечаем страницу готовой сразу после загрузки DOM, чтобы watchdog
+// в diag_bootstrap.js не срабатывал из-за недоступных опциональных
+// ресурсов (Sentry CDN может быть заблокирован в РФ).
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.__EGE_DIAG__ && window.__EGE_DIAG__.markReady) {
+    window.__EGE_DIAG__.markReady();
+  }
+});
+
+// полоса прокрутки
+(function () {
+  var bar = document.getElementById('l-progress');
+  if (!bar) return;
+  function update() {
+    var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    var total = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+    bar.style.width = (total > 0 ? (scrollTop / total * 100) : 0) + '%';
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
 </script>
 
-</div>
-
-        <!-- Ряд 1: режим + перемешать (слева), старт (справа) -->
-        <div class="controls">
-          <div class="controls-left">
-            <div class="mode-toggle" id="modeSwitch" role="tablist" aria-label="Режим работы">
-              <button
-                type="button"
-                class="mode-btn active"
-                id="modeList"
-                data-mode="list"
-                aria-selected="true"
-              >
-                Список задач
-              </button>
-              <button
-                type="button"
-                class="mode-btn"
-                id="modeTest"
-                data-mode="test"
-                aria-selected="false"
-              >
-                Тестирование
-              </button>
-            </div>
-
-            <label class="shuffle">
-              <input type="checkbox" id="shuffleToggle">
-              Перемешать задачи
-            </label>
-          </div>
-
-          <div class="controls-actions-right">
-            <button id="start" disabled>Начать</button>
-
-          </div>
-
-          <div class="theme-toggle">
-            <input
-              type="checkbox"
-              id="themeToggle"
-              class="theme-toggle-input"
-              aria-label="Переключить тему"
-            >
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
-        <div class="sub-controls">
-          <div class="bulk-controls" id="bulkControls">
-            <button id="bulkPickAll" type="button">Выбрать все</button>
-            <button id="bulkResetAll" type="button">Сбросить все</button>
-          </div>
-
-          <div class="sum">Итого: <span id="sum">0</span></div>
-        </div>
-
-        <!-- Ряд 3: аккордеон -->
-        <div id="accordion" class="accordion"></div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer" role="contentinfo">
-    <a href="/privacy.html">Политика конфиденциальности</a>
-    <span class="sep">·</span>
-    <a href="/terms.html">Условия использования</a>
-    <span class="sep">·</span>
-    <a href="mailto:support@ege-trainer.ru">support@ege-trainer.ru</a>
-  </footer>
-    <script type="module" src="./tasks/home_router.js?v=2026-04-07-5"></script>
-
-<script src="./tasks/theme.js?v=2026-04-07-5" defer></script>
-  <script type="module" src="./tasks/picker.js?v=2026-04-07-5"></script>
 </body>
 </html>
