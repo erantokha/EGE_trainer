@@ -75,6 +75,10 @@ function mapLimit(items, limit, fn) {
   return Promise.all(workers);
 }
 
+// Масштаб для печати через beforeprint (см. комментарий в list.js)
+window.addEventListener('beforeprint', () => { document.body.style.zoom = '0.7'; });
+window.addEventListener('afterprint',  () => { document.body.style.zoom = ''; });
+
 document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
@@ -368,6 +372,7 @@ async function loadUnicTasksForTopic(topic) {
         stem,
         figure: fig,
         answerText: ansText,
+        topicId: man.topic || String(topic.id || ''),
       });
     }
   }
@@ -389,6 +394,7 @@ function renderUnicTasks(container, tasks) {
   for (const t of tasks) {
     const item = document.createElement('div');
     item.className = 'ws-item';
+    if (t.topicId) item.dataset.topicId = t.topicId;
 
     const num = document.createElement('div');
     num.className = 'ws-num';
@@ -432,11 +438,25 @@ function renderUnicTasks(container, tasks) {
       } else if (srcTrim.startsWith('<svg')) {
         mountInlineSvg(figWrap, srcTrim);
       } else if (srcTrim) {
+        const _ftm = srcTrim.match(/\/(vectors|graphs|derivatives)\//);
+        if (_ftm) {
+          figWrap.dataset.figSize = 'large';
+          figWrap.dataset.figType = _ftm[1];
+          if (/2\.1\.3_1\.svg|2\.2\.2_1\.svg/.test(srcTrim)) figWrap.dataset.figVariant = 'shifted';
+        }
         const img = document.createElement('img');
         img.loading = 'lazy';
         img.decoding = 'async';
         img.alt = String(alt || '');
         img.src = withBuild(asset(srcTrim));
+        img.addEventListener('load', function() {
+          if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+          else if (this.naturalWidth <= this.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+        }, { once: true });
+        if (img.complete && img.naturalWidth > 0) {
+          if (img.naturalWidth <= img.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+          else if (img.naturalWidth <= img.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+        }
         figWrap.appendChild(img);
       }
 
@@ -468,6 +488,10 @@ function renderUnicTasks(container, tasks) {
 
     item.appendChild(ans);
 
+    const pal = document.createElement('div');
+    pal.className = 'print-ans-line';
+    pal.textContent = 'Ответ: ________________________';
+    item.appendChild(pal);
 
     list.appendChild(item);
   }
@@ -478,6 +502,23 @@ function renderUnicTasks(container, tasks) {
   // безопасный прогон через MathJax + гидрация видео-решений
   typesetSafe(container, () => {
     hydrateVideoLinks(container, { mode: 'modal', missingText: 'Видео скоро будет' });
+    _markStemEndsFormula(container);
+  });
+}
+
+/* Помечает карточки, у которых стем заканчивается блочной формулой ($$...$$).
+   После этого CSS применяет меньший отступ перед ответом. */
+function _markStemEndsFormula(root) {
+  root.querySelectorAll('.task-card, .ws-item').forEach(card => {
+    const stem = card.querySelector('.task-stem, .ws-stem');
+    if (!stem) return;
+    const displays = stem.querySelectorAll(':scope > mjx-container[display="true"]');
+    if (!displays.length) return;
+    const lastDisplay = displays[displays.length - 1];
+    let textAfter = '';
+    let node = lastDisplay.nextSibling;
+    while (node) { textAfter += node.textContent || ''; node = node.nextSibling; }
+    if (!textAfter.trim()) card.dataset.stemEnds = 'formula';
   });
 }
 

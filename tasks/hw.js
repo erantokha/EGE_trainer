@@ -1592,9 +1592,17 @@ function renderHomeworkList() {
     if (q.figure?.img) {
       const figWrap = document.createElement('div');
       figWrap.className = 'task-fig';
+      figWrap.dataset.figSize = /\/graphs\/|\/vectors\/|\/derivatives\//.test(q.figure.img) ? 'large' : 'small';
+      const _ftm = q.figure.img.match(/\/(vectors|graphs|derivatives)\//);
+      if (_ftm) figWrap.dataset.figType = _ftm[1];
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
+      img.addEventListener('load', function() {
+        if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+      }, { once: true });
+      if (img.complete && img.naturalWidth > 0 && img.naturalWidth <= img.naturalHeight * 1.2)
+        figWrap.dataset.figOrientation = 'portrait';
       figWrap.appendChild(img);
       card.appendChild(figWrap);
     }
@@ -2001,9 +2009,17 @@ function renderReviewCards() {
     if (q.figure?.img) {
       const figWrap = document.createElement('div');
       figWrap.className = 'task-fig';
+      figWrap.dataset.figSize = /\/graphs\/|\/vectors\/|\/derivatives\//.test(q.figure.img) ? 'large' : 'small';
+      const _ftm = q.figure.img.match(/\/(vectors|graphs|derivatives)\//);
+      if (_ftm) figWrap.dataset.figType = _ftm[1];
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
+      img.addEventListener('load', function() {
+        if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+      }, { once: true });
+      if (img.complete && img.naturalWidth > 0 && img.naturalWidth <= img.naturalHeight * 1.2)
+        figWrap.dataset.figOrientation = 'portrait';
       figWrap.appendChild(img);
       card.appendChild(figWrap);
     }
