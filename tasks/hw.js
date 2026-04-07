@@ -2031,15 +2031,10 @@ function renderReviewCards() {
     const card = document.createElement('div');
     card.className = 'task-card q-card';
 
-    const head = document.createElement('div');
-    head.className = 'hw-review-head';
-
     const num = document.createElement('div');
     num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
     num.textContent = String(idx + 1);
-
-    head.appendChild(num);
-    card.appendChild(head);
+    card.appendChild(num);
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
@@ -2055,17 +2050,21 @@ function renderReviewCards() {
       const img = document.createElement('img');
       img.src = asset(q.figure.img);
       img.alt = q.figure.alt || '';
+      if (/2\.1\.3_1\.svg|2\.2\.2_1\.svg/.test(q.figure.img)) figWrap.dataset.figVariant = 'shifted';
       img.addEventListener('load', function() {
         if (this.naturalWidth <= this.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (this.naturalWidth <= this.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
       }, { once: true });
-      if (img.complete && img.naturalWidth > 0 && img.naturalWidth <= img.naturalHeight * 1.2)
-        figWrap.dataset.figOrientation = 'portrait';
+      if (img.complete && img.naturalWidth > 0) {
+        if (img.naturalWidth <= img.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+        else if (img.naturalWidth <= img.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+      }
       figWrap.appendChild(img);
       card.appendChild(figWrap);
     }
 
     const ans = document.createElement('div');
-    ans.className = 'hw-review-answers';
+    ans.className = 'hw-review-answers task-ans';
     const protoId = String(q.question_id || q.id || '').trim();
     ans.innerHTML =
       `<div class="hw-ans-line">` +

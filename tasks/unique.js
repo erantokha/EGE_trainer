@@ -6,34 +6,6 @@
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-function ensureUniqueVideoStyles() {
-  // unique.html: «Видео-решение» должно быть всегда видно и располагаться справа от summary «Ответ».
-  // Добавляем точечные стили прямо на страницу, не трогая общий trainer.css.
-  if (document.getElementById('uniqueVideoCss')) return;
-
-  const style = document.createElement('style');
-  style.id = 'uniqueVideoCss';
-  style.textContent = `    /* Unique prototypes: answer row + video button */
-    #uniqAccordion .ws-ans > summary,
-    #uniqAccordion .ws-answer > summary,
-    #tasks .ws-ans > summary,
-    #tasks .ws-answer > summary {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    #uniqAccordion .ws-ans > summary .video-solution-slot,
-    #uniqAccordion .ws-answer > summary .video-solution-slot,
-    #tasks .ws-ans > summary .video-solution-slot,
-    #tasks .ws-answer > summary .video-solution-slot {
-      margin-left: auto;
-      display: inline-flex;
-      align-items: center;
-      white-space: nowrap;
-    }
-  `;
-  document.head.appendChild(style);
-}
 
 import { withBuild } from '../app/build.js?v=2026-04-07-8';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-04-07-8';
@@ -113,7 +85,6 @@ async function init() {
     console.warn('[unique.js] video modal init failed', e);
   }
 
-  ensureUniqueVideoStyles();
 
   const params = new URLSearchParams(location.search);
   const sectionId = params.get('section');
@@ -489,27 +460,26 @@ function renderUnicTasks(container, tasks) {
     const ans = document.createElement('details');
     ans.className = 'ws-ans';
     const sum = document.createElement('summary');
-    // summary: «Ответ» слева, «Видео-решение» справа (в summary, чтобы было видно всегда)
-    const sumLabel = document.createElement('span');
-    sumLabel.className = 'ws-ans-label';
-    sumLabel.textContent = 'Ответ';
+    sum.textContent = 'Ответ';
+    ans.appendChild(sum);
+
+    if (t.answerText) {
+      const ansText = document.createElement('div');
+      ansText.textContent = t.answerText;
+      ansText.style.marginTop = '4px';
+      ans.appendChild(ansText);
+    }
 
     // Видео-решение (гидратируется из манифеста content/video/rutube_map.json)
     const videoSlot = document.createElement('span');
     videoSlot.className = 'video-solution-slot';
     videoSlot.dataset.videoProto = t.id;
 
-    sum.appendChild(sumLabel);
-    sum.appendChild(videoSlot);
-
-    const ansText = document.createElement('div');
-    ansText.className = 'ws-ans-text';
-    ansText.textContent = t.answerText || '';
-
-    ans.appendChild(sum);
-    if (t.answerText) ans.appendChild(ansText);
-
-    item.appendChild(ans);
+    const ansWrap = document.createElement('div');
+    ansWrap.className = 'ws-ans-wrap';
+    ansWrap.appendChild(ans);
+    ansWrap.appendChild(videoSlot);
+    item.appendChild(ansWrap);
 
     const pal = document.createElement('div');
     pal.className = 'print-ans-line';

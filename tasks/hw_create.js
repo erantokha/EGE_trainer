@@ -55,6 +55,29 @@ if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 
+// Масштаб для печати + catch-all для position:fixed элементов (как в list.js / unique.js)
+window.addEventListener('beforeprint', () => {
+  document.body.style.zoom = '0.7';
+  try {
+    document.querySelectorAll('*').forEach(el => {
+      try {
+        if (window.getComputedStyle(el).position !== 'fixed') return;
+        el.setAttribute('data-print-was-fixed', '1');
+        el.style.setProperty('display', 'none', 'important');
+      } catch (_) {}
+    });
+  } catch (_) {}
+});
+window.addEventListener('afterprint', () => {
+  document.body.style.zoom = '';
+  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
+    try {
+      el.style.removeProperty('display');
+      el.removeAttribute('data-print-was-fixed');
+    } catch (_) {}
+  });
+});
+
 const $ = (sel, root = document) => root.querySelector(sel);
 
 function setAssignStatus(msg){
@@ -945,6 +968,22 @@ async function updateFixedPreviews(seq) {
       if (metaEl) metaEl.textContent = meta;
 
       if (bodyEl) bodyEl.innerHTML = buildStemPreview(item.manifest, item.type, item.proto);
+
+      // Ответ — скрыт на экране, виден только при печати «с ответами»
+      const proto = item.proto;
+      let ansText = '';
+      if (proto.answer?.text != null) ansText = String(proto.answer.text);
+      else if (proto.answer?.value != null) ansText = String(proto.answer.value);
+      if (ansText) {
+        let ansEl = card.querySelector('.hw-create-ans');
+        if (!ansEl) {
+          ansEl = document.createElement('div');
+          ansEl.className = 'hw-create-ans';
+          const leftEl = card.querySelector('.tp-item-left');
+          if (leftEl) leftEl.appendChild(ansEl);
+        }
+        ansEl.textContent = ansText;
+      }
     } else if (!topic && !lookup?.manifest_path) {
       if (metaEl) metaEl.textContent = qid;
       if (bodyEl) bodyEl.innerHTML = `<span class="muted">Тема ${escapeHtml(String(fallbackTopicId))} не найдена в каталоге.</span>`;

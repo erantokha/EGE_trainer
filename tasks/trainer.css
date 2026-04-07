@@ -957,7 +957,7 @@ body[data-theme="light"] .task-card{
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem"
-    ".   ans";
+    "ans ans";
   column-gap: 12px;
   align-items: start;
 }
@@ -974,7 +974,7 @@ body[data-theme="light"] .task-card{
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
-    ".   ans  ans";
+    "ans ans ans";
   column-gap: 12px;
 }
 .task-card:has(.task-fig) .task-fig { grid-area: fig; margin: 15px 22px 0 0; align-self: start; justify-self: end; }
@@ -1009,7 +1009,7 @@ body[data-theme="light"] .task-card{
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
-    ".   ans  fig";
+    "ans ans fig";
   padding-bottom: 30px;
 }
 /* ws-item: ответ сразу после текста */
@@ -1068,7 +1068,7 @@ body[data-theme="light"] .task-card{
   grid-template-areas:
     "num stem"
     ".   fig"
-    ".   ans";
+    "ans ans";
 }
 .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
 .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
@@ -1076,7 +1076,7 @@ body[data-theme="light"] .task-card{
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
-    ".   ans  ans";
+    "ans ans ans";
 }
 
 /* Задание 11 (graphs): картинка на 25% меньше базовых 38% → 29% */
@@ -1211,6 +1211,25 @@ body[data-theme="light"] .task-card{
 .task-card:not(:has(.task-fig))[data-stem-ends="formula"] .task-ans,
 .ws-item:not(:has(.ws-fig))[data-stem-ends="formula"] .ws-ans {
   margin-top: 6px;
+}
+
+/* ws-ans-wrap: обёртка для ответа + кнопки видео (уникальные прототипы).
+   Занимает grid-area: ans вместо самого .ws-ans; gap = column-gap грида. */
+.ws-item .ws-ans-wrap {
+  grid-area: ans;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+.ws-item:not(:has(.ws-fig)) .ws-ans-wrap {
+  margin-top: 2em;
+}
+.ws-item:not(:has(.ws-fig))[data-stem-ends="formula"] .ws-ans-wrap {
+  margin-top: 6px;
+}
+.ws-ans-wrap .ws-ans {
+  margin-top: 0;
 }
 
 .ws-ans summary,
@@ -1438,6 +1457,103 @@ body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
   .print-btn-label { display:none; }
   .print-btn { padding:6px 8px; }
 }
+
+/* ── Диалог настроек печати ─────────────────────────────────────────────── */
+.print-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+.print-dialog {
+  background: var(--panel-bg, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  padding: 24px;
+  width: min(420px, calc(100vw - 32px));
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
+}
+.print-dialog-h {
+  margin: 0 0 18px;
+  font-size: 17px;
+  font-weight: 600;
+}
+.print-dialog-field {
+  margin-bottom: 14px;
+}
+.print-dialog-label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+  opacity: .75;
+}
+.print-dialog-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--panel-bg, #fff);
+  color: inherit;
+  outline: none;
+}
+.print-dialog-input:focus {
+  border-color: var(--accent, #3b82f6);
+  box-shadow: 0 0 0 2px rgba(59,130,246,.2);
+}
+.print-dialog-check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.print-dialog-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent, #3b82f6);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.print-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.print-dialog-cancel {
+  padding: 8px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.print-dialog-cancel:hover {
+  background: var(--panel-2, rgba(0,0,0,.04));
+}
+.print-dialog-confirm {
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent, #3b82f6);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.print-dialog-confirm:hover { opacity: .88; }
+
+/* Заголовок, вставляемый перед печатью — скрыт на экране */
+.print-custom-title { display: none; }
+
+/* Ответ в карточке hw_create — скрыт на экране, виден при печати «с ответами» */
+.hw-create-ans { display: none; }
 
 .added-head {
   display:flex;
@@ -3311,6 +3427,32 @@ body.teacher-student-view .score-thermo__primary{
     display: none !important;
   }
 
+  /* 3c. hw_create.html: скрыть UI-хром, показать список задач */
+  .controls,
+  #status,
+  #linkBox,
+  .hrow,
+  #toggleAdded,
+  .fixed-mini-del,
+  #taskPickerModal {
+    display: none !important;
+  }
+  #addedBox {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  /* Ответ при печати с ответами */
+  body.print-with-answers .hw-create-ans {
+    display: block !important;
+    margin-top: 6px;
+    font-weight: 600;
+    color: #000;
+  }
+  body.print-with-answers .hw-create-ans::before {
+    content: "Ответ: ";
+  }
+
   /* 3a. Колокольчик — Chrome иногда рендерит кешированные img
          даже внутри display:none. CSS content: url() заменяет
          отображаемую картинку на прозрачный 1×1 пиксель.
@@ -3429,7 +3571,7 @@ body.teacher-student-view .score-thermo__primary{
   .print-ans-line {
     display: block;
     grid-row: 2;
-    grid-column: 2 / -1;
+    grid-column: 1 / -1;
     margin-top: 8px;
     font-size: 12px;
     color: #444;
@@ -3487,6 +3629,23 @@ body.teacher-student-view .score-thermo__primary{
   body.print-with-answers .task-ans summary,
   body.print-with-answers .ws-ans summary {
     display: none !important;
+  }
+
+  /* Формат "Ответ: [число]" — добавляем префикс через ::before,
+     т.к. summary скрыт, а текст ответа идёт отдельным элементом. */
+  body.print-with-answers .ws-ans-text::before,
+  body.print-with-answers .task-ans > div::before {
+    content: "Ответ: ";
+    font-weight: 600;
+  }
+
+  /* 7d. Заголовок из диалога печати */
+  .print-custom-title {
+    display: block;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: #000;
   }
 
   /* 8. Ссылки — не подчёркивать, не красить */
