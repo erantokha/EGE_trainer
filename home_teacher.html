@@ -130,20 +130,49 @@
             <option value="">— ученик не выбран —</option>
           </select>
         </div>
+        <button
+          id="studentProfileBtn"
+          class="ht-student-profile-btn"
+          type="button"
+          hidden
+          data-tip="Профиль ученика"
+          aria-label="Профиль ученика"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </button>
 <span id="teacherStudentStatus" class="muted ht-student-status"></span>
 
       </div>
       <script>
       (function () {
-        var input    = document.getElementById('studentComboInput');
-        var list     = document.getElementById('studentComboList');
-        var sel      = document.getElementById('teacherStudentSelect');
-        var clearBtn = document.getElementById('studentComboClear');
+        var input      = document.getElementById('studentComboInput');
+        var list       = document.getElementById('studentComboList');
+        var sel        = document.getElementById('teacherStudentSelect');
+        var clearBtn   = document.getElementById('studentComboClear');
+        var profileBtn = document.getElementById('studentProfileBtn');
         if (!input || !list || !sel || !clearBtn) return;
 
         var _value = '';  // зафиксированный value
         var _label = '';  // зафиксированный label
         var _open  = false;
+
+        function syncProfileBtn(value) {
+          if (!profileBtn) return;
+          if (value) {
+            profileBtn.hidden = false;
+            profileBtn.onclick = function () {
+              var url = new URL('./tasks/student.html', location.href);
+              url.searchParams.set('student_id', value);
+              location.href = url.toString();
+            };
+          } else {
+            profileBtn.hidden = true;
+            profileBtn.onclick = null;
+          }
+        }
 
         /* ── утилиты ── */
         function esc(s) {
@@ -238,6 +267,7 @@
           _label = label;
           input.value = label;
           showClear(true);
+          syncProfileBtn(value);
           sel.value = value;
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           close();
@@ -249,6 +279,7 @@
           _label = '';
           input.value = '';
           showClear(false);
+          syncProfileBtn('');
           sel.value = '';
           sel.dispatchEvent(new Event('change', { bubbles: true }));
           close();
@@ -342,10 +373,12 @@
               _label = opt.text;
               input.value = opt.text;
               showClear(true);
+              syncProfileBtn(_value);
             } else {
               _value = '';
               _label = '';
               showClear(false);
+              syncProfileBtn('');
             }
           }
         }).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
@@ -397,19 +430,18 @@
             Перемешать задачи
           </label>
 
-          <select
-            id="teacherFilterDropdown"
-            class="ht-filter-dropdown"
-            disabled
-            aria-label="Фильтр teacher picking"
-          >
-            <option value="">Без фильтра</option>
-            <option value="unseen_low">Не решал / мало решал</option>
-            <option value="stale">Давно решал</option>
-            <option value="unstable">Нестабильно решает</option>
-          </select>
-          <span id="teacherFiltersHint" class="muted ht-filters-hint">
-            Выберите ученика
+          <span id="teacherFilterWrap" class="ht-filter-wrap" data-tip="Выберите ученика">
+            <select
+              id="teacherFilterDropdown"
+              class="ht-filter-dropdown"
+              disabled
+              aria-label="Фильтр teacher picking"
+            >
+              <option value="">Без фильтра</option>
+              <option value="unseen_low">Не решал / мало решал</option>
+              <option value="stale">Давно решал</option>
+              <option value="unstable">Нестабильно решает</option>
+            </select>
           </span>
 
           <!-- Радиокнопки скрыты визуально; picker.js обращается к ним по id/name -->
@@ -436,7 +468,7 @@
         var VALID     = ['unseen_low', 'stale', 'unstable'];
         var dropdown  = document.getElementById('teacherFilterDropdown');
         var radioNone = document.getElementById('teacherFilterNone');
-        var hint      = document.getElementById('teacherFiltersHint');
+        var wrap      = document.getElementById('teacherFilterWrap');
         if (!dropdown || !radioNone) return;
 
         // Инициализация: восстановить выбранный фильтр из sessionStorage
@@ -462,7 +494,10 @@
         new MutationObserver(function () {
           var dis = radioNone.disabled;
           dropdown.disabled = dis;
-          if (hint) hint.style.opacity = dis ? '1' : '0';
+          if (wrap) {
+            if (dis) wrap.setAttribute('data-tip', 'Выберите ученика');
+            else wrap.removeAttribute('data-tip');
+          }
         }).observe(radioNone, { attributes: true, attributeFilter: ['disabled'] });
       })();
       </script>

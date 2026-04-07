@@ -362,9 +362,20 @@ body[data-home-variant="teacher"] .ht-toolbar-row .shuffle input {
   cursor: not-allowed;
 }
 
-.ht-filters-hint {
-  font-size: 12px;
-  transition: opacity 0.15s ease;
+.ht-filter-wrap {
+  display: inline-block;
+}
+
+/* Кнопка перехода в профиль ученика */
+.ht-student-profile-btn[hidden] { display: none; }
+.ht-student-profile-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 10px;
+  color: var(--text-dim);
 }
 
 
