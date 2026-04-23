@@ -20,10 +20,13 @@ import { withBuild } from '../app/build.js?v=2026-04-07-11';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-04-07-11';
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-04-07-11';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-04-07-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-04-07-11';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
 const SHEET_MODE = !new URLSearchParams(location.search).has('step');
+
+registerStandardPrintPageLifecycle();
 
 // ---------- PERF-диагностика (включается ?perf=1 или localStorage.tasks_perf=1) ----------
 const PERF =
@@ -1570,6 +1573,7 @@ function renderSheetList() {
     const card = document.createElement('div');
     card.className = 'task-card';
     card.dataset.qi = String(i);
+    if (q.topic_id) card.dataset.topicId = q.topic_id;
 
     const num = document.createElement('div');
     num.className = 'task-num';
@@ -1596,10 +1600,27 @@ function renderSheetList() {
         figAlt = q.figure.alt || figAlt;
       }
 
+      if (figSrc) {
+        figWrap.dataset.figSize = /\/graphs\/|\/vectors\/|\/derivatives\//.test(figSrc) ? 'large' : 'small';
+        const figTypeMatch = figSrc.match(/\/(vectors|graphs|derivatives)\//);
+        if (figTypeMatch) figWrap.dataset.figType = figTypeMatch[1];
+        if (/2\.1\.3_1\.svg|2\.2\.2_1\.svg/.test(figSrc)) figWrap.dataset.figVariant = 'shifted';
+      }
+
       img.alt = figAlt;
       img.loading = 'lazy';
       img.referrerPolicy = 'no-referrer';
-      if (figSrc) img.src = asset(figSrc);
+      if (figSrc) {
+        const applyOrientation = () => {
+          if (img.naturalWidth <= img.naturalHeight * 1.2) figWrap.dataset.figOrientation = 'portrait';
+          else if (img.naturalWidth <= img.naturalHeight * 1.5) figWrap.dataset.figOrientation = 'landscape-narrow';
+          else delete figWrap.dataset.figOrientation;
+        };
+
+        img.addEventListener('load', applyOrientation, { once: true });
+        img.src = asset(figSrc);
+        if (img.complete && img.naturalWidth > 0) applyOrientation();
+      }
 
       if (figSrc) {
         figWrap.appendChild(img);
@@ -1608,7 +1629,7 @@ function renderSheetList() {
     }
 
     const ansRow = document.createElement('div');
-    ansRow.className = 'hw-answer-row';
+    ansRow.className = 'task-ans hw-answer-row';
 
     const input = document.createElement('input');
     input.type = 'text';
@@ -1622,6 +1643,11 @@ function renderSheetList() {
 
     ansRow.appendChild(input);
     card.appendChild(ansRow);
+
+    const pal = document.createElement('div');
+    pal.className = 'print-ans-line';
+    pal.textContent = 'Ответ: ________________________';
+    card.appendChild(pal);
 
     listEl.appendChild(card);
   });

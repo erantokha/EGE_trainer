@@ -2,6 +2,19 @@
 // Кнопка «Печать» — показывает диалог настроек, принудительно загружает
 // lazy-картинки, ждёт MathJax и вызывает window.print().
 
+let printLifecyclePromise = null;
+
+function getPrintLifecycle() {
+  if (printLifecyclePromise) return printLifecyclePromise;
+
+  const url = new URL('./print_lifecycle.js', import.meta.url);
+  const build = new URL(import.meta.url).searchParams.get('v');
+  if (build) url.searchParams.set('v', build);
+
+  printLifecyclePromise = import(url.toString());
+  return printLifecyclePromise;
+}
+
 export function initPrintBtn(opts = {}) {
   const btn = document.getElementById('printBtn');
   if (!btn) return;
@@ -16,38 +29,46 @@ export function initPrintBtn(opts = {}) {
         return; // пользователь нажал «Отмена» или Escape
       }
 
-      // Временный заголовок поверх контента (виден только в @media print)
-      let titleEl = null;
-      if (settings.title) {
-        titleEl = document.createElement('div');
-        titleEl.className = 'print-custom-title';
-        titleEl.textContent = settings.title;
-        const panel = document.querySelector('.panel') || document.body;
-        panel.insertBefore(titleEl, panel.firstChild);
-      }
+      const { runManagedPrintFlow } = await getPrintLifecycle();
 
-      // Раскрываем <details> с ответами, чтобы браузер их показал в печати
-      const openedDetails = [];
-      if (settings.withAnswers) {
-        document.body.classList.add('print-with-answers');
-        document.querySelectorAll('details.task-ans, details.ws-ans').forEach(d => {
-          if (!d.open) { d.open = true; openedDetails.push(d); }
-        });
-      }
+      await runManagedPrintFlow({
+        withAnswers: settings.withAnswers,
+        onEnter() {
+          // Временный заголовок поверх контента (виден только в @media print)
+          let titleEl = null;
+          if (settings.title) {
+            titleEl = document.createElement('div');
+            titleEl.className = 'print-custom-title';
+            titleEl.textContent = settings.title;
+            const panel = document.querySelector('.panel') || document.body;
+            panel.insertBefore(titleEl, panel.firstChild);
+          }
 
-      try {
-        await forceLoadImages();
-        if (window.MathJax?.typesetPromise) {
-          await window.MathJax.typesetPromise();
-        }
-      } catch (_) {}
+          // Раскрываем <details> с ответами, чтобы браузер их показал в печати
+          const openedDetails = [];
+          if (settings.withAnswers) {
+            document.querySelectorAll('details.task-ans, details.ws-ans').forEach((d) => {
+              if (!d.open) {
+                d.open = true;
+                openedDetails.push(d);
+              }
+            });
+          }
 
-      window.print();
-
-      // Очистка после печати
-      titleEl?.remove();
-      document.body.classList.remove('print-with-answers');
-      openedDetails.forEach(d => { d.open = false; });
+          return () => {
+            titleEl?.remove();
+            openedDetails.forEach((d) => { d.open = false; });
+          };
+        },
+        async onPrepare() {
+          try {
+            await forceLoadImages();
+            if (window.MathJax?.typesetPromise) {
+              await window.MathJax.typesetPromise();
+            }
+          } catch (_) {}
+        },
+      });
     } finally {
       setTimeout(() => { btn.disabled = false; }, 500);
     }

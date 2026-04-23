@@ -17,6 +17,7 @@ import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/c
 import { withBuild } from '../app/build.js?v=2026-04-07-11';
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-04-07-11';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-04-07-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-04-07-11';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -37,58 +38,13 @@ let TEACHER_PICKED_REFS = [];
 let PRIO_ACTIVE = false;
 const STATS_BY_TOPIC = new Map(); // topicId -> Promise<Map>|Map|null
 
-// ---------- Масштаб для печати ----------
-// zoom задаётся через beforeprint, а не через @media print CSS.
-// Это позволяет избежать бага Chrome: при zoom в @media print compositing-слой
-// создаётся в середине print-пайплайна → grid-placement ломается на первой странице.
-// С beforeprint inline-стиль уже есть ДО запуска пайплайна → баг не воспроизводится.
-const BLANK_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-window.addEventListener('beforeprint', () => {
-  document.body.style.zoom = '0.7';
-
-  // Убираем img из DOM полностью — обходит баг Chrome GPU-кэша, когда
-  // cached-текстура рендерится вопреки display:none на родителе.
-  document.querySelectorAll('.hw-bell').forEach(el => {
-    if (!el.hasAttribute('data-print-html')) {
-      el.setAttribute('data-print-html', el.innerHTML);
-      el.innerHTML = '';
-    }
-  });
-
-  // Catch-all: скрываем ВСЕ position:fixed элементы.
-  // В Chrome print fixed-элементы повторяются на каждой странице,
-  // даже если они display:none в CSS. Inline-style перебивает GPU-кэш.
-  // Диагностический лог помогает найти неизвестный элемент — открой
-  // DevTools Console перед Ctrl+P и посмотри "[print-fixed]" записи.
-  try {
-    document.querySelectorAll('*').forEach(el => {
-      try {
-        if (window.getComputedStyle(el).position !== 'fixed') return;
-        // Логируем для диагностики
-        console.log('[print-fixed]', el.tagName, '#' + (el.id || '-'),
-          '.' + (el.className || '-'), el.getBoundingClientRect());
-        // Скрываем
-        el.setAttribute('data-print-was-fixed', '1');
-        el.style.setProperty('display', 'none', 'important');
-      } catch (_) {}
-    });
-  } catch (_) {}
-});
-window.addEventListener('afterprint', () => {
-  document.body.style.zoom = '';
-
-  document.querySelectorAll('.hw-bell[data-print-html]').forEach(el => {
-    el.innerHTML = el.getAttribute('data-print-html');
-    el.removeAttribute('data-print-html');
-  });
-
-  // Восстанавливаем fixed-элементы
-  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
-    try {
-      el.style.removeProperty('display');
-      el.removeAttribute('data-print-was-fixed');
-    } catch (_) {}
-  });
+// ---------- Page-level hook печати ----------
+// zoom по-прежнему задаётся через browser lifecycle печати, а не через
+// @media print CSS. Теперь этим управляет общий print_lifecycle.js:
+// page-specific hook только регистрируется здесь.
+registerStandardPrintPageLifecycle({
+  blankInnerHtmlSelector: '.hw-bell',
+  logFixedElements: true,
 });
 
 // ---------- Инициализация ----------

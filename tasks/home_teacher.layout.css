@@ -3,6 +3,149 @@
  * Подключается после trainer.css и home_teacher.mobile.css.
  */
 
+/* Чекбокс «Перемешать задачи» в шапке модалки добавленных задач */
+.added-tasks-shuffle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin-right: 8px;
+}
+.added-tasks-shuffle input {
+  margin: 0;
+  cursor: pointer;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   0. Layout: sticky хедер на всю ширину, контент под ним — по центру
+   ══════════════════════════════════════════════════════════════ */
+
+/* main — на всю ширину, без ограничений */
+body[data-home-variant="teacher"] main {
+  max-width: none;
+  margin: 0 0 0 56px;
+  padding: 0;
+  transition: margin-left 220ms cubic-bezier(.4, 0, .2, 1);
+}
+body[data-home-variant="teacher"].ht-sidebar-open main {
+  margin-left: 220px;
+}
+
+/* Бывший .panel — убираем карточный вид */
+body[data-home-variant="teacher"] #picker > div {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* ── Хедер: sticky, flex, на всю ширину ── */
+body[data-home-variant="teacher"] #appHeader {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  min-height: 90px;
+  box-sizing: border-box;
+  background: var(--bg);
+}
+
+/* header.js оборачивает содержимое хедера в .page-head-left.
+   Растягиваем на всю ширину: тулбар слева, градусник справа. */
+body[data-home-variant="teacher"] #appHeader .page-head-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Бургер — крайний левый элемент хедера */
+body[data-home-variant="teacher"] .ht-burger {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 120ms ease;
+}
+body[data-home-variant="teacher"] .ht-burger:hover {
+  background: var(--panel-2);
+}
+
+/* Заголовок — чуть крупнее + отступ от бургера */
+body[data-home-variant="teacher"] #appHeader h1 {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 0;
+}
+
+/* Скрываем кнопку «Антон» из хедера — она переезжает в сайдбар */
+body[data-home-variant="teacher"] .page-head-right {
+  display: none;
+}
+
+/* Строка ученика — абсолютно позиционирована внутри #appHeader (position:sticky).
+   100% в right: = ширина #appHeader = main-width.
+   Нужный отступ справа = (main-width−1200)/2 + 70, мин. 70px. */
+body[data-home-variant="teacher"] #appHeader .ht-student-bar {
+  position: absolute;
+  right: max(70px, calc((100% - 1200px) / 2 + 70px));
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  border-bottom: none;
+}
+
+/* Иконка профиля — визуально последний (rightmost) элемент в строке ученика.
+   Без этого пустой #teacherStudentStatus добавляет 8px phantom-gap справа от иконки. */
+body[data-home-variant="teacher"] #appHeader #studentProfileBtn {
+  order: 1;
+}
+
+/* Скрываем пустой span из flex-потока, чтобы не создавал gap при пустом состоянии */
+body[data-home-variant="teacher"] #appHeader #teacherStudentStatus:empty {
+  display: none;
+}
+
+body[data-home-variant="teacher"] #appHeader .ht-student-picker {
+  flex: 0 0 450px;
+  width: 450px;
+  max-width: none;
+  min-width: 0;
+}
+
+/* Контент — по центру, не двигается при открытии сайдбара */
+body[data-home-variant="teacher"] .ht-content-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ht-main — двухколоночный flex: аккордеон (слева) + панель действий (справа) */
+body[data-home-variant="teacher"] .ht-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
 
 /* ══════════════════════════════════════════════════════════════
    1. Термометр встроен в поле выбора ученика
@@ -66,8 +209,6 @@ body[data-home-variant="teacher"] .ht-student-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
 }
 
 .ht-student-label {
@@ -316,32 +457,42 @@ body[data-home-variant="teacher"] .ht-rec-panel {
 
 
 /* ══════════════════════════════════════════════════════════════
-   4. Тулбар над аккордеоном
+   4. Правая колонка: sticky-обёртка для тулбара + панели действий
    ══════════════════════════════════════════════════════════════ */
-body[data-home-variant="teacher"] .ht-toolbar {
-  margin-top: 14px;
+
+/* Обёртка: sticky, ширина по содержимому */
+body[data-home-variant="teacher"] .ht-right-col {
+  flex: 0 0 auto;
+  position: sticky;
+  top: var(--header-h, 52px);
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 0 30px 20px 0;
 }
 
-body[data-home-variant="teacher"] .ht-toolbar-row {
+/* Спейсер и вся строка badges-head на десктопе скрыты — лейблов нет,
+   строка не нужна, расстояние до первой секции теперь одинаково
+   независимо от того, выбран ученик или нет. */
+body[data-home-variant="teacher"] .ht-badges-spacer {
+  display: none;
+}
+body[data-home-variant="teacher"] #accordion .home-badges-head {
+  display: none;
+}
+
+/* Тулбар: в хедере, левый край совпадает с левым краем «−» в аккордеоне.
+   100% = main-width (padding хедера = 0), нужный отступ = (main-width−1200)/2 + 70 */
+body[data-home-variant="teacher"] #appHeader .ht-action-toolbar {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-/* re-scope shuffle: trainer.css привязан к .controls, новый layout — к .ht-toolbar-row */
-body[data-home-variant="teacher"] .ht-toolbar-row .shuffle {
-  display: inline-flex;
-  align-items: center;
+  flex-wrap: nowrap;
   gap: 6px;
-  font-size: 13px;
-  color: var(--text-dim);
-}
-body[data-home-variant="teacher"] .ht-toolbar-row .shuffle input {
-  margin: 0;
+  flex-shrink: 0;
+  margin-left: max(70px, calc((100% - 1200px) / 2 + 70px));
 }
 
 /* Дропдаун фильтров teacher picking */
@@ -380,23 +531,42 @@ body[data-home-variant="teacher"] .ht-toolbar-row .shuffle input {
 
 
 /* ══════════════════════════════════════════════════════════════
-   5. Основная область: аккордеон (слева) + панель действий (справа)
+   5. Аккордеон и панель действий
    ══════════════════════════════════════════════════════════════ */
-body[data-home-variant="teacher"] .ht-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-top: 14px;
-}
 
+/* Аккордеон — нормальный поток, скроллится вместе со страницей */
 body[data-home-variant="teacher"] .ht-accordion-col {
   flex: 1 1 auto;
   min-width: 0;
+  padding: 0 20px 40px 30px;
 }
 
-/* убираем верхний отступ аккордеона — отступ уже задан у .ht-main */
 body[data-home-variant="teacher"] .ht-accordion-col #accordion.accordion {
-  margin-top: 0;
+  margin-top: 0 !important; /* trainer.css: #picker .accordion {margin-top:4px !important} */
+}
+
+/* Перебиваем «margin-top:4px !important» из trainer.css при выбранном ученике */
+body[data-home-variant="teacher"].teacher-student-view #picker .accordion {
+  margin-top: 0 !important;
+}
+
+/* padding-top = 0 для всех режимов: термометр (teacher-student-view) или пусто (без ученика)
+   обеспечивают правильный вертикальный отступ вместо захардкоженного значения. */
+
+/* .home-badges-head не имеет класса node — обнуляем отдельно */
+body[data-home-variant="teacher"] #accordion .home-badges-head {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+/* Первая секция сразу после badges-head — убираем padding-top */
+body[data-home-variant="teacher"] #accordion .home-badges-head + .node.section {
+  padding-top: 0 !important;
+}
+
+/* Когда ученик не выбран — первая секция идёт прямо первой */
+body[data-home-variant="teacher"] #accordion > .node.section:first-child {
+  padding-top: 0 !important;
 }
 
 /* Hover на строках аккордеона: лёгкий подъём карточки */
@@ -413,13 +583,9 @@ body[data-home-variant="teacher"] #accordion .section-title:focus-visible {
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
-/* Панель действий — sticky, margin-top выравнивается по JS под первую .node.section */
+/* Панель действий — 196px, без sticky (родитель .ht-right-col sticky) */
 body[data-home-variant="teacher"] .ht-action-panel {
-  flex: 0 0 196px;
   width: 196px;
-  position: sticky;
-  top: 30px;
-  align-self: flex-start;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -479,6 +645,8 @@ body[data-home-variant="teacher"] .ht-hw-btn {
    Один и тот же grid для шапки и строк разделов → колонки выровнены.
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1025px) {
+  /* Спейсер скрыт глобально (см. выше) — badges-head убрана, offset не нужен */
+
   /* CSS-переменные — аналогично student-variant */
   body[data-home-variant="teacher"] #accordion {
     --home-badge-w:    60px;
@@ -492,6 +660,13 @@ body[data-home-variant="teacher"] .ht-hw-btn {
     grid-template-columns: max-content 3ch max-content auto auto 1fr !important;
     column-gap: 0 !important;
     align-items: center !important;
+  }
+
+  /* A+B: шапка «Процент / Покрытие» выровнена по верху строки,
+     чтобы D1 (верх страницы → кнопки тулбара) = D2 (кнопки → метки шапки).
+     Метки появляются ровно на y = высота хедера и сразу прячутся под него при скролле. */
+  body[data-home-variant="teacher"].teacher-student-view #accordion .home-badges-head .row {
+    align-items: start !important;
   }
 
   /* countbox: col 1 */
@@ -605,6 +780,14 @@ body[data-home-variant="teacher"] .ht-hw-btn {
    7. Адаптив ≤1024px — схлопываем в единую колонку
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
+  body[data-home-variant="teacher"] #appHeader {
+    padding: 10px 16px;
+  }
+
+  body[data-home-variant="teacher"] .ht-content-wrap {
+    padding: 0 16px;
+  }
+
   /* Панель рекомендаций на мобайле показывается при выбранном студенте */
   body[data-home-variant="teacher"].teacher-student-view .ht-rec-panel {
     display: flex;
@@ -612,6 +795,10 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 
   body[data-home-variant="teacher"] .ht-main {
     flex-direction: column;
+  }
+
+  body[data-home-variant="teacher"] .ht-accordion-col {
+    padding: 10px 0 20px;
   }
 
   /* Панель в потоке — внизу страницы, пока ничего не выбрано */
@@ -651,4 +838,219 @@ body[data-home-variant="teacher"] .ht-hw-btn {
   body[data-home-variant="teacher"].ht-has-selection .ht-main {
     padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
   }
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   7. Боковое меню (сайдбар)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Оверлей — убран полностью */
+body[data-home-variant="teacher"] .ht-sidebar-overlay {
+  display: none !important;
+}
+
+/* Панель сайдбара — всегда видима, width-toggle */
+body[data-home-variant="teacher"] .ht-sidebar-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 56px;          /* свёрнуто: только иконки */
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width 220ms cubic-bezier(.4, 0, .2, 1),
+              background 220ms ease;
+}
+body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-panel {
+  width: 220px;
+  background: #f9f9f9;
+}
+
+/* Шапка сайдбара: бургер + заголовок */
+body[data-home-variant="teacher"] .ht-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 10px 12px;
+  flex-shrink: 0;
+}
+body[data-home-variant="teacher"] .ht-sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease;
+  pointer-events: none;
+}
+body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-title {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms;
+  pointer-events: auto;
+}
+/* Бургер внутри сайдбара — те же размеры, что в хедере */
+body[data-home-variant="teacher"] .ht-sidebar-close {
+  flex-shrink: 0;
+}
+
+/* Навигационная часть */
+body[data-home-variant="teacher"] .ht-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+  overflow-y: auto;
+}
+
+/* Пункты меню */
+body[data-home-variant="teacher"] .ht-sidebar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: none;
+  overflow: hidden;
+  /* Плавный переход цвета и фона */
+  transition: color 200ms ease, background 200ms ease;
+}
+
+/* Левая акцентная полоска (скрыта по умолчанию) */
+body[data-home-variant="teacher"] .ht-sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 55%;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent, #2563eb);
+  transition: transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+body[data-home-variant="teacher"] .ht-sidebar-item:hover::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* Иконка и текст сдвигаются вправо при наведении */
+body[data-home-variant="teacher"] .ht-sidebar-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: color 200ms ease, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+}
+body[data-home-variant="teacher"] .ht-sidebar-label {
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: none;
+}
+body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-label {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: auto;
+}
+
+body[data-home-variant="teacher"] .ht-sidebar-item:hover {
+  color: var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.06);
+  filter: none;
+}
+body[data-home-variant="teacher"] .ht-sidebar-item:hover .ht-sidebar-icon {
+  color: var(--accent, #2563eb);
+  transform: translateX(4px);
+}
+body[data-home-variant="teacher"] .ht-sidebar-item:hover .ht-sidebar-label {
+  transform: translateX(4px);
+}
+
+/* Нижняя зона: пользователь + выход */
+body[data-home-variant="teacher"] .ht-sidebar-foot {
+  border-top: 1px solid var(--border);
+}
+
+body[data-home-variant="teacher"] .ht-sidebar-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 20px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+  transition: background 180ms ease;
+}
+body[data-home-variant="teacher"] .ht-sidebar-user-btn:hover {
+  background: var(--panel-2);
+  filter: none;
+}
+body[data-home-variant="teacher"] .ht-sidebar-user-btn .ht-sidebar-icon {
+  color: var(--text-dim);
+  transition: none;
+}
+
+body[data-home-variant="teacher"] .ht-sidebar-user-name {
+  flex: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-user-name {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms;
+}
+
+body[data-home-variant="teacher"] .ht-sidebar-chevron {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: transform 200ms ease, opacity 100ms ease;
+}
+body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-chevron {
+  opacity: 1;
+  transition: transform 200ms ease, opacity 180ms ease 100ms;
+}
+body[data-home-variant="teacher"] .ht-sidebar-user-btn[aria-expanded="true"] .ht-sidebar-chevron {
+  transform: rotate(180deg);
+}
+
+/* «Выйти» — красный акцент */
+body[data-home-variant="teacher"] .ht-sidebar-logout-btn {
+  color: #ef4444;
+}
+body[data-home-variant="teacher"] .ht-sidebar-logout-btn .ht-sidebar-icon {
+  color: #ef4444;
+}
+body[data-home-variant="teacher"] .ht-sidebar-logout-btn::before {
+  background: #ef4444;
+}
+body[data-home-variant="teacher"] .ht-sidebar-logout-btn:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.07);
+}
+body[data-home-variant="teacher"] .ht-sidebar-logout-btn:hover .ht-sidebar-icon {
+  color: #dc2626;
 }

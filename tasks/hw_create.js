@@ -16,6 +16,7 @@ import {
   sampleKByBase,
   interleaveBatches,
 } from '../app/core/pick.js?v=2026-04-07-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-04-07-11';
 
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-04-07-11';
 
@@ -55,28 +56,7 @@ if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 
-// Масштаб для печати + catch-all для position:fixed элементов (как в list.js / unique.js)
-window.addEventListener('beforeprint', () => {
-  document.body.style.zoom = '0.7';
-  try {
-    document.querySelectorAll('*').forEach(el => {
-      try {
-        if (window.getComputedStyle(el).position !== 'fixed') return;
-        el.setAttribute('data-print-was-fixed', '1');
-        el.style.setProperty('display', 'none', 'important');
-      } catch (_) {}
-    });
-  } catch (_) {}
-});
-window.addEventListener('afterprint', () => {
-  document.body.style.zoom = '';
-  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
-    try {
-      el.style.removeProperty('display');
-      el.removeAttribute('data-print-was-fixed');
-    } catch (_) {}
-  });
-});
+registerStandardPrintPageLifecycle();
 
 const $ = (sel, root = document) => root.querySelector(sel);
 

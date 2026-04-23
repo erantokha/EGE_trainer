@@ -10,6 +10,7 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 import { withBuild } from '../app/build.js?v=2026-04-07-11';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-04-07-11';
 import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-04-07-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-04-07-11';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-04-07-11';
 import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-04-07-11';
 
@@ -47,32 +48,7 @@ function mapLimit(items, limit, fn) {
   return Promise.all(workers);
 }
 
-// Масштаб для печати через beforeprint (см. комментарий в list.js)
-window.addEventListener('beforeprint', () => {
-  document.body.style.zoom = '0.7';
-
-  // Catch-all: скрываем ВСЕ position:fixed элементы (красные иконки связи и т.п.).
-  // Chrome print повторяет fixed-элементы на каждой странице даже при display:none в CSS.
-  try {
-    document.querySelectorAll('*').forEach(el => {
-      try {
-        if (window.getComputedStyle(el).position !== 'fixed') return;
-        el.setAttribute('data-print-was-fixed', '1');
-        el.style.setProperty('display', 'none', 'important');
-      } catch (_) {}
-    });
-  } catch (_) {}
-});
-window.addEventListener('afterprint', () => {
-  document.body.style.zoom = '';
-
-  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
-    try {
-      el.style.removeProperty('display');
-      el.removeAttribute('data-print-was-fixed');
-    } catch (_) {}
-  });
-});
+registerStandardPrintPageLifecycle();
 
 document.addEventListener('DOMContentLoaded', init);
 

@@ -19,6 +19,7 @@ import { supabase, getSession } from '../app/providers/supabase.js?v=2026-04-07-
 import { supaRest } from '../app/providers/supabase-rest.js?v=2026-04-07-11';
 import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-04-07-11';
 import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-04-07-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-04-07-11';
 
 
 import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-04-07-11';
@@ -49,30 +50,7 @@ if (HTML_BUILD && JS_BUILD && HTML_BUILD !== JS_BUILD) {
 }
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
 
-// Масштаб для печати через beforeprint (см. комментарий в list.js)
-window.addEventListener('beforeprint', () => {
-  document.body.style.zoom = '0.7';
-
-  // Catch-all: скрываем ВСЕ position:fixed элементы (красные иконки связи и т.п.)
-  try {
-    document.querySelectorAll('*').forEach(el => {
-      try {
-        if (window.getComputedStyle(el).position !== 'fixed') return;
-        el.setAttribute('data-print-was-fixed', '1');
-        el.style.setProperty('display', 'none', 'important');
-      } catch (_) {}
-    });
-  } catch (_) {}
-});
-window.addEventListener('afterprint', () => {
-  document.body.style.zoom = '';
-  document.querySelectorAll('[data-print-was-fixed]').forEach(el => {
-    try {
-      el.style.removeProperty('display');
-      el.removeAttribute('data-print-was-fixed');
-    } catch (_) {}
-  });
-});
+registerStandardPrintPageLifecycle();
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const addCls = (sel, cls, root = document) => { const el = $(sel, root); if (el) el.classList.add(cls); };

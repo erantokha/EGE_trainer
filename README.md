@@ -77,3 +77,49 @@ Legacy URL:
 - .nojekyll должен быть в корне (он уже есть)
 - cache‑busting реализован через <meta name="app-build" ...> + параметр ?v=
 - для авто‑бампа build id используются workflows в .github/workflows
+
+
+## Playwright smoke baseline
+
+В репозитории есть минимальный e2e/smoke-контур на `Playwright` для двух ролей:
+
+- `student`
+- `teacher`
+
+Локальные credentials не хранятся в git. Для запуска нужен `.env.local`.
+
+1. Установить зависимости:
+
+```bash
+npm install
+npx playwright install chromium
+```
+
+2. Создать `.env.local` по шаблону `.env.example` и заполнить:
+
+```bash
+E2E_STUDENT_EMAIL=...
+E2E_STUDENT_PASSWORD=...
+E2E_TEACHER_EMAIL=...
+E2E_TEACHER_PASSWORD=...
+```
+
+3. Запустить smoke:
+
+```bash
+npm run e2e
+```
+
+Дополнительные режимы:
+
+```bash
+npm run e2e:headed
+npm run e2e:diag
+npm run e2e:list
+```
+
+Где искать артефакты:
+
+- HTML-отчёт: `playwright-report/`
+- trace/video/screenshots: `test-results/`
+- storage state ролей: `.auth/`

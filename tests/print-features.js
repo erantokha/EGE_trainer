@@ -13,8 +13,8 @@
 
 'use strict';
 
-const puppeteer = require('puppeteer');
-const path      = require('path');
+const { chromium } = require('playwright');
+const path = require('path');
 
 const BOLD  = '\x1b[1m';
 const RESET = '\x1b[0m';
@@ -103,58 +103,66 @@ async function runCssTests(browser) {
 
   // ── Переключаемся в print-медиа ───────────────────────────────────────────
 
-  await page.emulateMediaType('print');
+  await page.emulateMedia({ media: 'print' });
 
-  await test('@media print: .print-ans-line виден', async () => {
+  await test('@media print без print-layout-active: .print-ans-line остаётся скрыт', async () => {
+    const v = await page.evaluate(() =>
+      getComputedStyle(document.querySelector('.print-ans-line')).display
+    );
+    assertEqual(v, 'none', 'display');
+  });
+
+  await test('@media print + print-layout-active: .print-ans-line виден', async () => {
+    await page.evaluate(() => document.body.classList.add('print-layout-active'));
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.print-ans-line')).display
     );
     assert(v !== 'none', `display: ${v}`);
   });
 
-  await test('@media print: .print-custom-title виден', async () => {
+  await test('@media print + print-layout-active: .print-custom-title виден', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.print-custom-title')).display
     );
     assert(v !== 'none', `display: ${v}`);
   });
 
-  await test('@media print: .ws-item имеет break-inside: avoid', async () => {
+  await test('@media print + print-layout-active: .ws-item имеет break-inside: avoid', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.ws-item')).breakInside
     );
     assertEqual(v, 'avoid', 'breakInside');
   });
 
-  await test('@media print: .ws-stem имеет break-after: avoid', async () => {
+  await test('@media print + print-layout-active: .ws-stem имеет break-after: avoid', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.ws-stem')).breakAfter
     );
     assertEqual(v, 'avoid', 'breakAfter на .ws-stem');
   });
 
-  await test('@media print: .task-stem имеет break-after: avoid', async () => {
+  await test('@media print + print-layout-active: .task-stem имеет break-after: avoid', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.task-stem')).breakAfter
     );
     assertEqual(v, 'avoid', 'breakAfter на .task-stem');
   });
 
-  await test('@media print: .node.topic > .row имеет break-after: avoid', async () => {
+  await test('@media print + print-layout-active: .node.topic > .row имеет break-after: avoid', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.node.topic > .row')).breakAfter
     );
     assertEqual(v, 'avoid', 'breakAfter на .node.topic > .row');
   });
 
-  await test('@media print: .ws-ans скрыт (без print-with-answers)', async () => {
+  await test('@media print + print-layout-active: .ws-ans скрыт (без print-with-answers)', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.ws-ans')).display
     );
     assertEqual(v, 'none', 'display');
   });
 
-  await test('@media print: .task-ans скрыт (без print-with-answers)', async () => {
+  await test('@media print + print-layout-active: .task-ans скрыт (без print-with-answers)', async () => {
     const v = await page.evaluate(() =>
       getComputedStyle(document.querySelector('.task-ans')).display
     );
@@ -163,7 +171,10 @@ async function runCssTests(browser) {
 
   // ── Режим print-with-answers ──────────────────────────────────────────────
 
-  await page.evaluate(() => document.body.classList.add('print-with-answers'));
+  await page.evaluate(() => {
+    document.body.classList.add('print-layout-active');
+    document.body.classList.add('print-with-answers');
+  });
 
   await test('@media print + print-with-answers: .ws-ans виден', async () => {
     const v = await page.evaluate(() =>
@@ -401,11 +412,10 @@ async function runImageTests(browser) {
 
 (async () => {
   console.log(`\n${BOLD}Print Features — Автотесты${RESET}`);
-  console.log(`Puppeteer ${require('puppeteer/package.json').version}\n`);
+  console.log(`Playwright ${require('playwright/package.json').version}\n`);
 
-  const browser = await puppeteer.launch({
+  const browser = await chromium.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   });
 
   try {

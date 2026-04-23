@@ -1094,8 +1094,8 @@ function setHomeBadge(badgeEl, p, total, correct, title) {
     small.textContent = t ? `${c}/${t}` : '';
   }
 
-  if (title) badgeEl.setAttribute('title', String(title));
-  else badgeEl.removeAttribute('title');
+  if (title) { badgeEl.setAttribute('data-tip', String(title)); badgeEl.removeAttribute('title'); }
+  else { badgeEl.removeAttribute('data-tip'); badgeEl.removeAttribute('title'); }
 }
 
 function setHomeTopicBadge(badgeEl, st) {
@@ -1143,7 +1143,8 @@ function setHomeCoverageBadge(badgeEl, usedTopics, totalTopics) {
   const small = badgeEl.querySelector('.small');
   if (small) small.textContent = '';
 
-  badgeEl.setAttribute('title', 'Покрытие тем');
+  badgeEl.setAttribute('data-tip', 'Покрытие тем');
+  badgeEl.removeAttribute('title');
 }
 
 
@@ -1177,6 +1178,31 @@ function fmtPrimaryExact(x) {
   return v.toFixed(2).replace('.', ',');
 }
 
+
+/* ── Термометр правой колонки (desktop teacher-student-view) ────────────── */
+
+let _htThermoRO = null;
+
+/** Измеряет высоту строки badges-head и записывает --ht-thermo-h на :root.
+ *  Формула: высота строки минус gap (8px) между термометром и панелью кнопок.
+ *  Вызывается через requestAnimationFrame после renderAccordion и при ресайзе. */
+function _syncHtThermoHeight() {
+  const row = document.querySelector('#accordion .home-badges-head .row');
+  if (!row) {
+    document.documentElement.style.removeProperty('--ht-thermo-h');
+    return;
+  }
+  const h = Math.max(12, row.offsetHeight - 8);
+  document.documentElement.style.setProperty('--ht-thermo-h', h + 'px');
+  // Переподключаем наблюдатель к свежему DOM-узлу (renderAccordion пересоздаёт элементы)
+  if (_htThermoRO) _htThermoRO.disconnect();
+  if (window.ResizeObserver) {
+    _htThermoRO = new ResizeObserver(_syncHtThermoHeight);
+    _htThermoRO.observe(row);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 function thermoColorByPrimary(primaryRounded) {
   const v = Number(primaryRounded || 0);
@@ -1967,13 +1993,15 @@ function applyTeacherPickingHomeStats(payload) {
     if (badgePct) {
       setHomeSectionBadge(badgePct, sectionPct, coveredTopics, totalTopics);
       if (sectionPct !== null) {
-        badgePct.setAttribute('title', `Процент правильных ответов по подтемам: ${sectionPct}%`);
-      } else {
-        badgePct.setAttribute('title', 'Процент правильных ответов');
+        badgePct.setAttribute('data-tip', `Процент правильных ответов по подтемам: ${sectionPct}%`);
+        badgePct.removeAttribute('title');
       }
     }
     setHomeCoverageBadge(badgeCov, coveredTopics, totalTopics);
-    if (badgeCov) badgeCov.setAttribute('title', `Покрытие подтем: ${coveredTopics}/${totalTopics}`);
+    if (badgeCov) {
+      badgeCov.setAttribute('data-tip', `Покрытие подтем: ${coveredTopics}/${totalTopics}`);
+      badgeCov.removeAttribute('title');
+    }
 
     applyTitleRecommendation(node.querySelector('.section-title'), model.sectionTitleMeta.get(sid) || null);
   });
@@ -2864,6 +2892,10 @@ function renderAccordion() {
     host.appendChild(renderSectionNode(sec));
   }
   refreshTotalSum();
+
+  // Синхронизируем высоту термометра правой колонки с badges-head.
+  // requestAnimationFrame гарантирует, что браузер сделал layout перед измерением.
+  requestAnimationFrame(_syncHtThermoHeight);
 }
 
 function renderSectionBadgesHead() {
@@ -2902,8 +2934,8 @@ function renderSectionNode(sec) {
       </div>
       ${isStudentLikeHome() ? `
       <span class="home-section-badges">
-        <span class="badge gray home-last10-badge home-section-pct" title="Процент правильных ответов"><b>—</b></span>
-        <span class="badge gray home-coverage-badge home-section-cov" title="Покрытие тем"><b>0/0</b></span>
+        <span class="badge gray home-last10-badge home-section-pct" data-tip="Процент правильных ответов"><b>—</b></span>
+        <span class="badge gray home-coverage-badge home-section-cov" data-tip="Покрытие тем"><b>0/0</b></span>
       </span>
       ` : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
@@ -2997,7 +3029,7 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" title="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
+      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
       <div class="spacer"></div>
       

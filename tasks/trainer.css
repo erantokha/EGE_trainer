@@ -953,7 +953,7 @@ body[data-theme="light"] .task-card{
 .task-card,
 .ws-item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem"
@@ -970,7 +970,7 @@ body[data-theme="light"] .task-card{
 /* Карточки с маленькой картинкой (задания 1, 3): три колонки, картинка ~25% */
 .task-card:has(.task-fig),
 .ws-item:has(.ws-fig) {
-  grid-template-columns: auto 3fr 1.2fr;
+  grid-template-columns: auto minmax(0, 1fr) minmax(132px, 28%);
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
@@ -985,7 +985,7 @@ body[data-theme="light"] .task-card{
 /* Карточки с большой картинкой (задания 2, 8, 11): картинка 38% */
 .task-card:has([data-fig-size="large"]),
 .ws-item:has([data-fig-size="large"]) {
-  grid-template-columns: auto 1fr 38%;
+  grid-template-columns: auto minmax(0, 1fr) minmax(164px, 38%);
   column-gap: 16px;
 }
 
@@ -996,25 +996,17 @@ body[data-theme="light"] .task-card{
   aspect-ratio: 220 / 187;
 }
 
-/* Задание 2 (vectors): fig прижата к правому краю колонки текста (justify-self:end),
-   без отдельной колонки. Правый край всех картинок всегда на одном месте.
-   Текст идёт до 15px от левого края картинки (padding-right = 220+15 = 235px). */
-/* Задание 2 (vectors): 3-колоночный grid — картинка в именованной области "fig",
-   занимает обе строки (rows 1-2) в col 3. Убрали position:absolute — теперь
-   картинка в нормальном grid-потоке, что безопасно при Chrome print + zoom. */
+/* Screen-only layout для vectors:
+   на экране картинка живёт в обычной правой колонке без print-driven
+   фиксированной 220px-геометрии и без резервирования нижнего пространства
+   под печатные сценарии. */
 .task-card:has(.task-fig[data-fig-type="vectors"]),
 .ws-item:has(.ws-fig[data-fig-type="vectors"]) {
-  position: relative;
-  grid-template-columns: auto 1fr 220px;
+  grid-template-columns: auto minmax(0, 1fr) minmax(144px, 34%);
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
-    "ans ans fig";
-  padding-bottom: 30px;
-}
-/* ws-item: ответ сразу после текста */
-.ws-item:has(.ws-fig[data-fig-type="vectors"]) {
-  align-content: start;
+    "ans ans ans";
 }
 /* Картинка — grid-area: fig (из общего правила), обнуляем лишние отступы.
    margin-top: -10px поднимает картинку на 10px без изменения grid-структуры. */
@@ -1039,16 +1031,15 @@ body[data-theme="light"] .task-card{
 }
 .task-card:has(.task-fig[data-fig-type="vectors"]) .task-ans,
 .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-ans {
-  align-self: end;
-  margin-bottom: -20px;
+  align-self: start;
+  margin-bottom: 0;
 }
 
-/* Кнопка «Видео-решение» (vectors): прибита к правому нижнему углу карточки */
+/* В screen-mode video-slot остаётся частью answer-row, а не отдельным
+   абсолютно позиционированным хвостом карточки. */
 .ws-item:has(.ws-fig[data-fig-type="vectors"]) .video-solution-slot {
-  position: absolute;
-  bottom: 8px;
-  right: 12px;
-  margin-left: 0;
+  position: static;
+  margin-left: auto;
 }
 
 /* Смещённые варианты (2.1.3_1.svg, 2.2.2_1.svg) — вниз 15px, влево 20px */
@@ -1072,17 +1063,17 @@ body[data-theme="light"] .task-card{
 }
 .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
 .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
-  grid-template-columns: auto 1fr 38%;
+  grid-template-columns: auto minmax(0, 1fr) minmax(144px, 32%);
   grid-template-rows: auto auto;
   grid-template-areas:
     "num stem fig"
     "ans ans ans";
 }
 
-/* Задание 11 (graphs): картинка на 25% меньше базовых 38% → 29% */
+/* Screen-only ширина graphs не должна повторять print-width один в один. */
 .task-card:has(.task-fig[data-fig-type="graphs"]),
 .ws-item:has(.ws-fig[data-fig-type="graphs"]) {
-  grid-template-columns: auto 1fr 29%;
+  grid-template-columns: auto minmax(0, 1fr) minmax(136px, 31%);
 }
 
 /* Задание 8 (derivatives) landscape: по центру + ограничение ширины.
@@ -1106,11 +1097,6 @@ body[data-theme="light"] .task-card{
   width: 100%;
   display: block;
 }
-.task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
-.ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
-  grid-template-columns: auto 1fr 27%;
-}
-
 /* ── Задания 2 (vectors) и 11 (graphs): верх картинки = верх первой строки.
    Убираем vertical padding — контейнер прижат к изображению сверху и снизу. ── */
 .task-fig[data-fig-type="vectors"], .ws-fig[data-fig-type="vectors"],
@@ -1200,6 +1186,18 @@ body[data-theme="light"] .task-card{
   margin-top:6px;
 }
 
+.sheet-panel .task-card .task-ans{
+  justify-self:start;
+  width:100%;
+}
+.sheet-panel .task-card:has(.task-fig) .task-ans{
+  margin-top:10px;
+}
+.sheet-panel .task-card .task-ans input[type="text"]{
+  width:220px;
+  max-width:100%;
+}
+
 /* В карточках без картинки — две строки отступа между условием и ответом */
 .task-card:not(:has(.task-fig)) .task-ans,
 .ws-item:not(:has(.ws-fig)) .ws-ans {
@@ -1230,6 +1228,109 @@ body[data-theme="light"] .task-card{
 }
 .ws-ans-wrap .ws-ans {
   margin-top: 0;
+}
+
+@media (max-width: 720px) {
+  body:not([data-home-variant]) .container {
+    margin: 20px auto;
+    padding: 0 10px;
+  }
+
+  body:not([data-home-variant]) .panel {
+    padding: 14px 12px;
+  }
+
+  .task-card,
+  .ws-item {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .task-card .task-stem,
+  .ws-item .ws-stem {
+    min-width: 0;
+  }
+
+  .task-card:has(.task-fig),
+  .ws-item:has(.ws-fig) {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "num stem"
+      ". fig"
+      "ans ans";
+  }
+
+  .task-card:has(.task-fig[data-fig-type="vectors"]),
+  .ws-item:has(.ws-fig[data-fig-type="vectors"]),
+  .task-card:has(.task-fig[data-fig-type="graphs"]),
+  .ws-item:has(.ws-fig[data-fig-type="graphs"]),
+  .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
+  .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "num stem"
+      ". fig"
+      "ans ans";
+  }
+
+  .task-card:has(.task-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])),
+  .ws-item:has(.ws-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) {
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "num stem"
+      "fig fig"
+      "ans ans";
+  }
+
+  .task-card:has(.task-fig) .task-fig,
+  .ws-item:has(.ws-fig) .ws-fig {
+    justify-self: start;
+    margin: 12px 0 0;
+    width: auto;
+    max-width: 100%;
+  }
+
+  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-fig,
+  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-fig {
+    margin: 12px 0 0;
+  }
+
+  .task-card:has(.task-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) .task-fig,
+  .ws-item:has(.ws-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) .ws-fig {
+    justify-self: stretch;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .task-card:has(.task-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) .task-ans,
+  .ws-item:has(.ws-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) .ws-ans,
+  .ws-item:has(.ws-fig[data-fig-size="large"]:not([data-fig-orientation="portrait"])) .ws-ans-wrap {
+    margin-top: 10px;
+  }
+
+  .task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]),
+  .ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]) {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-ans,
+  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-ans {
+    align-self: start;
+    margin-top: 10px;
+    margin-bottom: 0;
+  }
+
+  .ws-item .ws-ans-wrap {
+    flex-wrap: wrap;
+  }
+
+  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .video-solution-slot {
+    margin-left: 0;
+  }
 }
 
 .ws-ans summary,
@@ -3324,7 +3425,8 @@ body.teacher-student-view .score-thermo__primary{
 
 /* ══════════════════════════════════════════════
    @media print — PDF / Печать
-   Управление ответами: body.print-with-answers
+   Управление ответами:
+   body.print-layout-active.print-with-answers
    ══════════════════════════════════════════════ */
 @media print {
 
@@ -3443,13 +3545,13 @@ body.teacher-student-view .score-thermo__primary{
   }
 
   /* Ответ при печати с ответами */
-  body.print-with-answers .hw-create-ans {
+  body.print-layout-active.print-with-answers .hw-create-ans {
     display: block !important;
     margin-top: 6px;
     font-weight: 600;
     color: #000;
   }
-  body.print-with-answers .hw-create-ans::before {
+  body.print-layout-active.print-with-answers .hw-create-ans::before {
     content: "Ответ: ";
   }
 
@@ -3474,10 +3576,20 @@ body.teacher-student-view .score-thermo__primary{
     visibility: hidden !important;
   }
 
-  /* 4. Карточки задач — убрать цветовые эффекты */
-  .task-card,
-  .ws-item {
+  /* 4. Print layout system.
+     Геометрия карточек активируется только в явном print-state и не считается
+     продолжением screen-базы. */
+  body.print-layout-active .task-card,
+  body.print-layout-active .ws-item {
     position: static !important;
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "num stem"
+      "ans ans";
+    column-gap: 12px !important;
+    align-items: start !important;
     background: #fff !important;
     border: 1px solid #ccc !important;
     border-radius: 0 !important;
@@ -3488,79 +3600,128 @@ body.teacher-student-view .score-thermo__primary{
     break-inside: avoid;
   }
 
-  .task-num,
-  .ws-num {
+  body.print-layout-active .task-card .task-num,
+  body.print-layout-active .ws-item .ws-num {
+    grid-area: num;
+    justify-self: start;
+    align-self: start;
+    margin-bottom: 0;
     border: 1px solid #999 !important;
     background: #fff !important;
     color: #000 !important;
+    font-size: 16px !important;
   }
 
-  /* 5. Картинки — убрать рамку; position:static снимает absolute-позицию векторов
-     (защита: если vectors-specific `:has()`-селектор не применился на стр. 1,
-      фигура всё равно остаётся в потоке и не смещается к Y=0 страницы). */
-  .task-fig,
-  .ws-fig {
+  body.print-layout-active .task-card .task-stem,
+  body.print-layout-active .ws-item .ws-stem {
+    grid-area: stem;
+    margin-top: 7px;
+    break-after: avoid;
+    page-break-after: avoid;
+    font-size: 19px !important;
+  }
+
+  body.print-layout-active .task-card .task-ans,
+  body.print-layout-active .ws-item .ws-ans,
+  body.print-layout-active .ws-item .ws-ans-wrap,
+  body.print-layout-active .print-ans-line {
+    grid-area: ans;
+  }
+
+  body.print-layout-active .task-card:has(.task-fig),
+  body.print-layout-active .ws-item:has(.ws-fig) {
+    grid-template-columns: auto minmax(0, 1fr) minmax(132px, 28%) !important;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "num stem fig"
+      "ans ans ans";
+  }
+
+  body.print-layout-active .task-card:has([data-fig-size="large"]),
+  body.print-layout-active .ws-item:has([data-fig-size="large"]) {
+    grid-template-columns: auto minmax(0, 1fr) minmax(164px, 38%) !important;
+    column-gap: 16px !important;
+  }
+
+  body.print-layout-active .task-card:has(.task-fig) .task-fig,
+  body.print-layout-active .ws-item:has(.ws-fig) .ws-fig {
+    grid-area: fig;
+    margin: 15px 22px 0 0;
+    align-self: start;
+    justify-self: end;
     position: static !important;
     background: transparent !important;
     border: none !important;
     padding: 0 !important;
   }
 
-  /* Размеры картинок.
-     zoom: calc(1/0.7) компенсирует body{zoom:0.7}: CTM для img возвращается к 1.0,
-     поэтому SVG-пути в PDF сохраняют исходную толщину (stroke-width не делится на 0.7).
-     filter убран — он растеризовал SVG на ~67 DPI и давал неровные линии. */
-  .task-fig img,
-  .ws-fig img { max-width: 100% !important; height: auto !important; zoom: calc(1 / 0.7) !important; }
-
-  /* 5a. Задание 2 (vectors): в печати убираем overflow-обрезку и фиксированную 220px-колонку.
-     Переходим на 29% (как задание 11) — тогда stroke «1.75» рендерится ~2.24px (видимо),
-     а не ~1.22px при 154px-клиппинге. overflow:visible позволяет zoom:calc(1/0.7) работать. */
-  .task-card:has(.task-fig[data-fig-type="vectors"]),
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) {
-    grid-template-columns: auto 1fr 29% !important;
+  body.print-layout-active .task-fig img,
+  body.print-layout-active .ws-fig img {
+    max-width: 100% !important;
+    height: auto !important;
+    zoom: calc(1 / 0.7) !important;
   }
-  .task-fig[data-fig-type="vectors"],
-  .ws-fig[data-fig-type="vectors"] {
+
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="vectors"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="vectors"]) {
+    grid-template-columns: auto minmax(0, 1fr) 29% !important;
+  }
+
+  body.print-layout-active .task-fig[data-fig-type="vectors"],
+  body.print-layout-active .ws-fig[data-fig-type="vectors"] {
     overflow: visible !important;
     aspect-ratio: unset !important;
   }
 
-  /* 5b. Задание 8 (derivatives portrait): расширяем колонку с 27% до 29%.
-     При 27% stroke рендерился ~1.67px на экране предпросмотра — ниже порога видимости.
-     При 29% — ~1.79px, что соответствует стандарту задания 11. */
-  .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
-  .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
-    grid-template-columns: auto 1fr 29% !important;
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="graphs"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="graphs"]) {
+    grid-template-columns: auto minmax(0, 1fr) minmax(136px, 31%) !important;
   }
 
-  /* 5c. unique.html: заголовок темы не отрывается от первого прототипа.
-         break-after:avoid запрещает разрыв страницы сразу после строки с названием темы. */
-  .node.topic > .row {
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]) {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "num stem"
+      ".   fig"
+      "ans ans";
+  }
+
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
+    grid-template-columns: auto minmax(0, 1fr) 29% !important;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "num stem fig"
+      "ans ans ans";
+  }
+
+  body.print-layout-active .node.topic > .row {
     break-after: avoid;
     page-break-after: avoid;
   }
 
-  /* 5d. Название прототипа не отрывается от картинки.
-         У derivatives landscape stem (строка 1 грида) и fig (строка 2) — в разных строках.
-         break-after:avoid на stem гарантирует: если картинка не помещается, stem переходит
-         вместе с ней на следующую страницу. Для остальных раскладок (векторы, графики)
-         stem и fig в одной строке — правило дублирует break-inside:avoid на item (безвредно). */
-  .ws-stem,
-  .task-stem {
-    break-after: avoid;
-    page-break-after: avoid;
-  }
-
-  /* 6. Список задач */
-  .task-list {
+  body.print-layout-active .task-list {
     margin: 0 !important;
     gap: 10px !important;
   }
 
-  /* 7. Ответы — скрыть details, показать строку для записи */
-  .task-ans,
-  .ws-ans {
+  body.print-layout-active .ws-item .ws-ans-wrap {
+    grid-area: ans;
+    display: block !important;
+    margin-top: 0 !important;
+    min-width: 0 !important;
+  }
+
+  body.print-layout-active .ws-item .video-solution-slot {
+    display: none !important;
+    position: static !important;
+    margin: 0 !important;
+  }
+
+  body.print-layout-active .task-ans,
+  body.print-layout-active .ws-ans {
     display: none !important;
   }
 
@@ -3568,81 +3729,65 @@ body.teacher-student-view .score-thermo__primary{
      Псевдо-элементы в Chrome print + html{zoom:0.7} некорректно размещаются
      в гриде на первой странице (Y≈0 compositing-слоя); настоящий элемент
      надёжен на любой странице. */
-  .print-ans-line {
+  body.print-layout-active .print-ans-line {
     display: block;
     grid-row: 2;
     grid-column: 1 / -1;
     margin-top: 8px;
-    font-size: 12px;
+    font-size: 14px !important;
     color: #444;
     font-family: inherit;
   }
-  /* 7a. Задачи без картинки (4,5,9,10,12 и др.): +10px перед «Ответ:» */
-  .task-card:not(:has(.task-fig)) .print-ans-line,
-  .ws-item:not(:has(.ws-fig)) .print-ans-line {
+
+  body.print-layout-active .task-card:not(:has(.task-fig)) .print-ans-line,
+  body.print-layout-active .ws-item:not(:has(.ws-fig)) .print-ans-line {
     margin-top: 24px;
   }
 
-  /* 7b. Vectors (задание 2): картинка занимает обе строки грида ("num stem fig" / ". ans fig"),
-     поэтому строка 2 высокая. align-self:end прибивает «Ответ:» к низу, как у остальных. */
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .print-ans-line,
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .print-ans-line {
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="vectors"]) .print-ans-line,
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="vectors"]) .print-ans-line {
     align-self: end;
     margin-top: 0;
   }
 
-  /* 7c. Derivatives landscape (задание 8 горизонтальное): грид "num stem" / ". fig" / ". ans" —
-     три строки. print-ans-line по умолчанию падает в строку 2 (поверх картинки).
-     Переносим в строку 3 + отступ 2em от нижней границы картинки. */
-  .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line,
-  .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line {
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line,
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line {
     grid-row: 3;
     margin-top: 2em;
   }
 
-  /* 7c. Размер текста задач ×1.5.
-     body{zoom:0.7} в beforeprint уменьшает весь контент до 70%.
-     ×1.5 возвращает эффективный размер к ~16px и делает текст крупнее. */
-  .task-stem,
-  .ws-stem {
-    font-size: 19px !important;
-  }
-  .task-num,
-  .ws-num {
-    font-size: 16px !important;
-  }
-  .print-ans-line {
-    font-size: 14px !important;
-  }
-
-  /* 7b. Режим с ответами: скрыть строку, показать details */
-  body.print-with-answers .print-ans-line {
+  body.print-layout-active.print-with-answers .print-ans-line {
     display: none !important;
   }
 
-  body.print-with-answers .task-ans,
-  body.print-with-answers .ws-ans {
+  body.print-layout-active.print-with-answers .task-ans,
+  body.print-layout-active.print-with-answers .ws-ans {
     display: block !important;
     margin-top: 6px !important;
   }
 
-  body.print-with-answers .task-ans summary,
-  body.print-with-answers .ws-ans summary {
+  body.print-layout-active.print-with-answers .ws-item .ws-ans-wrap {
+    display: block !important;
+    margin-top: 6px !important;
+  }
+
+  body.print-layout-active.print-with-answers .task-ans summary,
+  body.print-layout-active.print-with-answers .ws-ans summary {
     display: none !important;
   }
 
   /* Формат "Ответ: [число]" — добавляем префикс через ::before,
      т.к. summary скрыт, а текст ответа идёт отдельным элементом. */
-  body.print-with-answers .ws-ans-text::before,
-  body.print-with-answers .task-ans > div::before {
+  body.print-layout-active.print-with-answers .ws-ans-text::before,
+  body.print-layout-active.print-with-answers .task-ans > div::before {
     content: "Ответ: ";
     font-weight: 600;
   }
 
-  /* 7d. Заголовок из диалога печати.
+  /* Заголовок из диалога печати.
      !important нужен: body > div {display:none!important} скрывает элемент,
      если он прямой потомок body; класс с !important перебивает по специфике. */
-  .print-custom-title {
+  body.print-layout-active .print-custom-title {
     display: block !important;
     font-size: 20px;
     font-weight: 700;
@@ -3671,59 +3816,5 @@ body.teacher-student-view .score-thermo__primary{
     stroke: none !important;
     stroke-width: 0 !important;
   }
-
-  /* 10. Vectors (задание 2) — ЗАКОММЕНТИРОВАНО для диагностики.
-         Смотрим, что происходит без overrides: остаётся screen-CSS
-         (position:absolute fig, min-height:260px, 2-col grid). */
-  /*
-  .task-card:has(.task-fig[data-fig-type="vectors"]),
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) {
-    position: static !important;
-    min-height: 0 !important;
-    padding-bottom: 18px !important;
-    grid-template-columns: auto 1fr calc(220px / 0.7) !important;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) {
-    grid-template-areas: "num stem fig"
-                         ".   ans  ans" !important;
-  }
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) {
-    grid-template-rows: auto 1fr !important;
-    grid-template-areas: "num  stem  fig"
-                         ".    ans   fig" !important;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-fig,
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-fig {
-    position: static !important;
-    grid-area: fig;
-    width: calc(220px / 0.7) !important;
-    align-self: start;
-    justify-self: end;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-fig img,
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-fig img {
-    width: 220px !important;
-    max-width: none !important;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-stem,
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-stem {
-    padding-right: 0 !important;
-    margin-top: 7px !important;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .task-ans,
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-ans {
-    padding-right: 0 !important;
-  }
-  .task-card:has(.task-fig[data-fig-type="vectors"]) .print-ans-line {
-    grid-row: 2 !important;
-    grid-column: 2 / -1 !important;
-    align-self: end !important;
-  }
-  .ws-item:has(.ws-fig[data-fig-type="vectors"]) .print-ans-line {
-    grid-row: 2 !important;
-    grid-column: 2 / 3 !important;
-    align-self: end !important;
-  }
-  */
 
 }

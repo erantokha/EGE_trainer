@@ -136,6 +136,10 @@ function setStatus(el, msg, isError) {
   el.classList.toggle('error', Boolean(isError));
 }
 
+function markAuthReady() {
+  try { document.body?.setAttribute('data-auth-ready', '1'); } catch (_) {}
+}
+
 function showPanel(name) {
   const tabs = {
     login: $('#tabLogin'),
@@ -439,6 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // старт
   showPanel('login');
+  markAuthReady();
 
 
   try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
