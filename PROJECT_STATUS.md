@@ -1,6 +1,6 @@
 # PROJECT_STATUS
 
-Дата обновления: 2026-04-22
+Дата обновления: 2026-04-23
 Репозиторий: `EGE_rep`
 Ветка: `main`
 
@@ -55,12 +55,12 @@
 Сильные стороны:
 - архитектурные контракты задокументированы
 - backend-контракты формализованы в SQL
-- есть runtime governance-проверки в `tools/`
+- есть runtime governance-проверки в `tools/` (включая `check_trainer_css_layers.mjs` — layer-дисциплина L0..L5 в `tasks/trainer.css`)
 - есть browser smoke pages для ключевых сценариев
+- screen/print-контур в `tasks/trainer.css` структурно закреплён по шести слоям (W2.5), дальнейшие print-fix не требуют хирургии в screen-слое
 
 Ограничения:
 - крупные frontend-модули перегружены логикой
-- screen/print-контур уже частично разведен, но волна acceptance/stabilization для `trainer/list/unique` ещё не закрыта
 - проект без сборки, с большим числом ручных путей, `?v=` и page-specific import patterns
 - значительная часть сложной продуктовой логики живёт во frontend orchestration
 
@@ -208,7 +208,9 @@
 - Острая mobile-regression, возникшая после смешения screen/print-правил в `tasks/trainer.css`, уже исправлена в рамках `W2.4`.
 - `W2.6` принята: финальный acceptance по `trainer/list/unique` закрыт артефактами из `w2_6_report.md` и follow-up пакета `w2_6_fix_report.md`.
 - В результате `W2.6` в baseline считаются подтверждёнными: user-facing print entrypoint для `trainer`, runnable `tests/print-features.js` на `playwright`, а также trainer screen/print acceptance через `e2e/student/w2-6-fix.spec.js`.
-- Структурная фиксация CSS по ответственности (`W2.5`) ещё не начата, поэтому следующая неаккуратная print-правка всё ещё может вернуть смешение режимов.
+- `W2.5` закрыта `2026-04-23`: в `tasks/trainer.css` явно размечены слои L0..L5 (BASE / SCREEN part A / SCREEN cards / SCREEN part B / PRINT legacy / PRINT state-gated), добавлен governance-скрипт `tools/check_trainer_css_layers.mjs` с инвариантами вложенности и префикса `body.print-layout-active`. Доказательства — `reports/w2_5_report.md`, `reports/w2_5_followup_report.md`.
+- Поверх `W2.5` принят hygiene-пакет `wH1..wH6` (2026-04-23): итеративный refinement геометрии `derivatives` fig-type по ориентациям `portrait / landscape-narrow / near-square / wide-landscape`, в том числе симметрия в screen-слое (`wH6`). Все правки остались в пределах своих слоёв, `check_trainer_css_layers.mjs` зелёный. Отчёты — `reports/wH{1..6}_*.md`.
+- Известный pre-existing flake теста `e2e/student/w2-6-fix.spec.js -g 'horizontal full-width'` подтверждён на baseline `215b94d4` (см. `reports/w2_5_followup_report.md §4`); это не регрессия от `W2.5`, а отдельный независимый хвост.
 
 ### 7.2 Архитектурные
 
@@ -229,6 +231,7 @@
 node tools/check_runtime_rpc_registry.mjs
 node tools/check_runtime_catalog_reads.mjs
 node tools/check_no_eval.mjs
+node tools/check_trainer_css_layers.mjs
 ```
 
 ### 8.2 Print
@@ -258,7 +261,8 @@ python3 -m http.server 8000
 На текущий момент проект не находится в архитектурной миграции.
 
 Ближайший рабочий baseline:
-- `W2.6` считать закрытой и не возвращаться к acceptance-циклу без нового дефекта
-- следующим шагом выполнить `W2.5`: структурно закрепить CSS-ответственности после стабилизации поведения
-- поддерживать roadmap/статусные документы в синхроне с фактическим evidence
-- после этого переходить к следующим продуктовым направлениям без возврата к screen/print-регрессиям
+- `W2` полностью закрыта: `W2.0..W2.6` приняты, `W2.5` структурно закрепила CSS по слоям L0..L5, hygiene-пакет `wH1..wH6` отполировал геометрию `derivatives` fig-type в print и screen без возврата к acceptance `W2.6`
+- layer-дисциплина `tasks/trainer.css` защищена `tools/check_trainer_css_layers.mjs`, все governance-скрипты зелёные
+- критический путь по screen/print считается закрытым; новые дефекты вёрстки — отдельные узкие hotfix-волны, не возврат к W2.x
+- активный трек — `W1` (декомпозиция `tasks/trainer.css`); подволна `W1.0` (recon) принята `2026-04-23`, см. `reports/w1_0_trainer_css_recon_report.md`. Рекомендованный Вариант D решает только часть декомпозиции; трек закрывается после `W1.1` (base+screen+print split) + `W1.2` (выделение `screen-public.css` для auth-flow и home-лендингов)
+- следующий шаг — проектирование плана `W1.1` в формате `CURATOR.md §6` на базе отчёта W1.0 §9–§12, с обязательным решением open questions 1/3/5 из §11 отчёта до старта split-работы

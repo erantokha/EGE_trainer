@@ -1,3 +1,36 @@
+/* ============================================================================
+   TRAINER.CSS — STRUCTURAL LAYERS (W2.5)
+
+   Source of truth по режимам экрана и печати. См. контракт в
+   docs/navigation/print_layout_contract.md §6. Инварианты проверяются
+   скриптом tools/check_trainer_css_layers.mjs.
+
+   L0  BASE / RESET / SHARED UTILITIES ............... line 26
+   L1  SCREEN / TRAINER UI — PART A .................. line 182
+   L2  SCREEN / CARDS ................................ line 965
+   L3  SCREEN / TRAINER UI — PART B .................. line 1437
+   L4  PRINT / LEGACY @MEDIA PRINT ................... line 3509  (внутри @media print)
+   L5  PRINT / STATE-GATED ........................... line 3677  (внутри @media print)
+
+   Правила поддержки:
+   - screen-правила НЕ используют body.print-layout-active.
+   - print-правила идут через @media print { ... }; внутри него
+     L4 (legacy) и L5 (state-gated) разделены инвариантами по селекторам.
+   - при добавлении нового правила — кладём его в существующий layer
+     или заводим новый (обновив ToC, layer-маркер и governance-скрипт
+     tools/check_trainer_css_layers.mjs).
+   ============================================================================ */
+
+
+/* ============================================================================
+   L0 · BASE & RESET & SHARED UTILITIES
+   Инварианты:
+   - CSS-variables :root + themes, глобальные утилиты (*, body, .container,
+     .panel, button, input, a), не связанные с конкретной page/feature.
+   - Не используют body.print-layout-active.
+   - Не вложены в @media print.
+   ============================================================================ */
+
 :root{
   /* базовые значения (по умолчанию теперь СВЕТЛАЯ тема) */
   --bg:#ffffff;
@@ -144,6 +177,18 @@ a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
 
 
+
+/* ============================================================================
+   L1 · SCREEN / TRAINER UI — PART A (controls, accordion, runner, summary)
+   Инварианты:
+   - Screen-side UI для picker/bulk-controls, mode-toggle, theme-toggle,
+     accordion, student-home badges layout, runner (qwrap/answer-row/result/
+     shake), summary stats, sheet-panel container, mobile/desktop breakpoints
+     для этих UI-элементов.
+   - Не используют body.print-layout-active.
+   - Не вложены в @media print.
+   - Могут содержать @media (max-width|min-width) — screen breakpoints.
+   ============================================================================ */
 
 /* массовые кнопки (ряд 2) */
 #picker .bulk-controls{
@@ -916,6 +961,18 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
   }
 }
 
+/* ============================================================================
+   L2 · SCREEN / CARDS (base grid, figure cases, spacing, mobile, figure-box)
+   Инварианты:
+   - Всё про .task-card, .ws-item, .task-fig, .ws-fig, .task-num, .ws-num,
+     .task-stem, .ws-stem, .task-ans, .ws-ans, .ws-ans-wrap,
+     .print-ans-line{display:none} screen-default, .sheet-panel card
+     overrides, @media (max-width: 720px) mobile stacking, light-theme
+     figure overrides.
+   - Не используют body.print-layout-active.
+   - Не вложены в @media print.
+   ============================================================================ */
+
 /* ------- общие карточки задач (лист + уникальные + тест) ------- */
 
 /* строка «Ответ:» для печати — скрыта на экране, видна только в @media print */
@@ -1049,11 +1106,10 @@ body[data-theme="light"] .task-card{
   right: 20px;
 }
 
-/* ── Задание 8 (derivatives): горизонтальные — под текстом, portrait — справа.
-   По умолчанию landscape: картинка во второй колонке под текстом;
-   JS выставляет data-fig-orientation="portrait" для квадратных/вертикальных. ── */
-.task-card:has(.task-fig[data-fig-type="derivatives"]),
-.ws-item:has(.ws-fig[data-fig-type="derivatives"]) {
+/* ── Задание 8 (derivatives): wide-landscape — под текстом,
+   portrait и near-square landscape-narrow — справа. ── */
+.task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])),
+.ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])) {
   grid-template-columns: auto 1fr;
   grid-template-rows: auto auto auto;
   grid-template-areas:
@@ -1062,7 +1118,9 @@ body[data-theme="light"] .task-card{
     "ans ans";
 }
 .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
-.ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
+.task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"]),
+.ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
+.ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"]) {
   grid-template-columns: auto minmax(0, 1fr) minmax(144px, 32%);
   grid-template-rows: auto auto;
   grid-template-areas:
@@ -1076,21 +1134,18 @@ body[data-theme="light"] .task-card{
   grid-template-columns: auto minmax(0, 1fr) minmax(136px, 31%);
 }
 
-/* Задание 8 (derivatives) landscape: по центру + ограничение ширины.
-   Portrait не трогаем — колонка уже сужена до 27%.
-   Широкий ландшафт (ratio > 1.5): 56% колонки.
-   Узкий ландшафт (ratio 1..1.5): ещё −30% → 39% колонки. */
+/* Задание 8 (derivatives) wide-landscape: по центру + ограничение ширины.
+   Portrait и near-square landscape-narrow идут в right-column case. */
 .task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]),
 .ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]) {
   width: 56%;
   margin-left: auto;
   margin-right: auto;
 }
-.task-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"],
-.ws-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"] {
-  width: 39%;
-  margin-left: auto;
-  margin-right: auto;
+.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]) img,
+.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]) img {
+  width: 100%;
+  display: block;
 }
 .task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]) img,
 .ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]) img {
@@ -1375,6 +1430,24 @@ body[data-theme="light"] .task-fig{
   background:transparent;
   padding:0;
 }
+
+/* ============================================================================
+   L3 · SCREEN / TRAINER UI — PART B (MathJax, tooltip, header, modals, hw,
+                                      myhw, smart panels, profile, my_students,
+                                      teacher-student-view, score-thermo)
+   Инварианты:
+   - Остальной screen-UI: .q-card, MathJax container, [data-tip] tooltip,
+     .page-head / .create-head / auth-mini / home-icon-btn, print-dialog
+     (screen-part), .print-custom-title{display:none} screen-default,
+     .hw-create-ans{display:none} screen-default, hw-panel, hw-summary,
+     modal task picker, proto picker, vs-modal, user-menu, hw-bell,
+     myhw, students-list, smart-panel / smart-hw-*, profile menu,
+     my_students hardfixes, teacher-student-view accordion и score-thermo.
+   - Не используют body.print-layout-active.
+   - Не вложены в @media print.
+   - Могут содержать @media (max-width|min-width) — screen breakpoints
+     (mobile/tablet/desktop-specific UI).
+   ============================================================================ */
 
 /* одиночная карточка вопроса в режиме тестирования */
 .q-card{
@@ -3430,6 +3503,17 @@ body.teacher-student-view .score-thermo__primary{
    ══════════════════════════════════════════════ */
 @media print {
 
+  /* ==========================================================================
+     L4 · PRINT / LEGACY @MEDIA PRINT (non-state-gated)
+     Инварианты:
+     - Вложено в @media print { ... } (обязательно).
+     - Селекторы НЕ начинаются с body.print-layout-active.
+     - Только page reset (@page, html/body/container/panel), chrome-hide
+       (#appHeader, .page-head, modals, user-menu, auth-mini, hw-bottom и
+       другие UI-элементы), hw/hw_create UI hide, hw-bell img cleanup, ссылки,
+       MathJax SVG print-fix.
+     ========================================================================== */
+
   /* 1. Страница A4 */
   @page {
     size: A4 portrait;
@@ -3544,17 +3628,6 @@ body.teacher-student-view .score-thermo__primary{
     overflow: visible !important;
   }
 
-  /* Ответ при печати с ответами */
-  body.print-layout-active.print-with-answers .hw-create-ans {
-    display: block !important;
-    margin-top: 6px;
-    font-weight: 600;
-    color: #000;
-  }
-  body.print-layout-active.print-with-answers .hw-create-ans::before {
-    content: "Ответ: ";
-  }
-
   /* 3a. Колокольчик — Chrome иногда рендерит кешированные img
          даже внутри display:none. CSS content: url() заменяет
          отображаемую картинку на прозрачный 1×1 пиксель.
@@ -3574,6 +3647,52 @@ body.teacher-student-view .score-thermo__primary{
     height: 0 !important;
     overflow: hidden !important;
     visibility: hidden !important;
+  }
+
+  /* 8. Ссылки — не подчёркивать, не красить */
+  a {
+    color: #000 !important;
+    text-decoration: none !important;
+  }
+
+  /* 9. MathJax SVG — исправить жирное отображение в Chrome print.
+         Chrome print-renderer по умолчанию переключает SVG на crispEdges
+         (без антиалиасинга), из-за чего пути глифов выглядят жирнее.
+         geometricPrecision возвращает полный антиалиасинг.
+         stroke: none убирает унаследованный stroke от родительского <g>. */
+  mjx-container svg {
+    shape-rendering: geometricPrecision !important;
+  }
+
+  mjx-container svg g,
+  mjx-container svg path,
+  mjx-container svg use {
+    stroke: none !important;
+    stroke-width: 0 !important;
+  }
+
+  /* ==========================================================================
+     L5 · PRINT / STATE-GATED (body.print-layout-active)
+     Инварианты:
+     - Вложено в @media print { ... } (обязательно).
+     - Каждый селектор НАЧИНАЕТСЯ с `body.print-layout-active`
+       (возможно с дополнительным `.print-with-answers`).
+     - Включает state-gated карточки (grid, num/stem/ans), figure cases
+       (vectors/graphs/derivatives landscape+portrait), answer-layer
+       (.print-ans-line, .task-ans, .ws-ans, .ws-ans-wrap,
+       .video-solution-slot), with-answers режим, .print-custom-title,
+       .node.topic, .task-list.
+     ========================================================================== */
+
+  /* Ответ при печати с ответами */
+  body.print-layout-active.print-with-answers .hw-create-ans {
+    display: block !important;
+    margin-top: 6px;
+    font-weight: 600;
+    color: #000;
+  }
+  body.print-layout-active.print-with-answers .hw-create-ans::before {
+    content: "Ответ: ";
   }
 
   /* 4. Print layout system.
@@ -3678,18 +3797,30 @@ body.teacher-student-view .score-thermo__primary{
     grid-template-columns: auto minmax(0, 1fr) minmax(136px, 31%) !important;
   }
 
-  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]),
-  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]) {
-    grid-template-columns: auto minmax(0, 1fr) !important;
-    grid-template-rows: auto auto auto;
+  /* Landscape-derivatives: в print повторяем экранный landscape —
+     fig под stem, с ограниченной шириной вместо full-width. */
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])) {
+    grid-template-columns: auto 1fr !important;
+    grid-template-rows: auto auto auto !important;
     grid-template-areas:
       "num stem"
       ".   fig"
       "ans ans";
   }
 
+  body.print-layout-active .task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]),
+  body.print-layout-active .ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]) {
+    width: 56% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    justify-self: center !important;
+  }
+
   body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
-  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]) {
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"]),
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="landscape-narrow"]) {
     grid-template-columns: auto minmax(0, 1fr) 29% !important;
     grid-template-rows: auto auto;
     grid-template-areas:
@@ -3750,10 +3881,11 @@ body.teacher-student-view .score-thermo__primary{
     margin-top: 0;
   }
 
-  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line,
-  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"])) .print-ans-line {
-    grid-row: 3;
-    margin-top: 2em;
+  body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])) .print-ans-line,
+  body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])) .print-ans-line {
+    grid-row: 3 !important;
+    align-self: end;
+    margin-top: 0;
   }
 
   body.print-layout-active.print-with-answers .print-ans-line {
@@ -3793,28 +3925,6 @@ body.teacher-student-view .score-thermo__primary{
     font-weight: 700;
     margin-bottom: 16px;
     color: #000;
-  }
-
-  /* 8. Ссылки — не подчёркивать, не красить */
-  a {
-    color: #000 !important;
-    text-decoration: none !important;
-  }
-
-  /* 9. MathJax SVG — исправить жирное отображение в Chrome print.
-         Chrome print-renderer по умолчанию переключает SVG на crispEdges
-         (без антиалиасинга), из-за чего пути глифов выглядят жирнее.
-         geometricPrecision возвращает полный антиалиасинг.
-         stroke: none убирает унаследованный stroke от родительского <g>. */
-  mjx-container svg {
-    shape-rendering: geometricPrecision !important;
-  }
-
-  mjx-container svg g,
-  mjx-container svg path,
-  mjx-container svg use {
-    stroke: none !important;
-    stroke-width: 0 !important;
   }
 
 }
