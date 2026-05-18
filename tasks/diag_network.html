@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="app-build" content="2026-05-18-10">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://cdn.jsdelivr.net https://www.google.com https://ege-supabase-proxy.erantokha.workers.dev;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://cdn.jsdelivr.net https://www.google.com https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev;">
   <meta http-equiv="Cache-Control" content="no-store">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -233,7 +233,7 @@
     var SUPABASE_URL = 'https://knhozdhvjhcovyjbjfji.supabase.co';
     var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg';
     var SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
-    var PROXY_URL = 'https://ege-supabase-proxy.erantokha.workers.dev';
+    var PROXY_URL = 'https://api.ege-trainer.ru';
     var TIMEOUT_MS = 15000;
 
     var TESTS = [
@@ -241,7 +241,7 @@
       { name: 'storage',                label: 'localStorage / sessionStorage', fn: testStorage },
       { name: 'same_origin_self',       label: 'Сам сайт (ege-trainer.ru)',  fn: testSameOrigin },
       { name: 'supabase_health',        label: 'Supabase напрямую',          fn: testSupabaseHealth },
-      { name: 'proxy_health',           label: 'Прокси (workers.dev)',       fn: testProxyHealth },
+      { name: 'proxy_health',           label: 'Прокси (api.ege-trainer.ru)',       fn: testProxyHealth },
       { name: 'proxy_supabase_through', label: 'Supabase через прокси',      fn: testProxySupabase },
       { name: 'jsdelivr_cdn',           label: 'CDN jsdelivr (библиотека)',  fn: testJsdelivr },
       { name: 'external_baseline',      label: 'Базовая сеть (Google 204)',  fn: testExternalBaseline },

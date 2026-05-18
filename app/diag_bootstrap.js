@@ -100,10 +100,12 @@
 
   function isSupabaseUrl(url) {
     url = String(url || '');
-    // .supabase.co — прямой URL (legacy / fallback после отката).
-    // workers.dev — наш Cloudflare-прокси, проксирующий тот же Supabase.
-    return url.indexOf('.supabase.co/') !== -1
-      || url.indexOf('ege-supabase-proxy.erantokha.workers.dev') !== -1;
+    // api.ege-trainer.ru — основной production прокси (nginx на собственном VPS в РФ).
+    // workers.dev — legacy Cloudflare-прокси (fallback).
+    // .supabase.co — прямой URL (legacy / fallback).
+    return url.indexOf('api.ege-trainer.ru') !== -1
+      || url.indexOf('ege-supabase-proxy.erantokha.workers.dev') !== -1
+      || url.indexOf('.supabase.co/') !== -1;
   }
 
   function isContentUrl(url) {

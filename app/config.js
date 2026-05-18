@@ -2,10 +2,11 @@
 export const CONFIG = {
   supabase: {
     enabled: true,
-    // Proxy URL: ходим через Cloudflare Worker, чтобы у учеников в РФ не упирались
-    // в блокировку *.supabase.co. Worker форвардит /auth/v1/* и /rest/v1/*.
-    // Откат: вернуть на 'https://knhozdhvjhcovyjbjfji.supabase.co' — CSP уже разрешает оба.
-    url: 'https://ege-supabase-proxy.erantokha.workers.dev',
+    // Proxy URL: ходим через собственный VPS в РФ (Timeweb Cloud, Москва),
+    // nginx → supabase.co. Гарантированно не блокируется РКН (российская инфра).
+    // Откат: 'https://ege-supabase-proxy.erantokha.workers.dev' (Cloudflare Worker)
+    //   или 'https://knhozdhvjhcovyjbjfji.supabase.co' (напрямую) — CSP разрешает все три.
+    url: 'https://api.ege-trainer.ru',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg',
     // Таблица attempts используется тренажёром (tasks) и ДЗ.
     // Чтение статистики/админки удалены, поэтому view/админ-параметры не нужны.
