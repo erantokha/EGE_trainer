@@ -156,6 +156,38 @@ export default {
     const exposed = respHeaders.get('Access-Control-Expose-Headers') || '';
     respHeaders.set('Access-Control-Expose-Headers', exposed + ', X-Proxy-Colo, X-Proxy-Upstream-Ms');
 
+    // 9. OAuth Location rewrite.
+    // Supabase у Free plan жёстко вставляет в OAuth-redirect 302 свой канонический
+    // callback URL: redirect_uri=https://<project>.supabase.co/auth/v1/callback.
+    // Если оставить — Google после логина пойдёт прямо на supabase.co, минуя прокси,
+    // и у учеников в РФ всё сломается. Переписываем hostname в redirect_uri
+    // на наш собственный (берём origin из request.url, чтобы код работал и для
+    // workers.dev, и для будущего api.ege-trainer.ru без правок).
+    if (upstreamResp.status >= 300 && upstreamResp.status < 400) {
+      const loc = respHeaders.get('Location');
+      if (loc) {
+        try {
+          const locUrl = new URL(loc);
+          const redirectUri = locUrl.searchParams.get('redirect_uri');
+          if (redirectUri) {
+            const ruUrl = new URL(redirectUri);
+            if (ruUrl.hostname === SUPABASE_HOST && ruUrl.pathname === '/auth/v1/callback') {
+              const proxyOrigin = new URL(request.url).origin;
+              ruUrl.protocol = 'https:';
+              ruUrl.hostname = new URL(proxyOrigin).hostname;
+              ruUrl.port = '';
+              locUrl.searchParams.set('redirect_uri', ruUrl.toString());
+              respHeaders.set('Location', locUrl.toString());
+              console.log(JSON.stringify({ event: 'oauth_redirect_rewritten', from: redirectUri, to: ruUrl.toString() }));
+            }
+          }
+        } catch (e) {
+          // Location может быть relative или невалидным; для нашего сценария это не критично.
+          console.log(JSON.stringify({ event: 'oauth_rewrite_skipped', reason: String(e && e.message || e) }));
+        }
+      }
+    }
+
     return new Response(upstreamResp.body, {
       status: upstreamResp.status,
       statusText: upstreamResp.statusText,
