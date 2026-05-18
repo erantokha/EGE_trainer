@@ -1,0 +1,15 @@
+name = "ege-supabase-proxy"
+main = "proxy.js"
+compatibility_date = "2026-05-18"
+
+# По умолчанию Worker деплоится на workers.dev subdomain:
+#   https://ege-supabase-proxy.<your-account>.workers.dev
+#
+# Чтобы привязать api.ege-trainer.ru, домен ege-trainer.ru должен быть
+# подключён к Cloudflare DNS (см. README §4). После этого раскомментируй
+# блок ниже и сделай wrangler deploy ещё раз.
+#
+# [[routes]]
+# pattern        = "api.ege-trainer.ru/*"
+# zone_name      = "ege-trainer.ru"
+# custom_domain  = true
