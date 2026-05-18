@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="app-build" content="2026-05-18-3">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://cdn.jsdelivr.net https://www.google.com;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://cdn.jsdelivr.net https://www.google.com https://ege-supabase-proxy.erantokha.workers.dev;">
   <meta http-equiv="Cache-Control" content="no-store">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -233,16 +233,19 @@
     var SUPABASE_URL = 'https://knhozdhvjhcovyjbjfji.supabase.co';
     var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg';
     var SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
+    var PROXY_URL = 'https://ege-supabase-proxy.erantokha.workers.dev';
     var TIMEOUT_MS = 8000;
 
     var TESTS = [
-      { name: 'env',               label: 'Окружение браузера',        fn: testEnv },
-      { name: 'storage',           label: 'localStorage / sessionStorage', fn: testStorage },
-      { name: 'same_origin_self',  label: 'Сам сайт (ege-trainer.ru)', fn: testSameOrigin },
-      { name: 'supabase_health',   label: 'Supabase Auth health',      fn: testSupabaseHealth },
-      { name: 'jsdelivr_cdn',      label: 'CDN jsdelivr (библиотека)', fn: testJsdelivr },
-      { name: 'external_baseline', label: 'Базовая сеть (Google 204)', fn: testExternalBaseline },
-      { name: 'sdk_import',        label: 'Загрузка Supabase SDK',     fn: testSdkImport }
+      { name: 'env',                    label: 'Окружение браузера',         fn: testEnv },
+      { name: 'storage',                label: 'localStorage / sessionStorage', fn: testStorage },
+      { name: 'same_origin_self',       label: 'Сам сайт (ege-trainer.ru)',  fn: testSameOrigin },
+      { name: 'supabase_health',        label: 'Supabase напрямую',          fn: testSupabaseHealth },
+      { name: 'proxy_health',           label: 'Прокси (workers.dev)',       fn: testProxyHealth },
+      { name: 'proxy_supabase_through', label: 'Supabase через прокси',      fn: testProxySupabase },
+      { name: 'jsdelivr_cdn',           label: 'CDN jsdelivr (библиотека)',  fn: testJsdelivr },
+      { name: 'external_baseline',      label: 'Базовая сеть (Google 204)',  fn: testExternalBaseline },
+      { name: 'sdk_import',             label: 'Загрузка Supabase SDK',      fn: testSdkImport }
     ];
 
     var runBtn      = document.getElementById('runBtn');
@@ -489,6 +492,50 @@
       });
     }
 
+    function testProxyHealth() {
+      var url = PROXY_URL + '/__proxy_health?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        cache: 'no-store'
+      }).then(function (r) {
+        return r.text().then(function (body) {
+          return {
+            status: r.ok ? 'ok' : 'fail',
+            summary: 'HTTP ' + r.status + ' • ' + body.replace(/\s+/g, ' ').slice(0, 80),
+            details: { url: PROXY_URL + '/__proxy_health', httpStatus: r.status, bodyPreview: body.slice(0, 200) }
+          };
+        });
+      });
+    }
+
+    function testProxySupabase() {
+      // Тот же auth/v1/health, но через прокси. Если supabase_health (прямой)
+      // падает, а этот проходит — значит прокси решает проблему доступа.
+      var url = PROXY_URL + '/auth/v1/health?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'apikey': SUPABASE_ANON_KEY }
+      }).then(function (r) {
+        return r.text().then(function (body) {
+          var preview = body.slice(0, 200);
+          var status;
+          if (r.ok) status = 'ok';
+          else if (r.status === 401 || r.status === 403) status = 'warn';
+          else status = 'fail';
+          return {
+            status: status,
+            summary: 'HTTP ' + r.status + ' • ' + preview.replace(/\s+/g, ' ').slice(0, 80),
+            details: {
+              url: PROXY_URL + '/auth/v1/health',
+              httpStatus: r.status,
+              bodyPreview: preview
+            }
+          };
+        });
+      });
+    }
+
     function testJsdelivr() {
       var url = SDK_URL + '?t=' + Date.now();
       return fetchWithTimeout(url, {
@@ -649,12 +696,14 @@
     function computeVerdict(r) {
       function s(name) { return (r[name] && r[name].status) || 'skipped'; }
 
-      var same     = s('same_origin_self');
-      var sup      = s('supabase_health');
-      var cdn      = s('jsdelivr_cdn');
-      var ext      = s('external_baseline');
-      var sdk      = s('sdk_import');
-      var storage  = s('storage');
+      var same       = s('same_origin_self');
+      var sup        = s('supabase_health');
+      var proxy      = s('proxy_health');
+      var proxySup   = s('proxy_supabase_through');
+      var cdn        = s('jsdelivr_cdn');
+      var ext        = s('external_baseline');
+      var sdk        = s('sdk_import');
+      var storage    = s('storage');
 
       if (same === 'fail' && ext === 'fail') {
         return verdict('fail', 'general_network',
@@ -664,13 +713,23 @@
         return verdict('fail', 'github_pages_or_dns',
           'Базовый интернет работает, но сам сайт ege-trainer.ru не открывается с этого устройства. Это типично для проблем с DNS, маршрутом провайдера или VPN. Попробуйте сменить DNS (например, 1.1.1.1 или 8.8.8.8) либо запустите проверку снова с включённым VPN.');
       }
-      if (sup === 'fail' && cdn === 'fail') {
-        return verdict('fail', 'broad_block',
-          'Сам сайт открывается, но и Supabase, и CDN (jsdelivr) недоступны. Это типичная картина для провайдера, который режет международные маршруты. Попробуйте с VPN и пришлите оба отчёта (без VPN и с VPN).');
+      // Главный диагностический сценарий: прямой Supabase зарезан,
+      // прокси доходит — значит прокси решает проблему.
+      if (sup === 'fail' && proxySup === 'ok') {
+        return verdict('warn', 'supabase_blocked_proxy_works',
+          'Подтверждено: прямой Supabase у вас не отвечает (его блокирует провайдер), но прокси работает. Это именно та проблема, ради которой мы делаем диагностику — преподаватель скоро переключит тренажёр на прокси, и тогда сайт откроется без VPN.');
+      }
+      if (sup === 'fail' && proxy === 'fail') {
+        return verdict('fail', 'both_blocked',
+          'И Supabase, и прокси (workers.dev) у вас недоступны. Это значит, что провайдер режет международные маршруты целиком. Включите VPN и запустите проверку ещё раз.');
       }
       if (sup === 'fail') {
         return verdict('fail', 'supabase_network',
-          'Сайт работает, но сервер базы данных (Supabase) не отвечает с этого устройства. Это самый частый сценарий — попробуйте включить VPN и запустить проверку ещё раз.');
+          'Сайт работает, но сервер базы данных (Supabase) не отвечает с этого устройства. Включите VPN и запустите проверку ещё раз.');
+      }
+      if (proxy === 'fail' && sup === 'ok') {
+        return verdict('warn', 'proxy_only_blocked',
+          'Supabase работает напрямую, но прокси (workers.dev) у вас не доходит. Это странно — пришлите отчёт.');
       }
       if (cdn === 'fail' || sdk === 'fail') {
         return verdict('fail', 'cdn_or_sdk',
