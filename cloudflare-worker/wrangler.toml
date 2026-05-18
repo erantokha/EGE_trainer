@@ -2,6 +2,13 @@ name = "ege-supabase-proxy"
 main = "proxy.js"
 compatibility_date = "2026-05-18"
 
+# Smart Placement: Cloudflare размещает Worker рядом с upstream (Supabase),
+# а не рядом с пользователем. Критично для учеников в РФ — иначе
+# исходящий subrequest от российского CF edge идёт через РФ-транзит,
+# где DPI режет TLS по SNI knhozdhvjhcovyjbjfji.supabase.co.
+[placement]
+mode = "smart"
+
 # По умолчанию Worker деплоится на workers.dev subdomain:
 #   https://ege-supabase-proxy.<your-account>.workers.dev
 #
