@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://cdn.jsdelivr.net https://www.google.com;">
+  <meta http-equiv="Cache-Control" content="no-store">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Проверка соединения — EGE-тренажёр</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #10203a;
+      --muted: #5e6b7f;
+      --border: #d8e0ec;
+      --ok-bg: #ecfdf3;
+      --ok-fg: #146c43;
+      --fail-bg: #fff1f2;
+      --fail-fg: #b42318;
+      --warn-bg: #fff7e8;
+      --warn-fg: #9a6700;
+      --accent: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(180deg, #eef4ff 0%, var(--bg) 180px);
+      color: var(--text);
+    }
+    .page { max-width: 880px; margin: 0 auto; padding: 24px 18px 40px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: 0 14px 30px rgba(16, 32, 58, 0.06);
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    p { margin: 0 0 10px; line-height: 1.5; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .form-row label { flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    select, textarea, input {
+      font: inherit;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--text);
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      padding: 12px 22px;
+      cursor: pointer;
+    }
+    button.secondary { background: #eef2f7; color: var(--text); }
+    button:disabled { opacity: 0.55; cursor: default; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .results { width: 100%; border-collapse: collapse; }
+    .results th, .results td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px 8px;
+      border-top: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .results th { color: var(--muted); font-weight: 600; border-top: 0; padding-top: 0; }
+    .results td.details { font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--muted); word-break: break-all; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      min-width: 56px;
+      justify-content: center;
+    }
+    .pill-ok      { background: var(--ok-bg);    color: var(--ok-fg);   }
+    .pill-fail    { background: var(--fail-bg);  color: var(--fail-fg); }
+    .pill-warn    { background: var(--warn-bg);  color: var(--warn-fg); }
+    .pill-running { background: #eef4ff;         color: #1d4ed8;        }
+    .pill-pending { background: #f1f5f9;         color: var(--muted);   }
+    .verdict {
+      padding: 16px 18px;
+      border-radius: 12px;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .verdict-ok   { background: var(--ok-bg);   color: var(--ok-fg);   border: 1px solid #b8e6c8; }
+    .verdict-fail { background: var(--fail-bg); color: var(--fail-fg); border: 1px solid #f5c2c2; }
+    .verdict-warn { background: var(--warn-bg); color: var(--warn-fg); border: 1px solid #f0d595; }
+    #reportJsonWrap { margin-top: 12px; }
+    #reportJson {
+      margin: 0;
+      white-space: pre;
+      background: #f8fbff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      overflow: auto;
+      max-height: 360px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+    }
+    .hidden { display: none; }
+    @media (max-width: 640px) {
+      h1 { font-size: 22px; }
+      .page { padding: 14px 12px 30px; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+
+    <section class="card">
+      <h1>Проверка соединения</h1>
+      <p>
+        Эта страница проверяет, что у вашего устройства открывается доступ к серверам тренажёра.
+        Она не собирает пароли, email и личные данные.
+      </p>
+      <p class="muted">
+        Желательно запустить дважды: <b>сначала без VPN</b>, потом <b>с VPN</b>.
+        Каждый раз нажимайте «Скопировать отчёт» и присылайте преподавателю.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Шаг 1. Контекст</h2>
+      <div class="form-row">
+        <label>
+          VPN сейчас включён?
+          <select id="ctxVpn">
+            <option value="unknown">не знаю</option>
+            <option value="off">нет, без VPN</option>
+            <option value="on">да, через VPN</option>
+          </select>
+        </label>
+        <label>
+          Тип сети
+          <select id="ctxNetwork">
+            <option value="unknown">не знаю</option>
+            <option value="home_wifi">домашний Wi-Fi</option>
+            <option value="mobile">мобильный интернет</option>
+            <option value="school">сеть школы</option>
+            <option value="other">другое</option>
+          </select>
+        </label>
+        <label>
+          Устройство
+          <select id="ctxDevice">
+            <option value="unknown">не знаю</option>
+            <option value="windows">Windows</option>
+            <option value="macos">macOS</option>
+            <option value="iphone">iPhone / iPad</option>
+            <option value="android">Android</option>
+            <option value="other">другое</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-row">
+        <label style="flex-basis: 100%;">
+          Комментарий (по желанию: что именно не работает в обычной жизни)
+          <textarea id="ctxComment" placeholder="например: тренажёр не открывается дома без VPN, на телефоне работает"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Шаг 2. Запуск</h2>
+      <p class="muted">Проверка займёт 10-30 секунд. Не закрывайте вкладку.</p>
+      <div class="actions">
+        <button id="runBtn" type="button">Запустить проверку</button>
+        <button id="copyBtn" type="button" class="secondary" disabled>Скопировать отчёт</button>
+        <button id="downloadBtn" type="button" class="secondary" disabled>Скачать JSON</button>
+      </div>
+    </section>
+
+    <section id="resultsCard" class="card hidden">
+      <h2>Результаты</h2>
+      <table class="results">
+        <thead>
+          <tr>
+            <th style="width:200px">Проверка</th>
+            <th style="width:80px">Статус</th>
+            <th style="width:80px">Время</th>
+            <th>Детали</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </section>
+
+    <section id="verdictCard" class="card hidden">
+      <h2>Что это значит</h2>
+      <div id="verdict" class="verdict">…</div>
+    </section>
+
+    <section id="reportCard" class="card hidden">
+      <h2>Полный отчёт</h2>
+      <p class="muted">
+        Если кнопка «Скопировать отчёт» не работает в вашем браузере — выделите текст ниже вручную (Ctrl+A / Cmd+A) и скопируйте.
+      </p>
+      <div id="reportJsonWrap">
+        <pre id="reportJson"></pre>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+  (function () {
+    'use strict';
+
+    var DIAGNOSTICS_VERSION = '1.0.0';
+    var SUPABASE_URL = 'https://knhozdhvjhcovyjbjfji.supabase.co';
+    var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg';
+    var SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
+    var TIMEOUT_MS = 8000;
+
+    var TESTS = [
+      { name: 'env',               label: 'Окружение браузера',        fn: testEnv },
+      { name: 'storage',           label: 'localStorage / sessionStorage', fn: testStorage },
+      { name: 'same_origin_self',  label: 'Сам сайт (ege-trainer.ru)', fn: testSameOrigin },
+      { name: 'supabase_health',   label: 'Supabase Auth health',      fn: testSupabaseHealth },
+      { name: 'jsdelivr_cdn',      label: 'CDN jsdelivr (библиотека)', fn: testJsdelivr },
+      { name: 'external_baseline', label: 'Базовая сеть (Google 204)', fn: testExternalBaseline },
+      { name: 'sdk_import',        label: 'Загрузка Supabase SDK',     fn: testSdkImport }
+    ];
+
+    var runBtn      = document.getElementById('runBtn');
+    var copyBtn     = document.getElementById('copyBtn');
+    var downloadBtn = document.getElementById('downloadBtn');
+    var resultsCard = document.getElementById('resultsCard');
+    var resultsBody = document.getElementById('resultsBody');
+    var verdictCard = document.getElementById('verdictCard');
+    var verdictEl   = document.getElementById('verdict');
+    var reportCard  = document.getElementById('reportCard');
+    var reportJson  = document.getElementById('reportJson');
+
+    var ctxVpn      = document.getElementById('ctxVpn');
+    var ctxNetwork  = document.getElementById('ctxNetwork');
+    var ctxDevice   = document.getElementById('ctxDevice');
+    var ctxComment  = document.getElementById('ctxComment');
+
+    var lastReport = null;
+    var lastResults = {};
+
+    // ---- pre-fill device guess from UA ----
+    (function preFillDevice() {
+      try {
+        var ua = (navigator.userAgent || '').toLowerCase();
+        if (/iphone|ipad|ipod/.test(ua))    ctxDevice.value = 'iphone';
+        else if (/android/.test(ua))        ctxDevice.value = 'android';
+        else if (/mac os x|macintosh/.test(ua)) ctxDevice.value = 'macos';
+        else if (/windows/.test(ua))        ctxDevice.value = 'windows';
+      } catch (_) { /* ignore */ }
+    })();
+
+    runBtn.addEventListener('click', onRun);
+    copyBtn.addEventListener('click', onCopy);
+    downloadBtn.addEventListener('click', onDownload);
+
+    // ---- runner -----------------------------------------------------------
+
+    function onRun() {
+      runBtn.disabled = true;
+      copyBtn.disabled = true;
+      downloadBtn.disabled = true;
+      resultsCard.classList.remove('hidden');
+      verdictCard.classList.add('hidden');
+      reportCard.classList.add('hidden');
+      resultsBody.innerHTML = '';
+      lastResults = {};
+
+      // pre-render all rows as pending
+      TESTS.forEach(function (t) {
+        var tr = document.createElement('tr');
+        tr.id = 'row-' + t.name;
+        tr.innerHTML =
+          '<td>' + escapeHtml(t.label) + '</td>' +
+          '<td><span class="pill pill-pending">…</span></td>' +
+          '<td class="muted">—</td>' +
+          '<td class="details muted">ждёт запуска</td>';
+        resultsBody.appendChild(tr);
+      });
+
+      // run sequentially so the UI updates row-by-row
+      var i = 0;
+      function next() {
+        if (i >= TESTS.length) {
+          finalize();
+          return;
+        }
+        var t = TESTS[i++];
+        markRow(t.name, 'running', '…', 'идёт проверка');
+        var started = Date.now();
+        Promise.resolve()
+          .then(function () { return t.fn(); })
+          .then(function (res) {
+            var duration = Date.now() - started;
+            var safe = normalizeResult(res, duration);
+            lastResults[t.name] = safe;
+            markRow(t.name, safe.status, safe.durationMs + ' мс', safe.summary);
+            next();
+          })
+          .catch(function (err) {
+            var duration = Date.now() - started;
+            var safe = {
+              status: 'fail',
+              durationMs: duration,
+              summary: 'unexpected: ' + (err && err.message ? err.message : String(err)),
+              details: { errorName: err && err.name, errorMessage: err && err.message }
+            };
+            lastResults[t.name] = safe;
+            markRow(t.name, safe.status, safe.durationMs + ' мс', safe.summary);
+            next();
+          });
+      }
+      next();
+    }
+
+    function finalize() {
+      var report = buildReport();
+      lastReport = report;
+      reportJson.textContent = JSON.stringify(report, null, 2);
+      reportCard.classList.remove('hidden');
+      verdictEl.textContent = report.summary.humanMessage;
+      verdictEl.className = 'verdict ' + verdictClass(report.summary.overallStatus);
+      verdictCard.classList.remove('hidden');
+      runBtn.disabled = false;
+      copyBtn.disabled = false;
+      downloadBtn.disabled = false;
+    }
+
+    function markRow(name, status, durText, summary) {
+      var row = document.getElementById('row-' + name);
+      if (!row) return;
+      var cells = row.children;
+      cells[1].innerHTML = '<span class="pill pill-' + pillClass(status) + '">' + statusLabel(status) + '</span>';
+      cells[2].textContent = durText;
+      cells[2].className = 'muted';
+      cells[3].textContent = summary || '';
+    }
+
+    function pillClass(s) {
+      if (s === 'ok') return 'ok';
+      if (s === 'fail') return 'fail';
+      if (s === 'warn' || s === 'warning') return 'warn';
+      if (s === 'running') return 'running';
+      return 'pending';
+    }
+    function statusLabel(s) {
+      if (s === 'ok') return 'OK';
+      if (s === 'fail') return 'FAIL';
+      if (s === 'warn' || s === 'warning') return 'WARN';
+      if (s === 'running') return '…';
+      return '—';
+    }
+    function verdictClass(s) {
+      if (s === 'ok') return 'verdict-ok';
+      if (s === 'fail') return 'verdict-fail';
+      return 'verdict-warn';
+    }
+
+    function normalizeResult(res, fallbackDuration) {
+      if (!res || typeof res !== 'object') {
+        return { status: 'fail', durationMs: fallbackDuration, summary: 'no result' };
+      }
+      if (typeof res.durationMs !== 'number') res.durationMs = fallbackDuration;
+      if (!res.status) res.status = 'fail';
+      if (!res.summary) res.summary = '';
+      return res;
+    }
+
+    // ---- tests ------------------------------------------------------------
+
+    function testEnv() {
+      var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+      var details = {
+        userAgent: navigator.userAgent || null,
+        language: navigator.language || null,
+        platform: navigator.platform || null,
+        timezone: tryGet(function () { return Intl.DateTimeFormat().resolvedOptions().timeZone; }),
+        localTime: new Date().toString(),
+        utcTime: new Date().toISOString(),
+        screen: {
+          width: screen.width || null,
+          height: screen.height || null,
+          devicePixelRatio: window.devicePixelRatio || null
+        },
+        navigatorOnline: !!navigator.onLine,
+        cookieEnabled: !!navigator.cookieEnabled,
+        connection: conn ? {
+          effectiveType: conn.effectiveType || null,
+          downlink: conn.downlink || null,
+          rtt: conn.rtt || null,
+          saveData: !!conn.saveData
+        } : null
+      };
+      return {
+        status: 'ok',
+        durationMs: 0,
+        summary: details.platform + ' / ' + (conn && conn.effectiveType ? conn.effectiveType : 'unknown net'),
+        details: details
+      };
+    }
+
+    function testStorage() {
+      var details = { localStorage: null, sessionStorage: null };
+      var oks = 0, fails = 0;
+      ['localStorage', 'sessionStorage'].forEach(function (kind) {
+        try {
+          var store = window[kind];
+          var k = 'diag_' + Date.now() + '_' + Math.random();
+          store.setItem(k, 'ok');
+          var v = store.getItem(k);
+          store.removeItem(k);
+          if (v === 'ok') { details[kind] = 'ok'; oks++; }
+          else { details[kind] = 'mismatch'; fails++; }
+        } catch (e) {
+          details[kind] = e && e.name ? e.name : 'fail';
+          fails++;
+        }
+      });
+      var status = fails === 0 ? 'ok' : (oks > 0 ? 'warn' : 'fail');
+      return {
+        status: status,
+        summary: 'localStorage=' + details.localStorage + ', sessionStorage=' + details.sessionStorage,
+        details: details
+      };
+    }
+
+    function testSameOrigin() {
+      // самопроверка: дёргаем этот же файл, точно лежит по этому пути
+      var url = location.pathname + '?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        cache: 'no-store'
+      }).then(function (r) {
+        return {
+          status: r.ok ? 'ok' : 'fail',
+          summary: 'HTTP ' + r.status + ' (' + r.statusText + ')',
+          details: { url: location.origin + location.pathname, httpStatus: r.status }
+        };
+      });
+    }
+
+    function testSupabaseHealth() {
+      var url = SUPABASE_URL + '/auth/v1/health?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { 'apikey': SUPABASE_ANON_KEY }
+      }).then(function (r) {
+        return r.text().then(function (body) {
+          var preview = body.slice(0, 200);
+          var status;
+          if (r.ok) status = 'ok';
+          else if (r.status === 401 || r.status === 403) status = 'warn';
+          else status = 'fail';
+          return {
+            status: status,
+            summary: 'HTTP ' + r.status + ' • ' + preview.replace(/\s+/g, ' ').slice(0, 80),
+            details: {
+              url: SUPABASE_URL + '/auth/v1/health',
+              httpStatus: r.status,
+              bodyPreview: preview
+            }
+          };
+        });
+      });
+    }
+
+    function testJsdelivr() {
+      var url = SDK_URL + '?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        cache: 'no-store'
+      }).then(function (r) {
+        return r.text().then(function (body) {
+          return {
+            status: r.ok ? 'ok' : 'fail',
+            summary: 'HTTP ' + r.status + ' • ' + body.length + ' байт',
+            details: {
+              url: SDK_URL,
+              httpStatus: r.status,
+              bodySize: body.length,
+              looksLikeModule: body.indexOf('createClient') !== -1
+            }
+          };
+        });
+      });
+    }
+
+    function testExternalBaseline() {
+      // no-cors: мы не сможем прочитать тело/статус, но успешный fetch без exception = маршрут работает
+      var url = 'https://www.google.com/generate_204?t=' + Date.now();
+      return fetchWithTimeout(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store'
+      }).then(function () {
+        return {
+          status: 'ok',
+          summary: 'reachable (opaque response)',
+          details: { url: 'https://www.google.com/generate_204', note: 'no-cors mode, status not readable' }
+        };
+      });
+    }
+
+    // dynamic-import wrapper построен через new Function: иначе старые браузеры
+    // упадут с SyntaxError при парсинге всего скрипта.
+    var dynamicImport;
+    try {
+      dynamicImport = new Function('u', 'return import(u);');
+    } catch (_) {
+      dynamicImport = function () {
+        return Promise.reject({ name: 'NotSupported', message: 'dynamic import not supported in this browser' });
+      };
+    }
+
+    function testSdkImport() {
+      return dynamicImport(SDK_URL + '?i=' + Date.now()).then(function (mod) {
+        var hasCreateClient = !!(mod && typeof mod.createClient === 'function');
+        return {
+          status: hasCreateClient ? 'ok' : 'warn',
+          summary: hasCreateClient ? 'createClient доступен' : 'модуль загрузился, но createClient не найден',
+          details: { exports: mod ? Object.keys(mod).slice(0, 12) : null }
+        };
+      });
+    }
+
+    // ---- helpers ----------------------------------------------------------
+
+    function fetchWithTimeout(url, opts) {
+      var ctrl = (typeof AbortController === 'function') ? new AbortController() : null;
+      var to = setTimeout(function () { try { ctrl && ctrl.abort(); } catch (_) {} }, TIMEOUT_MS);
+      var o = Object.assign({}, opts || {});
+      if (ctrl) o.signal = ctrl.signal;
+      return fetch(url, o)
+        .then(function (r) { clearTimeout(to); return r; })
+        .catch(function (err) {
+          clearTimeout(to);
+          var isAbort = (err && (err.name === 'AbortError' || /aborted/i.test(err.message || '')));
+          return Promise.reject({
+            __diag: true,
+            name: isAbort ? 'TimeoutError' : (err && err.name) || 'NetworkError',
+            message: (err && err.message) || String(err)
+          });
+        });
+    }
+
+    function tryGet(fn) { try { return fn(); } catch (_) { return null; } }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    // ---- report + verdict -------------------------------------------------
+
+    function buildReport() {
+      var env = (lastResults.env && lastResults.env.details) || {};
+      var tests = TESTS.map(function (t) {
+        var r = lastResults[t.name] || { status: 'skipped', durationMs: 0 };
+        return {
+          name: t.name,
+          status: r.status,
+          durationMs: r.durationMs,
+          summary: r.summary || '',
+          details: r.details || null
+        };
+      });
+      var verdict = computeVerdict(lastResults);
+      return {
+        diagnosticsVersion: DIAGNOSTICS_VERSION,
+        project: 'ege-trainer',
+        createdAtUTC: new Date().toISOString(),
+        pageUrl: location.href,
+        studentComment: ctxComment.value.slice(0, 1000),
+        manualContext: {
+          vpnStatus: ctxVpn.value,
+          networkType: ctxNetwork.value,
+          deviceTypeReported: ctxDevice.value
+        },
+        environment: {
+          userAgent: env.userAgent || null,
+          language: env.language || null,
+          platform: env.platform || null,
+          timezone: env.timezone || null,
+          localTime: env.localTime || null,
+          utcTime: env.utcTime || null,
+          screen: env.screen || null,
+          navigatorOnline: env.navigatorOnline,
+          cookieEnabled: env.cookieEnabled,
+          connection: env.connection || null
+        },
+        summary: verdict,
+        tests: tests
+      };
+    }
+
+    function computeVerdict(r) {
+      function s(name) { return (r[name] && r[name].status) || 'skipped'; }
+
+      var same     = s('same_origin_self');
+      var sup      = s('supabase_health');
+      var cdn      = s('jsdelivr_cdn');
+      var ext      = s('external_baseline');
+      var sdk      = s('sdk_import');
+      var storage  = s('storage');
+
+      if (same === 'fail' && ext === 'fail') {
+        return verdict('fail', 'general_network',
+          'Похоже, у этого устройства сейчас вообще нет доступа к интернету или провайдер режет основные сайты. Пришлите отчёт преподавателю — он подскажет, что делать.');
+      }
+      if (same === 'fail') {
+        return verdict('fail', 'github_pages_or_dns',
+          'Базовый интернет работает, но сам сайт ege-trainer.ru не открывается с этого устройства. Это типично для проблем с DNS, маршрутом провайдера или VPN. Попробуйте сменить DNS (например, 1.1.1.1 или 8.8.8.8) либо запустите проверку снова с включённым VPN.');
+      }
+      if (sup === 'fail' && cdn === 'fail') {
+        return verdict('fail', 'broad_block',
+          'Сам сайт открывается, но и Supabase, и CDN (jsdelivr) недоступны. Это типичная картина для провайдера, который режет международные маршруты. Попробуйте с VPN и пришлите оба отчёта (без VPN и с VPN).');
+      }
+      if (sup === 'fail') {
+        return verdict('fail', 'supabase_network',
+          'Сайт работает, но сервер базы данных (Supabase) не отвечает с этого устройства. Это самый частый сценарий — попробуйте включить VPN и запустить проверку ещё раз.');
+      }
+      if (cdn === 'fail' || sdk === 'fail') {
+        return verdict('warn', 'cdn_or_sdk',
+          'Supabase отвечает, но не загружается библиотека с CDN. Это означает, что тренажёр сможет частично работать, но не полностью. Пришлите отчёт — будем переносить библиотеку.');
+      }
+      if (storage === 'fail') {
+        return verdict('warn', 'browser_storage',
+          'Соединение с серверами в порядке, но браузер не разрешает хранение данных (localStorage / cookies). Это часто бывает в режиме инкогнито или в Safari со строгими настройками. Откройте обычное окно и не блокируйте сторонние данные для этого сайта.');
+      }
+      return verdict('ok', 'all_ok',
+        'Базовые проверки прошли успешно. Сеть и серверы тренажёра доступны с этого устройства. Если у вас всё равно не получается войти — пришлите этот отчёт + скриншот ошибки.');
+    }
+
+    function verdict(overall, area, msg) {
+      return { overallStatus: overall, likelyProblemArea: area, humanMessage: msg };
+    }
+
+    // ---- copy / download --------------------------------------------------
+
+    function onCopy() {
+      if (!lastReport) return;
+      var text = JSON.stringify(lastReport, null, 2);
+      copyToClipboard(text).then(function () {
+        flashButton(copyBtn, 'Скопировано ✓');
+      }).catch(function () {
+        // fallback: select <pre>
+        try {
+          var range = document.createRange();
+          range.selectNode(reportJson);
+          var sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+          flashButton(copyBtn, 'Выделено — нажмите Ctrl+C');
+        } catch (_) {
+          flashButton(copyBtn, 'Скопируйте вручную ниже');
+        }
+      });
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise(function (resolve, reject) {
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          var ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+          ok ? resolve() : reject(new Error('execCommand failed'));
+        } catch (e) { reject(e); }
+      });
+    }
+
+    function flashButton(btn, label) {
+      var old = btn.textContent;
+      btn.textContent = label;
+      setTimeout(function () { btn.textContent = old; }, 1800);
+    }
+
+    function onDownload() {
+      if (!lastReport) return;
+      var text = JSON.stringify(lastReport, null, 2);
+      var blob = new Blob([text], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'ege-diag-' + stamp + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+  })();
+  </script>
+</body>
+</html>
