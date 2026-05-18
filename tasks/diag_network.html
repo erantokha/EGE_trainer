@@ -234,7 +234,7 @@
     var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg';
     var SDK_URL = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
     var PROXY_URL = 'https://ege-supabase-proxy.erantokha.workers.dev';
-    var TIMEOUT_MS = 8000;
+    var TIMEOUT_MS = 15000;
 
     var TESTS = [
       { name: 'env',                    label: 'Окружение браузера',         fn: testEnv },
@@ -499,10 +499,16 @@
         cache: 'no-store'
       }).then(function (r) {
         return r.text().then(function (body) {
+          var colo = r.headers.get('X-Proxy-Colo') || '?';
           return {
             status: r.ok ? 'ok' : 'fail',
-            summary: 'HTTP ' + r.status + ' • ' + body.replace(/\s+/g, ' ').slice(0, 80),
-            details: { url: PROXY_URL + '/__proxy_health', httpStatus: r.status, bodyPreview: body.slice(0, 200) }
+            summary: 'HTTP ' + r.status + ' • colo=' + colo + ' • ' + body.replace(/\s+/g, ' ').slice(0, 60),
+            details: {
+              url: PROXY_URL + '/__proxy_health',
+              httpStatus: r.status,
+              workerColo: colo,
+              bodyPreview: body.slice(0, 200)
+            }
           };
         });
       });
@@ -523,12 +529,16 @@
           if (r.ok) status = 'ok';
           else if (r.status === 401 || r.status === 403) status = 'warn';
           else status = 'fail';
+          var colo = r.headers.get('X-Proxy-Colo') || '?';
+          var upstreamMs = r.headers.get('X-Proxy-Upstream-Ms') || '?';
           return {
             status: status,
-            summary: 'HTTP ' + r.status + ' • ' + preview.replace(/\s+/g, ' ').slice(0, 80),
+            summary: 'HTTP ' + r.status + ' • colo=' + colo + ' • upstream=' + upstreamMs + ' ms',
             details: {
               url: PROXY_URL + '/auth/v1/health',
               httpStatus: r.status,
+              workerColo: colo,
+              workerUpstreamMs: upstreamMs,
               bodyPreview: preview
             }
           };

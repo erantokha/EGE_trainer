@@ -76,14 +76,16 @@ export default {
 
     // 2. Health-endpoint для диагностики (доступен без CORS-проверок)
     if (url.pathname === '/__proxy_health') {
+      const colo = (request.cf && request.cf.colo) || 'unknown';
       return new Response(
-        JSON.stringify({ ok: true, target: SUPABASE_HOST, ts: new Date().toISOString() }),
+        JSON.stringify({ ok: true, target: SUPABASE_HOST, colo, ts: new Date().toISOString() }),
         {
           status: 200,
           headers: {
             ...corsHeaders(request),
             'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
+            'X-Proxy-Colo': colo,
           },
         }
       );
@@ -115,6 +117,8 @@ export default {
 
     // 7. Запрос к Supabase. redirect:'manual' — критично для OAuth flow:
     //    Supabase отвечает 302 на Google login URL, мы должны вернуть его клиенту 1:1.
+    const colo = (request.cf && request.cf.colo) || 'unknown';
+    const t0 = Date.now();
     let upstreamResp;
     try {
       upstreamResp = await fetch(target, {
@@ -124,7 +128,20 @@ export default {
         redirect: 'manual',
       });
     } catch (err) {
-      return jsonError(502, `upstream fetch failed: ${err && err.message || err}`, request);
+      const dt = Date.now() - t0;
+      console.log(JSON.stringify({ event: 'upstream_fail', path: url.pathname, colo, ms: dt, err: String(err && err.message || err) }));
+      const errHeaders = {
+        ...corsHeaders(request),
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Proxy-Colo': colo,
+        'X-Proxy-Upstream-Ms': String(dt),
+      };
+      return new Response(JSON.stringify({ error: 'proxy', message: `upstream fetch failed: ${err && err.message || err}`, ms: dt, colo }), { status: 502, headers: errHeaders });
+    }
+    const upstreamMs = Date.now() - t0;
+    if (upstreamMs > 2000) {
+      console.log(JSON.stringify({ event: 'slow_upstream', path: url.pathname, colo, ms: upstreamMs, status: upstreamResp.status }));
     }
 
     // 8. Ответ — копируем headers, накладываем CORS поверх, оставляем body как стрим
@@ -133,6 +150,11 @@ export default {
     for (const [k, v] of Object.entries(cors)) {
       respHeaders.set(k, v);
     }
+    respHeaders.set('X-Proxy-Colo', colo);
+    respHeaders.set('X-Proxy-Upstream-Ms', String(upstreamMs));
+    // Чтобы X-Proxy-* стали видимы для browser-JS, добавим к expose-list:
+    const exposed = respHeaders.get('Access-Control-Expose-Headers') || '';
+    respHeaders.set('Access-Control-Expose-Headers', exposed + ', X-Proxy-Colo, X-Proxy-Upstream-Ms');
 
     return new Response(upstreamResp.body, {
       status: upstreamResp.status,
