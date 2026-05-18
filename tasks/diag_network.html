@@ -526,25 +526,52 @@
       });
     }
 
-    // dynamic-import wrapper построен через new Function: иначе старые браузеры
-    // упадут с SyntaxError при парсинге всего скрипта.
-    var dynamicImport;
-    try {
-      dynamicImport = new Function('u', 'return import(u);');
-    } catch (_) {
-      dynamicImport = function () {
-        return Promise.reject({ name: 'NotSupported', message: 'dynamic import not supported in this browser' });
-      };
-    }
-
+    // Грузим SDK ровно так же, как тренажёр в продакшене:
+    // <script type="module" src="...">, который тянет рекурсивные ESM-зависимости.
+    // load/error события точно отражают реальный сценарий загрузки.
     function testSdkImport() {
-      return dynamicImport(SDK_URL + '?i=' + Date.now()).then(function (mod) {
-        var hasCreateClient = !!(mod && typeof mod.createClient === 'function');
-        return {
-          status: hasCreateClient ? 'ok' : 'warn',
-          summary: hasCreateClient ? 'createClient доступен' : 'модуль загрузился, но createClient не найден',
-          details: { exports: mod ? Object.keys(mod).slice(0, 12) : null }
+      return new Promise(function (resolve) {
+        var done = false;
+        var script = document.createElement('script');
+        script.type = 'module';
+        script.src = SDK_URL + '?i=' + Date.now();
+        script.async = true;
+
+        var to = setTimeout(function () {
+          if (done) return; done = true;
+          cleanup();
+          resolve({
+            status: 'fail',
+            summary: 'timeout (' + TIMEOUT_MS + ' ms)',
+            details: { url: SDK_URL, timeoutMs: TIMEOUT_MS }
+          });
+        }, TIMEOUT_MS);
+
+        function cleanup() {
+          try { if (script.parentNode) script.parentNode.removeChild(script); } catch (_) {}
+          clearTimeout(to);
+        }
+
+        script.onload = function () {
+          if (done) return; done = true;
+          cleanup();
+          resolve({
+            status: 'ok',
+            summary: 'модуль и зависимости загрузились',
+            details: { url: SDK_URL }
+          });
         };
+        script.onerror = function () {
+          if (done) return; done = true;
+          cleanup();
+          resolve({
+            status: 'fail',
+            summary: 'ошибка загрузки модуля или одной из зависимостей',
+            details: { url: SDK_URL, note: 'подробности — DevTools → Console / Network' }
+          });
+        };
+
+        document.head.appendChild(script);
       });
     }
 
@@ -646,8 +673,8 @@
           'Сайт работает, но сервер базы данных (Supabase) не отвечает с этого устройства. Это самый частый сценарий — попробуйте включить VPN и запустить проверку ещё раз.');
       }
       if (cdn === 'fail' || sdk === 'fail') {
-        return verdict('warn', 'cdn_or_sdk',
-          'Supabase отвечает, но не загружается библиотека с CDN. Это означает, что тренажёр сможет частично работать, но не полностью. Пришлите отчёт — будем переносить библиотеку.');
+        return verdict('fail', 'cdn_or_sdk',
+          'Supabase отвечает, но не загружается библиотека с CDN. Без неё тренажёр не работает вообще: ни вход, ни задачи, ни домашние работы. Пришлите отчёт — будем переносить библиотеку.');
       }
       if (storage === 'fail') {
         return verdict('warn', 'browser_storage',
