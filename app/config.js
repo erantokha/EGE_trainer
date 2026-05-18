@@ -2,11 +2,11 @@
 export const CONFIG = {
   supabase: {
     enabled: true,
-    // Временный откат на Cloudflare Worker до полной DNS-пропагации api.ege-trainer.ru.
-    // Целевой URL — 'https://api.ege-trainer.ru' (собственный VPS в РФ).
-    // Вернёмся, как только 1.1.1.1 и 8.8.8.8 начнут разрешать запись (~1-4 ч после
-    // создания A-записи в reg.ru). CSP разрешает все три URL.
-    url: 'https://ege-supabase-proxy.erantokha.workers.dev',
+    // Proxy URL: собственный VPS в РФ (Timeweb Cloud, Москва), nginx → supabase.co.
+    // Гарантированно не блокируется РКН (российская инфра).
+    // Откат: 'https://ege-supabase-proxy.erantokha.workers.dev' (Cloudflare Worker)
+    //   или 'https://knhozdhvjhcovyjbjfji.supabase.co' (напрямую) — CSP разрешает все три.
+    url: 'https://api.ege-trainer.ru',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg',
     // Таблица attempts используется тренажёром (tasks) и ДЗ.
     // Чтение статистики/админки удалены, поэтому view/админ-параметры не нужны.
