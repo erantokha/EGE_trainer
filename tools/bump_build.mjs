@@ -182,6 +182,13 @@ function ensureHtmlHasVParams(html, newBuild) {
   return out;
 }
 
+async function writeVersionJson(newBuild) {
+  const fp = path.join(REPO_ROOT, "version.json");
+  const payload = JSON.stringify({ build: newBuild }) + "\n";
+  await fs.writeFile(fp, payload, "utf8");
+  return rel(fp);
+}
+
 async function main() {
   const arg = process.argv[2];
   const explicitBuild = arg && !arg.startsWith("--") ? arg : null;
@@ -219,6 +226,10 @@ async function main() {
       changed.push(r);
     }
   }
+
+  // Root /version.json — read by inline cache-check in production HTML to detect stale clients.
+  const versionRel = await writeVersionJson(newBuild);
+  changed.push(versionRel);
 
   console.log(`new build: ${newBuild}`);
   console.log(`scanned files: ${scanned.length}`);

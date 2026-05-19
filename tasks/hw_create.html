@@ -4,6 +4,42 @@
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
   <meta name="app-build" content="2026-05-19-23">
+  <!-- cache-check:start -->
+  <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <script>
+  (function () {
+    try {
+      var meta = document.querySelector('meta[name="app-build"]');
+      if (!meta) return;
+      var localBuild = (meta.content || '').trim();
+      if (!localBuild || localBuild === 'dev') return;
+      var SS_KEY = '__cacheCheckAttempts';
+      var attempts = 0;
+      try { attempts = parseInt(sessionStorage.getItem(SS_KEY) || '0', 10) || 0; } catch (e) {}
+      if (attempts >= 2) return;
+      fetch('/version.json?_=' + Date.now(), { cache: 'no-store' }).then(function (r) {
+        return r && r.ok ? r.json() : null;
+      }).then(function (j) {
+        if (!j || typeof j.build !== 'string') return;
+        if (j.build === localBuild) {
+          try { sessionStorage.removeItem(SS_KEY); } catch (e) {}
+          return;
+        }
+        try { sessionStorage.setItem(SS_KEY, String(attempts + 1)); } catch (e) {}
+        var doReload = function () { try { location.reload(); } catch (e) {} };
+        if (window.caches && caches.keys) {
+          caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }).then(doReload, doReload);
+        } else {
+          doReload();
+        }
+      }).catch(function () {});
+    } catch (e) {}
+  })();
+  </script>
+  <!-- cache-check:end -->
   <title>Создание ДЗ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <script src="../app/diag_bootstrap.js?v=2026-05-19-23"></script>
