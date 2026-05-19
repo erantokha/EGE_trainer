@@ -5021,15 +5021,19 @@ async function saveSelectionAndGo() {
   //     {topic_id, question_id} совпадает с buildFrozenQuestionsForTopics)
   //   - иначе если выбор только по topics (без sections/protos) — builder
   //   - в остальных случаях fallback на старый sessionStorage-flow.
+  // WS.1 Q-F1 closure: для всех ролей (student И teacher) собираем frozen_questions.
+  // - Если IS_TEACHER_HOME и есть teacher_picked_refs (учитель собрал конкретные
+  //   задачи для конкретного ученика) — используем их напрямую (формат уже совпадает
+  //   с frozen_questions {topic_id, question_id}).
+  // - Иначе (включая обычный teacher-flow без накопленных refs) — используем тот
+  //   же engine, что для рендера задач: pickQuestionsScopedForList. Он умеет
+  //   topics + sections + protos в любых комбинациях и возвращает конкретный array.
   let sessionFrozen = null;
   if (IS_TEACHER_HOME) {
     const refs = selection.teacher_picked_refs;
     if (Array.isArray(refs) && refs.length > 0) sessionFrozen = refs;
-  } else {
-    // WS.1 Q-F1 closure: используем тот же engine, что и для рендера задач —
-    // pickQuestionsScopedForList. Он умеет topics + sections + protos в любых
-    // комбинациях, возвращает конкретный array задач. Берём их id+topic_id
-    // как frozen_questions для session-link.
+  }
+  if (!sessionFrozen) {
     const hasAny = Object.keys(CHOICE_TOPICS || {}).length > 0
       || Object.keys(CHOICE_SECTIONS || {}).length > 0
       || Object.keys(CHOICE_PROTOS || {}).length > 0;
