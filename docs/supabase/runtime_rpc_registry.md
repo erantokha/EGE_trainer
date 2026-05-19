@@ -22,10 +22,10 @@
 - `snapshot_only` — функция найдена только в schema snapshot / overview, но не вынесена в отдельный SQL-файл.
 - `missing_in_repo` — функция используется рантаймом, но в первом проходе не найдена ни как standalone SQL, ни в snapshot-источнике.
 
-## Итог (актуально на 2026-04-01)
+## Итог (актуально на 2026-05-13)
 
-- Всего активных runtime-RPC в реестре: `31`
-- `standalone_sql`: `31`
+- Всего активных runtime-RPC в реестре: `32`
+- `standalone_sql`: `32`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -60,15 +60,16 @@ Teacher-picking `v2` rollout отражён в реестре:
 
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `get_homework_by_token` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/get_homework_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает homework по token и вычисляет `is_active` из `homeworks + homework_links`. |
+| `get_homework_by_token` | `-` | `tasks/hw.js`, `tasks/trainer.js`, `tasks/list.js` via `app/providers/homework.js` и `app/providers/task_session.js` | `docs/supabase/get_homework_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает homework по token и вычисляет `is_active` из `homeworks + homework_links`. WS.1 (2026-05-13): добавлено поле `kind` в RETURN/SELECT для различения 'graded' / 'session'. |
 | `start_homework_attempt` | `start_attempt`, `startHomeworkAttempt` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/start_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Каноническим именем зафиксирован snake_case-вариант; алиасы считаются legacy-compat. |
 | `has_homework_attempt` | `has_attempt`, `hasAttempt` | `app/providers/homework.js` | `docs/supabase/has_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. В live-версии `p_student_name` фактически не участвует в проверке. |
 | `get_homework_attempt_by_token` | `getHomeworkAttemptByToken`, `get_homework_result_by_token` | `tasks/hw.js`, `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/get_homework_attempt_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает последнюю attempt-строку для `auth.uid()` и token. |
 | `submit_homework_attempt` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/submit_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Делает finish/update только для текущего `auth.uid()` и незавершённой attempt. |
 | `get_homework_attempt_for_teacher` | `-` | `tasks/hw.js` | `docs/supabase/get_homework_attempt_for_teacher.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher-only отчёт по attempt с проверкой owner link и `teacher_students`. |
-| `assign_homework_to_student` | `assignHomeworkToStudent`, `assign_homework` | `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/assign_homework_to_student.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Назначать может только owner homework или admin; `token` сохраняется как часть assignment. |
+| `assign_homework_to_student` | `assignHomeworkToStudent`, `assign_homework` | `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/assign_homework_to_student.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Назначать может только owner homework или admin; `token` сохраняется как часть assignment. WS.1 (2026-05-13): добавлен guard `SESSION_NOT_ASSIGNABLE` (errcode `42501`) для homeworks с `kind='session'`. |
 | `student_my_homeworks_summary` | `studentMyHomeworksSummary`, `my_homeworks_summary` | `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_summary.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает summary JSON по assignments, pending и archive counts. |
 | `student_my_homeworks_archive` | `studentMyHomeworksArchive`, `my_homeworks_archive` | `tasks/my_homeworks_archive.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_archive.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает paginated archive по assignments текущего `auth.uid()`. |
+| `create_session_link` | `-` | `tasks/picker.js` via `app/providers/task_session.js` | `docs/supabase/create_session_link.sql` | `homework-domain` | `standalone_sql` | WS.1 (2026-05-13). Создаёт session-ссылку: `homeworks` row с `kind='session'`, `attempts_per_student=1`, `title=null` + соответствующий `homework_links` row с url-safe base64 токеном (`sess_` префикс, 18 байт энтропии). `security definer`, доступен только `authenticated`. Validates `p_mode in ('list','test')`, требует непустой jsonb-array `p_frozen_questions`. |
 
 ## Teacher / Student Management
 

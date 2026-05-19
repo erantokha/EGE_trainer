@@ -1,26 +1,28 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-05-19-3';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-19-3';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-05-19-18';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-19-18';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-05-19-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-3';
+} from '../app/providers/catalog.js?v=2026-05-19-18';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-18';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-05-19-3';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-05-19-18';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-05-19-3';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-05-19-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-3';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-05-19-18';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-05-19-18';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-18';
 
 
-import { withBuild } from '../app/build.js?v=2026-05-19-3';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-19-3';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-19-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-3';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-19-3';
+import { withBuild } from '../app/build.js?v=2026-05-19-18';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-19-18';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-19-18';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-18';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-19-18';
+import { getSession } from '../app/providers/supabase.js?v=2026-05-19-18';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-18';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -443,6 +445,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // возвращаем текст оверлея, дальше пойдёт обычная загрузка
   overlay.textContent = 'Загружаем задачи...';
+
+  // WS.1: session-link hydration — если есть ?session=<token>, идём по
+  // session-ветке, минуя sessionStorage / smart-fallback / redirect-к-picker.
+  const SESSION_TOKEN = new URLSearchParams(location.search).get('session') || '';
+  if (SESSION_TOKEN) {
+    await bootSessionMode(SESSION_TOKEN, overlay);
+    return;
+  }
 
   // smart_mode (если запуск из статистики)
   SMART = loadSmartMode();
@@ -892,6 +902,116 @@ async function buildQuestionsFromSmartRefs(refs) {
     out.push(buildQuestion(item.manifest, item.type, item.proto));
   }
   return out;
+}
+
+// ---------- WS.1: session-link mode ----------
+function setupCopySessionLinkButton() {
+  const btn = $('#copySessionLink');
+  if (!btn || btn.dataset.wired === '1') return;
+  btn.dataset.wired = '1';
+  btn.hidden = false;
+  const ORIG_LABEL = btn.textContent || 'Скопировать ссылку';
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      btn.textContent = 'Скопировано';
+    } catch (e) {
+      console.warn('copy session link failed', e);
+      btn.textContent = 'Не удалось скопировать';
+    }
+    setTimeout(() => { btn.textContent = ORIG_LABEL; }, 1500);
+  });
+}
+
+function showSessionBootError(message) {
+  $('#loadingOverlay')?.classList.add('hidden');
+  const host = $('#runner') || document.body;
+  if (!host) return;
+  host.classList.remove('hidden');
+  const div = document.createElement('div');
+  div.style.cssText = 'opacity:.8;padding:8px 0';
+  div.textContent = String(message || 'Ссылка недоступна.');
+  host.innerHTML = '';
+  host.appendChild(div);
+}
+
+async function bootSessionMode(token, overlay) {
+  if (overlay) overlay.textContent = 'Загружаем задачи по ссылке...';
+
+  // §5.1.11 Auth-gate: без сессии — redirect на auth.html?next=<current_url>
+  const session = await getSession().catch(() => null);
+  if (!session) {
+    const next = encodeURIComponent(location.href);
+    location.replace(new URL('./auth.html?next=' + next, location.href).toString());
+    return;
+  }
+
+  let row = null;
+  try {
+    const payload = await supaRest.rpc('get_homework_by_token', { p_token: token });
+    row = Array.isArray(payload) ? (payload[0] || null) : (payload || null);
+  } catch (e) {
+    console.error('session-link: get_homework_by_token failed', e);
+    showSessionBootError('Не удалось загрузить ссылку. Проверьте подключение и обновите страницу.');
+    return;
+  }
+
+  if (!row) { showSessionBootError('Ссылка недоступна.'); return; }
+  if (row.kind !== 'session') { showSessionBootError('Эта ссылка не предназначена для тренажёра.'); return; }
+  if (row.is_active !== true) { showSessionBootError('Ссылка закрыта владельцем.'); return; }
+
+  setupCopySessionLinkButton();
+
+  const frozen = Array.isArray(row.frozen_questions) ? row.frozen_questions : [];
+  if (!frozen.length) { showSessionBootError('Ссылка пуста.'); return; }
+
+  const spec = (row.spec_json && typeof row.spec_json === 'object') ? row.spec_json : {};
+  SHUFFLE_TASKS = !!spec.shuffle;
+
+  try {
+    perfMark('loadCatalog:start');
+    await loadCatalog();
+    perfMark('loadCatalog:done');
+  } catch (e) {
+    console.error('session-link: loadCatalog failed', e);
+    showSessionBootError('Не удалось загрузить каталог задач.');
+    return;
+  }
+
+  // Catalog-drift handling: resolve через тот же lookupQuestionsByIdsV1 path,
+  // что и обычный TEACHER_PICKED_REFS-flow (см. buildQuestionsFromSmartRefs).
+  const refs = frozen.map(normalizeSmartRef).filter(Boolean);
+  let questions;
+  try {
+    questions = await buildQuestionsFromSmartRefs(refs);
+  } catch (e) {
+    console.error('session-link: buildQuestionsFromSmartRefs failed', e);
+    showSessionBootError('Не удалось подготовить задачи по ссылке.');
+    return;
+  }
+
+  if (!questions.length) {
+    showSessionBootError('Задачи по этой ссылке больше недоступны (каталог обновился).');
+    return;
+  }
+  if (questions.length < refs.length) {
+    console.warn('session-link: catalog drift,', refs.length - questions.length, 'of', refs.length, 'questions missing');
+  }
+
+  try {
+    saveSessionQuestions(questions);
+    perfMark('startTestSession:start');
+    await startTestSession(questions);
+    perfMark('startTestSession:done');
+  } catch (e) {
+    console.error('session-link: startTestSession failed', e);
+    showSessionBootError('Не удалось запустить тренажёр.');
+    return;
+  } finally {
+    $('#loadingOverlay')?.classList.add('hidden');
+  }
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 }
 
 async function getOrCreateSmartQuestions() {

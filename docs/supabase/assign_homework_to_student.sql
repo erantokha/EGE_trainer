@@ -1,6 +1,8 @@
 -- assign_homework_to_student.sql
 -- Live-BD extract synchronized on 2026-03-29.
 -- Source: pg_get_functiondef('public.assign_homework_to_student(uuid,uuid,text)'::regprocedure)
+-- WS.1 update (2026-05-13): добавлен guard `SESSION_NOT_ASSIGNABLE` для
+-- homeworks с kind='session'. См. WS_session_links_PLAN.md §5.1.5, §6.2.
 
 begin;
 
@@ -40,6 +42,11 @@ begin
 
   if v_owner is null then
     raise exception 'HOMEWORK_NOT_FOUND' using errcode = 'P0002';
+  end if;
+
+  -- WS.1 guard: session-ссылки нельзя назначать ученикам через teacher-flow.
+  if (select kind from public.homeworks where id = p_homework_id) = 'session' then
+    raise exception 'SESSION_NOT_ASSIGNABLE' using errcode = '42501';
   end if;
 
   if v_owner <> v_me and v_role <> 'admin' then

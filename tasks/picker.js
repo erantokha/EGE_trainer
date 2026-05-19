@@ -8,16 +8,18 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-19-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-3';
-import { CONFIG } from '../app/config.js?v=2026-05-19-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-3';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-3';
+import { withBuild } from '../app/build.js?v=2026-05-19-18';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-18';
+import { CONFIG } from '../app/config.js?v=2026-05-19-18';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-18';
+import { loadCatalogIndexLike, loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-05-19-18';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-18';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-18';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-18';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-18';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-18';
+import { buildFrozenQuestionsForTopics } from './smart_hw_builder.js?v=2026-05-19-18';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-18';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -5014,7 +5016,80 @@ async function saveSelectionAndGo() {
 
   if (IS_STUDENT_PAGE) selection.pick_mode = PICK_MODE;
 
+  // WS.1: пытаемся создать session-ссылку, чтобы выбор был шарируемым.
+  // Источник frozen_questions:
+  //   - teacher_home + teacher_picked_refs → используем refs напрямую (формат
+  //     {topic_id, question_id} совпадает с buildFrozenQuestionsForTopics)
+  //   - иначе если выбор только по topics (без sections/protos) — builder
+  //   - в остальных случаях fallback на старый sessionStorage-flow.
+  let sessionFrozen = null;
+  if (IS_TEACHER_HOME) {
+    const refs = selection.teacher_picked_refs;
+    if (Array.isArray(refs) && refs.length > 0) sessionFrozen = refs;
+  } else {
+    const hasTopics = Object.keys(CHOICE_TOPICS || {}).length > 0;
+    const noSections = Object.keys(CHOICE_SECTIONS || {}).length === 0;
+    const noProtos = Object.keys(CHOICE_PROTOS || {}).length === 0;
+    // WS.1 Q-F1 closure: поддерживаем topics И sections (через разворачивание
+    // в topics через catalog topicsBySection). Protos — fallback на legacy
+    // sessionStorage-flow (это уже конкретные задачи, их полноценный freeze —
+    // отдельная задача).
+    if (noProtos && (hasTopics || !noSections)) {
+      try {
+        const expandedTopics = { ...(CHOICE_TOPICS || {}) };
+        if (!noSections) {
+          // loadCatalogLegacy возвращает Map topicsBySection (sectionId → [{id,title}]).
+          const legacy = await loadCatalogLegacy();
+          const topicsBySection = legacy?.topicsBySection;
+          if (topicsBySection && typeof topicsBySection.get === 'function') {
+            for (const [secId, secCount] of Object.entries(CHOICE_SECTIONS || {})) {
+              const cnt = Number(secCount) || 0;
+              if (cnt <= 0) continue;
+              const sectionTopics = topicsBySection.get(secId) || [];
+              if (sectionTopics.length === 0) continue;
+              // Распределяем cnt поровну по topics секции, остаток — первым.
+              const base = Math.floor(cnt / sectionTopics.length);
+              const rem = cnt % sectionTopics.length;
+              sectionTopics.forEach((t, i) => {
+                const add = base + (i < rem ? 1 : 0);
+                if (add > 0) expandedTopics[t.id] = (expandedTopics[t.id] || 0) + add;
+              });
+            }
+          }
+        }
+        if (Object.keys(expandedTopics).length > 0) {
+          const built = await buildFrozenQuestionsForTopics(expandedTopics, { shuffle: SHUFFLE_TASKS });
+          const frozen = Array.isArray(built?.frozen_questions) ? built.frozen_questions : [];
+          if (frozen.length > 0) sessionFrozen = frozen;
+        }
+      } catch (e) {
+        console.warn('saveSelectionAndGo: buildFrozenQuestionsForTopics threw, fallback', e);
+      }
+    }
+  }
 
+  if (Array.isArray(sessionFrozen) && sessionFrozen.length > 0) {
+    try {
+      const res = await createSessionLink({
+        mode,
+        shuffle: SHUFFLE_TASKS,
+        spec: {},
+        frozenQuestions: sessionFrozen,
+      });
+      if (res?.ok && res.token) {
+        const target = new URL(PAGES_BASE + (mode === 'test' ? 'trainer.html' : 'list.html'), location.href);
+        target.searchParams.set('session', res.token);
+        location.href = target.toString();
+        return;
+      }
+      console.warn('saveSelectionAndGo: createSessionLink failed, fallback', res?.error);
+    } catch (e) {
+      console.warn('saveSelectionAndGo: createSessionLink threw, fallback', e);
+    }
+  }
+
+  // legacy sessionStorage-flow (fallback): срабатывает при network/RPC error,
+  // отсутствии topics-выборки, или mixed sections/protos выборках.
   try {
     sessionStorage.setItem('tasks_selection_v1', JSON.stringify(selection));
   } catch (e) {

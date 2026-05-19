@@ -5,19 +5,21 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-19-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-3';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-19-18';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-18';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-3';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-18';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-05-19-3';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-05-19-3';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-05-19-3';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-05-19-18';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-05-19-18';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-05-19-18';
 
-import { withBuild } from '../app/build.js?v=2026-05-19-3';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-19-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-3';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-19-3';
+import { withBuild } from '../app/build.js?v=2026-05-19-18';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-19-18';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-18';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-19-18';
+import { getSession } from '../app/providers/supabase.js?v=2026-05-19-18';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-18';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -76,6 +78,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const topicParam = params.get('topic');
   const viewParam = params.get('view');
   const IS_ALL_TOPIC_MODE = !!topicParam && viewParam === 'all';
+
+  // WS.1: session-link mode (frozen_questions из ?session=<token>).
+  // Не запускается, если уже выбран IS_ALL_TOPIC_MODE — он специфичнее.
+  const sessionToken = params.get('session') || '';
+  if (sessionToken && !IS_ALL_TOPIC_MODE) {
+    await bootSessionListMode(sessionToken);
+    return;
+  }
 
   // обычный режим (через выбор в picker): читаем selection из sessionStorage
   if (!IS_ALL_TOPIC_MODE) {
@@ -331,6 +341,100 @@ async function buildQuestionsFromTeacherRefs(refs) {
     out.push(buildQuestion(item.manifest, item.type, item.proto));
   }
   return out;
+}
+
+// ---------- WS.1: session-link mode ----------
+function setupCopySessionLinkButton() {
+  const btn = $('#copySessionLink');
+  if (!btn || btn.dataset.wired === '1') return;
+  btn.dataset.wired = '1';
+  btn.hidden = false;
+  const ORIG_LABEL = btn.textContent || 'Скопировать ссылку';
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      btn.textContent = 'Скопировано';
+    } catch (e) {
+      console.warn('copy session link failed', e);
+      btn.textContent = 'Не удалось скопировать';
+    }
+    setTimeout(() => { btn.textContent = ORIG_LABEL; }, 1500);
+  });
+}
+
+async function bootSessionListMode(token) {
+  // §5.1.11 Auth-gate: без сессии — redirect на auth.html?next=<current_url>
+  const session = await getSession().catch(() => null);
+  if (!session) {
+    const next = encodeURIComponent(location.href);
+    location.replace(new URL('./auth.html?next=' + next, location.href).toString());
+    return;
+  }
+
+  let row = null;
+  try {
+    const payload = await supaRest.rpc('get_homework_by_token', { p_token: token });
+    row = Array.isArray(payload) ? (payload[0] || null) : (payload || null);
+  } catch (e) {
+    console.error('session-link: get_homework_by_token failed', e);
+    showListError('Не удалось загрузить ссылку. Проверьте подключение и обновите страницу.');
+    $('#loadingOverlay')?.classList.add('hidden');
+    return;
+  }
+
+  if (!row) { showListError('Ссылка недоступна.'); $('#loadingOverlay')?.classList.add('hidden'); return; }
+  if (row.kind !== 'session') { showListError('Эта ссылка не предназначена для списка задач.'); $('#loadingOverlay')?.classList.add('hidden'); return; }
+  if (row.is_active !== true) { showListError('Ссылка закрыта владельцем.'); $('#loadingOverlay')?.classList.add('hidden'); return; }
+
+  setupCopySessionLinkButton();
+
+  const frozen = Array.isArray(row.frozen_questions) ? row.frozen_questions : [];
+  if (!frozen.length) { showListError('Ссылка пуста.'); $('#loadingOverlay')?.classList.add('hidden'); return; }
+
+  const spec = (row.spec_json && typeof row.spec_json === 'object') ? row.spec_json : {};
+  SHUFFLE_TASKS = !!spec.shuffle;
+
+  try {
+    await loadCatalog();
+  } catch (e) {
+    console.error('session-link: loadCatalog failed', e);
+    showListError('Не удалось загрузить каталог задач.');
+    $('#loadingOverlay')?.classList.add('hidden');
+    return;
+  }
+
+  // Catalog-drift tolerance: buildQuestionsFromTeacherRefs тихо пропускает
+  // нерезолвящиеся refs (см. line ~330 «if (!item) continue;»).
+  const refs = frozen.map(normalizeTeacherPickedRef).filter(Boolean);
+  let questions;
+  try {
+    questions = await buildQuestionsFromTeacherRefs(refs);
+  } catch (e) {
+    console.error('session-link: buildQuestionsFromTeacherRefs failed', e);
+    showListError('Не удалось подготовить задачи по ссылке.');
+    $('#loadingOverlay')?.classList.add('hidden');
+    return;
+  }
+
+  if (!questions.length) {
+    showListError('Задачи по этой ссылке больше недоступны (каталог обновился).');
+    $('#loadingOverlay')?.classList.add('hidden');
+    return;
+  }
+  if (questions.length < refs.length) {
+    console.warn('session-link: catalog drift,', refs.length - questions.length, 'of', refs.length, 'questions missing');
+  }
+
+  try {
+    await renderTaskList(questions);
+  } catch (e) {
+    console.error('session-link: renderTaskList failed', e);
+    showListError('Не удалось показать задачи.');
+  } finally {
+    $('#loadingOverlay')?.classList.add('hidden');
+  }
+
+  try { window.__EGE_DIAG__?.markReady?.(); } catch (_) {}
 }
 
 
