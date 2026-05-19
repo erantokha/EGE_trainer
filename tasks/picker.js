@@ -8,18 +8,17 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-19-18';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-18';
-import { CONFIG } from '../app/config.js?v=2026-05-19-18';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-18';
-import { loadCatalogIndexLike, loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-05-19-18';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-18';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-18';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-18';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-18';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-18';
-import { buildFrozenQuestionsForTopics } from './smart_hw_builder.js?v=2026-05-19-18';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-18';
+import { withBuild } from '../app/build.js?v=2026-05-19-19';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-19';
+import { CONFIG } from '../app/config.js?v=2026-05-19-19';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-19';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-19';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-19';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-19';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-19';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-19';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-19';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-19';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -5027,43 +5026,40 @@ async function saveSelectionAndGo() {
     const refs = selection.teacher_picked_refs;
     if (Array.isArray(refs) && refs.length > 0) sessionFrozen = refs;
   } else {
-    const hasTopics = Object.keys(CHOICE_TOPICS || {}).length > 0;
-    const noSections = Object.keys(CHOICE_SECTIONS || {}).length === 0;
-    const noProtos = Object.keys(CHOICE_PROTOS || {}).length === 0;
-    // WS.1 Q-F1 closure: поддерживаем topics И sections (через разворачивание
-    // в topics через catalog topicsBySection). Protos — fallback на legacy
-    // sessionStorage-flow (это уже конкретные задачи, их полноценный freeze —
-    // отдельная задача).
-    if (noProtos && (hasTopics || !noSections)) {
+    // WS.1 Q-F1 closure: используем тот же engine, что и для рендера задач —
+    // pickQuestionsScopedForList. Он умеет topics + sections + protos в любых
+    // комбинациях, возвращает конкретный array задач. Берём их id+topic_id
+    // как frozen_questions для session-link.
+    const hasAny = Object.keys(CHOICE_TOPICS || {}).length > 0
+      || Object.keys(CHOICE_SECTIONS || {}).length > 0
+      || Object.keys(CHOICE_PROTOS || {}).length > 0;
+    if (hasAny) {
       try {
-        const expandedTopics = { ...(CHOICE_TOPICS || {}) };
-        if (!noSections) {
-          // loadCatalogLegacy возвращает Map topicsBySection (sectionId → [{id,title}]).
-          const legacy = await loadCatalogLegacy();
-          const topicsBySection = legacy?.topicsBySection;
-          if (topicsBySection && typeof topicsBySection.get === 'function') {
-            for (const [secId, secCount] of Object.entries(CHOICE_SECTIONS || {})) {
-              const cnt = Number(secCount) || 0;
-              if (cnt <= 0) continue;
-              const sectionTopics = topicsBySection.get(secId) || [];
-              if (sectionTopics.length === 0) continue;
-              // Распределяем cnt поровну по topics секции, остаток — первым.
-              const base = Math.floor(cnt / sectionTopics.length);
-              const rem = cnt % sectionTopics.length;
-              sectionTopics.forEach((t, i) => {
-                const add = base + (i < rem ? 1 : 0);
-                if (add > 0) expandedTopics[t.id] = (expandedTopics[t.id] || 0) + add;
-              });
-            }
-          }
-        }
-        if (Object.keys(expandedTopics).length > 0) {
-          const built = await buildFrozenQuestionsForTopics(expandedTopics, { shuffle: SHUFFLE_TASKS });
-          const frozen = Array.isArray(built?.frozen_questions) ? built.frozen_questions : [];
+        const picked = await pickQuestionsScopedForList({
+          sections: SECTIONS,
+          topicById: TOPIC_BY_ID,
+          choiceProtos: CHOICE_PROTOS || {},
+          choiceTopics: CHOICE_TOPICS || {},
+          choiceSections: CHOICE_SECTIONS || {},
+          shuffleTasks: SHUFFLE_TASKS,
+          teacherStudentId: '',
+          teacherFilters: { old: false, badAcc: false },
+          prioActive: false,
+          loadTopicPool: loadTopicPoolForPreview,
+          buildQuestion: buildQuestionForPreview,
+          excludeQuestionIds: new Set(),
+        });
+        if (Array.isArray(picked) && picked.length > 0) {
+          const frozen = picked
+            .map(q => ({
+              topic_id: String(q?.topic_id || q?.topicId || '').trim(),
+              question_id: String(q?.id || q?.question_id || '').trim(),
+            }))
+            .filter(r => r.topic_id && r.question_id);
           if (frozen.length > 0) sessionFrozen = frozen;
         }
       } catch (e) {
-        console.warn('saveSelectionAndGo: buildFrozenQuestionsForTopics threw, fallback', e);
+        console.warn('saveSelectionAndGo: pickQuestionsScopedForList threw, fallback', e);
       }
     }
   }
