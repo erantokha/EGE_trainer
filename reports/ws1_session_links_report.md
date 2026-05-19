@@ -251,7 +251,52 @@ export async function createSessionLink({ mode, shuffle, spec, frozenQuestions }
 
 ## §15. Шаг 5.1.14 — Отчёт + commit
 
-Этот отчёт. Commit и список файлов — после финального push.
+Этот отчёт.
+
+### Финальная статистика волны WS.1
+
+Коммиты в `main` (от baseline `bc5a74c8`):
+
+```
+bc5a74c8 chore: stage WS.1 baseline (plan + recon + governance + .gitignore)
+   ... (работа была в working tree от 13 мая, не закоммичена до 19 мая) ...
+147cc67a feat(WS.1): уникальные ссылки на тренировку (session links)
+dbeed207 refactor(WS.1): use pickQuestionsScopedForList engine for full Q-F1 closure
+5d82246e Merge branch 'ws1-restore' — WS.1 session links
+16bd29de fix(WS.1): session-link для учителя без накопленных teacher_picked_refs
+```
+
+### Изменения по WS-релевантным файлам (от baseline `bc5a74c8`)
+
+```
+ app/providers/task_session.js                  |  53 +++++  (new)
+ docs/supabase/assign_homework_to_student.sql   |   7 +
+ docs/supabase/create_session_link.sql          | 103 +++++++  (new)
+ docs/supabase/get_homework_by_token.sql        |   5 +
+ docs/supabase/homeworks_add_kind_migration.sql |  30 +++  (new)
+ docs/supabase/runtime_rpc_registry.md          |  11 +-
+ e2e/student/ws1-session-link.spec.js           | 144 +++  (new)
+ reports/ws1_session_links_report.md            | 271 +++  (new — этот файл)
+ tasks/list.html                                |  13 +-
+ tasks/list.js                                  | 124 +++-
+ tasks/picker.js                                |  95 +++-
+ tasks/trainer.html                             |  13 +-
+ tasks/trainer.js                               | 146 +++-
+ 13 files changed, 965 insertions(+), 50 deletions(-)
+```
+
+### Финал manual smoke (2026-05-19 в production)
+
+После merge в main (`5d82246e`) подтверждено оператором:
+- ✅ Студент: bulk-pick тем → trainer.html?session= → задачи те же при открытии в incognito.
+- ✅ Студент: 2 прототипа + 1 подтема → session-ссылка создаётся.
+- ✅ Учитель: список задач → list.html?session= (после fix `16bd29de`).
+- ✅ Кнопка «Скопировать ссылку» работает на обеих страницах.
+- ✅ Auth-gate redirect для не-залогиненных.
+- ✅ Invalid token → понятная ошибка.
+- ✅ Регрессия: существующие ДЗ-сценарии не сломались.
+
+Волна WS.1 закрыта 2026-05-19.
 
 ## §16. Расхождения с планом
 
