@@ -1,6 +1,9 @@
 -- get_homework_by_token.sql
 -- Live-BD extract synchronized on 2026-03-29.
 -- Source: pg_get_functiondef('public.get_homework_by_token(text)'::regprocedure)
+-- WS.1 update (2026-05-13): добавлено поле `kind` в RETURN и SELECT для
+-- различения 'graded' / 'session' на frontend. Логика выборки не менялась.
+-- См. WS_session_links_PLAN.md §5.1.3, §6.2.
 
 begin;
 
@@ -16,6 +19,7 @@ returns table(
   frozen_questions jsonb,
   seed text,
   attempts_per_student integer,
+  kind text,
   is_active boolean
 )
 language sql
@@ -32,6 +36,7 @@ as $function$
     h.frozen_questions,
     h.seed,
     h.attempts_per_student,
+    h.kind,
     (h.is_active and l.is_active and (l.expires_at is null or l.expires_at > now())) as is_active
   from public.homework_links l
   join public.homeworks h on h.id = l.homework_id

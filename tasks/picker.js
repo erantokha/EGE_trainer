@@ -8,16 +8,17 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-19-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-3';
-import { CONFIG } from '../app/config.js?v=2026-05-19-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-3';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-3';
+import { withBuild } from '../app/build.js?v=2026-05-19-19';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-19';
+import { CONFIG } from '../app/config.js?v=2026-05-19-19';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-19';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-19';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-19';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-19';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-19';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-19';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-19';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-19';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -5014,7 +5015,77 @@ async function saveSelectionAndGo() {
 
   if (IS_STUDENT_PAGE) selection.pick_mode = PICK_MODE;
 
+  // WS.1: пытаемся создать session-ссылку, чтобы выбор был шарируемым.
+  // Источник frozen_questions:
+  //   - teacher_home + teacher_picked_refs → используем refs напрямую (формат
+  //     {topic_id, question_id} совпадает с buildFrozenQuestionsForTopics)
+  //   - иначе если выбор только по topics (без sections/protos) — builder
+  //   - в остальных случаях fallback на старый sessionStorage-flow.
+  let sessionFrozen = null;
+  if (IS_TEACHER_HOME) {
+    const refs = selection.teacher_picked_refs;
+    if (Array.isArray(refs) && refs.length > 0) sessionFrozen = refs;
+  } else {
+    // WS.1 Q-F1 closure: используем тот же engine, что и для рендера задач —
+    // pickQuestionsScopedForList. Он умеет topics + sections + protos в любых
+    // комбинациях, возвращает конкретный array задач. Берём их id+topic_id
+    // как frozen_questions для session-link.
+    const hasAny = Object.keys(CHOICE_TOPICS || {}).length > 0
+      || Object.keys(CHOICE_SECTIONS || {}).length > 0
+      || Object.keys(CHOICE_PROTOS || {}).length > 0;
+    if (hasAny) {
+      try {
+        const picked = await pickQuestionsScopedForList({
+          sections: SECTIONS,
+          topicById: TOPIC_BY_ID,
+          choiceProtos: CHOICE_PROTOS || {},
+          choiceTopics: CHOICE_TOPICS || {},
+          choiceSections: CHOICE_SECTIONS || {},
+          shuffleTasks: SHUFFLE_TASKS,
+          teacherStudentId: '',
+          teacherFilters: { old: false, badAcc: false },
+          prioActive: false,
+          loadTopicPool: loadTopicPoolForPreview,
+          buildQuestion: buildQuestionForPreview,
+          excludeQuestionIds: new Set(),
+        });
+        if (Array.isArray(picked) && picked.length > 0) {
+          const frozen = picked
+            .map(q => ({
+              topic_id: String(q?.topic_id || q?.topicId || '').trim(),
+              question_id: String(q?.id || q?.question_id || '').trim(),
+            }))
+            .filter(r => r.topic_id && r.question_id);
+          if (frozen.length > 0) sessionFrozen = frozen;
+        }
+      } catch (e) {
+        console.warn('saveSelectionAndGo: pickQuestionsScopedForList threw, fallback', e);
+      }
+    }
+  }
 
+  if (Array.isArray(sessionFrozen) && sessionFrozen.length > 0) {
+    try {
+      const res = await createSessionLink({
+        mode,
+        shuffle: SHUFFLE_TASKS,
+        spec: {},
+        frozenQuestions: sessionFrozen,
+      });
+      if (res?.ok && res.token) {
+        const target = new URL(PAGES_BASE + (mode === 'test' ? 'trainer.html' : 'list.html'), location.href);
+        target.searchParams.set('session', res.token);
+        location.href = target.toString();
+        return;
+      }
+      console.warn('saveSelectionAndGo: createSessionLink failed, fallback', res?.error);
+    } catch (e) {
+      console.warn('saveSelectionAndGo: createSessionLink threw, fallback', e);
+    }
+  }
+
+  // legacy sessionStorage-flow (fallback): срабатывает при network/RPC error,
+  // отсутствии topics-выборки, или mixed sections/protos выборках.
   try {
     sessionStorage.setItem('tasks_selection_v1', JSON.stringify(selection));
   } catch (e) {
