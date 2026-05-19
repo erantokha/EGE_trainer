@@ -8,17 +8,17 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-19-23';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-23';
-import { CONFIG } from '../app/config.js?v=2026-05-19-23';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-23';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-23';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-23';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-23';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-23';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-23';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-23';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-23';
+import { withBuild } from '../app/build.js?v=2026-05-19-24';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-19-24';
+import { CONFIG } from '../app/config.js?v=2026-05-19-24';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-24';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-24';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-19-24';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-19-24';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-24';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-24';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-19-24';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-19-24';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
