@@ -13,6 +13,12 @@
 | Baseline commit на момент составления | `dcd7b600` (`revert(worker): drop OAuth redirect_uri rewrite`) |
 | Связанные документы | `memory/project_ru_access.md`, `cloudflare-worker/README.md` |
 
+## Статус (2026-05-19)
+
+**Stage 0 закрыт.** Tactical migration на собственный VPS (только nginx-прокси перед Supabase Cloud) выполнен в рамках срочного снятия блокировок РКН для текущих учеников. Production-инфра: `api.ege-trainer.ru` (Timeweb Cloud, Москва, 1180 ₽/мес). Отчёт: `reports/w7_stage0_proxy_migration_report.md`.
+
+**W7-full остаётся открытым** — это полная миграция БД на selfhosted Supabase stack на том же VPS. Целевое окно прежнее — лето 2026. План ниже описывает W7-full целиком; пункты, закрытые в Stage 0, помечены ✅.
+
 ---
 
 ## 1. Цель
