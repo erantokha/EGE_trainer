@@ -10,20 +10,20 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-19-24';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-19-24';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-05-25-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-25-2';
 
-import { CONFIG } from '../app/config.js?v=2026-05-19-24';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-05-19-24';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-05-19-24';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-19-24';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-19-24';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-19-24';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-19-24';
+import { CONFIG } from '../app/config.js?v=2026-05-25-2';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-05-25-2';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-05-25-2';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-25-2';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-25-2';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-25-2';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-25-2';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-19-24';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-19-24';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-25-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-25-2';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -550,7 +550,7 @@ let HOMEWORK_READY = false;
 let CATALOG_READY = false;
 let TEACHER_REPORT_DONE = false;
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const teacherAttemptId = getTeacherAttemptId();
   const token = getToken();
   const msgEl = $('#hwGateMsg');
@@ -581,6 +581,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!token) {
     if (msgEl) msgEl.textContent = 'Ошибка: в ссылке нет параметра token.';
+    return;
+  }
+
+  // Auth-gate (student-flow): без сессии — redirect на auth.html?next=<current_url>,
+  // чтобы анонимный пользователь не упирался в AUTH_REQUIRED при загрузке каталога
+  // (каталог намеренно session-only). Паттерн идентичен trainer.js:bootSessionMode (WS.1).
+  // Сюда мы попадаем уже ПОСЛЕ teacher-report (return выше) и проверки token —
+  // teacher-report flow гейт не задевает.
+  const session = await getSession({ timeoutMs: 1500 }).catch(() => null);
+  if (!session) {
+    const next = encodeURIComponent(location.href);
+    location.replace(new URL('./auth.html?next=' + next, location.href).toString());
     return;
   }
 

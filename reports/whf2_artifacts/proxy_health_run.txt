@@ -1,0 +1,33 @@
+=== §5.4a: 30x __proxy_health ===
+01  http=200  time=0.207385s
+02  http=200  time=0.211650s
+03  http=200  time=0.201664s
+04  http=200  time=0.203480s
+05  http=200  time=0.203180s
+06  http=200  time=0.207926s
+07  http=200  time=0.202878s
+08  http=200  time=0.202189s
+09  http=200  time=0.208405s
+10  http=200  time=0.203606s
+11  http=200  time=0.202341s
+12  http=200  time=0.204570s
+13  http=200  time=0.202149s
+14  http=200  time=0.204653s
+15  http=200  time=0.205686s
+16  http=200  time=0.208500s
+17  http=200  time=0.200706s
+18  http=200  time=0.199931s
+19  http=200  time=0.204766s
+20  http=200  time=0.205663s
+21  http=200  time=0.229751s
+22  http=200  time=0.226814s
+23  http=200  time=0.234382s
+24  http=200  time=0.261065s
+25  http=200  time=0.231098s
+26  http=200  time=0.225735s
+27  http=200  time=0.219613s
+28  http=200  time=0.286261s
+29  http=200  time=0.220859s
+30  http=200  time=0.225248s
+--- summary: 30/30 http=200 ---
+p50=0.207385s  p95=0.234382s  min=0.199931s  max=0.286261s

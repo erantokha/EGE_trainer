@@ -1,0 +1,53 @@
+=== MODE=repro ===
+auth url: https://ege-trainer.ru/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2Ftasks%2Fhw.html%3Ftoken%3Dwhf2_dummy_token_for_login_step
+[req ] +0.17s GET /version.json?_=1779708536245
+[resp] +0.21s 200 /version.json?_=1779708536245  (0.04s)
+[req ] +0.59s GET /app/config.js?v=2026-05-19-24
+[resp] +0.66s 200 /app/config.js?v=2026-05-19-24  (0.06s)
+[req ] +0.66s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +0.71s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.05s)
+[req ] +0.71s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[req ] +0.93s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[req ] +0.93s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[req ] +0.93s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[req ] +0.93s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[req ] +0.93s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +0.93s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.21s)
+[resp] +1.00s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.07s)
+[resp] +1.00s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.07s)
+[resp] +1.01s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.09s)
+[resp] +1.04s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.11s)
+[resp] +1.23s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.30s)
+[ready] +1.24s data-auth-ready=true (loadDeps took ~0.61s after form visible)
+[storage before-submit] +1.31s local-keys=[fipi_theme] session={}
+[storage before-submit] sb-*-auth-token present: false
+[action] +1.35s submit login
+[req ] +1.41s POST https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists
+[resp] +2.61s 401 https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists  (1.20s)
+[console.error] +2.61s Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[console.warning] +2.61s authEmailExists check failed: {code: 42501, details: null, hint: null, message: permission denied for function auth_email_exists}
+[req ] +2.61s POST https://api.ege-trainer.ru/auth/v1/token?grant_type=password
+[poll] +3.41s #loginStatus="Входим..." url=/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2Ftasks%2Fhw.html%3Ftoken%3Dwhf2_dummy_token_for_login_step
+[storage t3s] +3.41s local-keys=[fipi_theme] session={}
+[storage t3s] sb-*-auth-token present: false
+[resp] +4.84s 200 https://api.ege-trainer.ru/auth/v1/token?grant_type=password  (2.23s)
+[req ] +5.03s GET /version.json?_=1779708541097
+[req ] +5.04s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +5.04s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.00s)
+[req ] +5.04s GET /app/config.js?v=2026-05-19-24
+[resp] +5.04s 200 /app/config.js?v=2026-05-19-24  (0.00s)
+[req ] +5.04s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[resp] +5.04s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.00s)
+[req ] +5.05s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[resp] +5.05s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.00s)
+[req ] +5.05s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[resp] +5.05s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.00s)
+[req ] +5.05s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[resp] +5.06s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.01s)
+[req ] +5.06s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[resp] +5.06s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.00s)
+[req ] +5.06s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +5.06s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.00s)
+[resp] +5.06s 200 /version.json?_=1779708541097  (0.04s)
+[NAV ] +5.42s left auth.html → /tasks/hw.html?token=whf2_dummy_token_for_login_step  (LOGIN COMPLETED)
+[RESULT] +5.42s login flow completed (no hang in desktop chromium)

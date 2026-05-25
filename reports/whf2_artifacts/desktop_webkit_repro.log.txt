@@ -1,0 +1,61 @@
+=== MODE=repro ===
+auth url: https://ege-trainer.ru/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2Ftasks%2Fhw.html%3Ftoken%3Dwhf2_dummy_token_for_login_step
+[req ] +0.21s GET /version.json?_=1779708683526
+[resp] +0.26s 200 /version.json?_=1779708683526  (0.04s)
+[req ] +0.47s GET /app/config.js?v=2026-05-19-24
+[req ] +0.48s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +0.52s 200 /app/config.js?v=2026-05-19-24  (0.05s)
+[resp] +0.52s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.04s)
+[req ] +0.53s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[resp] +0.68s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.15s)
+[req ] +0.69s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[req ] +0.69s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[req ] +0.69s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[req ] +0.69s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[req ] +0.69s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +0.72s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.04s)
+[resp] +0.73s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.04s)
+[resp] +0.73s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.04s)
+[resp] +0.73s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.04s)
+[resp] +0.77s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.08s)
+[ready] +0.84s data-auth-ready=true (loadDeps took ~0.33s after form visible)
+[console.error] +0.85s Failed to load resource: the server responded with a status of 404 ()
+[console.error] +0.86s Failed to load resource: the server responded with a status of 404 ()
+[console.error] +0.86s Failed to load resource: the server responded with a status of 404 ()
+[console.error] +0.86s Failed to load resource: the server responded with a status of 404 ()
+[console.error] +0.87s Failed to load resource: the server responded with a status of 404 ()
+[storage before-submit] +0.89s local-keys=[fipi_theme] session={}
+[storage before-submit] sb-*-auth-token present: false
+[console.error] +0.90s Failed to load resource: the server responded with a status of 404 ()
+[console.error] +0.95s Failed to load resource: the server responded with a status of 404 ()
+[action] +0.96s submit login
+[req ] +1.00s POST https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists
+[resp] +2.30s 401 https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists  (1.30s)
+[console.error] +2.30s Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[console.warning] +2.31s authEmailExists check failed: {code: 42501, details: null, hint: null, message: permission denied for function auth_email_exists}
+[req ] +2.31s POST https://api.ege-trainer.ru/auth/v1/token?grant_type=password
+[poll] +3.01s #loginStatus="Входим..." url=/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2Ftasks%2Fhw.html%3Ftoken%3Dwhf2_dummy_token_for_login_step
+[storage t3s] +3.02s local-keys=[fipi_theme] session={}
+[storage t3s] sb-*-auth-token present: false
+[resp] +3.21s 200 https://api.ege-trainer.ru/auth/v1/token?grant_type=password  (0.91s)
+[pageerror] +3.22s /api.ege-trainer.ru/rest/v1/profiles?select=role&id=eq.69a60e96-0aa2-4df8-99d3-4b6dcb961b38 due to access control checks.
+[req ] +3.28s GET /version.json?_=1779708686590
+[req ] +3.30s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +3.30s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.00s)
+[req ] +3.31s GET /app/config.js?v=2026-05-19-24
+[resp] +3.31s 200 /app/config.js?v=2026-05-19-24  (0.00s)
+[req ] +3.31s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[resp] +3.31s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.00s)
+[req ] +3.31s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[resp] +3.32s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.00s)
+[req ] +3.32s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[resp] +3.32s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.00s)
+[req ] +3.32s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[resp] +3.32s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.00s)
+[req ] +3.32s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[resp] +3.32s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.00s)
+[req ] +3.32s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +3.32s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.00s)
+[resp] +3.33s 200 /version.json?_=1779708686590  (0.05s)
+[NAV ] +3.52s left auth.html → /tasks/hw.html?token=whf2_dummy_token_for_login_step  (LOGIN COMPLETED)
+[RESULT] +3.52s login flow completed (no hang in webkit)

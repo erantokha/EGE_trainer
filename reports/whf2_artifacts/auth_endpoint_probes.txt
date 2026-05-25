@@ -1,0 +1,10 @@
+=== §5.4b: wrong-password /auth/v1/token (expect fast 400 invalid_grant) ===
+http=400 time=0.932870s
+body: {"code":400,"error_code":"invalid_credentials","msg":"Invalid login credentials"}
+
+=== §5.4c: raw RPC auth_email_exists latency x5 (server-side; isolates client-lock hang from server) ===
+  attempt 1: http=401 time=1.010663s
+  attempt 2: http=401 time=0.710532s
+  attempt 3: http=401 time=0.775997s
+  attempt 4: http=401 time=0.710469s
+  attempt 5: http=401 time=0.617667s

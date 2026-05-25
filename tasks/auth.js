@@ -136,8 +136,40 @@ function setStatus(el, msg, isError) {
   el.classList.toggle('error', Boolean(isError));
 }
 
+// WHF2-fix-1 (F): защита сабмита до готовности страницы.
+// До завершения `await loadDeps()` (динамический import supabase-js с jsdelivr) реальные
+// submit-handler'ы ещё не навешаны. Без защиты клик «Войти» / Enter делает нативный GET-сабмит
+// формы — тихий no-op («моргнуло и ничего», воспроизведено в WHF2 §3). На медленной/блокируемой
+// jsdelivr (РФ/мобильный) окно велико. Лечим: disabled на submit-кнопках + ранний preventDefault
+// на формах, синхронно до loadDeps; снимаем в markAuthReady. См. whf2_diagnostic_report.md §6.F.
+const AUTH_SUBMIT_BTN_IDS = ['loginSubmit', 'signupSubmit', 'resetSubmit'];
+const AUTH_LOADING_MSG = 'Загрузка...';
+
+function lockAuthSubmitsUntilReady() {
+  for (const id of AUTH_SUBMIT_BTN_IDS) {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = true;
+  }
+  // defense-in-depth: ранний guard на сам submit (Enter в поле, изменение разметки).
+  // preventDefault здесь не мешает реальным handler'ам — они навешиваются позже и тоже
+  // вызывают preventDefault; нативная навигация формы не нужна ни в одном случае.
+  for (const fid of ['loginForm', 'signupForm', 'resetForm']) {
+    const form = document.getElementById(fid);
+    if (form) form.addEventListener('submit', (e) => e.preventDefault());
+  }
+  const st = document.getElementById('loginStatus');
+  if (st && !st.textContent) setStatus(st, AUTH_LOADING_MSG, false);
+}
+
 function markAuthReady() {
   try { document.body?.setAttribute('data-auth-ready', '1'); } catch (_) {}
+  // снять защиту сабмита (F)
+  for (const id of AUTH_SUBMIT_BTN_IDS) {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = false;
+  }
+  const st = document.getElementById('loginStatus');
+  if (st && st.textContent === AUTH_LOADING_MSG) setStatus(st, '', false);
 }
 
 function showPanel(name) {
@@ -205,18 +237,20 @@ function initSignupRoleSwitching() {
   applySignupRoleUI();
 }
 
-async function safeEmailExists(email) {
-  try {
-    const res = await authEmailExists(email);
-    if (typeof res === 'boolean') return res;
-    return null;
-  } catch (e) {
-    console.warn('authEmailExists check failed:', e);
-    return null;
-  }
+async function safeEmailExists(/* email */) {
+  // WHF2-fix-1 (B): RPC `auth_email_exists` отдаёт 401 permission denied (42501)
+  // всем (роль anon без EXECUTE) → pre-check в проде ВСЕГДА возвращал null. До этой
+  // волны вызов дёргал supabase-js .rpc() прямо перед signInWithPassword: +~1.2с на
+  // каждый логин, console-шум 401, и главная подозреваемая поверхность зависания
+  // supabase-js на iOS (storage-lock). Гутаем тело без сетевого вызова — поведение
+  // call-site'ов при null уже корректно. См. reports/whf2_diagnostic_report.md §6.B.
+  return null;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // WHF2-fix-1 (F): синхронно, ДО async loadDeps — заблокировать сабмит до готовности.
+  lockAuthSubmitsUntilReady();
+
   try {
     await loadDeps();
   } catch (e) {

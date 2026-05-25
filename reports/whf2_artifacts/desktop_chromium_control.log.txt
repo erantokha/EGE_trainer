@@ -1,0 +1,53 @@
+=== MODE=control ===
+auth url: https://ege-trainer.ru/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2F
+[req ] +0.22s GET /version.json?_=1779708592492
+[resp] +0.26s 200 /version.json?_=1779708592492  (0.04s)
+[req ] +0.91s GET /app/config.js?v=2026-05-19-24
+[resp] +0.94s 200 /app/config.js?v=2026-05-19-24  (0.04s)
+[req ] +0.95s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +1.00s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.06s)
+[req ] +1.00s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[req ] +1.17s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[req ] +1.17s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[req ] +1.17s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[req ] +1.17s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[req ] +1.17s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +1.17s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.17s)
+[resp] +1.22s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.05s)
+[resp] +1.22s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.06s)
+[resp] +1.24s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.07s)
+[resp] +1.24s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.07s)
+[resp] +1.27s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.10s)
+[ready] +1.31s data-auth-ready=true (loadDeps took ~0.36s after form visible)
+[storage before-submit] +1.37s local-keys=[fipi_theme] session={}
+[storage before-submit] sb-*-auth-token present: false
+[action] +1.40s submit login
+[req ] +1.46s POST https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists
+[resp] +3.01s 401 https://api.ege-trainer.ru/rest/v1/rpc/auth_email_exists  (1.55s)
+[console.error] +3.01s Failed to load resource: the server responded with a status of 401 (Unauthorized)
+[console.warning] +3.02s authEmailExists check failed: {code: 42501, details: null, hint: null, message: permission denied for function auth_email_exists}
+[req ] +3.02s POST https://api.ege-trainer.ru/auth/v1/token?grant_type=password
+[poll] +3.46s #loginStatus="Входим..." url=/tasks/auth.html?next=https%3A%2F%2Fege-trainer.ru%2F
+[storage t3s] +3.46s local-keys=[fipi_theme] session={}
+[storage t3s] sb-*-auth-token present: false
+[resp] +4.55s 200 https://api.ege-trainer.ru/auth/v1/token?grant_type=password  (1.53s)
+[req ] +4.73s GET /version.json?_=1779708597000
+[resp] +4.76s 200 /version.json?_=1779708597000  (0.03s)
+[req ] +4.94s GET /app/providers/supabase.js?v=2026-05-19-24
+[resp] +4.94s 200 /app/providers/supabase.js?v=2026-05-19-24  (0.00s)
+[req ] +4.94s GET /app/config.js?v=2026-05-19-24
+[resp] +4.94s 200 /app/config.js?v=2026-05-19-24  (0.00s)
+[req ] +4.94s GET https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm
+[resp] +4.94s 200 https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm  (0.00s)
+[req ] +4.94s GET https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm
+[resp] +4.94s 200 https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.89.0/+esm  (0.00s)
+[req ] +4.94s GET https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm
+[resp] +4.95s 200 https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.89.0/+esm  (0.00s)
+[req ] +4.95s GET https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm
+[resp] +4.95s 200 https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.89.0/+esm  (0.00s)
+[req ] +4.95s GET https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm
+[resp] +4.95s 200 https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.89.0/+esm  (0.00s)
+[req ] +4.95s GET https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm
+[resp] +4.95s 200 https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.89.0/+esm  (0.00s)
+[NAV ] +4.96s left auth.html → /  (LOGIN COMPLETED)
+[RESULT] +4.96s login flow completed (no hang in desktop chromium)
