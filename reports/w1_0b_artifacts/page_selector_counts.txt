@@ -1,0 +1,23 @@
+per-page selector counts (sanity §5.2.3: each ≥5):
+  home_student             146
+  home_teacher             122
+  trainer                  144
+  list                      96
+  unique                   109
+  hw                       126
+  hw_create                124
+  stats                     59
+  my_students               67
+  student                   84
+  my_homeworks              60
+  my_homeworks_archive      53
+  profile                   50
+  analog                    86
+  auth                      50
+  auth_callback             51
+  auth_reset                51
+  google_complete           50
+  smoke_combo               16 [non-prod]
+  fx_print_css              40 [non-prod]
+  fx_dialog                 18 [non-prod]
+  fx_dialog_na              18 [non-prod]

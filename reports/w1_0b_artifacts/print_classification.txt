@@ -1,0 +1,102 @@
+# W1.0b §5.6 — print cross-page deps (@media print rules)
+@media print selectors: 118  (global=62, body.print-layout-active=56)
+@media print byte range: lines 3504..3930
+
+## global print rules (no body.print-layout-active prefix) — candidates for print.css "global" section:
+  L3521: html
+  L3533: html
+  L3533: body
+  L3539: .container
+  L3546: .panel
+  L3554: .run-body
+  L3554: section
+  L3554: main
+  L3561: *
+  L3570: #appHeader
+  L3570: header#appHeader
+  L3570: #appHeader *
+  L3570: .page-head
+  L3570: .page-head *
+  L3570: [data-header-extra="1"]
+  L3570: .theme-toggle
+  L3570: .crumb
+  L3570: #restart
+  L3570: .uniq-controls
+  L3570: .run-head
+  L3570: .smart-panel
+  L3570: #picker
+  L3570: .video-solution-btn
+  L3570: .user-menu
+  L3570: .user-menu-btn
+  L3570: .auth-mini
+  L3570: .home-icon-btn
+  L3570: .home-icon-img
+  L3570: [data-tip]::before
+  L3570: [data-tip]::after
+  L3570: #__ege_diag__
+  L3570: #ege-diag-overlay
+  L3570: #loadingOverlay
+  L3570: .modal
+  L3570: .modal-backdrop
+  L3570: .vs-modal
+  L3570: .vs-modal-backdrop
+  L3570: body > div
+  L3570: body > iframe
+  L3604: .hw-bottom
+  L3604: .hw-summary-head
+  L3604: .hw-review-controls
+  L3604: #hwGate
+  L3604: #hwDesc
+  L3604: .list-meta
+  L3614: .controls
+  L3614: #status
+  L3614: #linkBox
+  L3614: .hrow
+  L3614: #toggleAdded
+  L3614: .fixed-mini-del
+  L3614: #taskPickerModal
+  L3625: #addedBox
+  L3629: img[src*="hw_bell"]
+  L3640: .hw-bell
+  L3640: .hw-bell--top
+  L3640: .hw-bell--menu
+  L3650: a
+  L3656: mjx-container svg
+  L3665: mjx-container svg g
+  L3665: mjx-container svg path
+  L3665: mjx-container svg use
+
+## state-gated (body.print-layout-active …) — print.css "state" section:
+  count=56; samples:
+  L3672: body.print-layout-active.print-with-answers .hw-create-ans
+  L3693: body.print-layout-active.print-with-answers .hw-create-ans::before
+  L3696: body.print-layout-active .task-card
+  L3696: body.print-layout-active .ws-item
+  L3720: body.print-layout-active .task-card .task-num
+  L3720: body.print-layout-active .ws-item .ws-num
+  L3732: body.print-layout-active .task-card .task-stem
+  L3732: body.print-layout-active .ws-item .ws-stem
+  L3741: body.print-layout-active .task-card .task-ans
+  L3741: body.print-layout-active .ws-item .ws-ans
+  L3741: body.print-layout-active .ws-item .ws-ans-wrap
+  L3741: body.print-layout-active .print-ans-line
+  L3748: body.print-layout-active .task-card:has(.task-fig)
+  L3748: body.print-layout-active .ws-item:has(.ws-fig)
+  L3757: body.print-layout-active .task-card:has([data-fig-size="large"])
+  L3757: body.print-layout-active .ws-item:has([data-fig-size="large"])
+  L3763: body.print-layout-active .task-card:has(.task-fig) .task-fig
+  L3763: body.print-layout-active .ws-item:has(.ws-fig) .ws-fig
+  L3775: body.print-layout-active .task-fig img
+  L3775: body.print-layout-active .ws-fig img
+  L3782: body.print-layout-active .task-card:has(.task-fig[data-fig-type="vectors"])
+  L3782: body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="vectors"])
+  L3787: body.print-layout-active .task-fig[data-fig-type="vectors"]
+  L3787: body.print-layout-active .ws-fig[data-fig-type="vectors"]
+  L3793: body.print-layout-active .task-card:has(.task-fig[data-fig-type="graphs"])
+  L3793: body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="graphs"])
+  L3798: body.print-layout-active .task-card:has(.task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]))
+  L3798: body.print-layout-active .ws-item:has(.ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"]))
+  L3810: body.print-layout-active .task-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])
+  L3810: body.print-layout-active .ws-fig[data-fig-type="derivatives"]:not([data-fig-orientation="portrait"]):not([data-fig-orientation="landscape-narrow"])
+
+## print-dialog (OQ4): 14 SCREEN selectors (not in @media print). These render the dialog on screen — belong in a page/base file, NOT print.css.

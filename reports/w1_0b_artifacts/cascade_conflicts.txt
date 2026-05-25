@@ -1,0 +1,509 @@
+# W1.0b §5.5 — cascade conflict map (duplicate exact selectors in trainer.css)
+# total distinct selectors: 714; duplicated: 120
+# conflict = same property declared in 2+ blocks (cascade-order-dependent).
+# disjoint = no shared property (merge-safe; order irrelevant).
+# strategy: disjoint→merge; conflict same-file→@layer or specificity bump; conflict screen-vs-print→split-safe (different files/media).
+
+SUMMARY: ⚠same-context-conflict=19  responsive-benign=46  screen+print=19  disjoint(merge)=36
+
+## ⚠ TRUE order-dependent conflicts requiring W1.1' care (@layer / specificity): 19
+  body[data-home-variant="student"] #accordion .home-badges-head .row  | lines 546[–], 2909[–], 3004[–], 3015[–], 3069[–], 3100[–] | [display,grid-template-columns,column-gap,align-items,padding]
+  body[data-home-variant="student"] #accordion .home-badges-head  | lines 591[–], 2918[–], 3000[–], 3068[–], 3070[–], 3093[–] | [padding,margin]
+  body[data-home-variant="student"] #accordion .node.section > .row  | lines 546[–], 2909[–], 2923[–], 2990[–], 3015[–] | [display,grid-template-columns,column-gap,align-items,padding]
+  body[data-home-variant="student"] #accordion .node.section > .row > .section-title  | lines 2960[–], 3025[–], 3081[–], 3108[–] | [grid-column,border,border-radius,padding,background]
+  .theme-toggle  | lines 361[–], 415[–], 3570P[print] | [display]
+  body[data-home-variant="student"] #accordion .section-title  | lines 465[–], 526[–], 1530[–] | [border-radius]
+  body[data-home-variant="student"] #accordion .node.section > .row > .countbox  | lines 555[–], 2926[–], 3021[–] | [margin-right,width,grid-column]
+  body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn  | lines 2966[–], 3026[–], 3028[–] | [grid-column,margin-left]
+  body[data-home-variant="student"] #accordion .home-badges-head + .node.section  | lines 3007[–], 3077[–], 3104[–] | [padding-top]
+  body[data-home-variant="student"] #accordion .node.section .section-title  | lines 510[–], 619[–] | [margin-left]
+  body[data-home-variant="student"] #accordion .node.topic .title  | lines 514[–], 1530[–] | [border-radius]
+  body[data-home-variant="student"] #accordion .home-section-pct  | lines 571[–], 2952[–] | [width,min-width,justify-self]
+  body[data-home-variant="student"] #accordion .home-section-cov  | lines 582[–], 2952[–] | [width,min-width,justify-self]
+  body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label  | lines 600[–], 2944[–] | [text-align,justify-self]
+  body[data-home-variant="student"] #accordion .home-badges-head .row > .countbox  | lines 2926[–], 3060[–] | [grid-column]
+  body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges  | lines 2934[–], 3024[–] | [grid-column]
+  body[data-home-variant="student"] #accordion .node.section > .row > .spacer  | lines 2970[–], 3027[–] | [grid-column]
+  body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer  | lines 2974[–], 3063[–] | [grid-column]
+  body.print-layout-active .ws-item .ws-ans-wrap  | lines 3741P[print], 3839P[print] | [grid-area]
+
+body[data-home-variant="student"] #accordion .home-badges-head .row
+    lines: 546[–], 2909[–], 3004[–], 3015[–], 3069[–], 3100[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [display,grid-template-columns,column-gap,align-items,padding]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-badges-head
+    lines: 591[–], 2918[–], 3000[–], 3068[–], 3070[–], 3093[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [padding,margin]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .node.section > .row
+    lines: 546[–], 2909[–], 2923[–], 2990[–], 3015[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [display,grid-template-columns,column-gap,align-items,padding]
+    → @layer or specificity bump (order-dependent within same media context)
+.students-grid
+    lines: 2559[–], 2570[(max-width: 1400px)], 2573[(max-width: 1150px)], 2576[(max-width: 860px)], 2579[(max-width: 560px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+input[type="number"]
+    lines: 152[–], 162[–], 172[–], 896[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [width]
+    → benign — keep all breakpoints of a selector together in its target file
+body[data-home-variant="student"] #accordion .node.section > .row > .section-title
+    lines: 2960[–], 3025[–], 3081[–], 3108[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column,border,border-radius,padding,background]
+    → @layer or specificity bump (order-dependent within same media context)
+html
+    lines: 86[–], 3521P[print], 3533P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body
+    lines: 86[–], 87[–], 3533P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [background,color]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.theme-toggle
+    lines: 361[–], 415[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [display]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .section-title
+    lines: 465[–], 526[–], 1530[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [border-radius]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion
+    lines: 537[–], 2898[–], 3010[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox
+    lines: 555[–], 2926[–], 3021[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [margin-right,width,grid-column]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .badge
+    lines: 622[–], 649[–], 684[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [padding]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item
+    lines: 987[–], 1004[–], 1296[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card
+    lines: 987[–], 1004[–], 1296[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+[data-tip]::after
+    lines: 1469[–], 1477[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+[data-tip]::before
+    lines: 1469[–], 1495[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.fixed-mini-del
+    lines: 1778[–], 1801[(max-width: 720px)], 3614P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+body[data-home-variant="student"] #accordion .node.section > .row > .unique-btn
+    lines: 2966[–], 3026[–], 3028[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column,margin-left]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-badges-head + .node.section
+    lines: 3007[–], 3077[–], 3104[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [padding-top]
+    → @layer or specificity bump (order-dependent within same media context)
+body.teacher-student-view #accordion .home-badges-head .row
+    lines: 3167[–], 3319[(min-width:1025px)], 3352[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [display,grid-template-columns,column-gap,align-items]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .badge
+    lines: 3239[–], 3265[–], 3294[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [padding]
+    → benign — keep all breakpoints of a selector together in its target file
+*
+    lines: 84[–], 3561P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+h1
+    lines: 97[–], 98[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+h2
+    lines: 97[–], 99[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.container
+    lines: 101[–], 3539P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [max-width,margin,padding]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.panel
+    lines: 107[–], 3546P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [background,border,border-radius,box-shadow,padding]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+#loadingOverlay
+    lines: 115[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+a
+    lines: 173[–], 3650P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [color,text-decoration]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+#picker
+    lines: 210[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body[data-home-variant="student"] #picker .picker-grid
+    lines: 217[–], 252[(max-width: 900px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body[data-home-variant="student"] #picker .picker-right
+    lines: 224[–], 253[(max-width: 900px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [flex,width]
+    → benign — keep all breakpoints of a selector together in its target file
+#picker .sub-controls
+    lines: 255[–], 311[(max-width: 640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [justify-content]
+    → benign — keep all breakpoints of a selector together in its target file
+#picker .controls
+    lines: 274[–], 304[(max-width: 640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [justify-content]
+    → benign — keep all breakpoints of a selector together in its target file
+#picker .controls-actions-right
+    lines: 290[–], 307[(max-width: 640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [justify-content]
+    → benign — keep all breakpoints of a selector together in its target file
+.uniq-controls
+    lines: 423[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.node .row
+    lines: 437[–], 906[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [align-items]
+    → benign — keep all breakpoints of a selector together in its target file
+.node .row .countbox
+    lines: 442[–], 916[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-right]
+    → benign — keep all breakpoints of a selector together in its target file
+.node.section .section-title
+    lines: 445[–], 913[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-left]
+    → benign — keep all breakpoints of a selector together in its target file
+#accordion .section-title
+    lines: 459[–], 950[(min-width:900px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [font-size]
+    → benign — keep all breakpoints of a selector together in its target file
+body[data-home-variant="student"] #accordion .unique-btn
+    lines: 477[–], 922[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-left]
+    → benign — keep all breakpoints of a selector together in its target file
+.unique-btn
+    lines: 487[–], 919[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-left]
+    → benign — keep all breakpoints of a selector together in its target file
+body[data-home-variant="student"] #accordion .node.section .section-title
+    lines: 510[–], 619[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [margin-left]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .node.topic .title
+    lines: 514[–], 1530[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [border-radius]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-topic-badge
+    lines: 536[–], 2985[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body[data-home-variant="student"] #accordion .home-badges-head .countbox-head
+    lines: 561[–], 596[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body[data-home-variant="student"] #accordion .home-section-pct
+    lines: 571[–], 2952[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [width,min-width,justify-self]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-section-cov
+    lines: 582[–], 2952[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [width,min-width,justify-self]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-badges-head .home-badge-label
+    lines: 600[–], 2944[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [text-align,justify-self]
+    → @layer or specificity bump (order-dependent within same media context)
+0%
+    lines: 678[–], 802[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+100%
+    lines: 680[–], 802[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.run-head
+    lines: 717[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.qwrap
+    lines: 740[–], 894[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.qfig
+    lines: 751[–], 895[(max-width:640px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [min-height]
+    → benign — keep all breakpoints of a selector together in its target file
+#summary .stats>div.stat-compact
+    lines: 832[–], 838[(max-width: 520px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [display]
+    → benign — keep all breakpoints of a selector together in its target file
+.list-meta
+    lines: 859[–], 3604P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.task-card .task-stem
+    lines: 1023[–], 1301[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.ws-item .ws-stem
+    lines: 1023[–], 1301[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.task-card:has(.task-fig)
+    lines: 1025[–], 1306[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig)
+    lines: 1025[–], 1306[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card:has(.task-fig) .task-fig
+    lines: 1036[–], 1340[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin,justify-self]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig) .ws-fig
+    lines: 1038[–], 1340[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin,justify-self]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-fig[data-fig-type="vectors"]
+    lines: 1047[–], 1154[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.ws-fig[data-fig-type="vectors"]
+    lines: 1047[–], 1154[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.task-card:has(.task-fig[data-fig-type="vectors"])
+    lines: 1054[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="vectors"])
+    lines: 1054[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card:has(.task-fig[data-fig-type="vectors"]) .task-fig
+    lines: 1067[–], 1348[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-fig
+    lines: 1067[–], 1348[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card:has(.task-fig[data-fig-type="vectors"]) .task-ans
+    lines: 1088[–], 1373[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [align-self,margin-bottom]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="vectors"]) .ws-ans
+    lines: 1088[–], 1373[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [align-self,margin-bottom]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="vectors"]) .video-solution-slot
+    lines: 1093[–], 1384[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-left]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card:has(.task-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"])
+    lines: 1119[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="derivatives"][data-fig-orientation="portrait"])
+    lines: 1119[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,grid-template-rows,grid-template-areas]
+    → benign — keep all breakpoints of a selector together in its target file
+.task-card:has(.task-fig[data-fig-type="graphs"])
+    lines: 1129[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+.ws-item:has(.ws-fig[data-fig-type="graphs"])
+    lines: 1129[–], 1316[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+.modal-stats-badge
+    lines: 1197[–], 1214[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.modal-date-badge
+    lines: 1197[–], 1215[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.ws-item .ws-ans-wrap
+    lines: 1267[–], 1380[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.page-head
+    lines: 1553[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+header#appHeader.page-head .page-head-right .auth-mini
+    lines: 1593[(max-width: 1024px)], 1848[(max-width: 1024px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.print-btn
+    lines: 1620[–], 1631[(max-width:600px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.fixed-mini-card
+    lines: 1743[–], 1791[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns,align-items]
+    → benign — keep all breakpoints of a selector together in its target file
+.fixed-mini-num
+    lines: 1754[–], 1798[(max-width: 720px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.auth-mini
+    lines: 1839[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.home-icon-btn
+    lines: 1842[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.modal
+    lines: 1905[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.modal-backdrop
+    lines: 1915[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.modal-body
+    lines: 1975[–], 2104[(max-width: 860px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+.tp-nav
+    lines: 1981[–], 2105[(max-width: 860px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [border-right]
+    → benign — keep all breakpoints of a selector together in its target file
+.hw-summary-head
+    lines: 2126[–], 3604P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.hw-review-controls
+    lines: 2136[–], 3604P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.video-solution-btn
+    lines: 2182[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.vs-modal
+    lines: 2268[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.vs-modal-backdrop
+    lines: 2278[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.user-menu-btn
+    lines: 2340[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.hw-bell
+    lines: 2363[–], 3640P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [display,width,height]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.hw-bell--top
+    lines: 2388[–], 3640P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.hw-bell--menu
+    lines: 2396[–], 3640P[print]   (P=@media print, [..]=media ctx, –=base)
+    screen+print on [width,height]
+    → split-safe (screen→page/base.css, print→print.css; @media print isolates)
+.user-menu
+    lines: 2494[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.smart-panel
+    lines: 2649[–], 3570P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.smart-hw-grid
+    lines: 2719[–], 2728[(max-width: 860px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+.smart-hw-search
+    lines: 2802[–], 2812[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.smart-hw-sort
+    lines: 2802[–], 2814[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+.profile-titlebar
+    lines: 2833[–], 2856[(max-width: 1024px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [align-items]
+    → benign — keep all breakpoints of a selector together in its target file
+#profileGrid
+    lines: 2848[(max-width: 1024px)], 2865[(max-width: 520px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [grid-template-columns]
+    → benign — keep all breakpoints of a selector together in its target file
+body[data-home-variant="student"] #accordion .home-badges-head .row > .countbox
+    lines: 2926[–], 3060[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges
+    lines: 2934[–], 3024[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .node.section > .row > .spacer
+    lines: 2970[–], 3027[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column]
+    → @layer or specificity bump (order-dependent within same media context)
+body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer
+    lines: 2974[–], 3063[–]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-column]
+    → @layer or specificity bump (order-dependent within same media context)
+body.teacher-student-view #accordion .home-topic-badge
+    lines: 3159[–], 3410[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body.teacher-student-view #accordion
+    lines: 3160[–], 3314[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body.teacher-student-view #accordion .node.section > .row
+    lines: 3167[–], 3319[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [display,grid-template-columns,column-gap,align-items]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .node.section > .row > .countbox
+    lines: 3175[–], 3328[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [margin-right,width]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .home-badges-head .countbox-head
+    lines: 3180[–], 3216[–]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
+body.teacher-student-view #accordion .home-section-pct
+    lines: 3191[–], 3365[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [width,min-width,justify-self]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .home-section-cov
+    lines: 3201[–], 3365[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [width,min-width,justify-self]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .home-badges-head
+    lines: 3211[–], 3346[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [padding]
+    → benign — keep all breakpoints of a selector together in its target file
+body.teacher-student-view #accordion .home-badges-head .home-badge-label
+    lines: 3220[–], 3356[(min-width:1025px)]   (P=@media print, [..]=media ctx, –=base)
+    responsive (same prop across different @media) on [text-align,justify-self]
+    → benign — keep all breakpoints of a selector together in its target file
+body.print-layout-active .ws-item .ws-ans-wrap
+    lines: 3741P[print], 3839P[print]   (P=@media print, [..]=media ctx, –=base)
+    ⚠ SAME-CONTEXT conflict on [grid-area]
+    → @layer or specificity bump (order-dependent within same media context)
+body.print-layout-active .print-ans-line
+    lines: 3741P[print], 3857P[print]   (P=@media print, [..]=media ctx, –=base)
+    disjoint
+    → merge
