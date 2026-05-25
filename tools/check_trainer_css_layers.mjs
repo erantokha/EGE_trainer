@@ -1,160 +1,179 @@
-// tools/check_trainer_css_layers.mjs
-// W2.5 governance: verify tasks/trainer.css is structured into declared
-// responsibility layers (L0..L5) and that each layer's invariants hold.
-
+#!/usr/bin/env node
+// check_trainer_css_layers_v2.mjs — governance for the Variant E per-page CSS split (W1.1').
+// Replaces the monolith-era check_trainer_css_layers.mjs once tasks/trainer.css is removed.
+//
+// Invariants (W1.0b §7, adjusted to the real split — see reports/w1_1prime_report.md §7):
+//   tokens.css : only :root / html|body[data-theme] blocks; no @media; no !important.
+//   print.css  : every rule is print-scoped (inside @media print OR body.print-layout-active).
+//   base.css   : declares `@layer tokens, base, page, print;`; NO @media print rules.
+//                (!important allowed but counted — e.g. .hidden; shared/element selectors allowed.)
+//   pages/<p>.css : NO @media print; every class/id/data selector ∈ that page's footprint
+//                   (footprint_matrix.csv); !important counted.
+//   import-discipline: each prod HTML loads exactly tokens+base(+page)(+print) in that order.
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const TDIR = path.join(ROOT, 'tasks/trainer');
+const errors = [], warns = [];
+const E = (m) => errors.push(m);
+const W = (m) => warns.push(m);
+const read = (p) => fs.readFileSync(p, 'utf8');
 
-const ROOT = process.cwd();
-const FILE = path.join(ROOT, 'tasks', 'trainer.css');
-
-const SCREEN_LAYERS = new Set([0, 1, 2, 3]);
-const PRINT_LEGACY = 4;
-const PRINT_STATE_GATED = 5;
-const TOTAL_EXPECTED = 6;
-
-function lineOf(src, idx) {
-  let line = 1;
-  for (let i = 0; i < idx; i++) if (src.charCodeAt(i) === 10) line++;
-  return line;
+// ---- footprint matrix: per-token prod-page set + page→file ----
+const mat = read(path.join(ROOT, 'reports/w1_0b_artifacts/footprint_matrix.csv')).trim().split('\n');
+const cols = mat[0].split(',').slice(3);
+const PROD = new Set(['home_student','home_teacher','trainer','list','unique','hw','hw_create','stats','my_students','student','my_homeworks','my_homeworks_archive','profile','analog','auth','auth_callback','auth_reset','google_complete']);
+const tokenPages = new Map();
+for (const l of mat.slice(1)) {
+  const m = l.match(/^("(?:[^"]|"")*"|[^,]*),([^,]*),([^,]*),(.*)$/); if (!m) continue;
+  const tok = JSON.parse(m[1]).replace(/^[.#]/, ''); const cells = m[4].split(',').map(Number);
+  const set = new Set(); cols.forEach((p, i) => { if (cells[i] && PROD.has(p)) set.add(p); });
+  tokenPages.set(tok, set);
 }
+const FILE_PAGES = { // page-file → which prod pages it serves (for footprint membership)
+  'home-student': ['home_student'], 'home-teacher': ['home_teacher'], 'trainer': ['trainer'],
+  'list': ['list'], 'unique': ['unique'], 'hw': ['hw'], 'hw-create': ['hw_create'],
+  'stats': ['stats'], 'my-students': ['my_students'], 'student': ['student'],
+  'my-homeworks': ['my_homeworks', 'my_homeworks_archive'], 'profile': ['profile'], 'analog': ['analog'],
+};
 
-// Replace every /* ... */ comment AND every "..." / '...' string literal with
-// whitespace of the same length, preserving newline positions so line numbers
-// stay accurate when scanning the stripped text.
-function stripCommentsAndStrings(src) {
-  const buf = src.split('');
-  const n = buf.length;
-  let i = 0;
-  while (i < n) {
-    const c = buf[i];
-    const c2 = buf[i + 1];
-    if (c === '/' && c2 === '*') {
-      const end = src.indexOf('*/', i + 2);
-      const stop = end === -1 ? n : end + 2;
-      for (let j = i; j < stop; j++) if (buf[j] !== '\n') buf[j] = ' ';
-      i = stop;
-      continue;
-    }
-    if (c === '"' || c === "'") {
-      const q = c;
-      let j = i + 1;
-      while (j < n && buf[j] !== q) {
-        if (buf[j] === '\\' && j + 1 < n) j += 2;
-        else j++;
+// ---- minimal CSS leaf walker (comment/string aware), yields {selector, mediaStack, important} ----
+function walkRules(css, cb) {
+  let i = 0, n = css.length, start = 0; const media = [];
+  const sstr = (q) => { i++; while (i < n) { if (css[i] === '\\') i += 2; else if (css[i] === q) { i++; break; } else i++; } };
+  function scan(text, off) {
+    let j = 0, m = text.length, s = 0; const sk = (q) => { j++; while (j < m) { if (text[j] === '\\') j += 2; else if (text[j] === q) { j++; break; } else j++; } };
+    while (j < m) {
+      const c = text[j];
+      if (c === '/' && text[j + 1] === '*') { j += 2; while (j < m && !(text[j] === '*' && text[j + 1] === '/')) j++; j += 2; continue; }
+      if (c === '"' || c === "'") { sk(c); continue; }
+      if (c === '{') {
+        const head = text.slice(s, j).replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        let d = 1, k = j + 1;
+        while (k < m && d) { const e = text[k]; if (e === '/' && text[k + 1] === '*') { k += 2; while (k < m && !(text[k] === '*' && text[k + 1] === '/')) k++; k += 2; continue; } if (e === '"' || e === "'") { const q = e; k++; while (k < m) { if (text[k] === '\\') k += 2; else if (text[k] === q) { k++; break; } else k++; } continue; } if (e === '{') d++; else if (e === '}') d--; k++; }
+        const body = text.slice(j + 1, k - 1);
+        if (/^@media\b/i.test(head)) { media.push(head); scan(body); media.pop(); }
+        else if (/^@layer\b/i.test(head)) { scan(body); }
+        else if (/^@(keyframes|font-face|supports|page)\b/i.test(head)) { /* skip */ }
+        else cb({ selector: head, media: media.slice(), important: /!important/i.test(body) });
+        j = k; s = j; continue;
       }
-      const stop = Math.min(n, j + 1);
-      for (let k = i; k < stop; k++) if (buf[k] !== '\n') buf[k] = ' ';
-      i = stop;
-      continue;
+      if (c === ';') { j++; s = j; continue; }
+      j++;
     }
-    i++;
   }
-  return buf.join('');
+  scan(css, 0);
+}
+function selTokens(sel) {
+  const cleaned = sel.replace(/\[[^\]]*\]/g, ' ').replace(/["'][^"']*["']/g, ' ');
+  return [...cleaned.matchAll(/[.#](-?[A-Za-z_][\w-]*)/g)].map((m) => m[1]);
+}
+const exists = (p) => fs.existsSync(path.join(TDIR, p));
+
+// ---- tokens.css ----
+if (!exists('tokens.css')) E('tokens.css missing');
+else walkRules(read(path.join(TDIR, 'tokens.css')), (r) => {
+  if (r.media.length) E(`tokens.css: @media not allowed (${r.selector})`);
+  for (const s of r.selector.split(',').map((x) => x.trim())) {
+    if (!/^:root\b/.test(s) && !/^(html|body)\[data-theme/.test(s) && !/^\[data-theme/.test(s))
+      E(`tokens.css: non-token selector "${s}"`);
+  }
+  if (r.important) E(`tokens.css: !important not allowed (${r.selector})`);
+});
+
+// ---- print.css ----
+if (!exists('print.css')) E('print.css missing');
+else walkRules(read(path.join(TDIR, 'print.css')), (r) => {
+  const printScoped = r.media.some((m) => /\bprint\b/.test(m)) || /\bprint-layout-active\b/.test(r.selector);
+  if (!printScoped) E(`print.css: non-print rule "${r.selector}" (media=${r.media.join('|') || 'none'})`);
+});
+
+// ---- base.css ----
+let baseImp = 0;
+if (!exists('base.css')) E('base.css missing');
+else {
+  const base = read(path.join(TDIR, 'base.css'));
+  // No @layer (see report §6): layered !important inverts base-vs-print precedence and broke
+  // print parity. Cascade is guaranteed by <link> order instead (import-discipline check below).
+  walkRules(base, (r) => {
+    if (r.media.some((m) => /\bprint\b/.test(m))) E(`base.css: @media print rule must live in print.css ("${r.selector}")`);
+    if (r.important) baseImp++;
+  });
 }
 
-function findMatchingBrace(stripped, openIdx) {
-  let depth = 1;
-  for (let i = openIdx + 1; i < stripped.length; i++) {
-    if (stripped[i] === '{') depth++;
-    else if (stripped[i] === '}') {
-      depth--;
-      if (depth === 0) return i;
-    }
-  }
-  return -1;
-}
-
-function main() {
-  const src = fs.readFileSync(FILE, 'utf8');
-  const stripped = stripCommentsAndStrings(src);
-
-  // Layer markers live INSIDE comments, so match them against the ORIGINAL src.
-  const markerRe = /\/\*\s*=+\s*[\r\n]+\s*L(\d+)\s*·\s*([^\r\n]+)/g;
-  const markers = [];
-  for (const m of src.matchAll(markerRe)) {
-    markers.push({ L: +m[1], name: m[2].trim(), at: m.index });
-  }
-  if (markers.length !== TOTAL_EXPECTED) {
-    fail(`expected ${TOTAL_EXPECTED} layer markers, found ${markers.length}`);
-  }
-  for (let i = 0; i < markers.length; i++) {
-    if (markers[i].L !== i) fail(`markers must be L0..L5 in order, got ${markers.map(m => m.L).join(',')}`);
-  }
-
-  const mpStart = stripped.search(/@media\s+print\s*\{/);
-  if (mpStart === -1) fail('@media print { ... } block not found');
-  const mpOpen = stripped.indexOf('{', mpStart);
-  const mpClose = findMatchingBrace(stripped, mpOpen);
-  if (mpClose === -1) fail('@media print { ... } is unterminated');
-
-  const violations = [];
-  for (let i = 0; i < markers.length; i++) {
-    const rawFrom = markers[i].at;
-    const rawTo = i + 1 < markers.length ? markers[i + 1].at : src.length;
-
-    // Clip each layer to its legal scope:
-    //   screen layers (L0..L3) live BEFORE `@media print { ... }`;
-    //   print layers (L4, L5) live INSIDE `@media print { ... }`.
-    let from = rawFrom;
-    let to = rawTo;
-    if (SCREEN_LAYERS.has(markers[i].L)) {
-      to = Math.min(to, mpStart);
-    } else {
-      to = Math.min(to, mpClose);
-    }
-    const r = { L: markers[i].L, from, to };
-    const blockStripped = stripped.slice(r.from, r.to);
-    const inPrintBlock = r.from > mpOpen && r.from < mpClose;
-
-    if (SCREEN_LAYERS.has(r.L)) {
-      const m1 = /body\.print-layout-active/.exec(blockStripped);
-      if (m1) violations.push(v(`L${r.L}`, 'screen layer must NOT reference body.print-layout-active', r.from + m1.index, src));
-      const m2 = /@media\s+print\s*\{/.exec(blockStripped);
-      if (m2) violations.push(v(`L${r.L}`, 'screen layer must NOT contain @media print block', r.from + m2.index, src));
-      continue;
-    }
-
-    if (r.L === PRINT_LEGACY || r.L === PRINT_STATE_GATED) {
-      if (!inPrintBlock) violations.push(v(`L${r.L}`, 'print layer must be nested inside @media print', r.from, src));
-
-      // Extract every `<selectors> {` that opens a rule inside this layer block.
-      // Use the stripped buffer so comments/strings cannot confuse the regex.
-      const openRe = /([^{};@]*?)\{/g;
-      openRe.lastIndex = 0;
-      let m;
-      while ((m = openRe.exec(blockStripped)) !== null) {
-        const localOpen = m.index + m[0].length - 1;
-        if (r.from + localOpen >= r.to) break;
-        const selectorText = m[1];
-        const selPos = r.from + m.index;
-        // Skip @-rules and keyframes (no selector before `{`, or starts with '@').
-        const trimmed = selectorText.trim();
-        if (!trimmed || trimmed.startsWith('@')) continue;
-        for (const part of trimmed.split(',').map(s => s.trim()).filter(Boolean)) {
-          if (r.L === PRINT_LEGACY && part.startsWith('body.print-layout-active')) {
-            violations.push(v('L4', `legacy selector must NOT start with body.print-layout-active: "${part.slice(0, 80)}"`, selPos, src));
-          }
-          if (r.L === PRINT_STATE_GATED && !part.startsWith('body.print-layout-active')) {
-            violations.push(v('L5', `state-gated selector must start with body.print-layout-active: "${part.slice(0, 80)}"`, selPos, src));
-          }
-        }
+// ---- pages/*.css ----
+let pageImp = 0;
+const pagesDir = path.join(TDIR, 'pages');
+for (const f of (fs.existsSync(pagesDir) ? fs.readdirSync(pagesDir) : [])) {
+  if (!f.endsWith('.css')) continue;
+  const name = f.replace(/\.css$/, '');
+  const servePages = FILE_PAGES[name];
+  if (!servePages) { E(`pages/${f}: unknown page file (not in FILE_PAGES map)`); continue; }
+  walkRules(read(path.join(pagesDir, f)), (r) => {
+    if (r.media.some((m) => /\bprint\b/.test(m))) E(`pages/${f}: @media print rule must live in print.css ("${r.selector}")`);
+    if (r.important) pageImp++;
+    for (const s of r.selector.split(',').map((x) => x.trim())) {
+      const toks = selTokens(s);
+      if (!toks.length) continue; // element/global selector — allowed
+      // every token must be used by at least one page this file serves
+      for (const t of toks) {
+        const pages = tokenPages.get(t);
+        if (!pages) continue; // unknown token (e.g. dynamically-suffixed) — skip
+        if (pages.size === 0) continue; // dead-candidate carried as-is (W1.1' §3) — allowed
+        if (!servePages.some((p) => pages.has(p)))
+          E(`pages/${f}: selector "${s}" token ".${t}" not in footprint of ${servePages.join('/')} (used by: ${[...pages].join(',') || 'none'})`);
       }
     }
-  }
-
-  if (violations.length) {
-    console.error('trainer.css layer invariants violated:');
-    for (const x of violations) console.error(`  ${path.relative(ROOT, FILE)}:${x.line} [${x.layer}] ${x.rule}`);
-    process.exit(1);
-  }
-
-  console.log('trainer.css layers ok');
-  console.log(`layers=${markers.length} print-scope=${lineOf(src, mpOpen)}..${lineOf(src, mpClose)}`);
+  });
 }
 
-function v(layer, rule, idx, src) { return { layer, rule, line: lineOf(src, idx) }; }
+// ---- import-discipline (prod HTML) ----
+// Page files exist only for pages with screen-exclusive selectors (9). hw/home_teacher/
+// analog/stats have NO exclusive screen CSS (all in base/print) → no page file.
+// print.css only where print lifecycle runs: trainer/list/unique/hw/hw_create.
+const HTML = {
+  'home_student.html': ['tokens', 'base', 'pages/home-student'],
+  'home_teacher.html': ['tokens', 'base'],
+  'tasks/trainer.html': ['tokens', 'base', 'pages/trainer', 'print'],
+  'tasks/list.html': ['tokens', 'base', 'pages/list', 'print'],
+  'tasks/unique.html': ['tokens', 'base', 'pages/unique', 'print'],
+  'tasks/hw.html': ['tokens', 'base', 'print'],
+  'tasks/hw_create.html': ['tokens', 'base', 'pages/hw-create', 'print'],
+  'tasks/analog.html': ['tokens', 'base'],
+  'tasks/stats.html': ['tokens', 'base'],
+  'tasks/my_students.html': ['tokens', 'base', 'pages/my-students'],
+  'tasks/student.html': ['tokens', 'base', 'pages/student'],
+  'tasks/my_homeworks.html': ['tokens', 'base', 'pages/my-homeworks'],
+  'tasks/my_homeworks_archive.html': ['tokens', 'base', 'pages/my-homeworks'],
+  'tasks/profile.html': ['tokens', 'base', 'pages/profile'],
+  'tasks/auth.html': ['tokens', 'base'],
+  'tasks/auth_callback.html': ['tokens', 'base'],
+  'tasks/auth_reset.html': ['tokens', 'base'],
+  'tasks/google_complete.html': ['tokens', 'base'],
+};
+function linksOf(html) {
+  const out = [];
+  for (const m of html.matchAll(/<link\b[^>]*\bhref=["']([^"']+)["']/gi)) {
+    const href = m[1].split('?')[0];
+    const mm = href.match(/trainer\/(tokens|base|print|pages\/[a-z-]+)\.css$/);
+    if (mm) out.push(mm[1]);
+  }
+  return out;
+}
+for (const [rel, expect] of Object.entries(HTML)) {
+  const fp = path.join(ROOT, rel);
+  if (!fs.existsSync(fp)) { E(`import-discipline: ${rel} missing`); continue; }
+  const got = linksOf(read(fp));
+  if (JSON.stringify(got) !== JSON.stringify(expect))
+    E(`import-discipline: ${rel} loads [${got.join(', ')}] expected [${expect.join(', ')}]`);
+}
 
-function fail(msg) { console.error(`check_trainer_css_layers: ${msg}`); process.exit(1); }
+// ---- monolith must be gone ----
+if (fs.existsSync(path.join(ROOT, 'tasks/trainer.css'))) E('tasks/trainer.css still exists — monolith must be removed in W1.1\'');
 
-try { main(); } catch (e) { console.error('check_trainer_css_layers failed:', e?.stack || e); process.exit(2); }
+// ---- report ----
+console.log(`trainer css layers v2: base !important=${baseImp}, pages !important=${pageImp}`);
+if (warns.length) { console.log('warnings:'); warns.forEach((w) => console.log('  ! ' + w)); }
+if (errors.length) { console.error(`FAIL (${errors.length}):`); errors.forEach((e) => console.error('  ✗ ' + e)); process.exit(1); }
+console.log('trainer css layers v2 ok');

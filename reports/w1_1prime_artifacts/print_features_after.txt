@@ -1,0 +1,50 @@
+
+[1mPrint Features — Автотесты[0m
+Playwright 1.59.1
+
+
+[1m[36mSuite A — CSS-правила @media print[0m
+  [32m✅[0m На экране: .print-ans-line скрыт (display: none)
+  [32m✅[0m На экране: .print-custom-title скрыт (display: none)
+  [32m✅[0m На экране: .hw-create-ans скрыт (display: none)
+  [32m✅[0m @media print без print-layout-active: .print-ans-line остаётся скрыт
+  [32m✅[0m @media print + print-layout-active: .print-ans-line виден
+  [32m✅[0m @media print + print-layout-active: .print-custom-title виден
+  [32m✅[0m @media print + print-layout-active: .ws-item имеет break-inside: avoid
+  [32m✅[0m @media print + print-layout-active: .ws-stem имеет break-after: avoid
+  [32m✅[0m @media print + print-layout-active: .task-stem имеет break-after: avoid
+  [32m✅[0m @media print + print-layout-active: .node.topic > .row имеет break-after: avoid
+  [32m✅[0m @media print + print-layout-active: .ws-ans скрыт (без print-with-answers)
+  [32m✅[0m @media print + print-layout-active: .task-ans скрыт (без print-with-answers)
+  [32m✅[0m @media print + print-with-answers: .ws-ans виден
+  [32m✅[0m @media print + print-with-answers: .print-ans-line скрыт
+  [32m✅[0m @media print + print-with-answers: .ws-ans summary скрыт
+  [32m✅[0m @media print + print-with-answers: .ws-ans-text::before содержит "Ответ"
+  [32m✅[0m @media print + print-with-answers: .hw-create-ans виден
+  [32m✅[0m @media print + print-with-answers: .hw-create-ans::before содержит "Ответ"
+  [32m✅[0m @media print: #addedBox показан даже с классом .hidden
+
+[1m[36mSuite B — Диалог печати (UI)[0m
+  [32m✅[0m Кнопка #printBtn присутствует на странице
+  [32m✅[0m До клика диалог отсутствует
+  [32m✅[0m После клика диалог появляется
+  [32m✅[0m Диалог содержит поле заголовка #pdTitleInput
+  [32m✅[0m [hideAnswers=false] Диалог содержит чекбокс #pdWithAnswers
+  [32m✅[0m Кнопка «Отмена» закрывает диалог
+  [32m✅[0m Клавиша Escape закрывает диалог
+  [32m✅[0m Enter в поле заголовка подтверждает диалог
+  [32m✅[0m Подтверждение передаёт title и withAnswers в настройки
+  [32m✅[0m window.print() вызывается после подтверждения
+  [32m✅[0m [hideAnswers=true] Диалог НЕ содержит #pdWithAnswers
+  [32m✅[0m [hideAnswers=true] Кнопка «Печать» не падает с ошибкой
+  [32m✅[0m [hideAnswers=true] withAnswers === false в настройках
+
+[1m[36mSuite C — Принудительная загрузка lazy-картинок[0m
+  [32m✅[0m Изначально есть img[loading="lazy"]
+  [32m✅[0m После forceLoadImages нет img[loading="lazy"]
+  [32m✅[0m После forceLoadImages все img имеют loading="eager"
+  [32m✅[0m forceLoadImages завершается быстрее таймаута (< 13 с)
+
+════════════════════════════════════════════════════════
+  [32mПрошло: 36[0m   [32mУпало: 0[0m
+
