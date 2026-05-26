@@ -1,0 +1,231 @@
+/* =============================================================================
+   EGE-trainer · colors_and_type.css
+   Extracted from tasks/trainer/tokens.css + base.css + landing.css.
+   These are the canonical foundation tokens for designing for EGE-trainer.
+   Load this first, then base.css for component-level styles.
+   ========================================================================== */
+
+:root {
+  /* -------------------------------------------------------------------------
+     COLOR · SURFACE / TEXT (light theme — DEFAULT)
+     Source: tasks/trainer/tokens.css :root
+     ----------------------------------------------------------------------- */
+  --bg:        #ffffff;       /* page background */
+  --panel:     #ffffff;       /* card body */
+  --panel-2:   #e5e7eb;       /* sunken / secondary panel (slate-200) */
+  --muted:     #ffffff;       /* button/input fill (intentionally white in light) */
+  --border:    #d1d5db;       /* slate-300 — universal hairline */
+  --text:      #111827;       /* slate-900 — body copy */
+  --text-dim:  #6b7280;       /* slate-500 — secondary / captions */
+
+  /* -------------------------------------------------------------------------
+     COLOR · ACCENT / SEMANTIC
+     ----------------------------------------------------------------------- */
+  --accent:    #2563eb;       /* blue-600 — primary action, links */
+  --accent-2:  #1d4ed8;       /* blue-700 — hover / pressed accent */
+  --success:   #059669;       /* emerald-600 — correct, "analog" CTA */
+  --danger:    #dc2626;       /* red-600 — error, destructive */
+
+  /* Landing-specific extensions (landing.css :root) */
+  --surface:       #f8fafc;   /* slate-50 — sectioned bands */
+  --surface2:      #f1f5f9;   /* slate-100 — chrome / titlebar */
+  --accent-light:  #dbeafe;   /* blue-100 — eyebrow / avatar bg */
+  --accent-hover:  #1d4ed8;   /* alias of --accent-2 */
+  --green:         #16a34a;
+  --amber:         #d97706;
+  --red:           #dc2626;
+  --text-muted:    #64748b;   /* alias landing.css text-dim */
+
+  /* -------------------------------------------------------------------------
+     COLOR · STATUS BADGE TINTS (used on .badge, .stat-*, .modal-stats-badge)
+     Tints are translucent over current bg → work in both themes.
+     ----------------------------------------------------------------------- */
+  --tint-gray:   rgba(148,163,184,.10);   /* slate-400 @ 10% */
+  --tint-green:  rgba(16,185,129,.12);
+  --tint-lime:   rgba(132,204,22,.14);
+  --tint-yellow: rgba(245,158,11,.16);
+  --tint-red:    rgba(239,68,68,.14);
+
+  /* -------------------------------------------------------------------------
+     ELEVATION · SHADOW · RADIUS
+     ----------------------------------------------------------------------- */
+  --shadow:     0 8px 20px rgba(15,23,42,.12);   /* card / panel */
+  --shadow-lg:  0 8px 32px rgba(15,23,42,.14);   /* modal / mock */
+  --shadow-md:  0 4px 16px rgba(15,23,42,.08);   /* feature card */
+  --shadow-modal: 0 20px 50px rgba(0,0,0,.22);
+
+  --radius:        12px;             /* default card radius */
+  --radius-sm:     10px;
+  --radius-md:     12px;
+  --radius-lg:     16px;
+  --radius-pill:   999px;
+
+  /* -------------------------------------------------------------------------
+     TYPE · FAMILIES
+     The product ships with NO web fonts. It uses the host system stack
+     declared in tasks/trainer/base.css `body`. Landing uses a -apple stack.
+     ----------------------------------------------------------------------- */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell,
+               "Noto Sans", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  --font-landing: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                  "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+  --font-tnum: var(--font-sans);   /* combined with font-variant-numeric: tabular-nums */
+
+  /* -------------------------------------------------------------------------
+     TYPE · SIZE SCALE  (tokens.css W1.1' additive scale)
+     The product otherwise uses literals (13/14/15/16/18/20/26 px) inline.
+     ----------------------------------------------------------------------- */
+  --fs-2xs: 11px;
+  --fs-xs:  12px;
+  --fs-sm:  13px;
+  --fs-md:  14px;   /* body default */
+  --fs-lg:  16px;
+  --fs-xl:  18px;
+  --fs-2xl: 20px;   /* h2 */
+  --fs-3xl: 26px;   /* h1 */
+
+  /* Landing hero / display sizing is fluid via clamp() — see landing.css.
+     Reference values (desktop max):                                          */
+  --fs-hero:    64px;   /* clamp(34px, 6vw, 64px) */
+  --fs-display: 52px;   /* clamp(36px, 5vw, 52px) */
+  --fs-section: 30px;   /* clamp(22px, 3vw, 30px) */
+
+  --lh-tight: 1.1;
+  --lh-snug:  1.25;
+  --lh-body:  1.45;   /* base.css body */
+  --lh-loose: 1.7;    /* landing copy */
+
+  --tracking-tight: -0.04em;
+  --tracking-snug:  -0.02em;
+  --tracking-eyebrow: 0.06em;
+
+  /* -------------------------------------------------------------------------
+     SPACE · DURATION · FOCUS
+     ----------------------------------------------------------------------- */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 14px;
+  --space-8: 16px;
+  --space-10: 20px;
+  --space-12: 24px;
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
+  --focus-ring: rgba(59,130,246,.35);   /* blue-500 @ 35% */
+
+  --figure-h: 300px;                     /* trainer figure box */
+}
+
+/* ============================================================================
+   DARK THEME (opt-in via html[data-theme="dark"] or body[data-theme="dark"])
+   ========================================================================== */
+html[data-theme="dark"],
+body[data-theme="dark"]{
+  --bg:       #0e1117;
+  --panel:    #111827;
+  --panel-2:  #0f1623;
+  --border:   #232635;
+  --text:     #e6e6e6;
+  --text-dim: #aeb3c2;
+  --accent:   #3b82f6;
+  --accent-2: #2563eb;
+  --success:  #10b981;
+  --danger:   #ef4444;
+  --muted:    #1b1d24;
+  --shadow:   0 8px 24px rgba(0,0,0,.25);
+}
+
+/* ============================================================================
+   SEMANTIC TYPE — short, namespaced helpers for design recreations.
+   They mirror what the product actually does inline.
+   ========================================================================== */
+
+.ds-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-3xl);          /* 26px */
+  font-weight: 700;
+  line-height: var(--lh-snug);
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.ds-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xl);          /* 20px */
+  font-weight: 700;
+  line-height: var(--lh-snug);
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.ds-h-modal {                         /* .modal-title, dialog headers */
+  font-size: var(--fs-lg);            /* 16px */
+  font-weight: 600;
+}
+
+.ds-body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);            /* 14px */
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+.ds-small,
+.ds-meta {
+  font-size: var(--fs-sm);            /* 13px */
+  color: var(--text-dim);
+}
+
+.ds-micro,
+.ds-caption {
+  font-size: var(--fs-xs);            /* 12px */
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.ds-tnum { font-variant-numeric: tabular-nums; }
+
+.ds-eyebrow {                         /* hero eyebrow pill */
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ds-display {                         /* landing hero */
+  font-family: var(--font-landing);
+  font-size: clamp(34px, 6vw, 64px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
+}
+
+.ds-stat {                            /* big number on dark bg */
+  font-family: var(--font-landing);
+  font-size: clamp(36px, 5vw, 52px);
+  font-weight: 800;
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+}
+
+/* ============================================================================
+   FOCUS / FONT SMOOTHING DEFAULTS (matches body in base.css)
+   ========================================================================== */
+html, body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  line-height: var(--lh-body);
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
