@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-26-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-26-2';
-import { CONFIG } from '../app/config.js?v=2026-05-26-2';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-26-2';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-26-2';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-26-2';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-26-2';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-26-2';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-26-2';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-26-2';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-26-2';
+import { withBuild } from '../app/build.js?v=2026-05-27-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-27-1';
+import { CONFIG } from '../app/config.js?v=2026-05-27-1';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-27-1';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-27-1';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-27-1';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-27-1';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-27-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-27-1';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-27-1';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-27-1';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-26-2';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-27-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
