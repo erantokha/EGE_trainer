@@ -1,0 +1,13 @@
+# W2.0 dead-code candidates — CANDIDATES, NOT assertions (verify before any removal).
+# Criterion: whole-word reference count == 1 (only the definition appears anywhere in picker.js).
+# No dynamic dispatch exists (eval/Function/globalThis[]/window[] = 0), so this is reliable,
+# BUT a function could still be referenced from another file — picker.js has 0 exports, so it
+# cannot; thus refs==1 within picker.js means truly unused. Still: confirm in a hygiene wave.
+
+## DEAD CANDIDATES (refs == 1):
+  collectManifestQuestionIds  (L772, Util: collect all unique prototype question ids from a topic manifest.)
+  openAddedTasksModal  (L4371, Teacher: open added-tasks modal — sync selection then render the preview (full path).)
+
+## WIRED-FROM-TOP-LEVEL (0 named-function callers, but referenced from module-init/handler — NOT dead):
+  _syncHtThermoHeight  (L1190, refs=3, Teacher (desktop): set --ht-thermo-h CSS var from badges-head row height, via ResizeObserver.)
+  initAuthHeader  (L2183, refs=2, Auth (legacy header): wire login/menu/logout for pages without the unified appHeader; else no-op.)

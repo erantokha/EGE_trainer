@@ -1,0 +1,45 @@
+# W2.0 import-graph — tasks/picker.js (exports = 0; side-effect script)
+
+import { withBuild } from '../app/build.js'   (line 11)
+    withBuild: 4 call-site(s)
+
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js'   (line 12)
+    supabase: 8 call-site(s)
+    getSession: 5 call-site(s)
+    signInWithGoogle: 2 call-site(s)
+    signOut: 3 call-site(s)
+    finalizeOAuthRedirect: 3 call-site(s)
+
+import { CONFIG } from '../app/config.js'   (line 13)
+    CONFIG: 3 call-site(s)
+
+import { supaRest } from '../app/providers/supabase-rest.js'   (line 14)
+    supaRest: 2 call-site(s)
+
+import { loadCatalogIndexLike } from '../app/providers/catalog.js'   (line 15)
+    loadCatalogIndexLike: 2 call-site(s)
+
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js'   (line 16)
+    listMyStudents: 4 call-site(s)
+    questionStatsForTeacherV1: 3 call-site(s)
+    loadTeacherPickingScreenV2: 3 call-site(s)
+    loadTeacherPickingResolveBatchV1: 2 call-site(s)
+
+import { pickQuestionsScopedForList } from './pick_engine.js'   (line 17)
+    pickQuestionsScopedForList: 7 call-site(s)
+
+import { setStem } from '../app/ui/safe_dom.js'   (line 18)
+    setStem: 2 call-site(s)
+
+import { toAbsUrl } from '../app/core/url_path.js'   (line 19)
+    toAbsUrl: 5 call-site(s)
+
+import { baseIdFromProtoId } from '../app/core/pick.js'   (line 20)
+    baseIdFromProtoId: 3 call-site(s)
+
+import { createSessionLink } from '../app/providers/task_session.js'   (line 21)
+    createSessionLink: 4 call-site(s)
+
+EXPORT SURFACE: 0 (grep -c "^export" = 0). picker.js is a side-effect script invoked by
+home_student.html / home_teacher.html via <script type="module">. W2.1' must INTRODUCE
+exports in the new modules (shared core exports utils/state; role modules export an init()).

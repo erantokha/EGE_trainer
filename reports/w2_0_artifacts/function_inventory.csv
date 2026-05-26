@@ -1,0 +1,177 @@
+name,line,end,kind,signature,intent,consumers,consumer_count,exposed_to_dom,refs,status
+"normalizeTeacherFilterId",68,72,sync,"value","Teacher: validate a picking-filter id against the allowed set, returning null if invalid.","loadTeacherPickFilterId|saveTeacherPickFilterId|syncTeacherPickFiltersUI|initTeacherPickFiltersUI|getActiveTeacherFilterId|getTeacherAddedTasksContextKey",6,no,7,called
+"loadTeacherPickFilterId",73,80,sync,"","Teacher: read the persisted picking-filter id from sessionStorage.","initTeacherPickFiltersUI",1,no,2,called
+"saveTeacherPickFilterId",81,91,sync,"filterId","Teacher: persist (or clear) the picking-filter id in sessionStorage.","initTeacherPickFiltersUI",1,no,2,called
+"setTeacherPickFiltersEnabled",92,96,sync,"enabled","Teacher: enable/disable the hidden filter radio inputs (gated on a student being selected).","initTeacherPickFiltersUI|setTeacherStudentViewUI",2,no,3,called
+"syncTeacherPickFiltersUI",97,109,sync,"","Teacher: reflect the current filter id into the hidden filter radio checked-states.","initTeacherPickFiltersUI",1,no,2,called
+"initTeacherPickFiltersUI",110,132,sync,"","Teacher: one-time wiring of the picking-filter radios + restore persisted filter on boot.","initAuthHeader",1,no,2,called
+"getActiveTeacherFilterId",133,152,sync,"studentId = null","Teacher: resolve the effective filter id for a given/selected student (null if none).","loadTeacherStudentStats|buildHwCreatePrefill|pickQuestionsViaTeacherScreenResolve|pickQuestionsViaTeacherScreenResolveBatch|saveSelectionAndGo",5,no,6,called
+"isStudentLikeHome",153,160,sync,"","Branch helper: true on student home, or teacher home with a student selected (stats UI).","setHomeStatsLoading|updateScoreThermo|updateScoreForecast|clearStudentLast10UI|applyDashboardHomeStats|applyTeacherPickingHomeStats|syncHomeTopicBadgesWidth|renderAccordion|renderSectionNode|renderTopicRow",10,no,12,called
+"safeJsonParse",161,164,sync,"raw","Util: JSON.parse wrapper returning null on error.","readTeacherSelectedStudentId|loadTeacherAddedTasksStore",2,no,3,called
+"fmtName",165,166,sync,"x","Util: trim a name-like value to a clean string.","studentLabel",1,no,3,called
+"emailLocalPart",167,174,sync,"email","Util: extract the local part of an email address.","studentLabel",1,no,2,called
+"studentLabel",175,184,sync,"st","Teacher: build a human display label for a student (name, else email local part, else id).","refreshTeacherStudentSelect",1,no,2,called
+"setTeacherStudentStatus",185,189,sync,"msg","Teacher: write a status message into the student-select status element.","refreshTeacherStudentSelect",1,no,6,called
+"readTeacherSelectedStudentId",190,209,sync,"nowMs","Teacher: read the last-selected student id from sessionStorage, honoring a TTL.","refreshTeacherStudentSelect|initAuthHeader",2,no,3,called
+"writeTeacherSelectedStudentId",210,220,sync,"id","Teacher: persist the selected student id (with timestamp) for hw_create autofill.","wireTeacherStudentSelect|refreshTeacherStudentSelect|initCreateHomeworkButton",3,no,4,called
+"wireTeacherStudentSelect",221,230,sync,"sel","Teacher: attach a once-only change handler to the hidden student <select> driving the student view.","refreshTeacherStudentSelect",1,no,2,called
+"setTeacherStudentViewUI",231,241,sync,"studentId","Teacher: set the active viewed-student id, toggle body class, enable filters, notify context change.","applyTeacherStudentView",1,no,2,called
+"loadTeacherStudentStats",242,281,async,"studentId, opts = {}","Teacher: fetch the selected student's picking-screen stats (v2 init) and apply them.","applyTeacherStudentView",1,no,3,called
+"applyTeacherStudentView",282,308,sync,"studentId, opts = {}","Teacher: switch into 'as the student' mode — re-render accordion and load that student's stats.","wireTeacherStudentSelect|refreshTeacherStudentSelect|initAuthHeader",3,no,6,called
+"refreshTeacherStudentSelect",309,536,async,"opts = {}","Teacher: load/refresh the student dropdown via listMyStudents (throttle, dedup, timeouts).","initAuthHeader",1,no,5,called
+"getAppBuildTag",537,544,sync,"","Util: read the app-build meta tag (used for cache-key versioning).","homeLast10CacheKey",1,no,2,called
+"homeLast10CacheKey",545,552,sync,"uid, scope","Student: build the localStorage/sessionStorage cache key for last-10 dashboard data.","loadHomeLast10Cache|saveHomeLast10Cache|invalidateStudentLast10Cache",3,no,7,called
+"setHomeStatsLoading",553,560,sync,"isLoading","Student-like: toggle the home-stats-loading skeleton body class (no-op unless student-like home).","loadTeacherStudentStats|applyTeacherStudentView|clearStudentLast10UI|refreshStudentLast10|applyDashboardHomeStats|applyTeacherPickingHomeStats|initAuthHeader",7,no,13,called
+"readCache",561,570,sync,"storage, key","Util: read+parse a JSON object from a Storage by key, null on failure.","loadHomeLast10Cache",1,no,4,called
+"writeCache",571,574,sync,"storage, key, obj","Util: write a JSON-serialized object into a Storage by key.","saveHomeLast10Cache",1,no,3,called
+"loadHomeLast10Cache",575,595,sync,"uid, nowMs","Student: read cached last-10 dashboard from session/local/legacy storage respecting TTLs.","refreshStudentLast10",1,no,2,called
+"saveHomeLast10Cache",596,623,sync,"uid, dash, nowMs","Student: persist last-10 dashboard to session+local (+legacy) caches with timestamp.","refreshStudentLast10",1,no,3,called
+"pct",624,632,sync,"total, correct","Util: percentage (correct/total*100) rounded, null if total is 0.","setModalStatsBadge|setHomeTopicBadge|applyDashboardHomeStats|buildTeacherPickingHomeModel",4,no,10,called
+"badgeClassByPct",633,642,sync,"p","Util: map a percentage to a badge color class (gray/red/yellow/lime/green).","setModalStatsBadge|setHomeBadge|setHomeCoverageBadge",3,no,4,called
+"fmtPct",643,649,sync,"p","Util: format a percentage as 'N%' or em-dash for null.","setModalStatsBadge|setHomeBadge",2,no,6,called
+"fmtCnt",650,656,sync,"total, correct","Util: format a correct/total counter as 'c/t' (or '0/0').","setModalStatsBadge",1,no,5,called
+"fmtDateTimeRu",657,673,sync,"s","Util: format an ISO date as ru-RU date+time string.","setModalStatsBadge|setModalDateBadge|buildTeacherPickingHomeModel|applyTeacherPickingHomeStats",4,no,5,called
+"fmtDateShortRu",674,688,sync,"s","Util: format an ISO date as a short ru-RU date string.","setModalDateBadge",1,no,2,called
+"badgeClassByLastAttemptAt",689,711,sync,"lastAt","Util: map last-attempt recency (days) to a freshness badge color class.","setModalDateBadge",1,no,2,called
+"getTeacherModalStatsCache",712,722,sync,"studentId, create = false","Teacher: get (optionally create) the per-student in-memory question-stats cache map.","rememberTeacherModalStats|loadTeacherStatsForModal|getTeacherModalCachedAggregate",3,no,5,called
+"rememberTeacherModalStats",723,738,sync,"studentId, statsMap","Teacher: merge a fetched question->stats map into the per-student modal cache.","warmTeacherModalStatsForStudent|loadTeacherStatsForModal",2,no,3,called
+"createEmptyTeacherModalStat",739,748,sync,"","Teacher: build a zeroed question-stat record placeholder.","normalizeTeacherModalStatsMap|loadTeacherStatsForModal",2,no,3,called
+"normalizeTeacherModalStatsMap",749,771,sync,"questionIds, statsMap","Teacher: normalize a stats map to a complete map keyed by the requested question ids.","warmTeacherModalStatsForStudent|loadTeacherStatsForModal",2,no,3,called
+"collectManifestQuestionIds",772,785,sync,"manifest","Util: collect all unique prototype question ids from a topic manifest.","",0,no,1,DEAD-CANDIDATE
+"listVisibleTeacherTopicsForPreload",786,801,sync,"","Teacher: list catalog topics with a manifest path, for stats warmup preloading.","warmTeacherModalStatsForStudent",1,no,2,called
+"warmTeacherModalStatsForStudent",802,872,async,"studentId, opts = {}","Teacher: background-preload per-topic question stats for the selected student (concurrent workers).","applyTeacherStudentView",1,no,2,called
+"loadTeacherStatsForModal",873,911,async,"studentId, questionIds, opts = {}","Teacher: get question stats for modal badges, using cache and fetching only missing ids.","refreshProtoModalBadges|refreshAddedTasksModalBadges",2,no,3,called
+"buildModalBadgeEl",912,927,sync,"extraClass = ''","Teacher: create a percentage stats badge DOM element for modals.","buildModalBadgeGroup",1,no,2,called
+"buildModalDateBadgeEl",928,934,sync,"extraClass = ''","Teacher: create a (hidden) last-attempt-date badge DOM element for modals.","buildModalBadgeGroup",1,no,2,called
+"buildModalBadgeGroup",935,944,sync,"statsClass = '', dateClass = ''","Teacher: create a wrapper containing a date badge + a stats badge for modal cards.","renderProtoModalCard|renderAddedTasksPreview",2,no,3,called
+"setModalStatsBadge",945,987,sync,"badgeEl, stat, opts = {}","Teacher: render a question/group stat into a modal stats badge (color, %, count, tooltip).","refreshProtoModalBadges|renderProtoModalCard|hydrateAddedTasksModalBadgesFromCache|refreshAddedTasksModalBadges|renderAddedTasksPreview",5,no,9,called
+"setModalDateBadge",988,1012,sync,"badgeEl, stat, opts = {}","Teacher: render the last-attempt date into a modal date badge (hidden when no attempts).","refreshProtoModalBadges|renderProtoModalCard|hydrateAddedTasksModalBadgesFromCache|refreshAddedTasksModalBadges|renderAddedTasksPreview",5,no,9,called
+"aggregateStatsForQuestionIds",1013,1042,sync,"questionIds, statsMap","Util: sum totals/correct/last3 and pick latest last_attempt across a set of question ids.","getTeacherModalCachedAggregate|refreshProtoModalBadges|refreshAddedTasksModalBadges",3,no,4,called
+"getTeacherModalCachedAggregate",1043,1062,sync,"studentId, questionIds","Teacher: return an aggregated stat for question ids only if all are present in cache, else null.","hydrateAddedTasksModalBadgesFromCache|renderAddedTasksPreview",2,no,3,called
+"ensureBaseTitle",1063,1070,sync,"el","Util: capture and cache an element's original text as data-baseTitle for later restoration.","resetTitle",1,no,2,called
+"resetTitle",1071,1080,sync,"el","Util: restore a title element's base text and strip recommendation/stat-chip classes.","applyDashboardHomeStats|applyTitleRecommendation",2,no,6,called
+"setHomeBadge",1081,1101,sync,"badgeEl, p, total, correct, title","Student-like: render a percentage badge on a home accordion node (class, %, count, tooltip).","setHomeTopicBadge|setHomeSectionBadge|applyTeacherPickingHomeStats",3,no,8,called
+"setHomeTopicBadge",1102,1115,sync,"badgeEl, st","Student: render a topic's last-3 stats into its home badge.","clearStudentLast10UI|applyDashboardHomeStats",2,no,3,called
+"setHomeSectionBadge",1116,1128,sync,"badgeEl, sectionPct, _usedTopics, _totalTopics","Student-like: render a section-level percentage into its home badge.","clearStudentLast10UI|applyDashboardHomeStats|applyTeacherPickingHomeStats",3,no,4,called
+"setHomeCoverageBadge",1129,1168,sync,"badgeEl, usedTopics, totalTopics","Student-like: render topic-coverage (used/total) into a section's coverage badge.","clearStudentLast10UI|applyDashboardHomeStats|applyTeacherPickingHomeStats",3,no,4,called
+"secondaryFromPrimary",1169,1174,sync,"primaryRounded","Util: map a rounded primary score (0-12) to the secondary EGE score via fixed table.","updateScoreForecast",1,no,2,called
+"fmtPrimaryExact",1175,1189,sync,"x","Util: format an exact primary score to 2 decimals with comma separator.","updateScoreForecast",1,no,2,called
+"_syncHtThermoHeight",1190,1207,sync,"","Teacher (desktop): set --ht-thermo-h CSS var from badges-head row height, via ResizeObserver.","",0,no,3,wired-top-level
+"thermoColorByPrimary",1208,1217,sync,"primaryRounded","Util: map a rounded primary score to thermometer color class.","updateScoreThermo",1,no,2,called
+"updateScoreThermo",1218,1258,sync,"primaryRounded, secondary, opts = {}","Student-like: render the readiness 'thermometer' fill/labels on the combo input (student-like only).","updateScoreForecast",1,no,3,called
+"updateScoreForecast",1259,1301,sync,"sectionPctById, opts = {}","Student-like: compute primary/secondary forecast from per-section %, render forecast panel + thermo.","clearStudentLast10UI|applyDashboardHomeStats|applyTeacherPickingHomeStats",3,no,4,called
+"clearStudentLast10UI",1302,1337,sync,"","Student-like: reset all home badges/titles/forecast/recs to empty 'no data' state.","loadTeacherStudentStats|refreshStudentLast10|initStudentLast10LiveRefresh|applyDashboardHomeStats",4,no,7,called
+"supabaseRefFromUrl",1338,1344,sync,"url","Util: extract the supabase project ref subdomain from a URL.","readSessionFallback",1,no,2,called
+"readSessionFallback",1345,1358,sync,"","Student: read a fallback Supabase session directly from localStorage auth-token.","refreshStudentLast10",1,no,2,called
+"sessionTtlSec",1359,1368,sync,"session, nowMs","Util: compute remaining TTL (seconds) of a session from expires_at, NaN if unknown.","isFallbackSessionUsable",1,no,2,called
+"isFallbackSessionUsable",1369,1377,sync,"session, minTtlSec","Student: decide whether a fallback session has a token and enough TTL to use.","refreshStudentLast10",1,no,2,called
+"refreshStudentLast10",1378,1524,async,"opts = {}","Student: load the last-10 dashboard (cache-first, fallback session, boot retries) and apply.","scheduleStudentLast10Refresh|initAuthHeader|tryBuildSmartSelection",3,no,5,called
+"invalidateStudentLast10Cache",1525,1535,sync,"uid","Student: drop cached last-10 dashboard entries for a uid (session+local).","initStudentLast10LiveRefresh",1,no,4,called
+"scheduleStudentLast10Refresh",1536,1552,sync,"opts = {}","Student: debounce a last-10 refresh trigger.","initStudentLast10LiveRefresh",1,no,6,called
+"initStudentLast10LiveRefresh",1553,1615,sync,"","Student: wire visibility/pageshow/auth-state listeners to live-refresh the last-10 dashboard.","initAuthHeader",1,no,2,called
+"applyDashboardHomeStats",1616,1705,sync,"dash","Student: render student dashboard (topics last-3, section aggregates, forecast) into the accordion.","refreshStudentLast10",1,no,3,called
+"recommendationPriority",1706,1716,sync,"reason","Teacher: numeric priority ordering of recommendation reasons (weak < low < stale < uncovered).","mergeRecommendationMeta|buildTeacherPickingHomeModel",2,no,5,called
+"recommendationTitleClass",1717,1726,sync,"reason","Teacher: map a recommendation reason to a title stat-chip color class.","applyTitleRecommendation",1,no,2,called
+"inferRecommendationReasonFromState",1727,1736,sync,"state","Teacher: derive a recommendation reason from a topic's performance/freshness/coverage state.","buildTeacherPickingHomeModel",1,no,2,called
+"mergeRecommendationMeta",1737,1742,sync,"current, next","Teacher: keep the higher-priority of two recommendation metas for a topic.","buildTeacherPickingHomeModel",1,no,2,called
+"applyTitleRecommendation",1743,1751,sync,"el, meta","Teacher: apply a recommendation highlight class + tooltip to a section/topic title element.","applyTeacherPickingHomeStats",1,no,3,called
+"buildTeacherPickingHomeModel",1752,1914,sync,"payload","Teacher: transform picking-screen v2 payload into a render model (%, coverage, recs, tooltips).","applyTeacherPickingHomeStats",1,no,2,called
+"renderTeacherHomeRecs",1915,1977,sync,"recs, topicStatsById, days","Teacher: render the top-3 'recommended today' cards and toggle the rec start button.","applyTeacherPickingHomeStats",1,no,2,called
+"applyTeacherPickingHomeStats",1978,2051,sync,"payload","Teacher: apply the picking-screen model to accordion badges/titles, forecast, recs panel.","loadTeacherStudentStats",1,no,2,called
+"cleanRedirectUrl",2052,2060,sync,"","Auth: strip OAuth code/state/error params from the current URL.","initAuthHeader",1,no,2,called
+"firstNameFromUser",2061,2078,sync,"user","Auth: derive a display first name from a Supabase user (metadata, then email, fallback 'Аккаунт').","refreshAuthHeaderUI",1,no,2,called
+"fetchProfileFirstName",2079,2100,async,"userId","Auth: fetch+cache the profile.first_name for a user id.","refreshAuthHeaderUI",1,no,2,called
+"fetchProfileRole",2101,2122,async,"userId","Auth: fetch+cache the profile.role for a user id (student/teacher).","refreshAuthHeaderUI",1,no,2,called
+"refreshAuthHeaderUI",2123,2182,async,"","Auth (legacy header): toggle login/user button, set name, adjust Stats vs My-students by role.","initAuthHeader",1,no,3,called
+"initAuthHeader",2183,2373,sync,"","Auth (legacy header): wire login/menu/logout for pages without the unified appHeader; else no-op.","",0,no,2,wired-top-level
+"getLastSelection",2374,2390,sync,"","Util: read the previously saved task selection from sessionStorage (memoized).","initModeToggle|initPickModeToggle|initShuffleToggle",3,no,4,called
+"initModeToggle",2391,2428,sync,"","Non-student home: wire the list/test mode toggle (restoring previous mode).","initAuthHeader",1,no,2,called
+"initPickModeToggle",2429,2456,sync,"","Student: wire the manual/smart pick-mode toggle (student page only).","initAuthHeader",1,no,2,called
+"syncPickModeUI",2457,2483,sync,"","Student: reflect pick mode into toggle buttons and show/hide smart controls, bulk, accordion.","initPickModeToggle",1,no,2,called
+"initSmartControls",2484,2508,sync,"","Student: wire the smart-training N-count buttons and 'build plan' button.","initAuthHeader",1,no,2,called
+"setSmartN",2509,2518,sync,"n","Student: set the smart-training target task count and reflect active N button.","initSmartControls",1,no,3,called
+"updateSmartHint",2519,2548,sync,"msg = ''","Student: update the smart-training hint text based on login/stats/selection state.","applyDashboardHomeStats|initPickModeToggle|initSmartControls|tryBuildSmartSelection",4,no,8,called
+"getTotalSelected",2549,2555,sync,"","Util: total selected count across topics + sections + protos choice maps.","initAuthHeader|updateSmartHint|getDesiredCountsFromSelection|openAddedTasksModal|openAddedTasksModalFast",5,no,8,called
+"tryBuildSmartSelection",2556,2623,async,"n","Student: build a smart practice plan from 30-day stats (weakest/unseen topics) and apply it.","initAuthHeader|initSmartControls",2,no,3,called
+"initShuffleToggle",2624,2648,sync,"","Both: wire the 'shuffle tasks' checkbox (restoring previous state).","initAuthHeader",1,no,2,called
+"anyPositive",2649,2652,sync,"obj","Util: true if any value in a count map is > 0.","buildHwCreatePrefill|initCreateHomeworkButton",2,no,6,called
+"readSelectionFromDOM",2653,2676,sync,"","Util: read topic/section counts directly from the accordion DOM inputs (robust on back-nav).","buildHwCreatePrefill",1,no,2,called
+"inferTopicIdFromQuestionId",2677,2682,sync,"qid","Util: derive a topic id (first two dotted segments) from a question id.","normalizeTeacherPickedRef",1,no,2,called
+"normalizeTeacherPickedRef",2683,2690,sync,"ref","Teacher: normalize an added-task row to a {topic_id, question_id} ref.","collectTeacherPickedRefs",1,no,2,called
+"collectTeacherPickedRefs",2691,2705,sync,"","Teacher: collect deduped {topic_id, question_id} refs from all added-task buckets.","buildHwCreatePrefill|saveSelectionAndGo",2,no,3,called
+"buildHwCreatePrefill",2706,2729,sync,"","Both: build the hw_create prefill payload (counts, shuffle, teacher student/filter/picked-refs).","initCreateHomeworkButton",1,no,2,called
+"initCreateHomeworkButton",2730,2759,sync,"","Teacher: wire 'Create homework' button — flush added tasks, save prefill, navigate to hw_create.","initAuthHeader",1,no,2,called
+"initBulkControls",2760,2769,sync,"","Both: wire the 'select all' / 'reset all' bulk accordion buttons.","initAuthHeader",1,no,2,called
+"bulkPickAll",2770,2782,sync,"delta","Both: add delta tasks to every section's count (bulk select).","initBulkControls",1,no,3,called
+"bulkResetAll",2783,2792,sync,"","Both: clear all topic/section/proto selections (teacher: also rotate pick session seed).","initBulkControls",1,yes,3,called
+"refreshCountsUI",2793,2812,sync,"","Both: write choice maps back into accordion inputs and refresh totals (teacher: sync added tasks).","tryBuildSmartSelection|bulkPickAll|bulkResetAll",3,no,4,called
+"loadCatalog",2813,2839,async,"","Both: load the runtime catalog and index sections/topics into SECTIONS and id maps.","initAuthHeader",1,no,2,called
+"syncHomeTopicBadgesWidth",2840,2880,sync,"","Student-like: measure widest topic badge and set a CSS var so all align (student-like only).","applyDashboardHomeStats|applyTeacherPickingHomeStats|renderSectionNode",3,no,4,called
+"renderAccordion",2881,2901,sync,"","Both: rebuild the section/topic accordion DOM (student-like adds badges head + thermo sync).","applyTeacherStudentView|initAuthHeader",2,no,3,called
+"renderSectionBadgesHead",2902,2922,sync,"","Student-like: build the 'Процент / Покрытие' badge column header row.","renderAccordion",1,no,2,called
+"renderSectionNode",2923,3019,sync,"sec","Both: build a section accordion node (counter, optional badges, title, unique button, children).","renderAccordion",1,no,2,called
+"renderTopicRow",3020,3098,sync,"topic","Both: build a topic accordion row (counter, optional badge, title; student-like opens proto modal).","renderSectionNode",1,no,2,called
+"setTopicCount",3099,3103,sync,"topicId, n","Both: set a topic's chosen count, bubble totals (teacher: schedule added-tasks sync).","renderTopicRow",1,no,4,called
+"setSectionCount",3104,3109,sync,"sectionId, n","Both: set a section's chosen count, bubble totals (teacher: schedule added-tasks sync).","renderSectionNode",1,no,4,called
+"setProtoCount",3110,3124,sync,"typeId, n, cap","Both: set a prototype's chosen count (capped) in CHOICE_PROTOS, refresh totals (teacher: sync).","renderProtoModalCard",1,no,3,called
+"bubbleUpSums",3125,3139,sync,"","Both: sync section input values from CHOICE_SECTIONS and refresh the grand total.","setTopicCount|setSectionCount",2,no,3,called
+"refreshTotalSum",3140,3179,sync,"","Both: compute total selected, update sum element and start/added-tasks button enabled/ready states.","initPickModeToggle|refreshCountsUI|renderAccordion|setProtoCount|bubbleUpSums",5,no,6,called
+"getProtoModalEls",3180,3191,sync,"","Student-like: resolve the prototype-picker modal DOM elements.","updateProtoModalSelectedCount|closeProtoPickerModal|refreshProtoModalBadges|openProtoPickerModal|initProtoPickerModal",5,no,6,called
+"protoModalSum",3192,3201,sync,"","Student-like: sum chosen counts across the currently shown modal prototype types.","updateProtoModalSelectedCount",1,no,2,called
+"updateProtoModalSelectedCount",3202,3207,sync,"","Student-like: update the 'Выбрано: N' counter in the prototype modal.","openProtoPickerModal|renderProtoModalCard",2,no,5,called
+"closeProtoPickerModal",3208,3226,sync,"","Student-like: close and reset the prototype-picker modal.","initProtoPickerModal",1,yes,4,called
+"refreshProtoModalBadges",3227,3286,async,"types = [], opts = {}","Teacher: fetch+render per-type student stat/date badges in the prototype modal.","openProtoPickerModal|onTeacherContextChanged",2,no,3,called
+"openProtoPickerModal",3287,3343,async,"topic","Student-like: open the prototype modal for a topic — load manifest, render type cards, badges.","renderTopicRow",1,no,2,called
+"renderProtoModalCard",3344,3437,sync,"manifest, type","Student-like: build one prototype-type card (stem preview, +/- counter, teacher stat badges).","openProtoPickerModal",1,no,2,called
+"initProtoPickerModal",3438,3455,sync,"","Student-like: one-time wiring of prototype-modal close/backdrop/Escape handlers.","initAuthHeader",1,no,2,called
+"ensurePickerManifest",3456,3477,async,"topic","Util: fetch+memoize a topic's manifest JSON from topic.path.","openProtoPickerModal|loadTopicPoolForPreview",2,no,3,called
+"buildStemPreview",3478,3488,sync,"manifest, type, proto","Util: build an HTML stem preview (interpolated template + optional figure img) for a prototype.","renderProtoModalCard",1,no,2,called
+"asset",3489,3495,sync,"p","Util: resolve an asset path to an absolute URL (passthrough for http/data).","buildStemPreview|renderAddedTasksPreview",2,no,3,called
+"interpolate",3496,3502,sync,"tpl, params","Util: substitute ${param} placeholders in a stem template string.","buildStemPreview|buildQuestionForPreview",2,no,3,called
+"escapeHtml",3503,3511,sync,"s","Util: HTML-escape a string (full entity set).","buildStemPreview",1,no,2,called
+"typesetMathIfNeeded",3512,3523,async,"rootEl","Util: run MathJax typesetting over a DOM root, loading MathJax first if needed.","openProtoPickerModal|refreshAddedTasksModalView",2,no,3,called
+"ensureMathJaxLoaded",3524,3565,sync,"","Util: lazily inject the MathJax script and resolve when ready.","typesetMathIfNeeded",1,no,2,called
+"createTeacherPickSeed",3566,3575,sync,"","Teacher: generate a random session seed for deterministic teacher picking.","persistAddedTasksContext|ensureAddedTasksContextLoaded|setCurrentTeacherPickSessionSeed|rotateCurrentTeacherPickSessionSeed",4,no,5,called
+"getAddedTasksModalEls",3576,3588,sync,"","Teacher: resolve the added-tasks preview modal DOM elements.","openAddedTasksModal|closeAddedTasksModal|openAddedTasksModalFast|initAddedTasksModal|hydrateAddedTasksModalBadgesFromCache|refreshAddedTasksModalBadges|refreshAddedTasksModalView|renderAddedTasksPreview",8,no,9,called
+"getTeacherAddedTasksContextKey",3589,3594,sync,"","Teacher: build the context key (student id + filter id) keying the added-tasks store.","ensureAddedTasksContextLoaded",1,no,2,called
+"loadTeacherAddedTasksStore",3595,3606,sync,"","Teacher: read the persisted added-tasks store (per-context buckets) from sessionStorage.","persistAddedTasksContext|ensureAddedTasksContextLoaded",2,no,3,called
+"saveTeacherAddedTasksStore",3607,3612,sync,"store","Teacher: persist the added-tasks store to sessionStorage.","persistAddedTasksContext",1,no,2,called
+"persistAddedTasksContext",3613,3623,sync,"","Teacher: save the current in-memory added-tasks context (seed+buckets) into the store.","ensureAddedTasksContextLoaded|setCurrentTeacherPickSessionSeed|syncAddedTasksToSelection",3,no,4,called
+"ensureAddedTasksContextLoaded",3624,3665,sync,"","Teacher: load/switch the added-tasks context for the current student+filter, rebuilding id counts.","getCurrentTeacherPickSessionSeed|setCurrentTeacherPickSessionSeed|onTeacherContextChanged|syncAddedTasksToSelection|openAddedTasksModal|openAddedTasksModalFast|initAddedTasksModal",7,no,8,called
+"getCurrentTeacherPickSessionSeed",3666,3672,sync,"studentId = null","Teacher: get the current added-tasks context seed for a student (empty if none).","loadTeacherStudentStats|pickQuestionsViaTeacherScreenResolve|pickQuestionsViaTeacherScreenResolveBatch",3,no,4,called
+"setCurrentTeacherPickSessionSeed",3673,3681,sync,"seed","Teacher: set the current context seed (defaulting to a new seed) and persist.","loadTeacherStudentStats|rotateCurrentTeacherPickSessionSeed|pickQuestionsViaTeacherScreenResolve|pickQuestionsViaTeacherScreenResolveBatch",4,no,5,called
+"rotateCurrentTeacherPickSessionSeed",3682,3685,sync,"","Teacher: replace the current context seed with a fresh random one.","bulkResetAll",1,no,2,called
+"onTeacherContextChanged",3686,3697,sync,"opts = {}","Teacher: on student/filter change reload context, force-sync added tasks, refresh proto badges.","initTeacherPickFiltersUI|setTeacherStudentViewUI",2,no,4,called
+"scheduleSyncAddedTasks",3698,3708,sync,"opts = {}","Teacher: debounce (or immediate) a sync of added-task buckets to the current selection.","refreshCountsUI|setTopicCount|setSectionCount|setProtoCount|onTeacherContextChanged|initAddedTasksModal",6,no,7,called
+"flushTeacherAddedTasksSelection",3709,3717,async,"reason = 'flush'","Teacher: cancel pending debounce and synchronously sync added tasks (before navigation/save).","initCreateHomeworkButton|openAddedTasksModalFast|saveSelectionAndGo",3,no,4,called
+"incIdCount",3718,3725,sync,"id","Teacher: increment the in-context usage count for a question id (dedup/exclude tracking).","appendPickedQuestionsToBucket|syncAddedTasksToSelection",2,no,3,called
+"decIdCount",3726,3735,sync,"id","Teacher: decrement (and drop at zero) the in-context usage count for a question id.","syncAddedTasksToSelection",1,no,2,called
+"getExcludeSet",3736,3743,sync,"","Teacher: build the set of already-added question ids to exclude from new picks.","pickDeltaForBucket|syncAddedTasksToSelection",2,no,7,called
+"getDesiredCountsFromSelection",3744,3762,sync,"","Teacher: convert CHOICE_* maps into desired per-bucket counts (proto/topic/section) and total.","syncAddedTasksToSelection",1,no,2,called
+"flattenAddedQuestions",3763,3772,sync,"","Teacher: flatten all added-task buckets into a single questions array.","collectTeacherPickedRefs|syncAddedTasksToSelection|openAddedTasksModal|openAddedTasksModalFast",4,no,7,called
+"sortAddedQuestions",3773,3791,sync,"arr","Teacher: sort added questions by section, then topic, then question id.","collectTeacherPickedRefs|syncAddedTasksToSelection|openAddedTasksModal|openAddedTasksModalFast",4,no,7,called
+"buildTeacherResolveSelection",3792,3805,sync,"{ excludeTopicIds = [] } = {}","Teacher: build the RPC selection payload (protos/topics/sections + excluded topics).","pickQuestionsViaTeacherScreenResolve|pickQuestionsViaTeacherScreenResolveBatch",2,no,3,called
+"pickQuestionsViaTeacherScreenResolve",3806,3877,async,"{ request = {}, excludeTopicIds = [], excludeQuestionIds = [], } = {}","Teacher: resolve concrete questions for one scope via teacher_picking_screen_v2 (resolve mode).","pickDeltaForBucket|syncAddedTasksToSelection",2,no,6,called
+"pickQuestionsViaTeacherScreenResolveBatch",3878,3971,async,"{ requests = [], excludeTopicIds = [], excludeQuestionIds = [], } = {}","Teacher: resolve concrete questions for many scopes in one teacher_picking_resolve_batch_v1 call.","syncAddedTasksToSelection",1,no,4,called
+"pickDeltaForBucket",3972,4089,async,"bucketKey, delta, seq","Teacher: pick N more questions for a bucket — via RPC when a student is selected, else local engine.","syncAddedTasksToSelection",1,no,5,called
+"appendPickedQuestionsToBucket",4090,4104,sync,"ctx, bucketKey, questions = []","Teacher: append picked questions to a bucket and bump id counts; returns how many added.","syncAddedTasksToSelection",1,no,10,called
+"syncAddedTasksToSelection",4105,4370,async,"opts = {}","Teacher: reconcile added-task buckets with the selection (trim, top up protos/topics/sections).","scheduleSyncAddedTasks|flushTeacherAddedTasksSelection|openAddedTasksModal",3,no,4,called
+"openAddedTasksModal",4371,4402,async,"","Teacher: open added-tasks modal — sync selection then render the preview (full path).","",0,no,1,DEAD-CANDIDATE
+"closeAddedTasksModal",4403,4410,sync,"","Teacher: close the added-tasks preview modal.","initAddedTasksModal",1,yes,4,called
+"openAddedTasksModalFast",4411,4458,async,"","Teacher: open added-tasks modal reusing the rendered view when unchanged, else flush+render.","initAddedTasksModal",1,no,2,called
+"initAddedTasksModal",4459,4486,sync,"","Teacher: one-time wiring of the added-tasks button/close/backdrop/Escape + initial context load.","initAuthHeader",1,no,2,called
+"loadTopicPoolForPreview",4487,4550,async,"topic","Util: load+memoize a topic's full prototype pool from its manifest(s) (topic.path/paths).","warmTeacherModalStatsForStudent",1,no,7,called
+"buildQuestionForPreview",4551,4576,sync,"manifest, type, proto","Util: build a preview question (ids, titles, stem, figure, badge ids) from manifest/type/proto.","buildPreviewQuestionsFromResolveRows",1,no,7,called
+"normalizeResolveReqArray",4577,4597,sync,"source","Util: normalize a choice map/array into [{id,n}] entries with positive n.","buildTeacherResolveSelection",1,no,4,called
+"buildResolveBucketKey",4598,4607,sync,"scopeKind, scopeId","Util: build a canonical 'proto:/topic:/section:' bucket key from a scope kind+id.","pickQuestionsViaTeacherScreenResolveBatch|getResolveRowBucketKey",2,no,3,called
+"getResolveRowBucketKey",4608,4629,sync,"row","Util: derive the bucket key for a resolved RPC row (handles global_all and id aliases).","buildPreviewQuestionsFromResolveRows",1,no,2,called
+"getTeacherResolveManifestIndex",4630,4666,async,"manifestPath","Teacher: fetch+cache a manifest and build a question-id -> {manifest,type,proto} index.","buildPreviewQuestionsFromResolveRows",1,no,2,called
+"buildPreviewQuestionsFromResolveRows",4667,4760,async,"{ rows, wantsByBucket, excludeQuestionIds = [], } = {}","Teacher: turn resolved RPC rows into preview questions per bucket, dedup up to wanted counts.","pickQuestionsViaTeacherScreenResolve|pickQuestionsViaTeacherScreenResolveBatch",2,no,3,called
+"getAddedTasksRenderSignature",4761,4772,sync,"questions = [], opts = {}","Teacher: compute a signature of the added-tasks list (context+total+ordered ids) for reuse.","openAddedTasksModal|openAddedTasksModalFast|renderAddedTasksPreview",3,no,4,called
+"hydrateAddedTasksModalBadgesFromCache",4773,4813,sync,"questions = []","Teacher: fill added-task card badges from cached aggregates without a network call.","openAddedTasksModalFast",1,no,2,called
+"refreshAddedTasksModalBadges",4814,4877,async,"questions = []","Teacher: fetch and render per-card student stat/date badges in the added-tasks modal.","refreshAddedTasksModalView",1,no,2,called
+"refreshAddedTasksModalView",4878,4884,async,"questions, opts = {}","Teacher: render the added-tasks preview, typeset math, then refresh badges.","syncAddedTasksToSelection|openAddedTasksModal|openAddedTasksModalFast",3,no,4,called
+"renderAddedTasksPreview",4885,4994,sync,"questions, opts = {}","Teacher: render added-task cards (numbering, badges, section/topic meta, stem, figure) + meta.","refreshAddedTasksModalView",1,no,2,called
+"saveSelectionAndGo",4995,5110,async,"","Both: finalize selection, build frozen questions, create a session link, navigate to trainer/list.","initAuthHeader",1,no,5,called
+"esc",5111,5119,sync,"s","Util: HTML-escape a string (ampersand/lt/gt/quote).","renderSectionNode|renderTopicRow",2,no,3,called
+"compareId",5120,5131,sync,"a, b","Util: numeric dotted-id comparator (e.g. '1.2' < '1.10') for sorting.","loadCatalog|openProtoPickerModal|sortAddedQuestions|syncAddedTasksToSelection|buildPreviewQuestionsFromResolveRows",5,no,10,called

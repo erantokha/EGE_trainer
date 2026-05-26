@@ -1,0 +1,1 @@
+OK — fail = 0 (10 checks); student+teacher accordion render, 0 import errors

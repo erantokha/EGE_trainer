@@ -1,0 +1,40 @@
+  ✓  14 [student] › e2e/student/w2-6-fix.spec.js:373:1 › list desktop spacing stays stable (3.8s)
+  ✓  16 [student] › e2e/student/w2-6-acceptance.spec.js:318:1 › list acceptance covers screen desktop mobile and mobile figure order (5.3s)
+  ✓  13 [student] › e2e/student/w2-4-print-layout.spec.js:170:1 › mobile student route keeps trainer screen usable (7.8s)
+  ✘  15 [teacher] › e2e/teacher/home.spec.js:5:1 › teacher can open teacher home and teacher picking smoke (6.2s)
+  ✓  11 [student] › e2e/student/ws1-session-link.spec.js:40:3 › WS.1 — session links › E2E.A1: создание session-ссылки из picker + hydration в trainer (12.4s)
+  ✓  20 [student] › e2e/student/ws1-session-link.spec.js:94:3 › WS.1 — session links › E2E.A2: открытие ?session=<token> без auth → redirect на auth.html?next=... (731ms)
+  ✓  21 [student] › e2e/student/ws1-session-link.spec.js:125:3 › WS.1 — session links › E2E.A3: открытие ?session=<invalid_token> → понятная ошибка, не пустой экран (822ms)
+  ✓  19 [student] › e2e/student/w2-4-print-layout.spec.js:178:1 › unique screen keeps ws answer and video slot in screen mode (3.4s)
+  ✓  12 [student] › e2e/student/whf2-fix-1-auth-guards.spec.js:49:3 › WHF2-fix-1 — auth submit guards › F.early-click-noop-guard: клик/submit до ready не делает нативный сабмит, кнопка disabled (16.9s)
+  ✓  17 [student] › e2e/student/w2-6-fix.spec.js:381:1 › trainer print coverage includes no answers with answers and lifecycle cleanup (10.0s)
+  ✓  18 [student] › e2e/student/w2-6-acceptance.spec.js:334:1 › list print modes and lifecycle clean up without leaking into screen (7.5s)
+  ✓  23 [student] › e2e/student/whf2-fix-1-auth-guards.spec.js:80:3 › WHF2-fix-1 — auth submit guards › F.disabled-during-load: все 3 submit-кнопки disabled до ready, enabled после (16.6s)
+  ✘  22 [student] › e2e/student/w2-4-print-layout.spec.js:190:1 › print state separates answer line, real answers, and video slot (21.0s)
+  ✘  25 [student] › e2e/student/w2-6-acceptance.spec.js:369:1 › unique acceptance covers screen desktop mobile and figure order (20.5s)
+  ✓  26 [student] › e2e/student/w2-4-print-layout.spec.js:210:1 › figure cases are present for vectors graphs and derivatives (7.3s)
+  ✓  27 [student] › e2e/student/w2-6-acceptance.spec.js:385:1 › unique print modes and lifecycle clean up without leaking into screen (4.9s)
+  ✘  24 [student] › e2e/student/w2-6-fix.spec.js:416:1 › list and unique keep their accepted screen contracts (30.6s)
+  ✘  28 [student] › e2e/student/w2-6-fix.spec.js:429:1 › mobile figure contract is fixed for list and trainer vector overlap plus horizontal full-width case (4.1s)
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+    [2m    2 × locator resolved to <h1 id="uniqTitle">Уникальные прототипы</h1>[22m
+    [2m    22 × locator resolved to <h1 id="uniqTitle">Ошибка загрузки каталога</h1>[22m
+    test-results/student-w2-4-print-layout--a3d6d-real-answers-and-video-slot-student/test-failed-1.png
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+    [2m    24 × locator resolved to <h1 id="uniqTitle">Уникальные прототипы</h1>[22m
+    test-results/student-w2-6-acceptance-un-40882-top-mobile-and-figure-order-student/test-failed-1.png
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+    Error: element(s) not found
+    test-results/student-w2-6-fix-list-and--009d7-r-accepted-screen-contracts-student/test-failed-1.png
+    Error: Mobile figure is still too narrow for full-width case: {"stem":{"x":86.5,"y":171.53125,"width":267.5,"height":142.078125,"right":354,"bottom":313.609375},"fig":{"x":86.5,"y":325.609375,"width":267.5,"height":110.390625,"right":354,"bottom":436},"answer":{"x":36,"y":446,"width":318,"height":20.296875,"right":354,"bottom":466.296875},"card":{"x":23,"y":153.53125,"width":344,"height":323.765625,"right":367,"bottom":477.296875},"img":{"x":86.5,"y":325.609375,"width":267.5,"height":110.390625,"right":354,"bottom":436},"figType":"derivatives","orientation":"","figWidthStyle":"267.5px","figMaxWidthStyle":"100%","figJustifySelf":"stretch","gridTemplateAreas":"\"num stem\" \". fig\" \"ans ans\""}
+    test-results/student-w2-6-fix-mobile-fi-0f02a--horizontal-full-width-case-student/test-failed-1.png
+  5) [teacher] › e2e/teacher/home.spec.js:5:1 › teacher can open teacher home and teacher picking smoke 
+    Error: Smoke page summary did not expose fail count: /tasks/teacher_picking_v2_browser_smoke.html
+        at /Users/anton/Projects/EGE_trainer/e2e/teacher/home.spec.js:12:17
+    test-results/teacher-home-teacher-can-o-91685-e-and-teacher-picking-smoke-teacher/test-failed-1.png
+    Error Context: test-results/teacher-home-teacher-can-o-91685-e-and-teacher-picking-smoke-teacher/error-context.md
+    test-results/teacher-home-teacher-can-o-91685-e-and-teacher-picking-smoke-teacher/trace.zip
+        npx playwright show-trace test-results/teacher-home-teacher-can-o-91685-e-and-teacher-picking-smoke-teacher/trace.zip
+  5 failed
+    [teacher] › e2e/teacher/home.spec.js:5:1 › teacher can open teacher home and teacher picking smoke 
+  23 passed (1.1m)

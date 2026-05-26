@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- W2.1' Variant B smoke: functional unit-test of the extracted pure builders in
+     tasks/picker_added_tasks.js (no backend/data needed — these are pure functions). -->
+<html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-05-26-2"><title>picker_added_tasks smoke</title></head>
+<body>
+<div id="summary">Waiting…</div>
+<pre id="results"></pre>
+<script type="module">
+import { normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js';
+
+const out = [];
+let fail = 0;
+function eq(name, got, want) {
+  const ok = JSON.stringify(got) === JSON.stringify(want);
+  if (!ok) fail++;
+  out.push(`${ok ? 'PASS' : 'FAIL'}  ${name}  got=${JSON.stringify(got)} want=${JSON.stringify(want)}`);
+}
+
+eq('buildResolveBucketKey topic', buildResolveBucketKey('topic', 'T1'), 'topic:T1');
+eq('buildResolveBucketKey proto', buildResolveBucketKey('proto', 'P9'), 'proto:P9');
+eq('buildResolveBucketKey section', buildResolveBucketKey('theme', 'S2'), 'section:S2');
+eq('buildResolveBucketKey empty', buildResolveBucketKey('topic', ''), '');
+eq('normalizeResolveReqArray array', normalizeResolveReqArray([{ id: 'a', n: 2 }, { id: '', n: 1 }, { id: 'b', n: 0 }]), [{ id: 'a', n: 2 }]);
+eq('normalizeResolveReqArray object', normalizeResolveReqArray({ x: 3, y: 0 }), [{ id: 'x', n: 3 }]);
+eq('normalizeResolveReqArray null', normalizeResolveReqArray(null), []);
+eq('getResolveRowBucketKey explicit', getResolveRowBucketKey({ scope_kind: 'topic', scope_id: 'Z' }), 'topic:Z');
+eq('getResolveRowBucketKey global_all', getResolveRowBucketKey({ scope_kind: 'global_all', theme_id: 'S5' }), 'section:S5');
+eq('getResolveRowBucketKey proto fallback', getResolveRowBucketKey({ unic_id: 'U7' }), 'proto:U7');
+
+document.getElementById('results').textContent = out.join('\n');
+const sum = document.getElementById('summary');
+sum.textContent = fail === 0 ? `OK — fail = 0 (${out.length} checks)` : `FAIL — fail = ${fail}`;
+sum.dataset.fail = String(fail);
+</script>
+</body></html>

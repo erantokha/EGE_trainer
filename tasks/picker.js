@@ -19,6 +19,8 @@ import { setStem } from '../app/ui/safe_dom.js?v=2026-05-26-2';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-26-2';
 import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-26-2';
 import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-26-2';
+// W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-26-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -766,20 +768,6 @@ function normalizeTeacherModalStatsMap(questionIds, statsMap) {
     });
   }
 
-  return out;
-}
-
-function collectManifestQuestionIds(manifest) {
-  const out = [];
-  const seen = new Set();
-  for (const type of (manifest?.types || [])) {
-    for (const proto of (type?.prototypes || [])) {
-      const qid = String(proto?.id || '').trim();
-      if (!qid || seen.has(qid)) continue;
-      seen.add(qid);
-      out.push(qid);
-    }
-  }
   return out;
 }
 
@@ -3453,28 +3441,6 @@ function initProtoPickerModal() {
   });
 }
 
-async function ensurePickerManifest(topic) {
-  if (topic._manifest) return topic._manifest;
-  if (topic._manifestPromise) return topic._manifestPromise;
-  if (!topic.path) return null;
-
-  const href = toAbsUrl(topic.path);
-
-  topic._manifestPromise = (async () => {
-    try {
-      const resp = await fetch(withBuild(href), { cache: 'force-cache' });
-      if (!resp.ok) return null;
-      const j = await resp.json();
-      topic._manifest = j;
-      return j;
-    } catch (_) {
-      return null;
-    }
-  })();
-
-  return topic._manifestPromise;
-}
-
 function buildStemPreview(manifest, type, proto) {
   const params = proto?.params || {};
   const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
@@ -4368,38 +4334,6 @@ async function syncAddedTasksToSelection(opts = {}) {
   }
 }
 
-async function openAddedTasksModal() {
-  const { modal, hint, meta, list, listWrap } = getAddedTasksModalEls();
-  if (!modal) return;
-  if (ADDED_TASKS_MODAL_OPEN) return;
-  ensureAddedTasksContextLoaded();
-  const wantTotal = getTotalSelected();
-  const currentArr = sortAddedQuestions(flattenAddedQuestions());
-  const renderSig = getAddedTasksRenderSignature(currentArr, { wantTotal });
-  const canReuseRenderedView =
-    !_ADDED_SYNC_DIRTY &&
-    !_ADDED_SYNC_T &&
-    !!list &&
-    list.childElementCount > 0 &&
-    String(list.dataset.renderSig || '').trim() === renderSig;
-
-  ADDED_TASKS_MODAL_OPEN = true;
-  modal.classList.remove('hidden');
-  modal.setAttribute('aria-hidden', 'false');
-
-  if (meta) meta.textContent = '—';
-  if (hint) hint.textContent = 'Загружаю…';
-  if (list) list.innerHTML = '';
-
-  await syncAddedTasksToSelection({ reason: 'open', immediate: true });
-
-  if (!ADDED_TASKS_MODAL_OPEN) return;
-
-  const wantTotal2 = getTotalSelected();
-  const arr = sortAddedQuestions(flattenAddedQuestions());
-  await refreshAddedTasksModalView(arr, { wantTotal: wantTotal2 });
-}
-
 function closeAddedTasksModal() {
   const { modal } = getAddedTasksModalEls();
   if (!modal) return;
@@ -4484,70 +4418,6 @@ function initAddedTasksModal() {
 }
 
 // общий пул темы: все прототипы из всех её манифестов (topic.path или topic.paths)
-async function loadTopicPoolForPreview(topic) {
-  if (!topic) return [];
-  if (topic._pool) return topic._pool;
-  if (topic._poolPromise) return topic._poolPromise;
-
-  const p = (async () => {
-    const paths = [];
-    if (Array.isArray(topic.paths)) {
-      for (const x of topic.paths) {
-        if (typeof x === 'string' && x) paths.push(x);
-      }
-    }
-    if (topic.path) paths.push(topic.path);
-
-    // fallback: старый режим (один манифест в topic.path)
-    if (!paths.length) {
-      const man = await ensurePickerManifest(topic);
-      if (!man) return [];
-      const manifest = man;
-      manifest.topic = manifest.topic || topic.id;
-      manifest.title = manifest.title || topic.title;
-      const pool = [];
-      for (const typ of (manifest.types || [])) {
-        for (const proto of (typ.prototypes || [])) {
-          pool.push({ manifest, type: typ, proto });
-        }
-      }
-      return pool;
-    }
-
-    const fetches = paths.map(async (relPath) => {
-      const href = toAbsUrl(relPath);
-      try {
-        const resp = await fetch(withBuild(href), { cache: 'force-cache' });
-        if (!resp.ok) return null;
-        const manifest = await resp.json();
-        manifest.topic = manifest.topic || topic.id;
-        manifest.title = manifest.title || topic.title;
-        return manifest;
-      } catch (_) {
-        return null;
-      }
-    });
-
-    const manifests = await Promise.all(fetches);
-    const pool = [];
-    for (const manifest of manifests) {
-      if (!manifest) continue;
-      for (const typ of (manifest.types || [])) {
-        for (const proto of (typ.prototypes || [])) {
-          pool.push({ manifest, type: typ, proto });
-        }
-      }
-    }
-    return pool;
-  })();
-
-  topic._poolPromise = p;
-  const out = await p;
-  topic._pool = Array.isArray(out) ? out : [];
-  topic._poolPromise = null;
-  return topic._pool;
-}
-
 function buildQuestionForPreview(manifest, type, proto) {
   const params = proto?.params || {};
   const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
@@ -4572,59 +4442,6 @@ function buildQuestionForPreview(manifest, type, proto) {
     stem,
     figure: fig,
   };
-}
-
-function normalizeResolveReqArray(source) {
-  if (!source) return [];
-  if (Array.isArray(source)) {
-    return source
-      .map((item) => ({
-        id: String(item?.id || '').trim(),
-        n: Math.max(0, Math.floor(Number(item?.n || 0))),
-      }))
-      .filter((item) => item.id && item.n > 0);
-  }
-  if (typeof source === 'object') {
-    return Object.entries(source)
-      .map(([id, n]) => ({
-        id: String(id || '').trim(),
-        n: Math.max(0, Math.floor(Number(n || 0))),
-      }))
-      .filter((item) => item.id && item.n > 0);
-  }
-  return [];
-}
-
-function buildResolveBucketKey(scopeKind, scopeId) {
-  const kind = String(scopeKind || '').trim().toLowerCase();
-  const id = String(scopeId || '').trim();
-  if (!id) return '';
-  if (kind === 'unic' || kind === 'proto' || kind === 'type') return `proto:${id}`;
-  if (kind === 'topic' || kind === 'subtopic') return `topic:${id}`;
-  if (kind === 'section' || kind === 'theme') return `section:${id}`;
-  return '';
-}
-
-function getResolveRowBucketKey(row) {
-  const kind = String(row?.scope_kind || '').trim().toLowerCase();
-  if (kind === 'global_all') {
-    const sectionId = String(row?.theme_id || row?.section_id || '').trim();
-    if (sectionId) return `section:${sectionId}`;
-  }
-
-  const explicit = buildResolveBucketKey(row?.scope_kind, row?.scope_id);
-  if (explicit) return explicit;
-
-  const unicId = String(row?.unic_id || row?.proto_id || row?.type_id || '').trim();
-  if (unicId) return `proto:${unicId}`;
-
-  const topicId = String(row?.subtopic_id || row?.topic_id || '').trim();
-  if (topicId) return `topic:${topicId}`;
-
-  const sectionId = String(row?.theme_id || row?.section_id || '').trim();
-  if (sectionId) return `section:${sectionId}`;
-
-  return '';
 }
 
 async function getTeacherResolveManifestIndex(manifestPath) {
