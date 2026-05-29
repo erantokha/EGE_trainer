@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-05-29-9';
+import { CONFIG } from '../config.js?v=2026-05-29-10';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -67,8 +67,8 @@ function __pick(obj, paths) {
 function __getAuthStorageKey() {
   try {
     const url = String(CONFIG?.supabase?.url || '').trim();
-    const m = url.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
-    const ref = m ? m[1] : null;
+    if (!url) return null;
+    const ref = new URL(url).hostname.split('.')[0] || '';
     return ref ? `sb-${ref}-auth-token` : null;
   } catch (_) {
     return null;

@@ -9,7 +9,7 @@
 //   - механический lift без изменения логики — тела функций перенесены verbatim,
 //     добавлен лишь `export`.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-9';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-10';
 
 /* ───────────── JSON / строки / id ───────────── */
 
@@ -185,10 +185,13 @@ export function badgeClassByLastAttemptAt(lastAt) {
 /* ───────────── session / supabase url ───────────── */
 
 export function supabaseRefFromUrl(url) {
-  const u = String(url || '')
-    .trim();
-  const m = u.match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co\b/i);
-  return m ? m[1] : '';
+  try {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    return new URL(u).hostname.split('.')[0] || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 export function sessionTtlSec(session, nowMs) {
