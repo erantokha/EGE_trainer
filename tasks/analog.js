@@ -2,13 +2,14 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-05-29-7';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-29-7';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-7';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-05-29-7';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-7';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-7';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-7';
+import { withBuild } from '../app/build.js?v=2026-05-29-9';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-05-29-9';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-9';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-05-29-9';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-9';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-9';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-9';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-05-29-9';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -1074,6 +1075,11 @@ async function main() {
   REQ = req;
   ASESSION = readAnalogSession(req);
   saveAnalogSession(ASESSION);
+
+  // WTC5: поднять сессию ДО authenticated-каталога (startAnalogSolve → loadCatalogIndexLike)
+  // и записи попыток (insertAttempt). Иначе на холодном boot — AUTH_REQUIRED. genuine-anon → auth.html?next=.
+  const session = await ensureSessionReady();
+  if (!session) return; // redirect на auth.html?next= уже выполнен
 
   // на всякий случай: снимаем сторожевой таймер до подгрузки контента
   diagReady();

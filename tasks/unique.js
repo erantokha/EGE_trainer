@@ -7,12 +7,13 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 
-import { withBuild } from '../app/build.js?v=2026-05-29-7';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-7';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-05-29-7';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-29-7';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-7';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-7';
+import { withBuild } from '../app/build.js?v=2026-05-29-9';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-9';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-05-29-9';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-29-9';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-9';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-9';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-05-29-9';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -71,15 +72,35 @@ async function init() {
     return;
   }
 
+  // WTC5: поднять сессию ДО authenticated-каталога (catalog_index_like_v1 → authenticated).
+  // Иначе на холодном boot токен не гидратирован → AUTH_REQUIRED → «Ошибка загрузки каталога».
+  const session = await ensureSessionReady();
+  if (!session) return; // genuine-anon → ensureSessionReady уже сделал redirect на auth.html?next=
+
+  const isAuthRequired = (e) => /AUTH_REQUIRED/.test(String(e?.code || '') + '|' + String(e?.message || ''));
+
   let catalog;
   try {
     catalog = await loadCatalog();
   } catch (e) {
-    console.error(e);
-    $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
-    $('#uniqSubtitle').textContent =
-      'Не удалось прочитать runtime-каталог задач.';
-    return;
+    // one-shot retry: страховка от медленной гидратации токена (сессия есть, но кэш RPC ещё прогревается).
+    if (isAuthRequired(e)) {
+      try {
+        await ensureSessionReady({ redirectOnAnon: false });
+        catalog = await loadCatalog();
+      } catch (e2) {
+        console.error(e2);
+        $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
+        $('#uniqSubtitle').textContent = 'Не удалось прочитать runtime-каталог задач.';
+        return;
+      }
+    } else {
+      console.error(e);
+      $('#uniqTitle').textContent = 'Ошибка загрузки каталога';
+      $('#uniqSubtitle').textContent =
+        'Не удалось прочитать runtime-каталог задач.';
+      return;
+    }
   }
 
   const section = catalog.find(x => x.id === sectionId && x.type === 'group');
