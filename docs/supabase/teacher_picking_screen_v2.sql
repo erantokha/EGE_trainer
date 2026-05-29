@@ -65,7 +65,7 @@ begin
     raise exception 'BAD_SOURCE';
   end if;
 
-  if v_filter_id is not null and v_filter_id not in ('unseen_low', 'stale', 'unstable') then
+  if v_filter_id is not null and v_filter_id not in ('unseen_low', 'stale', 'unstable', 'weak_spots') then
     raise exception 'BAD_FILTER_ID';
   end if;
 
@@ -73,6 +73,7 @@ begin
     when 'unseen_low' then 'Не решал / мало решал'
     when 'stale' then 'Давно решал'
     when 'unstable' then 'Нестабильно решает'
+    when 'weak_spots' then 'Слабые места'
     else null
   end;
 
@@ -377,7 +378,10 @@ begin
       ts.theme_id as section_id,
       coalesce(sum(ts.not_seen_proto_count + ts.low_seen_proto_count), 0)::int as unseen_low_count,
       coalesce(sum(ts.stale_proto_count), 0)::int as stale_count,
-      coalesce(sum(ts.unstable_proto_count), 0)::int as unstable_count
+      coalesce(sum(ts.unstable_proto_count), 0)::int as unstable_count,
+      -- WSF1: счётчик-бейдж «Слабые места» = covered-протос с accuracy<0.7 и attempt>=2 (is_weak).
+      -- Берём готовый weak_proto_count из student_topic_state_v1 (сигнатура не меняется).
+      coalesce(sum(ts.weak_proto_count), 0)::int as weak_spots_count
     from topic_state ts
     group by ts.theme_id
   ),
@@ -411,7 +415,8 @@ begin
       ts.is_unstable,
       (ts.not_seen_proto_count + ts.low_seen_proto_count)::int as unseen_low_count,
       ts.stale_proto_count as stale_count,
-      ts.unstable_proto_count as unstable_count
+      ts.unstable_proto_count as unstable_count,
+      ts.weak_proto_count as weak_spots_count
     from topic_state ts
   ),
   sections_json as (
@@ -424,7 +429,8 @@ begin
           'filter_counts', jsonb_build_object(
             'unseen_low', coalesce(sfc.unseen_low_count, 0),
             'stale', coalesce(sfc.stale_count, 0),
-            'unstable', coalesce(sfc.unstable_count, 0)
+            'unstable', coalesce(sfc.unstable_count, 0),
+            'weak_spots', coalesce(sfc.weak_spots_count, 0)
           ),
           'topics', coalesce(tp.topics, '[]'::jsonb)
         )
@@ -468,7 +474,8 @@ begin
             'filter_counts', jsonb_build_object(
               'unseen_low', tr.unseen_low_count,
               'stale', tr.stale_count,
-              'unstable', tr.unstable_count
+              'unstable', tr.unstable_count,
+              'weak_spots', tr.weak_spots_count
             )
           )
           order by tr.sort_order, tr.topic_id
@@ -591,6 +598,7 @@ begin
             when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
             when p.filter_id = 'stale' then cb.is_stale
             when p.filter_id = 'unstable' then cb.is_unstable
+            when p.filter_id = 'weak_spots' then cb.is_weak
             else false
           end))
       ) as proto_is_eligible
@@ -612,6 +620,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       1::int as pick_rank,
@@ -628,6 +637,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -645,11 +655,16 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       (case when p.complete then
         row_number() over (
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -664,6 +679,10 @@ begin
       else
         row_number() over (
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case when cb.is_not_seen then 1 when cb.is_low_seen then 2 else 99 end
@@ -700,6 +719,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -732,11 +752,16 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       (case when p.complete then
         row_number() over (
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -751,6 +776,10 @@ begin
       else
         row_number() over (
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case
@@ -799,6 +828,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -831,12 +861,17 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       (case when p.complete then
         row_number() over (
           partition by cb.theme_id
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -852,6 +887,10 @@ begin
         row_number() over (
           partition by cb.theme_id
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case
@@ -900,6 +939,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -1112,7 +1152,7 @@ begin
       'mode', (select mode from params),
       'can_pick', true,
       'session_seed', (select session_seed from params),
-      'supported_filters', jsonb_build_array('unseen_low', 'stale', 'unstable')
+      'supported_filters', jsonb_build_array('unseen_low', 'stale', 'unstable', 'weak_spots')
     ),
     'filter', jsonb_build_object(
       'filter_id', (select filter_id from params),

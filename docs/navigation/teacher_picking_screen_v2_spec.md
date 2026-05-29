@@ -231,11 +231,19 @@ returns jsonb
 - `unseen_low`
 - `stale`
 - `unstable`
+- `weak_spots` (WSF1)
 
 Mapping:
 - `unseen_low` <-> `Не решал / мало решал`
 - `stale` <-> `Давно решал`
 - `unstable` <-> `Нестабильно решает`
+- `weak_spots` <-> `Слабые места`
+
+`weak_spots` — фильтр-**градиент** (WSF1), а не строгая корзина: внутри scope ранжирует
+прототипы по точности ученика по возрастанию (covered: 0% → 100%), тай-брейк — давнее
+`last_attempt_at` выше (asc nulls last), `is_not_seen` — в самом конце. Под complete-selection
+(WTC4, прод-путь) добивает до N по этому градиенту с even-distribution; non-complete строгий
+набор = `is_weak` (covered, attempt≥2, accuracy<0.7). `matched_filter` для weak_spots = `is_weak`.
 
 Legacy ids:
 - `old`
@@ -388,7 +396,7 @@ Top-level required keys:
   "mode": "init",
   "can_pick": true,
   "session_seed": "seed-string",
-  "supported_filters": ["unseen_low", "stale", "unstable"]
+  "supported_filters": ["unseen_low", "stale", "unstable", "weak_spots"]
 }
 ```
 
@@ -434,13 +442,15 @@ Top-level required keys:
   "filter_counts": {
     "unseen_low": 12,
     "stale": 4,
-    "unstable": 2
+    "unstable": 2,
+    "weak_spots": 3
   },
   "topics": []
 }
 ```
 
 `filter_counts` здесь — aggregated availability counts по section, а не результат resolve.
+`weak_spots` (WSF1) = число covered-протипов с `accuracy<0.7` и `attempt≥2` (`weak_proto_count`).
 
 ### 12.2. Topic Shape
 
@@ -477,7 +487,8 @@ Top-level required keys:
   "filter_counts": {
     "unseen_low": 0,
     "stale": 1,
-    "unstable": 2
+    "unstable": 2,
+    "weak_spots": 1
   }
 }
 ```
@@ -642,7 +653,7 @@ Cutover считается завершённым, когда одновреме
 Спецификация считается реализованной корректно, если одновременно выполнены условия:
 - `init` и `resolve` используют только canonical layer-3 states и catalog dims;
 - contract больше не принимает legacy `old / badAcc` как canonical filter vocabulary;
-- `filter_id` поддерживает только `null | unseen_low | stale | unstable`;
+- `filter_id` поддерживает только `null | unseen_low | stale | unstable | weak_spots`;
 - `resolve` уважает `proto > topic > section`;
 - `resolve` не возвращает duplicate `question_id`;
 - `resolve` уважает `p_exclude_question_ids`;
@@ -656,7 +667,7 @@ Cutover считается завершённым, когда одновреме
 
 `teacher_picking_screen_v2` — это следующий канонический screen contract для teacher manual picking, который:
 - стоит поверх `student_proto_state_v1` и `student_topic_state_v1`;
-- использует только новый vocabulary `unseen_low / stale / unstable`;
+- использует только новый vocabulary `unseen_low / stale / unstable / weak_spots`;
 - убирает legacy `old / badAcc` из layer-4 seam;
 - делает `init` и `resolve` быстрыми за счёт готовых layer-3 states;
 - оставляет фронту только thin-client рендер и dispatch текущего action.

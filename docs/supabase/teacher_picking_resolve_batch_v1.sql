@@ -50,7 +50,7 @@ begin
     raise exception 'BAD_SOURCE';
   end if;
 
-  if v_filter_id is not null and v_filter_id not in ('unseen_low', 'stale', 'unstable') then
+  if v_filter_id is not null and v_filter_id not in ('unseen_low', 'stale', 'unstable', 'weak_spots') then
     raise exception 'BAD_FILTER_ID';
   end if;
 
@@ -58,6 +58,7 @@ begin
     when 'unseen_low' then 'РќРµ СЂРµС€Р°Р» / РјР°Р»Рѕ СЂРµС€Р°Р»'
     when 'stale' then 'Р”Р°РІРЅРѕ СЂРµС€Р°Р»'
     when 'unstable' then 'РќРµСЃС‚Р°Р±РёР»СЊРЅРѕ СЂРµС€Р°РµС‚'
+    when 'weak_spots' then 'Слабые места'
     else null
   end;
 
@@ -386,6 +387,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       1::int as pick_rank,
@@ -401,6 +403,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -420,6 +423,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       -- WTC4: pick_rank — dual-window. complete=false → ИСХОДНОЕ окно (байт-в-байт);
@@ -428,6 +432,10 @@ begin
         row_number() over (
           partition by vri.request_order
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -443,6 +451,10 @@ begin
         row_number() over (
           partition by vri.request_order
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case when cb.is_not_seen then 1 when cb.is_low_seen then 2 else 99 end
@@ -478,6 +490,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -516,12 +529,17 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       (case when p.complete then
         row_number() over (
           partition by vri.request_order
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -537,6 +555,10 @@ begin
         row_number() over (
           partition by vri.request_order
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case
@@ -584,6 +606,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
@@ -620,12 +643,17 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end as matched_filter,
       (case when p.complete then
         row_number() over (
           partition by vri.request_order, cb.theme_id
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
               when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
@@ -641,6 +669,10 @@ begin
         row_number() over (
           partition by vri.request_order, cb.theme_id
           order by
+            -- WSF1 weak_spots: covered по accuracy asc, not_seen в конце, тай-брейк давнее last_attempt (asc nulls last). Нейтрально для прочих filter_id.
+            case when p.filter_id = 'weak_spots' then (case when cb.is_not_seen then 1 else 0 end) else 0 end,
+            case when p.filter_id = 'weak_spots' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'weak_spots' then cb.last_attempt_at else null::timestamptz end asc nulls last,
             case
               when p.filter_id = 'unseen_low' then
                 case
@@ -688,6 +720,7 @@ begin
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
+        when p.filter_id = 'weak_spots' then cb.is_weak
         else false
       end))
   ),
