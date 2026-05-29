@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-05-29-16';
+import { CONFIG } from '../config.js?v=2026-05-29-17';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -245,6 +245,26 @@ export async function getSession(opts = {}) {
   const cached = __SESSION_CACHE.session;
   const cachedExp = Number(__SESSION_CACHE.expires_at || 0) || 0;
   if (cached && (!cachedExp || (cachedExp - now) > skewSec)) return cached;
+
+  // WTC10 FAST PATH: валидная сессия уже лежит в localStorage (после WTC7 ключ
+  // sb-<host>-auth-token выводится корректно) → отдаём её синхронно, НЕ дожидаясь
+  // медленного supabase-js auth.getSession(): на холодном старте через proxy он
+  // зависает и упирается в timeoutMs (~2.2c), после чего мы всё равно читаем тот
+  // же localStorage (fallback ниже, стр. ~308). Это та же проверка валидности, что
+  // в fallback, просто выполненная первой. Near-expiry / протухший токен (или его
+  // отсутствие) проваливаются в обычный путь ниже — refresh сохраняется.
+  try {
+    const fast = __readStoredSession();
+    const sF = fast?.session || null;
+    const expF = Number(sF?.expires_at || 0) || 0;
+    const hardExpiredF = expF && (expF - now) <= -60;
+    if (sF?.access_token && (!expF || (expF - now) > skewSec) && !hardExpiredF) {
+      __SESSION_CACHE.session = sF;
+      __SESSION_CACHE.expires_at = expF;
+      __SESSION_CACHE.signed_out_until = 0;
+      return sF;
+    }
+  } catch (_) {}
 
   if (__SESSION_CACHE.inflight) return __SESSION_CACHE.inflight;
 
