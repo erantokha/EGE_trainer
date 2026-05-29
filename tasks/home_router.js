@@ -226,6 +226,12 @@ function redirectToLoginFromRoot(withV) {
       ({ supabase, getSession, hasStoredSession, supaRest } = await loadProviders());
       if (!supabase || !getSession || !hasStoredSession || !supaRest) throw new Error('no providers');
     } catch (err) {
+      // WTC6 diag (logging-only): лендинг из-за неудачной загрузки провайдеров. Поведение не меняется.
+      try {
+        console.warn('[root-router] landing reason=providers_import_failed', {
+          online: navigator.onLine, build: BUILD, err: String(err && (err.message || err)),
+        });
+      } catch (_) {}
       inflight = false;
       hideOverlay();
       reveal();
@@ -266,6 +272,19 @@ function redirectToLoginFromRoot(withV) {
     }
 
     if (!session?.user?.id) {
+      // WTC6 diag (logging-only): лендинг без сессии. Логируем ТОЛЬКО имена ключей + expires_at (число)
+      // + booleans — НИКОГДА значения токенов. hadToken=false НО authTokenKeys непуст → рассинхрон ключа.
+      try {
+        const authKeys = Object.keys(localStorage).filter((k) => k.endsWith('-auth-token'));
+        let storedExp = null;
+        try { storedExp = JSON.parse(localStorage.getItem(authKeys[0]) || 'null')?.expires_at ?? null; } catch (_) {}
+        console.warn('[root-router] landing reason=no_session', {
+          hadToken, sessAttempts, sessTimedOutAny, online: navigator.onLine, build: BUILD,
+          elapsed_ms: Date.now() - t0,
+          authTokenKeys: authKeys,
+          storedExpiresAt: storedExp, nowSec: Math.floor(Date.now() / 1000),
+        });
+      } catch (_) {}
       inflight = false;
       hideOverlay();
       reveal();
@@ -284,6 +303,8 @@ function redirectToLoginFromRoot(withV) {
     );
 
     if (role === 'teacher' || role === 'student') {
+      // WTC6 diag (logging-only): подтверждение рабочего пути (редирект по роли).
+      try { console.info('[root-router] redirecting role=' + role); } catch (_) {}
       // Кэшируем роль для ускорения UI в других местах.
       try { sessionStorage.setItem(`ege_profile_role:${userId}`, role); } catch (_) {}
 
@@ -308,6 +329,8 @@ function redirectToLoginFromRoot(withV) {
       error: error ? { message: String(error.message || error), code: error.code, status: error.status } : null,
     };
 
+    // WTC6 diag (logging-only): зеркало для ветки role-fail (у этой ветки есть оверлей-ошибка, не «молчит»).
+    try { console.warn('[root-router] landing reason=role_undetermined', diag); } catch (_) {}
     // Роль не смогли определить — остаёмся на / и показываем понятную ошибку.
     showErrorUI('Не удалось определить роль.', diag);
   }
