@@ -7,13 +7,13 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 
-import { withBuild } from '../app/build.js?v=2026-05-29-13';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-13';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-05-29-13';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-29-13';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-13';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-13';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-05-29-13';
+import { withBuild } from '../app/build.js?v=2026-05-29-14';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-05-29-14';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-05-29-14';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-05-29-14';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-14';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-14';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-05-29-14';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -71,6 +71,11 @@ async function init() {
     $('#uniqSubtitle').textContent = 'Передайте параметр ?section=...';
     return;
   }
+
+  // WTC8: пока поднимается сессия (~getSession через proxy ~1–2 c), показать
+  // «загрузку», а не голый/«ошибочный» вид — чтобы не читалось как «разлогинен».
+  $('#uniqTitle').textContent = 'Загрузка раздела…';
+  $('#uniqSubtitle').textContent = '';
 
   // WTC5: поднять сессию ДО authenticated-каталога (catalog_index_like_v1 → authenticated).
   // Иначе на холодном boot токен не гидратирован → AUTH_REQUIRED → «Ошибка загрузки каталога».

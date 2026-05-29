@@ -782,6 +782,15 @@ export async function initHeader(opts = {}) {
     }
   });
 
+  // WTC8: оптимистичный мгновенный рендер из локального токена.
+  // peekStoredSession синхронен и без сети; после WTC7 он снова находит сессию
+  // (sb-<host>-auth-token). Иначе кнопка «Войти» мелькает ~1–2 c, пока идёт
+  // async getSession/refresh (особенно заметно на «голых» страницах вроде unique).
+  try {
+    const peeked = supabaseMod?.peekStoredSession?.();
+    if (peeked) applySessionToUI(peeked);
+  } catch (_) {}
+
   let initial = null;
   try {
     initial = getSession ? await getSession().catch(() => null) : null;
