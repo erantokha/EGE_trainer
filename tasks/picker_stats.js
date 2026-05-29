@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-30-1';
+} from './picker_common.js?v=2026-05-30-2';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
