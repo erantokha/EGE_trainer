@@ -145,7 +145,8 @@ begin
       ts.is_low_seen,
       ts.is_enough_seen,
       ts.is_stale,
-      ts.is_unstable
+      ts.is_unstable,
+      ts.subtopic_last3_avg_pct
     from params p
     cross join lateral public.student_topic_state_v1(p.student_id, p.source) ts
   ),
@@ -411,6 +412,7 @@ begin
       coalesce(ts.attempt_count_total, 0)::int as attempt_count_total,
       coalesce(ts.correct_count_total, 0)::int as correct_count_total,
       coalesce(ts.accuracy, null::numeric) as accuracy,
+      ts.subtopic_last3_avg_pct,
       coalesce(ts.is_not_seen, false) as is_not_seen,
       coalesce(ts.is_low_seen, false) as is_low_seen,
       coalesce(ts.is_enough_seen, false) as is_enough_seen,
@@ -493,6 +495,7 @@ begin
           'last10', jsonb_build_object('total', t.last10_total, 'correct', t.last10_correct),
           'period', jsonb_build_object('total', t.period_total, 'correct', t.period_correct),
           'all_time', jsonb_build_object('total', t.all_total, 'correct', t.all_correct),
+          'subtopic_last3_avg_pct', t.subtopic_last3_avg_pct,
           'coverage', jsonb_build_object(
             'unics_attempted', t.unique_proto_seen_count,
             'unics_total', t.visible_proto_count,

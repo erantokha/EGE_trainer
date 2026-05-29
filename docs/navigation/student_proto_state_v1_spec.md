@@ -431,3 +431,23 @@ Layer-4 обязан:
 - фиксирует один truth-набор counters, metrics и derived states;
 - напрямую поддерживает teacher filters `Не решал / мало решал`, `Давно решал`, `Нестабильно решает`;
 - снимает необходимость повторно вычислять эти состояния в layer-4 и на фронте.
+
+## Addendum WL3.1 — точность по «последним 3 попыткам» (append-only)
+
+Дата: 2026-05-29. Связано: `reports/wl3_1_accuracy_impl_report.md`.
+
+Добавлены три поля в `returns table` (в КОНЕЦ; `accuracy/is_weak/is_stale/is_unstable` и прочее —
+байт-в-байт, фильтры/WSF1/WTC4 не затронуты):
+
+- `last3_total integer` — число попыток в окне последних 3 (3 самых свежих ответа по времени по
+  ВСЕМ вопросам прототипа). Диапазон `{0,1,2,3}`.
+- `last3_correct integer` — из них верных.
+- `last3_accuracy numeric` — `last3_correct / last3_total` (ratio `[0,1]`); `null`, если `last3_total = 0`.
+
+Окно: `row_number() over (partition by unic_id order by coalesce(occurred_at, created_at) desc, created_at desc, id desc)`,
+`filter rn <= 3`. Тот же источник `answer_events` и приём, что в `question_stats_for_teacher_v2`
+(по вопросу) и `student_analytics_screen_v1` (по подтеме). `last3_accuracy` НЕ участвует в
+`is_weak/is_stale/is_unstable` — они остаются на all-time `accuracy`.
+
+**Деплой:** добавление колонок в `returns table` = смена типа возврата → `create or replace` не пройдёт;
+нужен `DROP FUNCTION` перед пересозданием (см. `docs/supabase/_wl3_deploy.sql`).

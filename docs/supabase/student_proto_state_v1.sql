@@ -33,7 +33,10 @@ returns table(
   is_enough_seen boolean,
   is_weak boolean,
   is_stale boolean,
-  is_unstable boolean
+  is_unstable boolean,
+  last3_total integer,
+  last3_correct integer,
+  last3_accuracy numeric
 )
 language plpgsql
 stable
@@ -126,6 +129,33 @@ begin
       )
     group by vq.unic_id
   ),
+  -- WL3.1: точность по «последним 3 попыткам» прототипа (3 самых свежих ответа по времени,
+  -- по всем вопросам прототипа). Тот же источник answer_events, тот же приём окна, что в
+  -- question_stats_for_teacher_v2 / student_analytics_screen_v1, но partition by unic_id.
+  proto_last3 as (
+    select
+      e.unic_id,
+      count(*) filter (where e.rn <= 3)::int as last3_total,
+      count(*) filter (where e.rn <= 3 and e.correct)::int as last3_correct
+    from (
+      select
+        vq.unic_id,
+        ae.correct,
+        row_number() over (
+          partition by vq.unic_id
+          order by coalesce(ae.occurred_at, ae.created_at) desc, ae.created_at desc, ae.id desc
+        ) as rn
+      from public.answer_events ae
+      join visible_questions vq
+        on vq.question_id = ae.question_id
+      where ae.student_id = p_student_id
+        and (
+          v_source = 'all'
+          or ae.source = v_source
+        )
+    ) e
+    group by e.unic_id
+  ),
   base_rows as (
     select
       p_student_id as student_id,
@@ -139,10 +169,14 @@ begin
       coalesce(pe.attempt_count_total, 0)::int as attempt_count_total,
       coalesce(pe.correct_count_total, 0)::int as correct_count_total,
       coalesce(pe.unique_question_ids_seen, 0)::int as unique_question_ids_seen,
-      pe.last_attempt_at
+      pe.last_attempt_at,
+      coalesce(pl3.last3_total, 0)::int as last3_total,
+      coalesce(pl3.last3_correct, 0)::int as last3_correct
     from visible_unics vu
     left join proto_events pe
       on pe.unic_id = vu.unic_id
+    left join proto_last3 pl3
+      on pl3.unic_id = vu.unic_id
   ),
   metrics as (
     select
@@ -156,7 +190,13 @@ begin
         when b.attempt_count_total > 0
           then (b.correct_count_total::numeric / b.attempt_count_total::numeric)
         else null::numeric
-      end as accuracy
+      end as accuracy,
+      -- WL3.1: ratio по последним 3 попыткам; null при отсутствии попыток в окне.
+      case
+        when b.last3_total > 0
+          then (b.last3_correct::numeric / b.last3_total::numeric)
+        else null::numeric
+      end as last3_accuracy
     from base_rows b
   )
   select
@@ -195,7 +235,10 @@ begin
       m.has_independent_correct = true
       and m.attempt_count_total >= 2
       and m.accuracy < 0.7
-    ) as is_unstable
+    ) as is_unstable,
+    m.last3_total,
+    m.last3_correct,
+    m.last3_accuracy
   from metrics m
   order by
     m.theme_sort_order,

@@ -471,6 +471,7 @@ Top-level required keys:
     "period_correct": 3,
     "period_pct": 75,
     "all_time_pct": 81,
+    "subtopic_last3_avg_pct": 67,
     "last_seen_at": "2026-03-20T10:00:00Z"
   },
   "coverage": {

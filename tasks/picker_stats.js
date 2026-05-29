@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-29-22';
+} from './picker_common.js?v=2026-05-29-23';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
@@ -60,17 +60,12 @@ export function setHomeBadge(badgeEl, p, total, correct, title) {
 }
 
 export function setHomeTopicBadge(badgeEl, st) {
-  const t3 = st?.last3 || null;
-  const t = Math.max(0, Number(t3?.total || 0) || 0);
-  const c = Math.max(0, Number(t3?.correct || 0) || 0);
-
-  if (!t) {
-    setHomeBadge(badgeEl, null, 0, 0, 'Последние 3 задачи');
-    return;
-  }
-
-  const p = pct(t, c);
-  setHomeBadge(badgeEl, p, t, c, 'Последние 3 задачи');
+  // WL3.1: подтема% = среднее точностей прототипов по последним 3 попыткам (из SQL).
+  const raw = st?.subtopic_last3_avg_pct;
+  const p = (raw === null || raw === undefined || !Number.isFinite(Number(raw)))
+    ? null
+    : Math.round(Number(raw));
+  setHomeBadge(badgeEl, p, 0, 0, 'Средняя точность прототипов (последние 3 попытки)');
 }
 
 export function setHomeSectionBadge(badgeEl, sectionPct, _usedTopics, _totalTopics) {
@@ -320,28 +315,30 @@ export function buildStudentStatsModel(dash, sections) {
 
     const sid = String(t?.section_id || '').trim();
 
+    // WL3.1: подтема% = среднее last3-точностей прототипов (proto-уровень), считается в SQL
+    // (student_topic_state_v1.subtopic_last3_avg_pct, проброшено через student_analytics_screen_v1).
+    const rawSubPct = t?.subtopic_last3_avg_pct;
+    const subPct = (rawSubPct === null || rawSubPct === undefined || !Number.isFinite(Number(rawSubPct)))
+      ? null
+      : Math.round(Number(rawSubPct));
+
     const st = {
       topic_id: tid,
       section_id: sid,
       last_seen_at: t?.last_seen_at || null,
       all_time: t?.all_time || { total: 0, correct: 0 },
       last3: t?.last3 || { total: 0, correct: 0 },
+      subtopic_last3_avg_pct: subPct,
     };
 
     topMap.set(tid, st);
 
-    const t3 = st.last3 || {};
-    const total = Math.max(0, Number(t3.total || 0) || 0);
-    const correct = Math.max(0, Number(t3.correct || 0) || 0);
-
-    if (sid && total > 0) {
-      const p = pct(total, correct);
-      if (p !== null && p !== undefined) {
-        const a = sectionAgg.get(sid) || { sumPct: 0, nTopics: 0 };
-        a.sumPct += Number(p);
-        a.nTopics += 1;
-        sectionAgg.set(sid, a);
-      }
+    // WL3.1: тема% = среднее подтема-процентов (форма прежняя); null-подтемы не входят в среднее.
+    if (sid && subPct !== null) {
+      const a = sectionAgg.get(sid) || { sumPct: 0, nTopics: 0 };
+      a.sumPct += subPct;
+      a.nTopics += 1;
+      sectionAgg.set(sid, a);
     }
   }
 
@@ -409,25 +406,24 @@ export function buildTeacherPickingHomeModel(payload) {
       const rawPeriodPct = Number(stats?.period_pct);
       const rawLast10Pct = Number(stats?.last10_pct);
       const rawAllTimePct = Number(progress?.all_time_pct ?? stats?.all_time_pct);
+      // WL3.1: proto-усреднённая точность по последним 3 попыткам (teacher_picking_screen_v2.progress).
+      const rawLast3AvgPct = Number(progress?.subtopic_last3_avg_pct ?? stats?.subtopic_last3_avg_pct);
       const periodPct = Number.isFinite(rawPeriodPct)
         ? Math.round(rawPeriodPct)
         : (periodTotal > 0 ? pct(periodTotal, periodCorrect) : null);
       const last10Pct = Number.isFinite(rawLast10Pct) ? Math.round(rawLast10Pct) : null;
       const allTimePct = Number.isFinite(rawAllTimePct) ? Math.round(rawAllTimePct) : null;
+      const last3AvgPct = Number.isFinite(rawLast3AvgPct) ? Math.round(rawLast3AvgPct) : null;
       const coveredUnics = Math.max(0, Number(coverage?.covered_unic_count || 0) || 0);
       const totalUnics = Math.max(0, Number(coverage?.total_unic_count || 0) || 0);
       let displayPct = null;
       let displaySource = '';
 
-      if (periodPct !== null && periodTotal > 0) {
-        displayPct = periodPct;
-        displaySource = 'period';
-      } else if (last10Pct !== null) {
-        displayPct = last10Pct;
-        displaySource = 'last10';
-      } else if (allTimePct !== null) {
-        displayPct = allTimePct;
-        displaySource = 'all_time';
+      // WL3.1: бейдж/балл = последние 3 попытки (proto-среднее), унифицировано со student-home.
+      // null → серый, подтема не входит в среднее темы. (Прежняя period→last10→all_time иерархия снята.)
+      if (last3AvgPct !== null) {
+        displayPct = last3AvgPct;
+        displaySource = 'last3';
       }
 
       if (coveredUnics > 0 || String(state?.coverage_state || '').trim().toLowerCase() === 'covered') {
@@ -440,6 +436,7 @@ export function buildTeacherPickingHomeModel(payload) {
         period_pct: periodPct,
         last10_pct: last10Pct,
         all_time_pct: allTimePct,
+        last3_avg_pct: last3AvgPct,
         display_pct: displayPct,
         display_source: displaySource,
         last_seen_at: progress?.last_seen_at || stats?.last_seen_at || null,
@@ -464,12 +461,11 @@ export function buildTeacherPickingHomeModel(payload) {
         tooltipParts.push('По подтеме ещё нет покрытия в выбранном периоде.');
       }
 
-      if (periodTotal > 0 && periodPct !== null) {
-        tooltipParts.push(`За ${days} дн.: ${periodPct}% (${periodCorrect}/${periodTotal}).`);
-      } else if (periodTotal > 0) {
-        tooltipParts.push(`За ${days} дн.: ${periodCorrect}/${periodTotal}.`);
+      // WL3.1: честная подпись по окну последних 3 попыток (mislabel «За N дн.» снят).
+      if (last3AvgPct !== null) {
+        tooltipParts.push(`Последние 3 попытки (среднее по прототипам): ${last3AvgPct}%.`);
       } else if (reason === 'uncovered') {
-        tooltipParts.push(`За ${days} дн. попыток нет.`);
+        tooltipParts.push('Нет попыток в окне последних 3 попыток.');
       }
 
       if (totalUnics > 0) {

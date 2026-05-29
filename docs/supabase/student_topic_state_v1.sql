@@ -41,7 +41,8 @@ returns table(
   is_low_seen boolean,
   is_enough_seen boolean,
   is_stale boolean,
-  is_unstable boolean
+  is_unstable boolean,
+  subtopic_last3_avg_pct numeric
 )
 language sql
 stable
@@ -76,7 +77,10 @@ topic_rollup as (
     count(*) filter (where ps.has_independent_correct)::int as mastered_proto_count,
     coalesce(sum(ps.attempt_count_total) filter (where ps.has_independent_correct), 0)::int as mastered_attempt_count_total,
     coalesce(sum(ps.correct_count_total) filter (where ps.has_independent_correct), 0)::int as mastered_correct_count_total,
-    max(ps.last_attempt_at) filter (where ps.has_independent_correct) as last_mastered_attempt_at
+    max(ps.last_attempt_at) filter (where ps.has_independent_correct) as last_mastered_attempt_at,
+    -- WL3.1: подтема % = СРЕДНЕЕ last3_accuracy прототипов с попытками в окне (last3_total>0),
+    -- округлённое в percent. null, если ни у одного прототипа нет попыток в окне.
+    round(avg(ps.last3_accuracy) filter (where ps.last3_total > 0) * 100, 0) as subtopic_last3_avg_pct
   from proto_state ps
   group by
     ps.student_id,
@@ -142,7 +146,8 @@ select
     and m.mastered_proto_count > 0
     and m.mastered_attempt_count_total >= 2
     and m.mastered_accuracy < 0.7
-  ) as is_unstable
+  ) as is_unstable,
+  m.subtopic_last3_avg_pct
 from metrics m
 order by
   m.theme_id,

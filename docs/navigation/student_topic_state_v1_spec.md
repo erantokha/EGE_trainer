@@ -495,3 +495,20 @@ Layer-4 section-picking resolve path обязан:
 - фиксирует один truth-набор topic counts, metrics и derived states;
 - напрямую поддерживает topic-level semantics для teacher filters;
 - делает быстрым section picking и убирает необходимость заново rollup-ить topic state в layer-4 и на фронте.
+
+## Addendum WL3.1 — точность подтемы по «последним 3 попыткам» (append-only)
+
+Дата: 2026-05-29. Связано: `reports/wl3_1_accuracy_impl_report.md`.
+
+Добавлено одно поле в `returns table` (в КОНЕЦ; котёл `accuracy`, `weak_proto_count`, `is_*` и прочее —
+байт-в-байт):
+
+- `subtopic_last3_avg_pct numeric` — **СРЕДНЕЕ** `last3_accuracy` прототипов подтемы, у которых
+  `last3_total > 0`, в процентах: `round(avg(ps.last3_accuracy) filter (where ps.last3_total > 0) * 100, 0)`.
+  `null`, если ни у одного прототипа нет попыток в окне (такая подтема не входит в среднее темы на FE).
+
+Это **среднее процентов прототипов** (целевая семантика WL3.1), в отличие от существующего `accuracy`
+(котёл `sum(correct)/sum(attempt)`, all-time), который сохранён без изменений для фильтров/рекомендаций.
+
+**Деплой:** смена типа возврата → требуется `DROP FUNCTION` перед пересозданием (см. `_wl3_deploy.sql`),
+и `student_proto_state_v1` должен быть пересоздан РАНЬШЕ (эта функция — `language sql`, валидирует proto при создании).
