@@ -1,0 +1,1148 @@
+{
+  "counts": {
+    "sections": 12,
+    "topics": 84
+  },
+  "sections": [
+    {
+      "id": "1",
+      "titleText": "1. Планиметрия",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "2",
+      "titleText": "2. Векторы",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "3",
+      "titleText": "3. Стереометрия",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "4",
+      "titleText": "4. Простая вероятность",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "5",
+      "titleText": "5. Сложная вероятность",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "6",
+      "titleText": "6. Простейшие уравнения",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "7",
+      "titleText": "7. Вычисления и преобразования",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "8",
+      "titleText": "8. Производная и графики",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "9",
+      "titleText": "9. Прикладные задачи (формулы)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "10",
+      "titleText": "10. Текстовые задачи",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "11",
+      "titleText": "11. Графики функций",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    },
+    {
+      "id": "12",
+      "titleText": "12. Исследование функций (производная)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": null,
+        "tip": "Процент правильных ответов"
+      },
+      "coverage": {
+        "color": "green",
+        "value": "<N>/<N>",
+        "small": null,
+        "tip": "Покрытие тем"
+      }
+    }
+  ],
+  "topics": [
+    {
+      "id": "1.1",
+      "titleText": "1.1. Площадь через высоты",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.2",
+      "titleText": "1.2. Биссектриса треугольника",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.3",
+      "titleText": "1.3. Прямоугольный треугольник (sin, cos)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.4",
+      "titleText": "1.4. Центральный и вписанный углы",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.5",
+      "titleText": "1.5. Биссектриса/медиана/высота из прямого угла",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.6",
+      "titleText": "1.6. Диаметры в окружности",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.7",
+      "titleText": "1.7. Четырёхугольник (сумма, разность углов)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.8",
+      "titleText": "1.8. Окружность в четырёхугольнике",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.9",
+      "titleText": "1.9. Четырёхугольник в окружности (больший угол)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.10",
+      "titleText": "1.10. Четырёхугольник в окружность (угол напротив)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.11",
+      "titleText": "1.11. Подобные треугольники",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.12",
+      "titleText": "1.12. Разбиение параллелограмма",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.13",
+      "titleText": "1.13. Теорема синусов",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.14",
+      "titleText": "1.14. Внешний угол",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "1.15",
+      "titleText": "1.15. Касательная к окружности",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "2.1",
+      "titleText": "2.1. Скалярное произведение",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "2.2",
+      "titleText": "2.2. Длина вектора",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.1.1",
+      "titleText": "3.1.1. Треугольная призма",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.1.2",
+      "titleText": "3.1.2. Параллелепипед",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.1.3",
+      "titleText": "3.1.3. Конус",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.1.4",
+      "titleText": "3.1.4. Шар",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.2.1",
+      "titleText": "3.2.1. Конус и цилиндр",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.2.2",
+      "titleText": "3.2.2. Шар и цилиндр",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.2.3",
+      "titleText": "3.2.3. Шар и конус",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.2.4",
+      "titleText": "3.2.4. Цилиндр и параллелепипед",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "3.2.5",
+      "titleText": "3.2.5. Два цилиндра",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "4.1",
+      "titleText": "4.1. Классическая вероятность",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "4.2",
+      "titleText": "4.2. Жеребьёвка",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "4.3",
+      "titleText": "4.3. Группа туристов",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "4.4",
+      "titleText": "4.4. Монета",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "4.5",
+      "titleText": "4.5. Интервальная вероятность",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.1",
+      "titleText": "5.1. Три лампы",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.2",
+      "titleText": "5.2. Стрелок",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.3",
+      "titleText": "5.3. Фломастеры",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.4",
+      "titleText": "5.4. Игральная кость",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.5",
+      "titleText": "5.5. Батарейки",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "5.6",
+      "titleText": "5.6. Кофейные автоматы",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "6.1",
+      "titleText": "6.1. Показательные уравнения",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "6.2",
+      "titleText": "6.2. Уравнения с корнем",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "6.3",
+      "titleText": "6.3. Логарифмические уравнения",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "6.4",
+      "titleText": "6.4. Скобка в степени",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "6.5",
+      "titleText": "6.5. Дробь",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "7.1",
+      "titleText": "7.1. Тригонометрия",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "7.2",
+      "titleText": "7.2. Логарифмы",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "7.3",
+      "titleText": "7.3. Степени",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "7.4",
+      "titleText": "7.4. Корни/степени (остальное)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "7.5",
+      "titleText": "7.5. Корни (разности и произведения)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "8.1",
+      "titleText": "8.1. Значение производной в точке касания",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "8.2",
+      "titleText": "8.2. Дана функция (анализ по графику)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "8.3",
+      "titleText": "8.3. Дана производная (анализ по графику)",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.1",
+      "titleText": "9.1. Логарифм",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.2",
+      "titleText": "9.2. Распад изотопа",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.3",
+      "titleText": "9.3. Корень",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.4",
+      "titleText": "9.4. Квадратичные модели",
+      "titleStat": [],
+      "last10": {
+        "color": "gray",
+        "value": "—",
+        "small": "",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.5",
+      "titleText": "9.5. Закон Ома",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.6",
+      "titleText": "9.6. Источник ЭДС",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.7",
+      "titleText": "9.7. Гудок тепловоза",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.8",
+      "titleText": "9.8. Угол между телами",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.9",
+      "titleText": "9.9. Локатор батискафа",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.10",
+      "titleText": "9.10. Температура звёзд",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.11",
+      "titleText": "9.11. Источник и приёмник",
+      "titleStat": [],
+      "last10": {
+        "color": "green",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.12",
+      "titleText": "9.12. Адиабатический процесс",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.13",
+      "titleText": "9.13. Духовка и обогреватель",
+      "titleStat": [],
+      "last10": {
+        "color": "green",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "9.14",
+      "titleText": "9.14. Линза",
+      "titleStat": [],
+      "last10": {
+        "color": "green",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.1",
+      "titleText": "10.1. Движение по воде",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.2",
+      "titleText": "10.2. Движение по прямой",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.3",
+      "titleText": "10.3. Работа (рабочие, трубы)",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.4",
+      "titleText": "10.4. Совместная работа",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.5",
+      "titleText": "10.5. Сплавы и смеси",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.6",
+      "titleText": "10.6. Средняя скорость",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "10.7",
+      "titleText": "10.7. Скорость сближения",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.1",
+      "titleText": "11.1. Прямая",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.2",
+      "titleText": "11.2. Парабола",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.3",
+      "titleText": "11.3. Гипербола",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.4",
+      "titleText": "11.4. Показательная",
+      "titleStat": [],
+      "last10": {
+        "color": "yellow",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.5",
+      "titleText": "11.5. Логарифм",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.6",
+      "titleText": "11.6. Две прямые",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.7",
+      "titleText": "11.7. Прямая и гипербола",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.8",
+      "titleText": "11.8. Прямая и парабола",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "11.9",
+      "titleText": "11.9. Прямая и корень",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "12.1",
+      "titleText": "12.1. Степенная",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "12.2",
+      "titleText": "12.2. Логарифм",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "12.3",
+      "titleText": "12.3. Тригонометрия",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    },
+    {
+      "id": "12.4",
+      "titleText": "12.4. Произведение",
+      "titleStat": [],
+      "last10": {
+        "color": "red",
+        "value": "<N>%",
+        "small": "<N>/<N>",
+        "tip": "Последние <N> задачи"
+      }
+    }
+  ],
+  "forecast": {
+    "present": true,
+    "primary": "<N>",
+    "secondary": "<N>",
+    "noteHidden": false,
+    "note": "Округление: <N> перв. → <N> втор."
+  },
+  "thermo": {
+    "present": false
+  }
+}
