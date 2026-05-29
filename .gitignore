@@ -5,3 +5,7 @@ playwright-report/
 test-results/
 *.log
 .DS_Store
+
+# Claude Code worktrees / диагностический scratch
+.claude/
+reports/_diag_vectors*.cjs
