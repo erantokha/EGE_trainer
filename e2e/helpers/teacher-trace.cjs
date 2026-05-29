@@ -169,8 +169,12 @@ async function snapshotState(page) {
     const loginPrompt = /Войдите/i.test(teacherStudentStatusText || '');
 
     const sumEl = document.getElementById('sum');
+    const addedBtn = document.getElementById('addedTasksBtn');
+    const addedBtnShortage = !!(addedBtn && addedBtn.classList.contains('has-shortage'));
+    const addedBtnTip = addedBtn ? String(addedBtn.getAttribute('data-tip') || '').trim() : null;
     return {
       sumText: sumEl ? String(sumEl.textContent || '').trim() : null,
+      addedBtnShortage, addedBtnTip,
       desiredTotal, sectionCounts, topicCounts,
       activeContextKey: selectedStudent ? null : null, // вычислим в отчёте по ключу
       addedContexts: contexts,

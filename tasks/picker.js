@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-29-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-29-3';
-import { CONFIG } from '../app/config.js?v=2026-05-29-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-29-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-3';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-29-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-29-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-29-3';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-29-3';
+import { withBuild } from '../app/build.js?v=2026-05-29-5';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-29-5';
+import { CONFIG } from '../app/config.js?v=2026-05-29-5';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-29-5';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-5';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-29-5';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-29-5';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-5';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-5';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-29-5';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-29-5';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-29-3';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-29-5';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-29-3';
+} from './picker_common.js?v=2026-05-29-5';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-05-29-3';
+} from './picker_stats.js?v=2026-05-29-5';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2876,6 +2876,14 @@ let _ADDED_SYNC_SEQ = 0;
 let _ADDED_BADGE_SEQ = 0;
 let _ADDED_SYNC_DIRTY = true;
 
+// WTC2: правда о фактически добавленном vs запрошенном.
+//   _ADDED_SHORTAGE = null | { requested, available, net } — выставляется по итогу sync,
+//   когда фактически добавлено меньше запрошенного (банк исчерпан #1 или сетевой сбой #2).
+let _ADDED_SHORTAGE = null;
+// WTC2 #2: был ли сетевой/RPC-сбой resolve в текущем проходе sync (для пометки + retry).
+let _ADDED_RESOLVE_NET_ERROR = false;
+let _ADDED_RECONNECT_WIRED = false;
+
 const _TEACHER_RESOLVE_MANIFEST_CACHE = new Map();
 const _TEACHER_RESOLVE_MANIFEST_INDEX_CACHE = new Map();
 
@@ -2932,9 +2940,41 @@ function persistAddedTasksContext() {
   store.contexts[_ADDED_CTX_KEY] = {
     seed: String(_ADDED_CTX.seed || '').trim() || createTeacherPickSeed(),
     buckets: _ADDED_CTX.buckets || {},
+    // WTC2 #3: персистим desired (CHOICE_*) рядом с buckets, чтобы F5 не стирал сборку.
+    // CHOICE_* в этот момент относятся к активному (= этому) контексту.
+    choice: {
+      topics: { ...(CHOICE_TOPICS || {}) },
+      sections: { ...(CHOICE_SECTIONS || {}) },
+      protos: { ...(CHOICE_PROTOS || {}) },
+    },
     ts: Date.now(),
   };
   saveTeacherAddedTasksStore(store);
+}
+
+// WTC2 #3: однократная регидрация desired из сохранённого context.choice ТОЛЬКО при свежем boot
+// (CHOICE_* пуст). Отличает свежий boot от: (а) намеренного bulkResetAll (choice сохранён пустым),
+// (б) in-session переключения ученика (CHOICE непустой — carry-over, не трогаем → B3 не меняется).
+// Старый store без choice — no-op (обратная совместимость).
+let _CHOICE_REHYDRATED = false;
+function maybeRehydrateChoiceForFreshBoot(rawCtx) {
+  if (_CHOICE_REHYDRATED || !IS_TEACHER_HOME) return;
+  if (!String(TEACHER_VIEW_STUDENT_ID || '').trim()) return; // только контекст выбранного ученика
+  if (getTotalSelected() > 0) return;                         // не свежий boot (CHOICE непустой) → не трогаем
+  const choice = (rawCtx && typeof rawCtx === 'object' && rawCtx.choice && typeof rawCtx.choice === 'object') ? rawCtx.choice : null;
+  if (!choice) return;                                        // старый формат без choice — ничего не восстанавливаем
+  const t = (choice.topics && typeof choice.topics === 'object') ? choice.topics : {};
+  const s = (choice.sections && typeof choice.sections === 'object') ? choice.sections : {};
+  const p = (choice.protos && typeof choice.protos === 'object') ? choice.protos : {};
+  const sum = [...Object.values(t), ...Object.values(s), ...Object.values(p)].reduce((a, b) => a + (Number(b) || 0), 0);
+  if (sum <= 0) return;                                       // сохранённый choice пуст (после reset) → нет «фантома»
+  CHOICE_TOPICS = { ...t };
+  CHOICE_SECTIONS = { ...s };
+  CHOICE_PROTOS = { ...p };
+  _CHOICE_REHYDRATED = true;
+  // обновить DOM-счётчики/#sum (accordion к этому моменту отрисован синхронно в applyTeacherStudentView)
+  try { queueMicrotask(() => { try { refreshCountsUI(); } catch (_) {} }); }
+  catch (_) { try { refreshCountsUI(); } catch (_) {} }
 }
 
 function ensureAddedTasksContextLoaded() {
@@ -2976,6 +3016,10 @@ function ensureAddedTasksContextLoaded() {
 
   _ADDED_CTX_KEY = key;
   _ADDED_CTX = ctx;
+
+  // WTC2 #3: восстановить desired из store при свежем boot (до boot-sync — иначе trim сотрёт buckets).
+  maybeRehydrateChoiceForFreshBoot(rawCtx);
+
   return _ADDED_CTX;
 }
 
@@ -3173,7 +3217,7 @@ async function pickQuestionsViaTeacherScreenResolve({
     timeoutMs: 15000,
   });
 
-  if (!res?.ok) return [];
+  if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return []; } // WTC2 #2: пометить сбой resolve
 
   const payload = res?.payload;
   const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
@@ -3253,7 +3297,7 @@ async function pickQuestionsViaTeacherScreenResolveBatch({
     timeoutMs: 15000,
   });
 
-  if (!res?.ok) return null;
+  if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return null; } // WTC2 #2: пометить сбой resolve
 
   const payload = res?.payload;
   const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
@@ -3418,6 +3462,52 @@ function appendPickedQuestionsToBucket(ctx, bucketKey, questions = []) {
   return added;
 }
 
+// WTC2: текст сообщения о дефиците (банк исчерпан #1 или сетевой сбой #2).
+function shortageMessageText(sh) {
+  if (!sh) return '';
+  if (sh.net) {
+    return `Не удалось добавить часть задач (нет сети): добавлено ${sh.available} из ${sh.requested}. Проверьте соединение — добор повторится автоматически.`;
+  }
+  return `Доступно ${sh.available} из запрошенных ${sh.requested} (банк задач исчерпан).`;
+}
+
+// WTC2: привести видимый счётчик/подсказку к ПРАВДЕ после sync.
+// Счётчик #sum при дефиците показывает фактически добавленное (не запрошенное),
+// подсказка на существующей кнопке #addedTasksBtn объясняет причину. Без новой разметки.
+function reconcileAddedTasksTruth(wantTotal) {
+  if (!IS_TEACHER_HOME) return;
+  const actual = flattenAddedQuestions().length;
+  const want = Math.max(0, Number(wantTotal || 0) || 0);
+  const deficit = want - actual;
+  _ADDED_SHORTAGE = (deficit > 0) ? { requested: want, available: actual, net: !!_ADDED_RESOLVE_NET_ERROR } : null;
+
+  // Честный счётчик: #sum всегда отражает фактически добавленное (при дефиците < запрошенного;
+  // при снятии дефицита снова равно запрошенному). Иначе #sum залипал бы на старом значении.
+  const sumEl = $('#sum');
+  if (sumEl) sumEl.textContent = String(actual);
+
+  const addedBtn = $('#addedTasksBtn');
+  if (addedBtn) {
+    if (_ADDED_SHORTAGE) {
+      addedBtn.classList.add('has-shortage');
+      addedBtn.setAttribute('data-tip', shortageMessageText(_ADDED_SHORTAGE));
+    } else if (addedBtn.classList.contains('has-shortage')) {
+      addedBtn.classList.remove('has-shortage');
+      addedBtn.removeAttribute('data-tip');
+    }
+  }
+
+  // WTC2 #2: при сетевом сбое — добрать недостающее при восстановлении сети (one-shot wiring).
+  if (_ADDED_SHORTAGE && _ADDED_SHORTAGE.net && !_ADDED_RECONNECT_WIRED) {
+    _ADDED_RECONNECT_WIRED = true;
+    try {
+      window.addEventListener('online', () => {
+        if (_ADDED_SHORTAGE && _ADDED_SHORTAGE.net) scheduleSyncAddedTasks({ reason: 'reconnect' });
+      });
+    } catch (_) {}
+  }
+}
+
 async function syncAddedTasksToSelection(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) return;
@@ -3427,6 +3517,7 @@ async function syncAddedTasksToSelection(opts = {}) {
   if (!ctx) return;
 
   const seq = ++_ADDED_SYNC_SEQ;
+  _ADDED_RESOLVE_NET_ERROR = false; // WTC2 #2: копим признак сетевого сбоя resolve за этот проход
   const { desired, wantTotal } = getDesiredCountsFromSelection();
 
   // --- 1) удаление лишних задач ---
@@ -3676,6 +3767,9 @@ async function syncAddedTasksToSelection(opts = {}) {
   // сохраняем контекст
   try { persistAddedTasksContext(); } catch (_) {}
 
+  // WTC2: привести счётчик/подсказку к фактически добавленному (правда о shortage/сбое).
+  reconcileAddedTasksTruth(wantTotal);
+
   // если модалка открыта — перерисуем
   _ADDED_SYNC_DIRTY = false;
   if (ADDED_TASKS_MODAL_OPEN) {
@@ -3714,7 +3808,7 @@ async function openAddedTasksModalFast() {
   modal.setAttribute('aria-hidden', 'false');
 
   if (canReuseRenderedView) {
-    if (hint) hint.textContent = '';
+    if (hint) hint.textContent = _ADDED_SHORTAGE ? shortageMessageText(_ADDED_SHORTAGE) : '';
     if (meta) {
       if (wantTotal > 0) meta.textContent = `Показано: ${currentArr.length} из ${wantTotal}`;
       else meta.textContent = `Всего: ${currentArr.length}`;
@@ -4066,10 +4160,13 @@ function renderAddedTasksPreview(questions, opts = {}) {
     else meta.textContent = `Всего: ${arr.length}`;
   }
 
-  if (!arr.length) {
-    if (hint) hint.textContent = 'Список пуст. Добавьте задачи в аккордеоне.';
-    return;
+  // WTC2: явное сообщение о дефиците (банк/сеть) — приоритетнее «список пуст».
+  if (hint) {
+    if (_ADDED_SHORTAGE) hint.textContent = shortageMessageText(_ADDED_SHORTAGE);
+    else if (!arr.length) hint.textContent = 'Список пуст. Добавьте задачи в аккордеоне.';
   }
+
+  if (!arr.length) return;
 
   if (!list) return;
 
