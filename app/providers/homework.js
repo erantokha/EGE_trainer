@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-05-29-25';
-import { requireSession } from './supabase.js?v=2026-05-29-25';
-import { supaRest } from './supabase-rest.js?v=2026-05-29-25';
+import { CONFIG } from '../config.js?v=2026-05-30-1';
+import { requireSession } from './supabase.js?v=2026-05-30-1';
+import { supaRest } from './supabase-rest.js?v=2026-05-30-1';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -613,6 +613,46 @@ export async function questionStatsForTeacherV1({
     return { ok: true, map, fromCache: false, error: null };
   } catch (e) {
     return { ok: false, map: null, fromCache: false, error: e };
+  }
+}
+
+// WMB1: per-prototype (unic) last-3 counters for the teacher proto-picker modal badge.
+// Каждый прототип (unic_id) даёт окно из 3 самых свежих попыток по ВСЕМ его вариантам-
+// вопросам (RPC partition by unic_id), а не сумму по-вопросных окон. Знаменатель ≤3.
+// Возвращает { ok, map, error }, где map: unic_id -> { last3_total, last3_correct }.
+export async function protoLast3ForTeacherV1({
+  student_id,
+  unic_ids,
+  timeoutMs = 8000,
+  chunkSize = 500,
+} = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    const ids = Array.from(new Set((unic_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!sid || !ids.length) return { ok: true, map: new Map(), error: null };
+
+    const map = new Map();
+    const parts = _chunks(ids, Math.max(50, Number(chunkSize || 500) || 500));
+    for (const part of parts) {
+      const r = await rpcTry(
+        ['proto_last3_for_teacher_v1', 'protoLast3ForTeacherV1'],
+        { p_student_id: sid, p_unic_ids: part },
+        { timeoutMs: Number(timeoutMs || 8000) || 8000 },
+      );
+      if (!r.ok) return { ok: false, map: null, error: r.error };
+      for (const row of (r.data || [])) {
+        const uid = String(row?.unic_id || '').trim();
+        if (!uid) continue;
+        map.set(uid, {
+          last3_total: Number(row?.last3_total || 0) || 0,
+          last3_correct: Number(row?.last3_correct || 0) || 0,
+        });
+      }
+    }
+
+    return { ok: true, map, error: null };
+  } catch (e) {
+    return { ok: false, map: null, error: e };
   }
 }
 

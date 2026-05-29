@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-29-25';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-29-25';
-import { CONFIG } from '../app/config.js?v=2026-05-29-25';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-29-25';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-25';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-29-25';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-29-25';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-25';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-25';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-29-25';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-29-25';
+import { withBuild } from '../app/build.js?v=2026-05-30-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-30-1';
+import { CONFIG } from '../app/config.js?v=2026-05-30-1';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-30-1';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-30-1';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-30-1';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-30-1';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-30-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-30-1';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-30-1';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-30-1';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-29-25';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-30-1';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-29-25';
+} from './picker_common.js?v=2026-05-30-1';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-05-29-25';
+} from './picker_stats.js?v=2026-05-30-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -616,6 +616,10 @@ const LAST10_RPC_TIMEOUT_MS = 5000;
 // badgeClassByPct / fmtPct / fmtCnt / fmtDateTimeRu / fmtDateShortRu / badgeClassByLastAttemptAt → picker_common.js (W2 Шаг 1)
 
 const _TEACHER_MODAL_STATS_CACHE = new Map();
+// WMB1: per-unic last-3 cache for the proto-picker modal badge.
+// sid -> Map(unic_id -> { last3_total, last3_correct }). Окно last-3 на уровне
+// прототипа (RPC proto_last3_for_teacher_v1), а не сумма по-вопросных окон.
+const _TEACHER_PROTO_LAST3_CACHE = new Map();
 const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
 let _TEACHER_MODAL_PRELOAD_SEQ = 0;
 let _TEACHER_MODAL_PRELOAD_PROMISE = null;
@@ -803,6 +807,51 @@ async function loadTeacherStatsForModal(studentId, questionIds, opts = {}) {
     for (const id of ids) {
       if (cache2?.has(id)) out.set(id, cache2.get(id));
       else out.set(id, createEmptyTeacherModalStat());
+    }
+  }
+
+  return { ok: true, map: out, error: null };
+}
+
+// WMB1: загрузка per-unic last-3 для бейджа КАРТОЧКИ прототипа в модалке подбора.
+// Окно «последние 3 попытки» считается на уровне прототипа (unic_id) сервером
+// (RPC proto_last3_for_teacher_v1), а не суммированием по-вопросных окон.
+// Кэш — _TEACHER_PROTO_LAST3_CACHE (sid -> Map(unic_id -> { last3_total, last3_correct })).
+async function loadProtoLast3ForModal(studentId, unicIds, opts = {}) {
+  const sid = String(studentId || '').trim();
+  const ids = Array.from(new Set((unicIds || []).map(x => String(x || '').trim()).filter(Boolean)));
+  if (!sid || !ids.length) return { ok: true, map: new Map(), error: null };
+
+  let cache = _TEACHER_PROTO_LAST3_CACHE.get(sid);
+  if (!(cache instanceof Map)) {
+    cache = new Map();
+    _TEACHER_PROTO_LAST3_CACHE.set(sid, cache);
+  }
+
+  const out = new Map();
+  const missing = [];
+  for (const id of ids) {
+    if (cache.has(id)) out.set(id, cache.get(id));
+    else missing.push(id);
+  }
+
+  if (missing.length) {
+    const res = await protoLast3ForTeacherV1({
+      student_id: sid,
+      unic_ids: missing,
+      timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
+    });
+    if (!res?.ok) return { ok: false, map: out, error: res?.error || null };
+    const fetched = res.map instanceof Map ? res.map : new Map();
+    // Записываем в кэш и нули по тем unic, у которых попыток нет (чтобы не дёргать RPC снова).
+    for (const id of missing) {
+      const st = fetched.get(id);
+      const norm = {
+        last3_total: Number(st?.last3_total || 0) || 0,
+        last3_correct: Number(st?.last3_correct || 0) || 0,
+      };
+      cache.set(id, norm);
+      out.set(id, norm);
     }
   }
 
@@ -2657,7 +2706,10 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
   }
 
   const allIds = [];
+  const unicIds = [];
   for (const typ of (Array.isArray(types) ? types : [])) {
+    const typeId = String(typ?.id || '').trim();
+    if (typeId) unicIds.push(typeId);
     for (const proto of (typ?.prototypes || [])) {
       const qid = String(proto?.id || '').trim();
       if (qid) allIds.push(qid);
@@ -2665,14 +2717,20 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
   }
   if (!allIds.length) return;
 
-  const res = await loadTeacherStatsForModal(sid, allIds, {
-    topicId: String(opts?.topicId || '').trim() || null,
-    timeoutMs: 8000,
-  });
+  // По-вопросная статистика нужна для date-бейджа группы и для all-time строки тултипа.
+  // Per-unic last-3 (WMB1) задаёт знаменатель самого бейджа карточки (X/3, не сумма X/4).
+  const [res, last3Res] = await Promise.all([
+    loadTeacherStatsForModal(sid, allIds, {
+      topicId: String(opts?.topicId || '').trim() || null,
+      timeoutMs: 8000,
+    }),
+    loadProtoLast3ForModal(sid, unicIds, { timeoutMs: 8000 }),
+  ]);
 
   if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
 
   const statsMap = res?.map instanceof Map ? res.map : new Map();
+  const last3Map = last3Res?.map instanceof Map ? last3Res.map : new Map();
   for (const typ of (Array.isArray(types) ? types : [])) {
     const typeId = String(typ?.id || '').trim();
     if (!typeId) continue;
@@ -2680,13 +2738,23 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
     const badge = card?.querySelector('.proto-modal-badge');
     if (!badge) continue;
     const ids = (typ?.prototypes || []).map(p => String(p?.id || '').trim()).filter(Boolean);
-    const stat = aggregateStatsForQuestionIds(ids, statsMap);
-    setModalStatsBadge(badge, stat, {
+    // Агрегат по вопросам — для date-бейджа и all-time контекста тултипа.
+    const aggStat = aggregateStatsForQuestionIds(ids, statsMap);
+    // WMB1: last-3 на уровне прототипа (unic_id), а не сумма по-вопросных last-3.
+    const protoLast3 = last3Map.get(typeId) || null;
+    const badgeStat = {
+      total: aggStat.total,
+      correct: aggStat.correct,
+      last_attempt_at: aggStat.last_attempt_at,
+      last3_total: Number(protoLast3?.last3_total || 0) || 0,
+      last3_correct: Number(protoLast3?.last3_correct || 0) || 0,
+    };
+    setModalStatsBadge(badge, badgeStat, {
       baseTitle: 'Статистика ученика по группе',
-      emptyLabel: res?.ok ? 'Не решал' : '—',
-      emptyText: res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+      emptyLabel: (res?.ok && last3Res?.ok) ? 'Не решал' : '—',
+      emptyText: (res?.ok && last3Res?.ok) ? 'Попыток нет' : 'Статистика недоступна',
     });
-    setModalDateBadge(card?.querySelector('.proto-modal-date-badge'), stat, {
+    setModalDateBadge(card?.querySelector('.proto-modal-date-badge'), aggStat, {
       baseTitle: 'Последнее решение по группе',
     });
   }
