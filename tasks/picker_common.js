@@ -9,7 +9,7 @@
 //   - механический lift без изменения логики — тела функций перенесены verbatim,
 //     добавлен лишь `export`.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-3';
 
 /* ───────────── JSON / строки / id ───────────── */
 
@@ -106,6 +106,10 @@ export function pct(total, correct) {
   if (!t) return null;
   return Math.round((c / t) * 100);
 }
+
+// W2 Шаг 2: общий список цвет-классов бейджа — home-писатели (picker_stats.js) и
+// teacher-modal-бейджи (picker.js) импортируют отсюда.
+export const BADGE_COLOR_CLASSES = ['gray', 'red', 'yellow', 'lime', 'green'];
 
 export function badgeClassByPct(p) {
   if (p === null || p === undefined) return 'gray';
