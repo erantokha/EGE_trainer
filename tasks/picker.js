@@ -8,19 +8,26 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-26-2';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-26-2';
-import { CONFIG } from '../app/config.js?v=2026-05-26-2';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-26-2';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-26-2';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-26-2';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-26-2';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-26-2';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-26-2';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-26-2';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-26-2';
+import { withBuild } from '../app/build.js?v=2026-05-29-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-29-1';
+import { CONFIG } from '../app/config.js?v=2026-05-29-1';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-29-1';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-1';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-29-1';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-29-1';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-1';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-29-1';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-29-1';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-26-2';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-29-1';
+// W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
+import {
+  safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
+  inferTopicIdFromQuestionId, anyPositive, getAppBuildTag, readCache, writeCache,
+  pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
+  supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
+} from './picker_common.js?v=2026-05-29-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -160,19 +167,7 @@ function isStudentLikeHome(){
 const TEACHER_SELECTED_STUDENT_KEY = 'teacher_selected_student_v1';
 const TEACHER_SELECTED_STUDENT_TTL_MS = 2 * 60 * 60 * 1000; // 2 часа
 
-function safeJsonParse(raw) {
-  try { return JSON.parse(raw); } catch (_) { return null; }
-}
-
-function fmtName(x){ return String(x || '').trim(); }
-
-function emailLocalPart(email){
-  const s = String(email || '').trim();
-  if (!s) return '';
-  const at = s.indexOf('@');
-  if (at <= 0) return s;
-  return s.slice(0, at);
-}
+// safeJsonParse / fmtName / emailLocalPart → picker_common.js (W2 Шаг 1)
 
 function studentLabel(st){
   const fn = fmtName(st?.first_name);
@@ -536,13 +531,7 @@ const HOME_LAST10_CACHE_VER = 3;
 const HOME_LAST10_SESSION_TTL_MS = 90_000;
 const HOME_LAST10_LOCAL_TTL_MS = 12 * 60 * 60 * 1000; // 12 часов
 
-function getAppBuildTag() {
-  try {
-    const m = document.querySelector('meta[name="app-build"]');
-    const v = String(m?.getAttribute('content') || '').trim();
-    return v || '0';
-  } catch (_) { return '0'; }
-}
+// getAppBuildTag → picker_common.js (W2 Шаг 1)
 
 function homeLast10CacheKey(uid, scope) {
   const u = String(uid || '').trim();
@@ -560,19 +549,7 @@ function setHomeStatsLoading(isLoading) {
   document.body.classList.toggle('home-stats-loading', v);
 }
 
-function readCache(storage, key) {
-  try {
-    const raw = storage.getItem(key);
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    return obj;
-  } catch (_) { return null; }
-}
-
-function writeCache(storage, key, obj) {
-  try { storage.setItem(key, JSON.stringify(obj)); } catch (_) {}
-}
+// readCache / writeCache → picker_common.js (W2 Шаг 1)
 
 function loadHomeLast10Cache(uid, nowMs) {
   const now = Number(nowMs || Date.now()) || Date.now();
@@ -623,85 +600,11 @@ const LAST10_BOOT_DEADLINE_MS = 12000;
 const LAST10_TOKEN_MIN_TTL_SEC = 90;
 const LAST10_RPC_TIMEOUT_MS = 5000;
 
-function pct(total, correct) {
-  const t = Number(total || 0) || 0;
-  const c = Number(correct || 0) || 0;
-  if (!t) return null;
-  return Math.round((c / t) * 100);
-}
+// pct → picker_common.js (W2 Шаг 1)
 
 const BADGE_COLOR_CLASSES = ['gray', 'red', 'yellow', 'lime', 'green'];
 
-function badgeClassByPct(p) {
-  if (p === null || p === undefined) return 'gray';
-  const v = Number(p);
-  if (!isFinite(v)) return 'gray';
-  if (v >= 90) return 'green';
-  if (v >= 70) return 'lime';
-  if (v >= 50) return 'yellow';
-  return 'red';
-}
-
-function fmtPct(p) {
-  if (p === null || p === undefined) return '—';
-  const v = Number(p);
-  if (!isFinite(v)) return '—';
-  return `${v}%`;
-}
-
-function fmtCnt(total, correct) {
-  const t = Math.max(0, Number(total || 0) || 0);
-  const c = Math.max(0, Number(correct || 0) || 0);
-  if (!t) return '0/0';
-  return `${c}/${t}`;
-}
-
-function fmtDateTimeRu(s) {
-  if (!s) return '';
-  try {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch (_) {
-    return '';
-  }
-}
-
-function fmtDateShortRu(s) {
-  if (!s) return '';
-  try {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('ru-RU', {
-      year: '2-digit',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch (_) {
-    return '';
-  }
-}
-
-function badgeClassByLastAttemptAt(lastAt) {
-  if (!lastAt) return 'gray';
-  try {
-    const ts = new Date(lastAt).getTime();
-    if (!Number.isFinite(ts)) return 'gray';
-    const diffDays = Math.max(0, (Date.now() - ts) / 86400000);
-    if (diffDays < 7) return 'green';
-    if (diffDays < 14) return 'lime';
-    if (diffDays <= 30) return 'yellow';
-    return 'red';
-  } catch (_) {
-    return 'gray';
-  }
-}
+// badgeClassByPct / fmtPct / fmtCnt / fmtDateTimeRu / fmtDateShortRu / badgeClassByLastAttemptAt → picker_common.js (W2 Шаг 1)
 
 const _TEACHER_MODAL_STATS_CACHE = new Map();
 const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
@@ -1323,12 +1226,7 @@ function clearStudentLast10UI() {
   if (startBtn) { startBtn.disabled = true; }
 }
 
-function supabaseRefFromUrl(url) {
-  const u = String(url || '')
-    .trim();
-  const m = u.match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co\b/i);
-  return m ? m[1] : '';
-}
+// supabaseRefFromUrl → picker_common.js (W2 Шаг 1)
 
 function readSessionFallback() {
   try {
@@ -1344,15 +1242,7 @@ function readSessionFallback() {
 }
 
 
-function sessionTtlSec(session, nowMs) {
-  const now = Number(nowMs || Date.now()) || Date.now();
-  const expAt = Number(session?.expires_at);
-  if (isFinite(expAt) && expAt > 0) {
-    return Math.floor(expAt - (now / 1000));
-  }
-  // Без expires_at оценка TTL ненадёжна (expires_in не привязан ко времени создания).
-  return NaN;
-}
+// sessionTtlSec → picker_common.js (W2 Шаг 1)
 
 function isFallbackSessionUsable(session, minTtlSec) {
   if (!session || !session.access_token || !session.user?.id) return false;
@@ -2634,9 +2524,7 @@ function initShuffleToggle() {
 // - переходим на hw_create.html, где выбор будет превращён в фиксированный список задач
 const HW_PREFILL_KEY = 'hw_create_prefill_v1';
 
-function anyPositive(obj) {
-  return Object.values(obj || {}).some(v => Number(v) > 0);
-}
+// anyPositive → picker_common.js (W2 Шаг 1)
 
 function readSelectionFromDOM() {
   const topics = {};
@@ -2662,11 +2550,7 @@ function readSelectionFromDOM() {
   return { topics, sections };
 }
 
-function inferTopicIdFromQuestionId(qid) {
-  const parts = String(qid || '').trim().split('.');
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return '';
-}
+// inferTopicIdFromQuestionId → picker_common.js (W2 Шаг 1)
 
 function normalizeTeacherPickedRef(ref) {
   const qid = String(ref?.question_id || '').trim();
@@ -3441,72 +3325,7 @@ function initProtoPickerModal() {
   });
 }
 
-function buildStemPreview(manifest, type, proto) {
-  const params = proto?.params || {};
-  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
-  const stem = interpolate(stemTpl, params);
-
-  const fig = proto?.figure || type?.figure || null;
-  const figHtml = fig?.img ? `<img class="tp-fig" src="${asset(fig.img)}" alt="${escapeHtml(fig.alt || '')}">` : '';
-  const textHtml = `<div class="tp-stem">${stem}</div>`;
-  return figHtml ? `<div class="tp-preview">${textHtml}${figHtml}</div>` : textHtml;
-}
-
-function asset(p) {
-  const s = String(p ?? '').trim();
-  if (!s) return s;
-  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
-  return toAbsUrl(s);
-}
-
-function interpolate(tpl, params) {
-  return String(tpl || '').replace(
-    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
-    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
-  );
-}
-
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-async function typesetMathIfNeeded(rootEl) {
-  if (!rootEl) return;
-  await ensureMathJaxLoaded();
-
-  if (window.MathJax?.typesetPromise) {
-    try { await window.MathJax.typesetPromise([rootEl]); } catch (_) { /* ignore */ }
-  } else if (window.MathJax?.typeset) {
-    try { window.MathJax.typeset([rootEl]); } catch (_) { /* ignore */ }
-  }
-}
-
-let __mjLoading = null;
-function ensureMathJaxLoaded() {
-  if (window.MathJax && (window.MathJax.typesetPromise || window.MathJax.typeset)) return Promise.resolve();
-  if (__mjLoading) return __mjLoading;
-
-  __mjLoading = new Promise((resolve) => {
-    window.MathJax = window.MathJax || {
-      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
-      svg: { fontCache: 'global' },
-    };
-
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => resolve();
-    document.head.appendChild(s);
-  });
-
-  return __mjLoading;
-}
+// buildStemPreview / asset / interpolate / escapeHtml / typesetMathIfNeeded / ensureMathJaxLoaded (+__mjLoading) → picker_common.js (W2 Шаг 1)
 
 
 
@@ -4925,23 +4744,4 @@ async function saveSelectionAndGo() {
 }
 
 // ---------- утилиты ----------
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-  })[m]);
-}
-
-function compareId(a, b) {
-  const as = String(a).split('.').map(Number);
-  const bs = String(b).split('.').map(Number);
-  const L = Math.max(as.length, bs.length);
-  for (let i = 0; i < L; i++) {
-    const ai = as[i] ?? 0;
-    const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
+// esc / compareId → picker_common.js (W2 Шаг 1)
