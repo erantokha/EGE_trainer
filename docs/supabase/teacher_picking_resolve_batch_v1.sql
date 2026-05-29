@@ -12,7 +12,8 @@ create or replace function public.teacher_picking_resolve_batch_v1(
   p_selection jsonb default '{}'::jsonb,
   p_requests jsonb default '[]'::jsonb,
   p_seed text default null::text,
-  p_exclude_question_ids text[] default null::text[]
+  p_exclude_question_ids text[] default null::text[],
+  p_complete boolean default false
 )
 returns jsonb
 language plpgsql
@@ -25,6 +26,8 @@ declare
   v_uid uuid := auth.uid();
   v_source text := lower(coalesce(nullif(p_source, ''), 'all'));
   v_filter_id text := lower(nullif(p_filter_id, ''));
+  -- WTC4: complete-selection (filter→gradient + even-distribution). default false = поведение байт-в-байт.
+  v_complete boolean := coalesce(p_complete, false);
   v_filter_label text;
   v_selection jsonb := coalesce(p_selection, '{}'::jsonb);
   v_requests jsonb := coalesce(p_requests, '[]'::jsonb);
@@ -78,7 +81,8 @@ begin
       v_selection as selection_json,
       v_requests as requests_json,
       v_session_seed as session_seed,
-      coalesce(p_exclude_question_ids, '{}'::text[]) as exclude_question_ids
+      coalesce(p_exclude_question_ids, '{}'::text[]) as exclude_question_ids,
+      v_complete as complete
   ),
   request_items_raw as (
     select
@@ -377,6 +381,13 @@ begin
       'proto'::text as scope_kind,
       vri.scope_id,
       p.filter_id,
+      case
+        when p.filter_id is null then true
+        when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
+        when p.filter_id = 'stale' then cb.is_stale
+        when p.filter_id = 'unstable' then cb.is_unstable
+        else false
+      end as matched_filter,
       1::int as pick_rank,
       vri.requested_n as question_limit
     from valid_request_items vri
@@ -384,13 +395,14 @@ begin
     join candidate_base cb
       on cb.unic_id = vri.scope_id
     where vri.scope_kind = 'proto'
-      and case
+      -- WTC4: явный клик по прототипу игнорирует фильтр под complete (§3.1.4).
+      and (p.complete or (case
         when p.filter_id is null then true
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
         else false
-      end
+      end))
   ),
   topic_candidate_ranked as (
     select
@@ -402,30 +414,57 @@ begin
       vri.scope_id,
       p.filter_id,
       1::int as question_limit,
-      row_number() over (
-        partition by vri.request_order
-        order by
-          case
-            when p.filter_id = 'unseen_low' then
-              case when cb.is_not_seen then 1 when cb.is_low_seen then 2 else 99 end
-            when p.filter_id in ('stale', 'unstable') then 1
-            else 0
-          end,
-          case
-            when p.filter_id = 'stale' then
-              case
-                when cb.last_attempt_at < now() - interval '90 days' then 0
-                when cb.last_attempt_at < now() - interval '60 days' then 1
-                when cb.last_attempt_at < now() - interval '30 days' then 2
-                else 9
-              end
-            else 0
-          end,
-          case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
-          case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
-          case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
-          md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|topic|' || vri.request_order || '|' || cb.unic_id)
-      )::int as pick_rank
+      -- WTC4: matched_filter — строгий флаг (бейдж), не отбор (отбор по лестнице под complete).
+      case
+        when p.filter_id is null then true
+        when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
+        when p.filter_id = 'stale' then cb.is_stale
+        when p.filter_id = 'unstable' then cb.is_unstable
+        else false
+      end as matched_filter,
+      -- WTC4: pick_rank — dual-window. complete=false → ИСХОДНОЕ окно (байт-в-байт);
+      -- complete=true → лестница-градиент A/B/C/D на всех кандидатах (хвост: не видел → никогда не решил).
+      (case when p.complete then
+        row_number() over (
+          partition by vri.request_order
+          order by
+            case
+              when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'unseen_low' then (case when cb.is_not_seen then 0 when cb.is_low_seen then 1 else 2 end)
+              else 0
+            end,
+            case when p.filter_id = 'unstable' and cb.has_independent_correct then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'stale' and cb.has_independent_correct then cb.last_attempt_at else null::timestamptz end asc nulls last,
+            case when p.filter_id = 'unseen_low' then cb.unique_question_ids_seen else 0 end asc,
+            md5(p.session_seed || '|complete|' || coalesce(p.filter_id, 'none') || '|topic|' || vri.request_order || '|' || cb.unic_id)
+        )
+      else
+        row_number() over (
+          partition by vri.request_order
+          order by
+            case
+              when p.filter_id = 'unseen_low' then
+                case when cb.is_not_seen then 1 when cb.is_low_seen then 2 else 99 end
+              when p.filter_id in ('stale', 'unstable') then 1
+              else 0
+            end,
+            case
+              when p.filter_id = 'stale' then
+                case
+                  when cb.last_attempt_at < now() - interval '90 days' then 0
+                  when cb.last_attempt_at < now() - interval '60 days' then 1
+                  when cb.last_attempt_at < now() - interval '30 days' then 2
+                  else 9
+                end
+              else 0
+            end,
+            case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
+            case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
+            md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|topic|' || vri.request_order || '|' || cb.unic_id)
+        )
+      end)::int as pick_rank
     from valid_request_items vri
     cross join params p
     join candidate_base cb
@@ -434,13 +473,13 @@ begin
       on sp.unic_id = cb.unic_id
     where vri.scope_kind = 'topic'
       and sp.unic_id is null
-      and case
+      and (p.complete or (case
         when p.filter_id is null then true
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
         else false
-      end
+      end))
   ),
   topic_pick_rows as (
     select
@@ -451,12 +490,16 @@ begin
       tcr.scope_kind,
       tcr.scope_id,
       tcr.filter_id,
+      tcr.matched_filter,
       tcr.pick_rank,
       tcr.question_limit
     from topic_candidate_ranked tcr
     join valid_request_items vri
       on vri.request_order = tcr.request_order
-    where tcr.pick_rank <= vri.requested_n
+    cross join params p
+    -- WTC4: под complete пропускаем ВСЕ ранжированные протоки (even-distribution выберет N инстансов глобально);
+    -- default — прежний потолок top-N протоков.
+    where (p.complete or tcr.pick_rank <= vri.requested_n)
   ),
   section_candidate_ranked as (
     select
@@ -468,39 +511,63 @@ begin
       vri.scope_id,
       p.filter_id,
       1::int as question_limit,
-      row_number() over (
-        partition by vri.request_order
-        order by
-          case
-            when p.filter_id = 'unseen_low' then
-              case
-                when cb.topic_is_not_seen and cb.is_not_seen then 1
-                when cb.is_not_seen then 2
-                when cb.topic_is_low_seen and cb.is_low_seen then 3
-                when cb.is_low_seen then 4
-                else 99
-              end
-            when p.filter_id = 'stale' then
-              case when cb.topic_is_stale and cb.is_stale then 1 when cb.is_stale then 2 else 99 end
-            when p.filter_id = 'unstable' then
-              case when cb.topic_is_unstable and cb.is_unstable then 1 when cb.is_unstable then 2 else 99 end
-            else 0
-          end,
-          case
-            when p.filter_id = 'stale' then
-              case
-                when cb.last_attempt_at < now() - interval '90 days' then 0
-                when cb.last_attempt_at < now() - interval '60 days' then 1
-                when cb.last_attempt_at < now() - interval '30 days' then 2
-                else 9
-              end
-            else 0
-          end,
-          case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
-          case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
-          case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
-          md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|section|' || vri.request_order || '|' || cb.unic_id)
-      )::int as pick_rank
+      case
+        when p.filter_id is null then true
+        when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
+        when p.filter_id = 'stale' then cb.is_stale
+        when p.filter_id = 'unstable' then cb.is_unstable
+        else false
+      end as matched_filter,
+      (case when p.complete then
+        row_number() over (
+          partition by vri.request_order
+          order by
+            case
+              when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'unseen_low' then (case when cb.is_not_seen then 0 when cb.is_low_seen then 1 else 2 end)
+              else 0
+            end,
+            case when p.filter_id = 'unstable' and cb.has_independent_correct then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'stale' and cb.has_independent_correct then cb.last_attempt_at else null::timestamptz end asc nulls last,
+            case when p.filter_id = 'unseen_low' then cb.unique_question_ids_seen else 0 end asc,
+            md5(p.session_seed || '|complete|' || coalesce(p.filter_id, 'none') || '|section|' || vri.request_order || '|' || cb.unic_id)
+        )
+      else
+        row_number() over (
+          partition by vri.request_order
+          order by
+            case
+              when p.filter_id = 'unseen_low' then
+                case
+                  when cb.topic_is_not_seen and cb.is_not_seen then 1
+                  when cb.is_not_seen then 2
+                  when cb.topic_is_low_seen and cb.is_low_seen then 3
+                  when cb.is_low_seen then 4
+                  else 99
+                end
+              when p.filter_id = 'stale' then
+                case when cb.topic_is_stale and cb.is_stale then 1 when cb.is_stale then 2 else 99 end
+              when p.filter_id = 'unstable' then
+                case when cb.topic_is_unstable and cb.is_unstable then 1 when cb.is_unstable then 2 else 99 end
+              else 0
+            end,
+            case
+              when p.filter_id = 'stale' then
+                case
+                  when cb.last_attempt_at < now() - interval '90 days' then 0
+                  when cb.last_attempt_at < now() - interval '60 days' then 1
+                  when cb.last_attempt_at < now() - interval '30 days' then 2
+                  else 9
+                end
+              else 0
+            end,
+            case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
+            case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
+            md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|section|' || vri.request_order || '|' || cb.unic_id)
+        )
+      end)::int as pick_rank
     from valid_request_items vri
     cross join params p
     join candidate_base cb
@@ -512,13 +579,13 @@ begin
     where vri.scope_kind = 'section'
       and et.topic_id is null
       and sp.unic_id is null
-      and case
+      and (p.complete or (case
         when p.filter_id is null then true
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
         else false
-      end
+      end))
   ),
   section_pick_rows as (
     select
@@ -529,12 +596,14 @@ begin
       scr.scope_kind,
       scr.scope_id,
       scr.filter_id,
+      scr.matched_filter,
       scr.pick_rank,
       scr.question_limit
     from section_candidate_ranked scr
     join valid_request_items vri
       on vri.request_order = scr.request_order
-    where scr.pick_rank <= vri.requested_n
+    cross join params p
+    where (p.complete or scr.pick_rank <= vri.requested_n)
   ),
   global_candidate_ranked as (
     select
@@ -546,39 +615,63 @@ begin
       null::text as scope_id,
       p.filter_id,
       1::int as question_limit,
-      row_number() over (
-        partition by vri.request_order, cb.theme_id
-        order by
-          case
-            when p.filter_id = 'unseen_low' then
-              case
-                when cb.topic_is_not_seen and cb.is_not_seen then 1
-                when cb.is_not_seen then 2
-                when cb.topic_is_low_seen and cb.is_low_seen then 3
-                when cb.is_low_seen then 4
-                else 99
-              end
-            when p.filter_id = 'stale' then
-              case when cb.topic_is_stale and cb.is_stale then 1 when cb.is_stale then 2 else 99 end
-            when p.filter_id = 'unstable' then
-              case when cb.topic_is_unstable and cb.is_unstable then 1 when cb.is_unstable then 2 else 99 end
-            else 0
-          end,
-          case
-            when p.filter_id = 'stale' then
-              case
-                when cb.last_attempt_at < now() - interval '90 days' then 0
-                when cb.last_attempt_at < now() - interval '60 days' then 1
-                when cb.last_attempt_at < now() - interval '30 days' then 2
-                else 9
-              end
-            else 0
-          end,
-          case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
-          case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
-          case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
-          md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|global_all|' || vri.request_order || '|' || cb.theme_id || '|' || cb.unic_id)
-      )::int as pick_rank
+      case
+        when p.filter_id is null then true
+        when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
+        when p.filter_id = 'stale' then cb.is_stale
+        when p.filter_id = 'unstable' then cb.is_unstable
+        else false
+      end as matched_filter,
+      (case when p.complete then
+        row_number() over (
+          partition by vri.request_order, cb.theme_id
+          order by
+            case
+              when p.filter_id = 'unstable' then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'stale'    then (case when cb.has_independent_correct then 0 when cb.is_not_seen then 1 else 2 end)
+              when p.filter_id = 'unseen_low' then (case when cb.is_not_seen then 0 when cb.is_low_seen then 1 else 2 end)
+              else 0
+            end,
+            case when p.filter_id = 'unstable' and cb.has_independent_correct then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'stale' and cb.has_independent_correct then cb.last_attempt_at else null::timestamptz end asc nulls last,
+            case when p.filter_id = 'unseen_low' then cb.unique_question_ids_seen else 0 end asc,
+            md5(p.session_seed || '|complete|' || coalesce(p.filter_id, 'none') || '|global_all|' || vri.request_order || '|' || cb.theme_id || '|' || cb.unic_id)
+        )
+      else
+        row_number() over (
+          partition by vri.request_order, cb.theme_id
+          order by
+            case
+              when p.filter_id = 'unseen_low' then
+                case
+                  when cb.topic_is_not_seen and cb.is_not_seen then 1
+                  when cb.is_not_seen then 2
+                  when cb.topic_is_low_seen and cb.is_low_seen then 3
+                  when cb.is_low_seen then 4
+                  else 99
+                end
+              when p.filter_id = 'stale' then
+                case when cb.topic_is_stale and cb.is_stale then 1 when cb.is_stale then 2 else 99 end
+              when p.filter_id = 'unstable' then
+                case when cb.topic_is_unstable and cb.is_unstable then 1 when cb.is_unstable then 2 else 99 end
+              else 0
+            end,
+            case
+              when p.filter_id = 'stale' then
+                case
+                  when cb.last_attempt_at < now() - interval '90 days' then 0
+                  when cb.last_attempt_at < now() - interval '60 days' then 1
+                  when cb.last_attempt_at < now() - interval '30 days' then 2
+                  else 9
+                end
+              else 0
+            end,
+            case when p.filter_id = 'unstable' then coalesce(cb.accuracy, 1.0) else 0::numeric end asc,
+            case when p.filter_id = 'unstable' then cb.last_attempt_at else null::timestamptz end desc nulls last,
+            case when p.filter_id = 'unstable' then cb.attempt_count_total else 0 end desc,
+            md5(p.session_seed || '|proto|' || coalesce(p.filter_id, 'none') || '|global_all|' || vri.request_order || '|' || cb.theme_id || '|' || cb.unic_id)
+        )
+      end)::int as pick_rank
     from valid_request_items vri
     cross join params p
     join candidate_base cb
@@ -590,13 +683,13 @@ begin
     where vri.scope_kind = 'global_all'
       and et.topic_id is null
       and sp.unic_id is null
-      and case
+      and (p.complete or (case
         when p.filter_id is null then true
         when p.filter_id = 'unseen_low' then cb.is_not_seen or cb.is_low_seen
         when p.filter_id = 'stale' then cb.is_stale
         when p.filter_id = 'unstable' then cb.is_unstable
         else false
-      end
+      end))
   ),
   global_pick_rows as (
     select
@@ -607,6 +700,7 @@ begin
       gcr.scope_kind,
       gcr.scope_id,
       gcr.filter_id,
+      gcr.matched_filter,
       1::int as pick_rank,
       1::int as question_limit
     from global_candidate_ranked gcr
@@ -630,10 +724,12 @@ begin
       spr.scope_kind,
       spr.scope_id,
       spr.filter_id,
+      spr.matched_filter,
       spr.pick_rank,
       spr.question_limit,
       vq.question_id,
       vq.manifest_path,
+      -- инстанс-ранг question_id внутри прототипа (0 → 1 → 2 …) для even-distribution.
       row_number() over (
         partition by spr.request_order, spr.proto_id
         order by
@@ -655,20 +751,45 @@ begin
       on qs.question_id = vq.question_id
     where not (vq.question_id = any(p.exclude_question_ids))
   ),
+  -- WTC4 even-distribution (topic/section): глобальный ранг round-robin по проткам —
+  -- сначала первый инстанс каждого проттока (по приоритету лестницы), затем второй, и т.д.
+  -- top-N даёт base/base+1 (+1 у топ-приоритетных), излишек бедного проттока уходит следующему.
+  question_candidates_dist as (
+    select
+      qc.*,
+      row_number() over (
+        partition by qc.request_order
+        order by
+          qc.question_rn asc,
+          qc.pick_rank asc,
+          md5(p.session_seed || '|evendist|' || qc.request_order::text || '|' || qc.proto_id || '|' || qc.question_id)
+      )::int as complete_global_rn
+    from question_candidates qc
+    cross join params p
+  ),
   picked_questions_rows as (
     select
-      qc.request_order,
-      qc.question_id,
-      qc.proto_id,
-      qc.topic_id,
-      qc.section_id,
-      qc.manifest_path,
-      qc.scope_kind,
-      qc.scope_id,
-      qc.filter_id,
-      qc.pick_rank
-    from question_candidates qc
-    where qc.question_rn <= qc.question_limit
+      qcd.request_order,
+      qcd.question_id,
+      qcd.proto_id,
+      qcd.topic_id,
+      qcd.section_id,
+      qcd.manifest_path,
+      qcd.scope_kind,
+      qcd.scope_id,
+      qcd.filter_id,
+      qcd.matched_filter,
+      qcd.pick_rank
+    from question_candidates_dist qcd
+    cross join params p
+    join valid_request_items vri
+      on vri.request_order = qcd.request_order
+    where case
+      -- complete + topic/section → even-distribution: верхние N инстансов round-robin.
+      when p.complete and qcd.scope_kind in ('topic', 'section') then qcd.complete_global_rn <= vri.requested_n
+      -- иначе (default; proto: N инстансов с проттока; global_all: 1 на тему) — прежняя логика.
+      else qcd.question_rn <= qcd.question_limit
+    end
   ),
   picked_questions_json as (
     select
@@ -684,6 +805,7 @@ begin
             'scope_kind', pqr.scope_kind,
             'scope_id', pqr.scope_id,
             'filter_id', pqr.filter_id,
+            'matched_filter', pqr.matched_filter,
             'pick_rank', pqr.pick_rank
           )
           order by pqr.request_order, pqr.section_id, pqr.topic_id, pqr.pick_rank, pqr.question_id
@@ -800,11 +922,11 @@ end;
 $function$;
 
 revoke execute on function public.teacher_picking_resolve_batch_v1(
-  uuid, text, text, jsonb, jsonb, text, text[]
+  uuid, text, text, jsonb, jsonb, text, text[], boolean
 ) from anon;
 
 grant execute on function public.teacher_picking_resolve_batch_v1(
-  uuid, text, text, jsonb, jsonb, text, text[]
+  uuid, text, text, jsonb, jsonb, text, text[], boolean
 ) to authenticated;
 
 commit;

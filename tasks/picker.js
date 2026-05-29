@@ -8,19 +8,33 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-27-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-27-1';
-import { CONFIG } from '../app/config.js?v=2026-05-27-1';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-27-1';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-27-1';
-import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-27-1';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-27-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-27-1';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-27-1';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-27-1';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-27-1';
+import { withBuild } from '../app/build.js?v=2026-05-29-6';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-29-6';
+import { CONFIG } from '../app/config.js?v=2026-05-29-6';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-29-6';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-29-6';
+import { listMyStudents, questionStatsForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-29-6';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-29-6';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-29-6';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-29-6';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-29-6';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-29-6';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-27-1';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-29-6';
+// W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
+import {
+  safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
+  inferTopicIdFromQuestionId, anyPositive, getAppBuildTag, readCache, writeCache,
+  pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
+  supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
+  BADGE_COLOR_CLASSES,
+} from './picker_common.js?v=2026-05-29-6';
+// W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
+import {
+  resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
+  _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
+  buildStudentStatsModel,
+} from './picker_stats.js?v=2026-05-29-6';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -160,19 +174,7 @@ function isStudentLikeHome(){
 const TEACHER_SELECTED_STUDENT_KEY = 'teacher_selected_student_v1';
 const TEACHER_SELECTED_STUDENT_TTL_MS = 2 * 60 * 60 * 1000; // 2 часа
 
-function safeJsonParse(raw) {
-  try { return JSON.parse(raw); } catch (_) { return null; }
-}
-
-function fmtName(x){ return String(x || '').trim(); }
-
-function emailLocalPart(email){
-  const s = String(email || '').trim();
-  if (!s) return '';
-  const at = s.indexOf('@');
-  if (at <= 0) return s;
-  return s.slice(0, at);
-}
+// safeJsonParse / fmtName / emailLocalPart → picker_common.js (W2 Шаг 1)
 
 function studentLabel(st){
   const fn = fmtName(st?.first_name);
@@ -536,13 +538,7 @@ const HOME_LAST10_CACHE_VER = 3;
 const HOME_LAST10_SESSION_TTL_MS = 90_000;
 const HOME_LAST10_LOCAL_TTL_MS = 12 * 60 * 60 * 1000; // 12 часов
 
-function getAppBuildTag() {
-  try {
-    const m = document.querySelector('meta[name="app-build"]');
-    const v = String(m?.getAttribute('content') || '').trim();
-    return v || '0';
-  } catch (_) { return '0'; }
-}
+// getAppBuildTag → picker_common.js (W2 Шаг 1)
 
 function homeLast10CacheKey(uid, scope) {
   const u = String(uid || '').trim();
@@ -560,19 +556,7 @@ function setHomeStatsLoading(isLoading) {
   document.body.classList.toggle('home-stats-loading', v);
 }
 
-function readCache(storage, key) {
-  try {
-    const raw = storage.getItem(key);
-    if (!raw) return null;
-    const obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    return obj;
-  } catch (_) { return null; }
-}
-
-function writeCache(storage, key, obj) {
-  try { storage.setItem(key, JSON.stringify(obj)); } catch (_) {}
-}
+// readCache / writeCache → picker_common.js (W2 Шаг 1)
 
 function loadHomeLast10Cache(uid, nowMs) {
   const now = Number(nowMs || Date.now()) || Date.now();
@@ -623,85 +607,11 @@ const LAST10_BOOT_DEADLINE_MS = 12000;
 const LAST10_TOKEN_MIN_TTL_SEC = 90;
 const LAST10_RPC_TIMEOUT_MS = 5000;
 
-function pct(total, correct) {
-  const t = Number(total || 0) || 0;
-  const c = Number(correct || 0) || 0;
-  if (!t) return null;
-  return Math.round((c / t) * 100);
-}
+// pct → picker_common.js (W2 Шаг 1)
 
-const BADGE_COLOR_CLASSES = ['gray', 'red', 'yellow', 'lime', 'green'];
+// BADGE_COLOR_CLASSES → picker_common.js (W2 Шаг 2)
 
-function badgeClassByPct(p) {
-  if (p === null || p === undefined) return 'gray';
-  const v = Number(p);
-  if (!isFinite(v)) return 'gray';
-  if (v >= 90) return 'green';
-  if (v >= 70) return 'lime';
-  if (v >= 50) return 'yellow';
-  return 'red';
-}
-
-function fmtPct(p) {
-  if (p === null || p === undefined) return '—';
-  const v = Number(p);
-  if (!isFinite(v)) return '—';
-  return `${v}%`;
-}
-
-function fmtCnt(total, correct) {
-  const t = Math.max(0, Number(total || 0) || 0);
-  const c = Math.max(0, Number(correct || 0) || 0);
-  if (!t) return '0/0';
-  return `${c}/${t}`;
-}
-
-function fmtDateTimeRu(s) {
-  if (!s) return '';
-  try {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString('ru-RU', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch (_) {
-    return '';
-  }
-}
-
-function fmtDateShortRu(s) {
-  if (!s) return '';
-  try {
-    const d = new Date(s);
-    if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleDateString('ru-RU', {
-      year: '2-digit',
-      month: '2-digit',
-      day: '2-digit',
-    });
-  } catch (_) {
-    return '';
-  }
-}
-
-function badgeClassByLastAttemptAt(lastAt) {
-  if (!lastAt) return 'gray';
-  try {
-    const ts = new Date(lastAt).getTime();
-    if (!Number.isFinite(ts)) return 'gray';
-    const diffDays = Math.max(0, (Date.now() - ts) / 86400000);
-    if (diffDays < 7) return 'green';
-    if (diffDays < 14) return 'lime';
-    if (diffDays <= 30) return 'yellow';
-    return 'red';
-  } catch (_) {
-    return 'gray';
-  }
-}
+// badgeClassByPct / fmtPct / fmtCnt / fmtDateTimeRu / fmtDateShortRu / badgeClassByLastAttemptAt → picker_common.js (W2 Шаг 1)
 
 const _TEACHER_MODAL_STATS_CACHE = new Map();
 const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
@@ -1048,242 +958,12 @@ function getTeacherModalCachedAggregate(studentId, questionIds) {
   return aggregateStatsForQuestionIds(ids, cache);
 }
 
-function ensureBaseTitle(el) {
-  if (!el) return '';
-  if (!el.dataset.baseTitle) {
-    el.dataset.baseTitle = String(el.textContent || '').trim();
-  }
-  return String(el.dataset.baseTitle || '').trim();
-}
-
-function resetTitle(el) {
-  if (!el) return;
-  const base = ensureBaseTitle(el);
-  if (base) el.textContent = base;
-  // на всякий случай чистим следы старой реализации "подсветки названия"
-  el.classList.remove('stat-chip', 'stat-gray', 'stat-red', 'stat-yellow', 'stat-lime', 'stat-green');
-  el.removeAttribute('title');
-}
+// ensureBaseTitle / resetTitle / setHomeBadge / setHomeTopicBadge / setHomeSectionBadge / setHomeCoverageBadge → picker_stats.js (W2 Шаг 2)
 
 
-function setHomeBadge(badgeEl, p, total, correct, title) {
-  if (!badgeEl) return;
+// SECONDARY_BY_PRIMARY / secondaryFromPrimary / fmtPrimaryExact / _htThermoRO / _syncHtThermoHeight / thermoColorByPrimary → picker_stats.js (W2 Шаг 2)
 
-  const cls = badgeClassByPct(p);
-  badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
-  badgeEl.classList.add(cls);
-
-  const b = badgeEl.querySelector('b');
-  if (b) b.textContent = fmtPct(p);
-
-  const small = badgeEl.querySelector('.small');
-  if (small) {
-    const t = Math.max(0, Number(total || 0) || 0);
-    const c = Math.max(0, Number(correct || 0) || 0);
-    small.textContent = t ? `${c}/${t}` : '';
-  }
-
-  if (title) { badgeEl.setAttribute('data-tip', String(title)); badgeEl.removeAttribute('title'); }
-  else { badgeEl.removeAttribute('data-tip'); badgeEl.removeAttribute('title'); }
-}
-
-function setHomeTopicBadge(badgeEl, st) {
-  const t3 = st?.last3 || null;
-  const t = Math.max(0, Number(t3?.total || 0) || 0);
-  const c = Math.max(0, Number(t3?.correct || 0) || 0);
-
-  if (!t) {
-    setHomeBadge(badgeEl, null, 0, 0, 'Последние 3 задачи');
-    return;
-  }
-
-  const p = pct(t, c);
-  setHomeBadge(badgeEl, p, t, c, 'Последние 3 задачи');
-}
-
-function setHomeSectionBadge(badgeEl, sectionPct, _usedTopics, _totalTopics) {
-  if (sectionPct === null || sectionPct === undefined) {
-    setHomeBadge(badgeEl, null, 0, 0, 'Процент правильных ответов');
-    return;
-  }
-  const p = Number(sectionPct);
-  if (!Number.isFinite(p)) {
-    setHomeBadge(badgeEl, null, 0, 0, 'Процент правильных ответов');
-    return;
-  }
-  setHomeBadge(badgeEl, p, 0, 0, 'Процент правильных ответов');
-}
-
-function setHomeCoverageBadge(badgeEl, usedTopics, totalTopics) {
-  if (!badgeEl) return;
-  const used = Math.max(0, Number(usedTopics || 0) || 0);
-  const all = Math.max(0, Number(totalTopics || 0) || 0);
-
-  // Если покрытие 0 — показываем серым (как «нет данных»)
-  const p = (all > 0 && used > 0) ? Math.round((used / all) * 100) : null;
-  const cls = badgeClassByPct(p);
-
-  BADGE_COLOR_CLASSES.forEach((c) => badgeEl.classList.remove(c));
-  badgeEl.classList.add(cls);
-
-  const b = badgeEl.querySelector('b');
-  if (b) b.textContent = all ? `${used}/${all}` : '—';
-
-  const small = badgeEl.querySelector('.small');
-  if (small) small.textContent = '';
-
-  badgeEl.setAttribute('data-tip', 'Покрытие тем');
-  badgeEl.removeAttribute('title');
-}
-
-
-// Таблица перевода первичных -> вторичных (первая часть, 12 заданий по 1 баллу)
-const SECONDARY_BY_PRIMARY = Object.freeze({
-  0: 0,
-  1: 6,
-  2: 11,
-  3: 17,
-  4: 22,
-  5: 27,
-  6: 34,
-  7: 40,
-  8: 46,
-  9: 52,
-  10: 58,
-  11: 64,
-  12: 70,
-});
-
-function secondaryFromPrimary(primaryRounded) {
-  const p = Math.max(0, Math.min(12, Number(primaryRounded || 0) || 0));
-  const k = Math.round(p);
-  return (k in SECONDARY_BY_PRIMARY) ? SECONDARY_BY_PRIMARY[k] : 0;
-}
-
-function fmtPrimaryExact(x) {
-  if (x === null || x === undefined) return '—';
-  const v = Number(x);
-  if (!isFinite(v)) return '—';
-  return v.toFixed(2).replace('.', ',');
-}
-
-
-/* ── Термометр правой колонки (desktop teacher-student-view) ────────────── */
-
-let _htThermoRO = null;
-
-/** Измеряет высоту строки badges-head и записывает --ht-thermo-h на :root.
- *  Формула: высота строки минус gap (8px) между термометром и панелью кнопок.
- *  Вызывается через requestAnimationFrame после renderAccordion и при ресайзе. */
-function _syncHtThermoHeight() {
-  const row = document.querySelector('#accordion .home-badges-head .row');
-  if (!row) {
-    document.documentElement.style.removeProperty('--ht-thermo-h');
-    return;
-  }
-  const h = Math.max(12, row.offsetHeight - 8);
-  document.documentElement.style.setProperty('--ht-thermo-h', h + 'px');
-  // Переподключаем наблюдатель к свежему DOM-узлу (renderAccordion пересоздаёт элементы)
-  if (_htThermoRO) _htThermoRO.disconnect();
-  if (window.ResizeObserver) {
-    _htThermoRO = new ResizeObserver(_syncHtThermoHeight);
-    _htThermoRO.observe(row);
-  }
-}
-
-/* ─────────────────────────────────────────────────────────────────────────── */
-
-function thermoColorByPrimary(primaryRounded) {
-  const v = Number(primaryRounded || 0);
-  if (!isFinite(v)) return 'gray';
-  const p = Math.max(0, Math.min(12, Math.round(v)));
-  if (p <= 4) return 'red';
-  if (p <= 7) return 'yellow';
-  if (p <= 10) return 'lime';
-  return 'green';
-}
-
-function updateScoreThermo(primaryRounded, secondary, opts = {}) {
-  if (!isStudentLikeHome()) return;
-
-  const inputEl    = document.getElementById('studentComboInput');
-  const comboScore = document.getElementById('studentComboScore');
-  const elS        = document.getElementById('comboScoreSecondary');
-  const elP        = document.getElementById('comboScorePrimary');
-  const combo      = document.getElementById('studentCombo');
-
-  if (!inputEl || !comboScore || !elS || !elP) return;
-
-  const signedIn = opts?.signedIn !== false;
-  if (!signedIn) {
-    inputEl.style.removeProperty('--combo-fill-pct');
-    inputEl.style.removeProperty('--combo-fill-color');
-    comboScore.classList.remove('is-visible');
-    if (combo) combo.classList.remove('has-score');
-    return;
-  }
-
-  const v = Number(primaryRounded || 0);
-  const p = Math.max(0, Math.min(12, Math.round(isFinite(v) ? v : 0)));
-  const s = Math.max(0, Number(secondary || 0) || 0);
-
-  const COLOR_MAP = {
-    gray:   'rgba(148,163,184,.20)',
-    red:    'rgba(239,68,68,.28)',
-    yellow: 'rgba(245,158,11,.32)',
-    lime:   'rgba(132,204,22,.28)',
-    green:  'rgba(16,185,129,.26)',
-  };
-
-  inputEl.style.setProperty('--combo-fill-pct',   `${(p / 12) * 100}%`);
-  inputEl.style.setProperty('--combo-fill-color',  COLOR_MAP[thermoColorByPrimary(p)] || COLOR_MAP.gray);
-
-  elS.textContent = `${s} втор.`;
-  elP.textContent = `${p} перв.`;
-  comboScore.classList.add('is-visible');
-  if (combo) combo.classList.add('has-score');
-}
-
-function updateScoreForecast(sectionPctById, opts = {}) {
-  if (!isStudentLikeHome()) return;
-
-  const elP = document.getElementById('sfPrimaryExact');
-  const elS = document.getElementById('sfSecondary');
-  const elN = document.getElementById('sfNote');
-
-
-  const signedIn = opts?.signedIn !== false;
-
-  if (!signedIn) {
-    if (elP) elP.textContent = '—';
-    if (elS) elS.textContent = '—';
-    if (elN) { elN.hidden = true; elN.textContent = ''; }
-    updateScoreThermo(0, 0, { signedIn: false });
-    return;
-  }
-
-  let sum = 0;
-  for (let i = 1; i <= 12; i++) {
-    const key = String(i);
-    const p = sectionPctById && (sectionPctById.get ? sectionPctById.get(key) : sectionPctById[key]);
-    const v = (p === null || p === undefined) ? 0 : Number(p);
-    if (isFinite(v) && v > 0) sum += (v / 100);
-  }
-
-  const primaryExact = sum;
-  const primaryRounded = Math.round(primaryExact);
-  const secondary = secondaryFromPrimary(primaryRounded);
-
-  if (elP) elP.textContent = fmtPrimaryExact(primaryExact);
-  if (elS) elS.textContent = String(secondary);
-
-  if (elN) {
-    elN.hidden = false;
-    elN.textContent = `Округление: ${primaryRounded} перв. → ${secondary} втор.`;
-  }
-
-  updateScoreThermo(primaryRounded, secondary, { signedIn: true });
-}
+// updateScoreThermo / updateScoreForecast (внутренний isStudentLikeHome-guard снят — caller-guard) → picker_stats.js (W2 Шаг 2)
 
 
 
@@ -1323,12 +1003,7 @@ function clearStudentLast10UI() {
   if (startBtn) { startBtn.disabled = true; }
 }
 
-function supabaseRefFromUrl(url) {
-  const u = String(url || '')
-    .trim();
-  const m = u.match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co\b/i);
-  return m ? m[1] : '';
-}
+// supabaseRefFromUrl → picker_common.js (W2 Шаг 1)
 
 function readSessionFallback() {
   try {
@@ -1344,15 +1019,7 @@ function readSessionFallback() {
 }
 
 
-function sessionTtlSec(session, nowMs) {
-  const now = Number(nowMs || Date.now()) || Date.now();
-  const expAt = Number(session?.expires_at);
-  if (isFinite(expAt) && expAt > 0) {
-    return Math.floor(expAt - (now / 1000));
-  }
-  // Без expires_at оценка TTL ненадёжна (expires_in не привязан ко времени создания).
-  return NaN;
-}
+// sessionTtlSec → picker_common.js (W2 Шаг 1)
 
 function isFallbackSessionUsable(session, minTtlSec) {
   if (!session || !session.access_token || !session.user?.id) return false;
@@ -1613,48 +1280,8 @@ function applyDashboardHomeStats(dash) {
 
   LAST_DASH = dash;
 
-  const topics = Array.isArray(dash?.topics) ? dash.topics : [];
-
-  const topMap = new Map();
-  const sectionAgg = new Map(); // section_id -> { sumPct, nTopics }
-
-  for (const t of topics) {
-    const tid = String(t?.topic_id || '').trim();
-    if (!tid) continue;
-
-    const sid = String(t?.section_id || '').trim();
-
-    const st = {
-      topic_id: tid,
-      section_id: sid,
-      last_seen_at: t?.last_seen_at || null,
-      all_time: t?.all_time || { total: 0, correct: 0 },
-      last3: t?.last3 || { total: 0, correct: 0 },
-    };
-
-    topMap.set(tid, st);
-
-    const t3 = st.last3 || {};
-    const total = Math.max(0, Number(t3.total || 0) || 0);
-    const correct = Math.max(0, Number(t3.correct || 0) || 0);
-
-    if (sid && total > 0) {
-      const p = pct(total, correct);
-      if (p !== null && p !== undefined) {
-        const a = sectionAgg.get(sid) || { sumPct: 0, nTopics: 0 };
-        a.sumPct += Number(p);
-        a.nTopics += 1;
-        sectionAgg.set(sid, a);
-      }
-    }
-  }
-
-  const sectionPctById = new Map();
-  sectionAgg.forEach((a, sid) => {
-    if (!sid) return;
-    if (!a || !a.nTopics) return;
-    sectionPctById.set(String(sid), Math.round(a.sumPct / a.nTopics));
-  });
+  // W2 Шаг 2b: data-half вынесена в picker_stats.buildStudentStatsModel; здесь — DOM-half (вид).
+  const model = buildStudentStatsModel(dash, SECTIONS);
 
   $$('.node.section').forEach((node) => {
     const sid = String(node?.dataset?.id || '').trim();
@@ -1664,10 +1291,9 @@ function applyDashboardHomeStats(dash) {
     const badgePct = node.querySelector('.home-last10-badge');
     const badgeCov = node.querySelector('.home-coverage-badge');
 
-    const sec = (Array.isArray(SECTIONS) ? SECTIONS.find(s => String(s?.id || '').trim() === sid) : null) || null;
-    const totalTopics = Math.max(0, Number(sec?.topics?.length || 0) || 0);
-    const usedTopics = Math.max(0, Number(sectionAgg.get(sid)?.nTopics || 0) || 0);
-    const p = sectionPctById.has(sid) ? sectionPctById.get(sid) : null;
+    const totalTopics = Math.max(0, Number(model.sectionTotalById.get(sid) || 0) || 0);
+    const usedTopics = Math.max(0, Number(model.sectionAgg.get(sid)?.nTopics || 0) || 0);
+    const p = model.sectionPctById.has(sid) ? model.sectionPctById.get(sid) : null;
 
     setHomeSectionBadge(badgePct, p, usedTopics, totalTopics);
     setHomeCoverageBadge(badgeCov, usedTopics, totalTopics);
@@ -1679,226 +1305,21 @@ function applyDashboardHomeStats(dash) {
     resetTitle(title);
 
     const badge = node.querySelector('.home-last10-badge');
-    const st = topMap.get(tid) || null;
+    const st = model.topMap.get(tid) || null;
 
     setHomeTopicBadge(badge, st);
   });
 
-  updateScoreForecast(sectionPctById, { signedIn: true });
+  updateScoreForecast(model.sectionPctById, { signedIn: true });
 
   updateSmartHint();
 
   if (isStudentLikeHome()) syncHomeTopicBadgesWidth();
 }
 
-function recommendationPriority(reason) {
-  const r = String(reason || '').trim().toLowerCase();
-  switch (r) {
-    case 'weak': return 0;
-    case 'low': return 1;
-    case 'stale': return 2;
-    case 'uncovered': return 3;
-    default: return 9;
-  }
-}
+// recommendationPriority / recommendationTitleClass / inferRecommendationReasonFromState / mergeRecommendationMeta / applyTitleRecommendation → picker_stats.js (W2 Шаг 2)
 
-function recommendationTitleClass(reason) {
-  const r = String(reason || '').trim().toLowerCase();
-  switch (r) {
-    case 'weak': return 'stat-red';
-    case 'low': return 'stat-yellow';
-    case 'stale': return 'stat-lime';
-    default: return '';
-  }
-}
-
-function inferRecommendationReasonFromState(state) {
-  const perf = String(state?.performance_state || '').trim().toLowerCase();
-  const fresh = String(state?.freshness_state || '').trim().toLowerCase();
-  const cov = String(state?.coverage_state || '').trim().toLowerCase();
-  if (perf === 'weak') return 'weak';
-  if (fresh === 'stale') return 'stale';
-  if (cov === 'uncovered') return 'uncovered';
-  return '';
-}
-
-function mergeRecommendationMeta(current, next) {
-  if (!next) return current || null;
-  if (!current) return next;
-  return recommendationPriority(next.reason) < recommendationPriority(current.reason) ? next : current;
-}
-
-function applyTitleRecommendation(el, meta) {
-  if (!el) return;
-  resetTitle(el);
-  const cls = recommendationTitleClass(meta?.reason);
-  if (cls) el.classList.add('stat-chip', cls);
-  const tip = String(meta?.tooltip || '').trim();
-  if (tip) el.setAttribute('title', tip);
-}
-
-function buildTeacherPickingHomeModel(payload) {
-  const days = Math.max(1, Number(payload?.student?.days || 30) || 30);
-  const sections = Array.isArray(payload?.sections) ? payload.sections : [];
-  const recommendations = Array.isArray(payload?.recommendations) ? payload.recommendations : [];
-
-  const recoByTopic = new Map();
-  for (const rec of recommendations) {
-    const tid = String(rec?.topic_id || '').trim();
-    if (!tid) continue;
-    const next = {
-      reason: String(rec?.reason || '').trim().toLowerCase(),
-      tooltip: String(rec?.why || '').trim(),
-      section_id: String(rec?.section_id || '').trim(),
-    };
-    recoByTopic.set(tid, mergeRecommendationMeta(recoByTopic.get(tid), next));
-  }
-
-  const sectionCoverageTopicCount = new Map();
-  const sectionPctAgg = new Map();
-  const sectionPctById = new Map();
-  const sectionTitleMeta = new Map();
-  const topicTitleMeta = new Map();
-  const topicStatsById = new Map();
-
-  for (const section of sections) {
-    const sid = String(section?.section_id || '').trim();
-    const topics = Array.isArray(section?.topics) ? section.topics : [];
-    let coveredTopics = 0;
-    let sectionRecoCount = 0;
-    let sectionReason = '';
-    const sectionExamples = [];
-
-    for (const topic of topics) {
-      const tid = String(topic?.topic_id || '').trim();
-      if (!tid) continue;
-
-      const state = (topic?.state && typeof topic.state === 'object') ? topic.state : {};
-      const progress = (topic?.progress && typeof topic.progress === 'object') ? topic.progress : {};
-      const stats = (topic?.stats && typeof topic.stats === 'object') ? topic.stats : {};
-      const coverage = (topic?.coverage && typeof topic.coverage === 'object') ? topic.coverage : {};
-      const periodTotal = Math.max(0, Number(stats?.period_total || progress?.attempt_count_total || 0) || 0);
-      const periodCorrect = Math.max(0, Number(stats?.period_correct || progress?.correct_count_total || 0) || 0);
-      const rawPeriodPct = Number(stats?.period_pct);
-      const rawLast10Pct = Number(stats?.last10_pct);
-      const rawAllTimePct = Number(progress?.all_time_pct ?? stats?.all_time_pct);
-      const periodPct = Number.isFinite(rawPeriodPct)
-        ? Math.round(rawPeriodPct)
-        : (periodTotal > 0 ? pct(periodTotal, periodCorrect) : null);
-      const last10Pct = Number.isFinite(rawLast10Pct) ? Math.round(rawLast10Pct) : null;
-      const allTimePct = Number.isFinite(rawAllTimePct) ? Math.round(rawAllTimePct) : null;
-      const coveredUnics = Math.max(0, Number(coverage?.covered_unic_count || 0) || 0);
-      const totalUnics = Math.max(0, Number(coverage?.total_unic_count || 0) || 0);
-      let displayPct = null;
-      let displaySource = '';
-
-      if (periodPct !== null && periodTotal > 0) {
-        displayPct = periodPct;
-        displaySource = 'period';
-      } else if (last10Pct !== null) {
-        displayPct = last10Pct;
-        displaySource = 'last10';
-      } else if (allTimePct !== null) {
-        displayPct = allTimePct;
-        displaySource = 'all_time';
-      }
-
-      if (coveredUnics > 0 || String(state?.coverage_state || '').trim().toLowerCase() === 'covered') {
-        coveredTopics += 1;
-      }
-
-      topicStatsById.set(tid, {
-        period_total: periodTotal,
-        period_correct: periodCorrect,
-        period_pct: periodPct,
-        last10_pct: last10Pct,
-        all_time_pct: allTimePct,
-        display_pct: displayPct,
-        display_source: displaySource,
-        last_seen_at: progress?.last_seen_at || stats?.last_seen_at || null,
-      });
-
-      if (sid && displayPct !== null) {
-        const agg = sectionPctAgg.get(sid) || { sumPct: 0, nTopics: 0 };
-        agg.sumPct += Number(displayPct);
-        agg.nTopics += 1;
-        sectionPctAgg.set(sid, agg);
-      }
-
-      const reco = recoByTopic.get(tid) || null;
-      const reason = reco?.reason || inferRecommendationReasonFromState(state);
-      const tooltipParts = [];
-
-      if (reco?.tooltip) {
-        tooltipParts.push(reco.tooltip);
-      } else if (reason === 'stale') {
-        tooltipParts.push('Подтема давно не встречалась в работе ученика.');
-      } else if (reason === 'uncovered') {
-        tooltipParts.push('По подтеме ещё нет покрытия в выбранном периоде.');
-      }
-
-      if (periodTotal > 0 && periodPct !== null) {
-        tooltipParts.push(`За ${days} дн.: ${periodPct}% (${periodCorrect}/${periodTotal}).`);
-      } else if (periodTotal > 0) {
-        tooltipParts.push(`За ${days} дн.: ${periodCorrect}/${periodTotal}.`);
-      } else if (reason === 'uncovered') {
-        tooltipParts.push(`За ${days} дн. попыток нет.`);
-      }
-
-      if (totalUnics > 0) {
-        tooltipParts.push(`Покрытие: ${coveredUnics}/${totalUnics} уник.`);
-      }
-
-      const lastSeenText = fmtDateTimeRu(stats?.last_seen_at || null);
-      if (lastSeenText) tooltipParts.push(`Последняя попытка: ${lastSeenText}.`);
-
-      if (reason || tooltipParts.length) {
-        topicTitleMeta.set(tid, {
-          reason,
-          tooltip: tooltipParts.join(' '),
-        });
-      }
-
-      if (reason) {
-        sectionRecoCount += 1;
-        if (!sectionReason || recommendationPriority(reason) < recommendationPriority(sectionReason)) {
-          sectionReason = reason;
-        }
-        if (sectionExamples.length < 2) {
-          const title = String(topic?.title || tid).trim();
-          sectionExamples.push(`${tid} ${title}`.trim());
-        }
-      }
-    }
-
-    sectionCoverageTopicCount.set(sid, coveredTopics);
-
-    if (sectionRecoCount > 0) {
-      const parts = [`Рекомендованных подтем: ${sectionRecoCount}.`];
-      if (sectionExamples.length) {
-        parts.push(`Например: ${sectionExamples.join('; ')}.`);
-      }
-      sectionTitleMeta.set(sid, {
-        reason: sectionReason,
-        tooltip: parts.join(' '),
-      });
-    }
-  }
-
-  sectionPctAgg.forEach((agg, sid) => {
-    if (!sid || !agg?.nTopics) return;
-    sectionPctById.set(String(sid), Math.round(agg.sumPct / agg.nTopics));
-  });
-
-  return {
-    days,
-    sectionCoverageTopicCount,
-    sectionPctById,
-    sectionTitleMeta,
-    topicTitleMeta,
-    topicStatsById,
-  };
-}
+// buildTeacherPickingHomeModel → picker_stats.js (W2 Шаг 2)
 
 function renderTeacherHomeRecs(recs, topicStatsById, days) {
   const listEl = document.getElementById('htRecList');
@@ -2634,9 +2055,7 @@ function initShuffleToggle() {
 // - переходим на hw_create.html, где выбор будет превращён в фиксированный список задач
 const HW_PREFILL_KEY = 'hw_create_prefill_v1';
 
-function anyPositive(obj) {
-  return Object.values(obj || {}).some(v => Number(v) > 0);
-}
+// anyPositive → picker_common.js (W2 Шаг 1)
 
 function readSelectionFromDOM() {
   const topics = {};
@@ -2662,11 +2081,7 @@ function readSelectionFromDOM() {
   return { topics, sections };
 }
 
-function inferTopicIdFromQuestionId(qid) {
-  const parts = String(qid || '').trim().split('.');
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return '';
-}
+// inferTopicIdFromQuestionId → picker_common.js (W2 Шаг 1)
 
 function normalizeTeacherPickedRef(ref) {
   const qid = String(ref?.question_id || '').trim();
@@ -3441,72 +2856,7 @@ function initProtoPickerModal() {
   });
 }
 
-function buildStemPreview(manifest, type, proto) {
-  const params = proto?.params || {};
-  const stemTpl = proto?.stem || type?.stem_template || type?.stem || '';
-  const stem = interpolate(stemTpl, params);
-
-  const fig = proto?.figure || type?.figure || null;
-  const figHtml = fig?.img ? `<img class="tp-fig" src="${asset(fig.img)}" alt="${escapeHtml(fig.alt || '')}">` : '';
-  const textHtml = `<div class="tp-stem">${stem}</div>`;
-  return figHtml ? `<div class="tp-preview">${textHtml}${figHtml}</div>` : textHtml;
-}
-
-function asset(p) {
-  const s = String(p ?? '').trim();
-  if (!s) return s;
-  if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
-  return toAbsUrl(s);
-}
-
-function interpolate(tpl, params) {
-  return String(tpl || '').replace(
-    /\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g,
-    (_, k) => (params?.[k] !== undefined ? String(params[k]) : ''),
-  );
-}
-
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-async function typesetMathIfNeeded(rootEl) {
-  if (!rootEl) return;
-  await ensureMathJaxLoaded();
-
-  if (window.MathJax?.typesetPromise) {
-    try { await window.MathJax.typesetPromise([rootEl]); } catch (_) { /* ignore */ }
-  } else if (window.MathJax?.typeset) {
-    try { window.MathJax.typeset([rootEl]); } catch (_) { /* ignore */ }
-  }
-}
-
-let __mjLoading = null;
-function ensureMathJaxLoaded() {
-  if (window.MathJax && (window.MathJax.typesetPromise || window.MathJax.typeset)) return Promise.resolve();
-  if (__mjLoading) return __mjLoading;
-
-  __mjLoading = new Promise((resolve) => {
-    window.MathJax = window.MathJax || {
-      tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
-      svg: { fontCache: 'global' },
-    };
-
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js';
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => resolve();
-    document.head.appendChild(s);
-  });
-
-  return __mjLoading;
-}
+// buildStemPreview / asset / interpolate / escapeHtml / typesetMathIfNeeded / ensureMathJaxLoaded (+__mjLoading) → picker_common.js (W2 Шаг 1)
 
 
 
@@ -3525,6 +2875,14 @@ let _ADDED_SYNC_T = 0;
 let _ADDED_SYNC_SEQ = 0;
 let _ADDED_BADGE_SEQ = 0;
 let _ADDED_SYNC_DIRTY = true;
+
+// WTC2: правда о фактически добавленном vs запрошенном.
+//   _ADDED_SHORTAGE = null | { requested, available, net } — выставляется по итогу sync,
+//   когда фактически добавлено меньше запрошенного (банк исчерпан #1 или сетевой сбой #2).
+let _ADDED_SHORTAGE = null;
+// WTC2 #2: был ли сетевой/RPC-сбой resolve в текущем проходе sync (для пометки + retry).
+let _ADDED_RESOLVE_NET_ERROR = false;
+let _ADDED_RECONNECT_WIRED = false;
 
 const _TEACHER_RESOLVE_MANIFEST_CACHE = new Map();
 const _TEACHER_RESOLVE_MANIFEST_INDEX_CACHE = new Map();
@@ -3582,9 +2940,41 @@ function persistAddedTasksContext() {
   store.contexts[_ADDED_CTX_KEY] = {
     seed: String(_ADDED_CTX.seed || '').trim() || createTeacherPickSeed(),
     buckets: _ADDED_CTX.buckets || {},
+    // WTC2 #3: персистим desired (CHOICE_*) рядом с buckets, чтобы F5 не стирал сборку.
+    // CHOICE_* в этот момент относятся к активному (= этому) контексту.
+    choice: {
+      topics: { ...(CHOICE_TOPICS || {}) },
+      sections: { ...(CHOICE_SECTIONS || {}) },
+      protos: { ...(CHOICE_PROTOS || {}) },
+    },
     ts: Date.now(),
   };
   saveTeacherAddedTasksStore(store);
+}
+
+// WTC2 #3: однократная регидрация desired из сохранённого context.choice ТОЛЬКО при свежем boot
+// (CHOICE_* пуст). Отличает свежий boot от: (а) намеренного bulkResetAll (choice сохранён пустым),
+// (б) in-session переключения ученика (CHOICE непустой — carry-over, не трогаем → B3 не меняется).
+// Старый store без choice — no-op (обратная совместимость).
+let _CHOICE_REHYDRATED = false;
+function maybeRehydrateChoiceForFreshBoot(rawCtx) {
+  if (_CHOICE_REHYDRATED || !IS_TEACHER_HOME) return;
+  if (!String(TEACHER_VIEW_STUDENT_ID || '').trim()) return; // только контекст выбранного ученика
+  if (getTotalSelected() > 0) return;                         // не свежий boot (CHOICE непустой) → не трогаем
+  const choice = (rawCtx && typeof rawCtx === 'object' && rawCtx.choice && typeof rawCtx.choice === 'object') ? rawCtx.choice : null;
+  if (!choice) return;                                        // старый формат без choice — ничего не восстанавливаем
+  const t = (choice.topics && typeof choice.topics === 'object') ? choice.topics : {};
+  const s = (choice.sections && typeof choice.sections === 'object') ? choice.sections : {};
+  const p = (choice.protos && typeof choice.protos === 'object') ? choice.protos : {};
+  const sum = [...Object.values(t), ...Object.values(s), ...Object.values(p)].reduce((a, b) => a + (Number(b) || 0), 0);
+  if (sum <= 0) return;                                       // сохранённый choice пуст (после reset) → нет «фантома»
+  CHOICE_TOPICS = { ...t };
+  CHOICE_SECTIONS = { ...s };
+  CHOICE_PROTOS = { ...p };
+  _CHOICE_REHYDRATED = true;
+  // обновить DOM-счётчики/#sum (accordion к этому моменту отрисован синхронно в applyTeacherStudentView)
+  try { queueMicrotask(() => { try { refreshCountsUI(); } catch (_) {} }); }
+  catch (_) { try { refreshCountsUI(); } catch (_) {} }
 }
 
 function ensureAddedTasksContextLoaded() {
@@ -3626,6 +3016,10 @@ function ensureAddedTasksContextLoaded() {
 
   _ADDED_CTX_KEY = key;
   _ADDED_CTX = ctx;
+
+  // WTC2 #3: восстановить desired из store при свежем boot (до boot-sync — иначе trim сотрёт buckets).
+  maybeRehydrateChoiceForFreshBoot(rawCtx);
+
   return _ADDED_CTX;
 }
 
@@ -3820,10 +3214,11 @@ async function pickQuestionsViaTeacherScreenResolve({
     request: normalizedRequest,
     seed: getCurrentTeacherPickSessionSeed(sid),
     exclude_question_ids: normalizedExcludeQuestionIds,
+    complete: true, // WTC4: полная подборка (filter→gradient + even-distribution); proto-scope игнорит фильтр на BE
     timeoutMs: 15000,
   });
 
-  if (!res?.ok) return [];
+  if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return []; } // WTC2 #2: пометить сбой resolve
 
   const payload = res?.payload;
   const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
@@ -3900,10 +3295,11 @@ async function pickQuestionsViaTeacherScreenResolveBatch({
     requests: normalizedRequests,
     seed: getCurrentTeacherPickSessionSeed(sid),
     exclude_question_ids: normalizedExcludeQuestionIds,
+    complete: true, // WTC4: полная подборка (filter→gradient + even-distribution)
     timeoutMs: 15000,
   });
 
-  if (!res?.ok) return null;
+  if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return null; } // WTC2 #2: пометить сбой resolve
 
   const payload = res?.payload;
   const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
@@ -4068,6 +3464,52 @@ function appendPickedQuestionsToBucket(ctx, bucketKey, questions = []) {
   return added;
 }
 
+// WTC2: текст сообщения о дефиците (банк исчерпан #1 или сетевой сбой #2).
+function shortageMessageText(sh) {
+  if (!sh) return '';
+  if (sh.net) {
+    return `Не удалось добавить часть задач (нет сети): добавлено ${sh.available} из ${sh.requested}. Проверьте соединение — добор повторится автоматически.`;
+  }
+  return `Доступно ${sh.available} из запрошенных ${sh.requested} (банк задач исчерпан).`;
+}
+
+// WTC2: привести видимый счётчик/подсказку к ПРАВДЕ после sync.
+// Счётчик #sum при дефиците показывает фактически добавленное (не запрошенное),
+// подсказка на существующей кнопке #addedTasksBtn объясняет причину. Без новой разметки.
+function reconcileAddedTasksTruth(wantTotal) {
+  if (!IS_TEACHER_HOME) return;
+  const actual = flattenAddedQuestions().length;
+  const want = Math.max(0, Number(wantTotal || 0) || 0);
+  const deficit = want - actual;
+  _ADDED_SHORTAGE = (deficit > 0) ? { requested: want, available: actual, net: !!_ADDED_RESOLVE_NET_ERROR } : null;
+
+  // Честный счётчик: #sum всегда отражает фактически добавленное (при дефиците < запрошенного;
+  // при снятии дефицита снова равно запрошенному). Иначе #sum залипал бы на старом значении.
+  const sumEl = $('#sum');
+  if (sumEl) sumEl.textContent = String(actual);
+
+  const addedBtn = $('#addedTasksBtn');
+  if (addedBtn) {
+    if (_ADDED_SHORTAGE) {
+      addedBtn.classList.add('has-shortage');
+      addedBtn.setAttribute('data-tip', shortageMessageText(_ADDED_SHORTAGE));
+    } else if (addedBtn.classList.contains('has-shortage')) {
+      addedBtn.classList.remove('has-shortage');
+      addedBtn.removeAttribute('data-tip');
+    }
+  }
+
+  // WTC2 #2: при сетевом сбое — добрать недостающее при восстановлении сети (one-shot wiring).
+  if (_ADDED_SHORTAGE && _ADDED_SHORTAGE.net && !_ADDED_RECONNECT_WIRED) {
+    _ADDED_RECONNECT_WIRED = true;
+    try {
+      window.addEventListener('online', () => {
+        if (_ADDED_SHORTAGE && _ADDED_SHORTAGE.net) scheduleSyncAddedTasks({ reason: 'reconnect' });
+      });
+    } catch (_) {}
+  }
+}
+
 async function syncAddedTasksToSelection(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   if (!SECTIONS?.length || !(TOPIC_BY_ID instanceof Map) || TOPIC_BY_ID.size <= 0) return;
@@ -4077,6 +3519,7 @@ async function syncAddedTasksToSelection(opts = {}) {
   if (!ctx) return;
 
   const seq = ++_ADDED_SYNC_SEQ;
+  _ADDED_RESOLVE_NET_ERROR = false; // WTC2 #2: копим признак сетевого сбоя resolve за этот проход
   const { desired, wantTotal } = getDesiredCountsFromSelection();
 
   // --- 1) удаление лишних задач ---
@@ -4326,6 +3769,9 @@ async function syncAddedTasksToSelection(opts = {}) {
   // сохраняем контекст
   try { persistAddedTasksContext(); } catch (_) {}
 
+  // WTC2: привести счётчик/подсказку к фактически добавленному (правда о shortage/сбое).
+  reconcileAddedTasksTruth(wantTotal);
+
   // если модалка открыта — перерисуем
   _ADDED_SYNC_DIRTY = false;
   if (ADDED_TASKS_MODAL_OPEN) {
@@ -4364,7 +3810,7 @@ async function openAddedTasksModalFast() {
   modal.setAttribute('aria-hidden', 'false');
 
   if (canReuseRenderedView) {
-    if (hint) hint.textContent = '';
+    if (hint) hint.textContent = _ADDED_SHORTAGE ? shortageMessageText(_ADDED_SHORTAGE) : '';
     if (meta) {
       if (wantTotal > 0) meta.textContent = `Показано: ${currentArr.length} из ${wantTotal}`;
       else meta.textContent = `Всего: ${currentArr.length}`;
@@ -4716,10 +4162,13 @@ function renderAddedTasksPreview(questions, opts = {}) {
     else meta.textContent = `Всего: ${arr.length}`;
   }
 
-  if (!arr.length) {
-    if (hint) hint.textContent = 'Список пуст. Добавьте задачи в аккордеоне.';
-    return;
+  // WTC2: явное сообщение о дефиците (банк/сеть) — приоритетнее «список пуст».
+  if (hint) {
+    if (_ADDED_SHORTAGE) hint.textContent = shortageMessageText(_ADDED_SHORTAGE);
+    else if (!arr.length) hint.textContent = 'Список пуст. Добавьте задачи в аккордеоне.';
   }
+
+  if (!arr.length) return;
 
   if (!list) return;
 
@@ -4925,23 +4374,4 @@ async function saveSelectionAndGo() {
 }
 
 // ---------- утилиты ----------
-function esc(s) {
-  return String(s).replace(/[&<>"]/g, m => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-  })[m]);
-}
-
-function compareId(a, b) {
-  const as = String(a).split('.').map(Number);
-  const bs = String(b).split('.').map(Number);
-  const L = Math.max(as.length, bs.length);
-  for (let i = 0; i < L; i++) {
-    const ai = as[i] ?? 0;
-    const bi = bs[i] ?? 0;
-    if (ai !== bi) return ai - bi;
-  }
-  return 0;
-}
+// esc / compareId → picker_common.js (W2 Шаг 1)

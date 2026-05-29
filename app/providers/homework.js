@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-05-27-1';
-import { requireSession } from './supabase.js?v=2026-05-27-1';
-import { supaRest } from './supabase-rest.js?v=2026-05-27-1';
+import { CONFIG } from '../config.js?v=2026-05-29-6';
+import { requireSession } from './supabase.js?v=2026-05-29-6';
+import { supaRest } from './supabase-rest.js?v=2026-05-29-6';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -74,6 +74,7 @@ export async function loadTeacherPickingScreenV2({
   request = {},
   seed = null,
   exclude_question_ids = null,
+  complete = false,
   timeoutMs = 15000,
 } = {}) {
   try {
@@ -97,6 +98,9 @@ export async function loadTeacherPickingScreenV2({
         p_request: request && typeof request === 'object' ? request : {},
         p_seed: seed == null ? null : (String(seed || '').trim() || null),
         p_exclude_question_ids: Array.from(new Set((exclude_question_ids || []).map((x) => String(x || '').trim()).filter(Boolean))),
+        // WTC4: p_complete шлём ТОЛЬКО когда true — обратная совместимость со старым контрактом
+        // до деплоя миграции (init/smoke без флага вызывают прежнюю сигнатуру).
+        ...(complete ? { p_complete: true } : {}),
       },
       { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
     );
@@ -121,6 +125,7 @@ export async function loadTeacherPickingResolveBatchV1({
   requests = [],
   seed = null,
   exclude_question_ids = null,
+  complete = false,
   timeoutMs = 15000,
 } = {}) {
   try {
@@ -150,6 +155,8 @@ export async function loadTeacherPickingResolveBatchV1({
         p_requests: normalizedRequests,
         p_seed: seed == null ? null : (String(seed || '').trim() || null),
         p_exclude_question_ids: Array.from(new Set((exclude_question_ids || []).map((x) => String(x || '').trim()).filter(Boolean))),
+        // WTC4: p_complete шлём ТОЛЬКО когда true (обратная совместимость до деплоя миграции).
+        ...(complete ? { p_complete: true } : {}),
       },
       { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
     );
