@@ -67,8 +67,8 @@ function __pick(obj, paths) {
 function __getAuthStorageKey() {
   try {
     const url = String(CONFIG?.supabase?.url || '').trim();
-    const m = url.match(/https?:\/\/([a-z0-9-]+)\.supabase\.co/i);
-    const ref = m ? m[1] : null;
+    if (!url) return null;
+    const ref = new URL(url).hostname.split('.')[0] || '';
     return ref ? `sb-${ref}-auth-token` : null;
   } catch (_) {
     return null;

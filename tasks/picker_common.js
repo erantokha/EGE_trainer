@@ -185,10 +185,13 @@ export function badgeClassByLastAttemptAt(lastAt) {
 /* ───────────── session / supabase url ───────────── */
 
 export function supabaseRefFromUrl(url) {
-  const u = String(url || '')
-    .trim();
-  const m = u.match(/^https?:\/\/([a-z0-9-]+)\.supabase\.co\b/i);
-  return m ? m[1] : '';
+  try {
+    const u = String(url || '').trim();
+    if (!u) return '';
+    return new URL(u).hostname.split('.')[0] || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 export function sessionTtlSec(session, nowMs) {
