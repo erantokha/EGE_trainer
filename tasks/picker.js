@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-30-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-30-3';
-import { CONFIG } from '../app/config.js?v=2026-05-30-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-30-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-30-3';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-30-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-30-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-30-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-30-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-30-3';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-30-3';
+import { withBuild } from '../app/build.js?v=2026-05-30-4';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-30-4';
+import { CONFIG } from '../app/config.js?v=2026-05-30-4';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-30-4';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-30-4';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-30-4';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-30-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-30-4';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-30-4';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-30-4';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-30-4';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-30-3';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-30-4';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-30-3';
+} from './picker_common.js?v=2026-05-30-4';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-05-30-3';
+} from './picker_stats.js?v=2026-05-30-4';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2632,7 +2632,50 @@ function refreshTotalSum() {
 let PROTO_MODAL_OPEN = false;
 let PROTO_MODAL_TOPIC = null;
 let PROTO_MODAL_TYPES = [];
+// WMB3: карточки модалки — по unic (baseId), а не по type.id. Это источник истины и для бейджа
+// (proto_last3_for_teacher_v1 ключует по catalog_question_dim.unic_id = baseIdFromProtoId(question_id)),
+// и для подбора (resolve матчит scope_id против unic_id). Для type.id == baseId (1.1-стиль) карточка
+// одна; для type.id != baseId / нескольких baseId (4.1-стиль, 53 типа разделов 4/7/9/12) — N карточек.
+let PROTO_MODAL_CARDS = [];
 let _PROTO_MODAL_SEQ = 0;
+
+// WMB3: разбить типы подтемы на карточки-по-unic.
+// Каждая карточка: { key (unic/baseId), type, title, protos[], cap }.
+// 1:1 (один baseId) -> одна карточка; 1:многие -> по карточке на baseId-группу.
+function buildProtoModalCards(types) {
+  const cards = [];
+  for (const typ of (Array.isArray(types) ? types : [])) {
+    const protos = (typ?.prototypes || []).filter(p => p && String(p.id || '').trim());
+    if (!protos.length) continue;
+
+    // Сгруппировать прототипы по baseIdFromProtoId(proto.id), сохраняя порядок появления групп.
+    const groups = new Map(); // baseId -> proto[]
+    for (const proto of protos) {
+      const bid = baseIdFromProtoId(String(proto.id || '').trim());
+      if (!bid) continue;
+      if (!groups.has(bid)) groups.set(bid, []);
+      groups.get(bid).push(proto);
+    }
+    if (!groups.size) continue;
+
+    const multi = groups.size > 1;
+    const typeTitle = String(typ?.title || '').trim();
+    for (const [bid, groupProtos] of groups) {
+      // 1:1 — заголовок типа (type.id + title); 1:многие — unic id + заголовок типа.
+      const title = multi
+        ? `${bid} ${typeTitle}`.trim()
+        : `${String(typ?.id || '').trim()} ${typeTitle}`.trim();
+      cards.push({
+        key: bid,
+        type: typ,
+        title,
+        protos: groupProtos,
+        cap: groupProtos.length,
+      });
+    }
+  }
+  return cards;
+}
 
 function getProtoModalEls() {
   return {
@@ -2647,11 +2690,12 @@ function getProtoModalEls() {
 }
 
 function protoModalSum() {
+  // WMB3: суммируем по карточкам-по-unic (CHOICE_PROTOS ключуется baseId), а не по type.id.
   let sum = 0;
-  for (const t of (PROTO_MODAL_TYPES || [])) {
-    const id = String(t?.id || '').trim();
-    if (!id) continue;
-    sum += Number(CHOICE_PROTOS[id] || 0) || 0;
+  for (const card of (PROTO_MODAL_CARDS || [])) {
+    const key = String(card?.key || '').trim();
+    if (!key) continue;
+    sum += Number(CHOICE_PROTOS[key] || 0) || 0;
   }
   return sum;
 }
@@ -2670,6 +2714,7 @@ function closeProtoPickerModal() {
   PROTO_MODAL_OPEN = false;
   PROTO_MODAL_TOPIC = null;
   PROTO_MODAL_TYPES = [];
+  PROTO_MODAL_CARDS = [];
 
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
@@ -2681,18 +2726,20 @@ function closeProtoPickerModal() {
 
 let _PROTO_MODAL_BADGE_SEQ = 0;
 
-async function refreshProtoModalBadges(types = [], opts = {}) {
+async function refreshProtoModalBadges(cards = [], opts = {}) {
   if (!IS_TEACHER_HOME) return;
   const { list } = getProtoModalEls();
   if (!list) return;
 
   const seq = ++_PROTO_MODAL_BADGE_SEQ;
-  const cards = $$('.tp-item', list);
-  if (!cards.length) return;
+  const domCards = $$('.tp-item', list);
+  if (!domCards.length) return;
+
+  const cardList = Array.isArray(cards) ? cards : [];
 
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
   if (!sid) {
-    for (const card of cards) {
+    for (const card of domCards) {
       setModalStatsBadge(card.querySelector('.proto-modal-badge'), null, {
         baseTitle: 'Статистика ученика по группе',
         emptyLabel: '—',
@@ -2705,12 +2752,14 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
     return;
   }
 
+  // WMB3: per-вопросная статистика — для date-бейджа и all-time строки тултипа;
+  // unicIds (ключи карточек = baseId) — для per-unic last-3 (proto_last3_for_teacher_v1).
   const allIds = [];
   const unicIds = [];
-  for (const typ of (Array.isArray(types) ? types : [])) {
-    const typeId = String(typ?.id || '').trim();
-    if (typeId) unicIds.push(typeId);
-    for (const proto of (typ?.prototypes || [])) {
+  for (const card of cardList) {
+    const key = String(card?.key || '').trim();
+    if (key) unicIds.push(key);
+    for (const proto of (card?.protos || [])) {
       const qid = String(proto?.id || '').trim();
       if (qid) allIds.push(qid);
     }
@@ -2731,17 +2780,17 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
 
   const statsMap = res?.map instanceof Map ? res.map : new Map();
   const last3Map = last3Res?.map instanceof Map ? last3Res.map : new Map();
-  for (const typ of (Array.isArray(types) ? types : [])) {
-    const typeId = String(typ?.id || '').trim();
-    if (!typeId) continue;
-    const card = list.querySelector(`.tp-item[data-type-id="${CSS.escape(typeId)}"]`);
-    const badge = card?.querySelector('.proto-modal-badge');
+  for (const card of cardList) {
+    const key = String(card?.key || '').trim();
+    if (!key) continue;
+    const cardEl = list.querySelector(`.tp-item[data-type-id="${CSS.escape(key)}"]`);
+    const badge = cardEl?.querySelector('.proto-modal-badge');
     if (!badge) continue;
-    const ids = (typ?.prototypes || []).map(p => String(p?.id || '').trim()).filter(Boolean);
+    const ids = (card?.protos || []).map(p => String(p?.id || '').trim()).filter(Boolean);
     // Агрегат по вопросам — для date-бейджа и all-time контекста тултипа.
     const aggStat = aggregateStatsForQuestionIds(ids, statsMap);
-    // WMB1: last-3 на уровне прототипа (unic_id), а не сумма по-вопросных last-3.
-    const protoLast3 = last3Map.get(typeId) || null;
+    // WMB3: last-3 на уровне прототипа (unic_id = baseId карточки), а не type.id.
+    const protoLast3 = last3Map.get(key) || null;
     const badgeStat = {
       total: aggStat.total,
       correct: aggStat.correct,
@@ -2754,7 +2803,7 @@ async function refreshProtoModalBadges(types = [], opts = {}) {
       emptyLabel: (res?.ok && last3Res?.ok) ? 'Не решал' : '—',
       emptyText: (res?.ok && last3Res?.ok) ? 'Попыток нет' : 'Статистика недоступна',
     });
-    setModalDateBadge(card?.querySelector('.proto-modal-date-badge'), aggStat, {
+    setModalDateBadge(cardEl?.querySelector('.proto-modal-date-badge'), aggStat, {
       baseTitle: 'Последнее решение по группе',
     });
   }
@@ -2771,6 +2820,7 @@ async function openProtoPickerModal(topic) {
   PROTO_MODAL_OPEN = true;
   PROTO_MODAL_TOPIC = topic;
   PROTO_MODAL_TYPES = [];
+  PROTO_MODAL_CARDS = [];
 
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
@@ -2796,16 +2846,22 @@ async function openProtoPickerModal(topic) {
   types.sort((a, b) => compareId(a.id, b.id));
   PROTO_MODAL_TYPES = types;
 
+  // WMB3: разбить типы на карточки-по-unic (baseId). Сортируем карточки по unic-ключу,
+  // чтобы split-карточки одного типа шли подряд в естественном порядке (4.1.5.1, 4.1.5.2 …).
+  const cards = buildProtoModalCards(types);
+  cards.sort((a, b) => compareId(a.key, b.key));
+  PROTO_MODAL_CARDS = cards;
+
   list.innerHTML = '';
-  if (!types.length) {
+  if (!cards.length) {
     hint.textContent = 'В этой подтеме пока нет прототипов.';
     updateProtoModalSelectedCount();
     return;
   }
 
   const frag = document.createDocumentFragment();
-  for (const typ of types) {
-    frag.appendChild(renderProtoModalCard(man, typ));
+  for (const card of cards) {
+    frag.appendChild(renderProtoModalCard(man, card));
   }
   list.appendChild(frag);
   list.scrollTop = 0;
@@ -2814,15 +2870,20 @@ async function openProtoPickerModal(topic) {
 
   updateProtoModalSelectedCount();
   await typesetMathIfNeeded(list);
-  await refreshProtoModalBadges(types, { topicId });
+  await refreshProtoModalBadges(cards, { topicId });
 }
 
-function renderProtoModalCard(manifest, type) {
-  const cap = (type.prototypes || []).length;
-  const typeId = String(type.id || '').trim();
+// WMB3: card — дескриптор из buildProtoModalCards: { key (unic/baseId), type, title, protos[], cap }.
+// data-type-id и счётчик (CHOICE_PROTOS) ключуются card.key (unic), чтобы и бейдж, и подбор
+// (resolve по scope_id == unic_id) совпадали с catalog_question_dim.unic_id.
+function renderProtoModalCard(manifest, card) {
+  const type = card?.type || {};
+  const protos = (card?.protos || []);
+  const cap = Number(card?.cap || protos.length) || protos.length;
+  const cardKey = String(card?.key || '').trim();
   const row = document.createElement('div');
   row.className = 'tp-item';
-  row.dataset.typeId = typeId;
+  row.dataset.typeId = cardKey;
 
   const left = document.createElement('div');
   left.className = 'tp-item-left';
@@ -2832,7 +2893,7 @@ function renderProtoModalCard(manifest, type) {
 
   const meta = document.createElement('div');
   meta.className = 'tp-item-meta';
-  meta.textContent = `${typeId} ${type.title || ''} (вариантов: ${cap})`.trim();
+  meta.textContent = `${String(card?.title || '').trim()} (вариантов: ${cap})`.trim();
 
   if (IS_TEACHER_HOME) {
     const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
@@ -2850,7 +2911,7 @@ function renderProtoModalCard(manifest, type) {
 
   const stem = document.createElement('div');
   stem.className = 'tp-item-stem';
-  const proto0 = (type.prototypes || [])[0] || null;
+  const proto0 = protos[0] || null;
   stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
 
   if (IS_TEACHER_HOME) left.appendChild(head);
@@ -2878,21 +2939,21 @@ function renderProtoModalCard(manifest, type) {
   capEl.textContent = `из ${cap}`;
 
   const setBtnState = () => {
-    const c = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[typeId] || 0)));
+    const c = Math.max(0, Math.min(cap, Number(CHOICE_PROTOS[cardKey] || 0)));
     val.textContent = String(c);
     minus.disabled = c <= 0;
     plus.disabled = c >= cap;
   };
 
   minus.addEventListener('click', () => {
-    const c = Number(CHOICE_PROTOS[typeId] || 0);
-    setProtoCount(typeId, Math.max(0, c - 1), cap);
+    const c = Number(CHOICE_PROTOS[cardKey] || 0);
+    setProtoCount(cardKey, Math.max(0, c - 1), cap);
     setBtnState();
     updateProtoModalSelectedCount();
   });
   plus.addEventListener('click', () => {
-    const c = Number(CHOICE_PROTOS[typeId] || 0);
-    setProtoCount(typeId, Math.min(cap, c + 1), cap);
+    const c = Number(CHOICE_PROTOS[cardKey] || 0);
+    setProtoCount(cardKey, Math.min(cap, c + 1), cap);
     setBtnState();
     updateProtoModalSelectedCount();
   });
@@ -3123,7 +3184,7 @@ function onTeacherContextChanged(opts = {}) {
   if (PROTO_MODAL_OPEN) {
     queueMicrotask(() => {
       if (!PROTO_MODAL_OPEN || !PROTO_MODAL_TOPIC) return;
-      refreshProtoModalBadges(PROTO_MODAL_TYPES, { topicId: String(PROTO_MODAL_TOPIC?.id || '').trim() });
+      refreshProtoModalBadges(PROTO_MODAL_CARDS, { topicId: String(PROTO_MODAL_TOPIC?.id || '').trim() });
     });
   }
 }
