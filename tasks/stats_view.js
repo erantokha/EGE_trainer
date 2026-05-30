@@ -1,7 +1,7 @@
 // tasks/stats_view.js
 // Renders student/teacher statistics using student_dashboard_* payloads.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-05-30-5';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-05-30-6';
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
