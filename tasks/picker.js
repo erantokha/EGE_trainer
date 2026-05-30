@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-05-30-4';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-30-4';
-import { CONFIG } from '../app/config.js?v=2026-05-30-4';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-30-4';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-30-4';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-30-4';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-30-4';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-05-30-4';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-30-4';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-30-4';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-30-4';
+import { withBuild } from '../app/build.js?v=2026-05-30-5';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-05-30-5';
+import { CONFIG } from '../app/config.js?v=2026-05-30-5';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-05-30-5';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-05-30-5';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-05-30-5';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-05-30-5';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-05-30-5';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-05-30-5';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-05-30-5';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-05-30-5';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-30-4';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-05-30-5';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-30-4';
+} from './picker_common.js?v=2026-05-30-5';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-05-30-4';
+} from './picker_stats.js?v=2026-05-30-5';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3009,6 +3009,14 @@ let _ADDED_SYNC_T = 0;
 let _ADDED_SYNC_SEQ = 0;
 let _ADDED_BADGE_SEQ = 0;
 let _ADDED_SYNC_DIRTY = true;
+// WP1: контроллер коалесинга — максимум ОДИН синк в полёте; по оседанию ровно один trailing
+// по последнему состоянию счётчиков. _ADDED_SYNC_DIRTY сохраняет прежнюю семантику (clean/dirty
+// для modal-open), trailing управляется отдельным _ADDED_SYNC_PENDING.
+const ADDED_SYNC_DEBOUNCE_MS = 300; // было 90 (inline); коалесим серии ручных кликов
+let _ADDED_SYNC_INFLIGHT = false;
+let _ADDED_SYNC_PENDING = false;
+let _ADDED_SYNC_PENDING_OPTS = null;
+let _ADDED_SYNC_SETTLE_WAITERS = [];
 
 // WTC2: правда о фактически добавленном vs запрошенном.
 //   _ADDED_SHORTAGE = null | { requested, available, net } — выставляется по итогу sync,
@@ -3189,15 +3197,60 @@ function onTeacherContextChanged(opts = {}) {
   }
 }
 
+// WP1: запустить синк, если он не в полёте; иначе пометить pending → trailing-прогон в finally.
+function maybeRunAddedSync(opts = {}) {
+  if (_ADDED_SYNC_INFLIGHT) {
+    _ADDED_SYNC_PENDING = true;
+    _ADDED_SYNC_PENDING_OPTS = opts;
+    return;
+  }
+  runAddedSync(opts);
+}
+
+async function runAddedSync(opts = {}) {
+  _ADDED_SYNC_INFLIGHT = true;
+  _ADDED_SYNC_PENDING = false;
+  try {
+    await syncAddedTasksToSelection(opts); // её _ADDED_SYNC_SEQ остаётся belt-and-suspenders
+  } finally {
+    _ADDED_SYNC_INFLIGHT = false;
+    if (_ADDED_SYNC_PENDING) {
+      const next = _ADDED_SYNC_PENDING_OPTS || { reason: 'coalesced-trailing' };
+      _ADDED_SYNC_PENDING = false;
+      _ADDED_SYNC_PENDING_OPTS = null;
+      runAddedSync(next);
+    } else {
+      const ws = _ADDED_SYNC_SETTLE_WAITERS;
+      _ADDED_SYNC_SETTLE_WAITERS = [];
+      for (const w of ws) { try { w(); } catch (_) {} }
+    }
+  }
+}
+
+// WP1: промис, который резолвится когда контроллер оседает (нет ни in-flight, ни pending).
+function awaitAddedSyncSettled() {
+  if (!_ADDED_SYNC_INFLIGHT && !_ADDED_SYNC_PENDING) return Promise.resolve();
+  return new Promise((res) => { _ADDED_SYNC_SETTLE_WAITERS.push(res); });
+}
+
+// WP1: есть ли несведённая работа синка (для modal-open проверок).
+function isAddedSyncPending() {
+  return _ADDED_SYNC_DIRTY || !!_ADDED_SYNC_T || _ADDED_SYNC_INFLIGHT || _ADDED_SYNC_PENDING;
+}
+
 function scheduleSyncAddedTasks(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   _ADDED_SYNC_DIRTY = true;
   if (_ADDED_SYNC_T) clearTimeout(_ADDED_SYNC_T);
-  const delay = opts?.immediate ? 0 : 90;
+  if (opts?.immediate) {
+    _ADDED_SYNC_T = 0;
+    maybeRunAddedSync(opts);
+    return;
+  }
   _ADDED_SYNC_T = setTimeout(() => {
     _ADDED_SYNC_T = 0;
-    syncAddedTasksToSelection(opts);
-  }, delay);
+    maybeRunAddedSync(opts);
+  }, ADDED_SYNC_DEBOUNCE_MS);
 }
 
 async function flushTeacherAddedTasksSelection(reason = 'flush') {
@@ -3206,7 +3259,11 @@ async function flushTeacherAddedTasksSelection(reason = 'flush') {
     clearTimeout(_ADDED_SYNC_T);
     _ADDED_SYNC_T = 0;
   }
-  await syncAddedTasksToSelection({ reason, immediate: true });
+  // WP1: провести через контроллер — без параллельного синка; дождаться полного оседания
+  // (включая trailing), чтобы вызывающий получил финальное состояние выборки.
+  _ADDED_SYNC_DIRTY = true;
+  maybeRunAddedSync({ reason, immediate: true });
+  await awaitAddedSyncSettled();
 }
 
 function incIdCount(id) {
@@ -3933,8 +3990,7 @@ async function openAddedTasksModalFast() {
   const currentArr = sortAddedQuestions(flattenAddedQuestions());
   const renderSig = getAddedTasksRenderSignature(currentArr, { wantTotal });
   const canReuseRenderedView =
-    !_ADDED_SYNC_DIRTY &&
-    !_ADDED_SYNC_T &&
+    !isAddedSyncPending() &&
     !!list &&
     list.childElementCount > 0 &&
     String(list.dataset.renderSig || '').trim() === renderSig;
@@ -3960,7 +4016,7 @@ async function openAddedTasksModalFast() {
     list.dataset.renderSig = '';
   }
 
-  if (_ADDED_SYNC_DIRTY || _ADDED_SYNC_T) {
+  if (isAddedSyncPending()) {
     await flushTeacherAddedTasksSelection('open');
     if (!ADDED_TASKS_MODAL_OPEN) return;
     if (list && list.childElementCount > 0) return;
@@ -4061,6 +4117,29 @@ async function getTeacherResolveManifestIndex(manifestPath) {
   return idx;
 }
 
+// WP1: параллельный прогрев кэша манифестов (нет общего mapLimit в этом модуле).
+// Лимит конкуррентности, чтобы не открывать десятки соединений сразу.
+async function prefetchTeacherResolveManifestIndexes(manifestPaths, limit = 6) {
+  const uniq = Array.from(new Set(
+    (manifestPaths || []).map((p) => String(p || '').trim()).filter(Boolean),
+  ));
+  if (uniq.length <= 1) {
+    // 0 или 1 уникальный манифест — параллелить нечего, обычный путь и так попадёт в кэш.
+    if (uniq.length === 1) { try { await getTeacherResolveManifestIndex(uniq[0]); } catch (_) {} }
+    return;
+  }
+  let i = 0;
+  const worker = async () => {
+    while (i < uniq.length) {
+      const p = uniq[i++];
+      try { await getTeacherResolveManifestIndex(p); } catch (_) {}
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(Math.max(1, limit), uniq.length) }, worker),
+  );
+}
+
 async function buildPreviewQuestionsFromResolveRows({
   rows,
   wantsByBucket,
@@ -4078,6 +4157,11 @@ async function buildPreviewQuestionsFromResolveRows({
     if (!byBucket.has(bucketKey)) byBucket.set(bucketKey, []);
     byBucket.get(bucketKey).push(row);
   }
+
+  // WP1: прогреть кэш всех манифестов параллельно ДО последовательного assembly-цикла,
+  // чтобы getTeacherResolveManifestIndex в tryAdd попадал в кэш без сетевых await по одному.
+  // Префетч не меняет логику выбора — только устраняет последовательный сетевой хвост.
+  await prefetchTeacherResolveManifestIndexes((rows || []).map((r) => r?.manifest_path));
 
   for (const arr of byBucket.values()) {
     arr.sort((a, b) => {
