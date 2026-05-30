@@ -9,3 +9,5 @@ test-results/
 # Claude Code worktrees / диагностический scratch
 .claude/
 reports/_diag_vectors*.cjs
+
+node_modules
