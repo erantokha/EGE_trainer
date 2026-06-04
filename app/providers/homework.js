@@ -656,6 +656,44 @@ export async function protoLast3ForTeacherV1({
   }
 }
 
+// WMB4: per-prototype (unic) last-3 counters for the SELF proto-picker modal badge.
+// Self-зеркало protoLast3ForTeacherV1: без student_id (RPC скоупится по auth.uid()).
+// Тот же rpcTry-слой и chunking по 500. Формат ответа идентичен teacher-версии:
+// { ok, map, error }, где map: unic_id -> { last3_total, last3_correct }.
+export async function protoLast3ForSelfV1({
+  unic_ids,
+  timeoutMs = 8000,
+  chunkSize = 500,
+} = {}) {
+  try {
+    const ids = Array.from(new Set((unic_ids || []).map(x => String(x || '').trim()).filter(Boolean)));
+    if (!ids.length) return { ok: true, map: new Map(), error: null };
+
+    const map = new Map();
+    const parts = _chunks(ids, Math.max(50, Number(chunkSize || 500) || 500));
+    for (const part of parts) {
+      const r = await rpcTry(
+        ['proto_last3_for_self_v1', 'protoLast3ForSelfV1'],
+        { p_unic_ids: part },
+        { timeoutMs: Number(timeoutMs || 8000) || 8000 },
+      );
+      if (!r.ok) return { ok: false, map: null, error: r.error };
+      for (const row of (r.data || [])) {
+        const uid = String(row?.unic_id || '').trim();
+        if (!uid) continue;
+        map.set(uid, {
+          last3_total: Number(row?.last3_total || 0) || 0,
+          last3_correct: Number(row?.last3_correct || 0) || 0,
+        });
+      }
+    }
+
+    return { ok: true, map, error: null };
+  } catch (e) {
+    return { ok: false, map: null, error: e };
+  }
+}
+
 
 // ===== Подбор задач через RPC (учительские фильтры) =====
 // Возвращает { ok, rows, fn, error }.

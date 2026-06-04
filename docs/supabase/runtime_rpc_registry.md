@@ -24,8 +24,8 @@
 
 ## Итог (актуально на 2026-05-13)
 
-- Всего активных runtime-RPC в реестре: `33`
-- `standalone_sql`: `33`
+- Всего активных runtime-RPC в реестре: `34`
+- `standalone_sql`: `34`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -102,6 +102,7 @@ Teacher-picking `v2` rollout отражён в реестре:
 | --- | --- | --- | --- | --- | --- | --- |
 | `question_stats_for_teacher_v2` | `question_stats_for_teacher_v1`, `questionStatsForTeacherV1` | `tasks/list.js`, `tasks/picker.js`, `tasks/trainer.js`, `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/question_stats_for_teacher_v2.sql` | `teacher-picking` | `standalone_sql` | Canonical teacher-stats RPC after Stage-3 teacher-picking rollout. Provider prefers `v2` and falls back to `v1`; `v2` carries `last3_total` / `last3_correct` and powers preview badges plus teacher stats cache. |
 | `proto_last3_for_teacher_v1` | `protoLast3ForTeacherV1` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/proto_last3_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | WMB1 (2026-05-29). Per-prototype (unic) last-3 counters for the teacher proto-picker modal badge. Windows the 3 most recent attempts per `unic_id` across all question variants (join `catalog_question_dim`), mirroring `student_proto_state_v1.proto_last3` window semantics + `question_stats_for_teacher_v2` guard (`security definer`, `search_path=public`, teacher access via `teacher_students` exists-check, `revoke from anon` / `grant to authenticated`). Fixes modal badge denominator `X/4` (summed per-question windows) → `X/3` (per-prototype window). Does NOT replace `question_stats_for_teacher_v2` (still powers list/trainer/pick_engine and modal date-badge / all-time tooltip). |
+| `proto_last3_for_self_v1` | `protoLast3ForSelfV1` | `tasks/picker.js` via `app/providers/homework.js` | `docs/supabase/proto_last3_for_self_v1.sql` | `teacher-picking` | `standalone_sql` | WMB4 (2026-06-04). Self-зеркало `proto_last3_for_teacher_v1`: per-prototype (unic) last-3 counters для бейджа карточки прототипа в модалке подбора у самого (авторизованного) ученика на `home_student.html` (паритет с тем, что видит учитель). Два отличия от teacher-RPC: (а) сигнатура `proto_last3_for_self_v1(p_unic_ids text[])` без `p_student_id`; (б) вместо `teacher_students`-гейта — жёсткий `where ae.student_id = auth.uid()`. Окно идентично (`partition by unic_id`, тот же ordering, join `catalog_question_dim`); guard `security definer` / `search_path=public` / `revoke from anon` / `grant to authenticated` (anon: `auth.uid()`=NULL → пусто). Питает ТОЛЬКО self stats-бейдж X/3; date-бейдж / all-time для self не отдаёт (это `question_stats_for_teacher_v2`, teacher-only — follow-up WMB4-f1). Не меняет teacher-путь модалки. |
 | `pick_questions_for_teacher_v1` | `pickQuestionsForTeacherV1` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Legacy/compat picking-контур для teacher filters, пока ещё живущий в runtime. |
 | `pick_questions_for_teacher_v2` | `pickQuestionsForTeacherV2` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/pick_questions_for_teacher_v2.sql` | `teacher-picking` | `standalone_sql` | Standalone SQL-файл уже присутствовал в репозитории до закрытия `Wave 0`. |
 | `teacher_type_rollup_v1` | `-` | `tasks/pick_engine.js` via `app/providers/homework.js` | `docs/supabase/teacher_type_rollup_v1.sql` | `teacher-picking` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. |

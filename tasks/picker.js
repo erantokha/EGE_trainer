@@ -13,7 +13,7 @@ import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect 
 import { CONFIG } from '../app/config.js?v=2026-06-04-2';
 import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-04-2';
 import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-04-2';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-04-2';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-04-2';
 import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-04-2';
 import { setStem } from '../app/ui/safe_dom.js?v=2026-06-04-2';
 import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-04-2';
@@ -620,6 +620,10 @@ const _TEACHER_MODAL_STATS_CACHE = new Map();
 // sid -> Map(unic_id -> { last3_total, last3_correct }). Окно last-3 на уровне
 // прототипа (RPC proto_last3_for_teacher_v1), а не сумма по-вопросных окон.
 const _TEACHER_PROTO_LAST3_CACHE = new Map();
+// WMB4: self per-unic last-3 cache для модального бейджа у самого ученика.
+// Без sid-ключа (RPC proto_last3_for_self_v1 скоупится по auth.uid()):
+// unic_id -> { last3_total, last3_correct }.
+const _SELF_PROTO_LAST3_CACHE = new Map();
 const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
 let _TEACHER_MODAL_PRELOAD_SEQ = 0;
 let _TEACHER_MODAL_PRELOAD_PROMISE = null;
@@ -838,6 +842,44 @@ async function loadProtoLast3ForModal(studentId, unicIds, opts = {}) {
   if (missing.length) {
     const res = await protoLast3ForTeacherV1({
       student_id: sid,
+      unic_ids: missing,
+      timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
+    });
+    if (!res?.ok) return { ok: false, map: out, error: res?.error || null };
+    const fetched = res.map instanceof Map ? res.map : new Map();
+    // Записываем в кэш и нули по тем unic, у которых попыток нет (чтобы не дёргать RPC снова).
+    for (const id of missing) {
+      const st = fetched.get(id);
+      const norm = {
+        last3_total: Number(st?.last3_total || 0) || 0,
+        last3_correct: Number(st?.last3_correct || 0) || 0,
+      };
+      cache.set(id, norm);
+      out.set(id, norm);
+    }
+  }
+
+  return { ok: true, map: out, error: null };
+}
+
+// WMB4: загрузка per-unic last-3 для бейджа КАРТОЧКИ прототипа у самого ученика.
+// Self-аналог loadProtoLast3ForModal: окно «последние 3 попытки» считается на уровне
+// прототипа (unic_id) сервером (RPC proto_last3_for_self_v1, скоуп по auth.uid()).
+// Кэш — _SELF_PROTO_LAST3_CACHE (Map unic_id -> { last3_total, last3_correct }), без sid.
+async function loadProtoLast3ForSelf(unicIds, opts = {}) {
+  const ids = Array.from(new Set((unicIds || []).map(x => String(x || '').trim()).filter(Boolean)));
+  if (!ids.length) return { ok: true, map: new Map(), error: null };
+
+  const cache = _SELF_PROTO_LAST3_CACHE;
+  const out = new Map();
+  const missing = [];
+  for (const id of ids) {
+    if (cache.has(id)) out.set(id, cache.get(id));
+    else missing.push(id);
+  }
+
+  if (missing.length) {
+    const res = await protoLast3ForSelfV1({
       unic_ids: missing,
       timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
     });
@@ -2727,7 +2769,7 @@ function closeProtoPickerModal() {
 let _PROTO_MODAL_BADGE_SEQ = 0;
 
 async function refreshProtoModalBadges(cards = [], opts = {}) {
-  if (!IS_TEACHER_HOME) return;
+  if (!CAN_PROTO_MODAL) return;
   const { list } = getProtoModalEls();
   if (!list) return;
 
@@ -2736,6 +2778,43 @@ async function refreshProtoModalBadges(cards = [], opts = {}) {
   if (!domCards.length) return;
 
   const cardList = Array.isArray(cards) ? cards : [];
+
+  // WMB4: self-путь — без student_id, источник proto_last3_for_self_v1 (скоуп auth.uid()).
+  // Наполняем только stats-бейдж X/3 (date-бейджа у self нет — см. renderProtoModalCard).
+  if (IS_STUDENT_PAGE) {
+    const unicIds = [];
+    for (const card of cardList) {
+      const key = String(card?.key || '').trim();
+      if (key) unicIds.push(key);
+    }
+    if (!unicIds.length) return;
+
+    const last3Res = await loadProtoLast3ForSelf(unicIds, { timeoutMs: 8000 });
+    if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
+
+    const last3Map = last3Res?.map instanceof Map ? last3Res.map : new Map();
+    for (const card of cardList) {
+      const key = String(card?.key || '').trim();
+      if (!key) continue;
+      const cardEl = list.querySelector(`.tp-item[data-type-id="${CSS.escape(key)}"]`);
+      const badge = cardEl?.querySelector('.proto-modal-badge');
+      if (!badge) continue;
+      const protoLast3 = last3Map.get(key) || null;
+      const badgeStat = {
+        total: 0,
+        correct: 0,
+        last_attempt_at: null,
+        last3_total: Number(protoLast3?.last3_total || 0) || 0,
+        last3_correct: Number(protoLast3?.last3_correct || 0) || 0,
+      };
+      setModalStatsBadge(badge, badgeStat, {
+        baseTitle: 'Моя статистика по группе',
+        emptyLabel: last3Res?.ok ? 'Не решал' : '—',
+        emptyText: last3Res?.ok ? 'Попыток нет' : 'Статистика недоступна',
+      });
+    }
+    return;
+  }
 
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
   if (!sid) {
@@ -2895,18 +2974,36 @@ function renderProtoModalCard(manifest, card) {
   meta.className = 'tp-item-meta';
   meta.textContent = `${String(card?.title || '').trim()} (вариантов: ${cap})`.trim();
 
-  if (IS_TEACHER_HOME) {
-    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
-    setModalStatsBadge(statsBadge, null, {
-      baseTitle: 'Статистика ученика по группе',
-      emptyLabel: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Не решал' : '—',
-      emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
-    });
-    setModalDateBadge(dateBadge, null, {
-      baseTitle: 'Последнее решение по группе',
-    });
-    head.appendChild(meta);
-    head.appendChild(badgeGroup);
+  // WMB4: бейдж точности «последние 3» рисуем обеим ролям (CAN_PROTO_MODAL).
+  // Teacher — date-бейдж + stats-бейдж (как раньше). Self — только stats-бейдж
+  // (у self нет дешёвого date-источника: date/all-time живут в teacher-only
+  // question_stats_for_teacher_v2 — это явный follow-up WMB4-f1, не в DoD).
+  if (CAN_PROTO_MODAL) {
+    if (IS_TEACHER_HOME) {
+      const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
+      setModalStatsBadge(statsBadge, null, {
+        baseTitle: 'Статистика ученика по группе',
+        emptyLabel: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Не решал' : '—',
+        emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
+      });
+      setModalDateBadge(dateBadge, null, {
+        baseTitle: 'Последнее решение по группе',
+      });
+      head.appendChild(meta);
+      head.appendChild(badgeGroup);
+    } else {
+      const badgeGroup = document.createElement('div');
+      badgeGroup.className = 'modal-badge-group';
+      const statsBadge = buildModalBadgeEl('proto-modal-badge');
+      setModalStatsBadge(statsBadge, null, {
+        baseTitle: 'Моя статистика по группе',
+        emptyLabel: 'Не решал',
+        emptyText: 'Попыток нет',
+      });
+      badgeGroup.appendChild(statsBadge);
+      head.appendChild(meta);
+      head.appendChild(badgeGroup);
+    }
   }
 
   const stem = document.createElement('div');
@@ -2914,7 +3011,7 @@ function renderProtoModalCard(manifest, card) {
   const proto0 = protos[0] || null;
   stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
 
-  if (IS_TEACHER_HOME) left.appendChild(head);
+  if (CAN_PROTO_MODAL) left.appendChild(head);
   else left.appendChild(meta);
   left.appendChild(stem);
 
