@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-05-30-9';
+} from './picker_common.js?v=2026-06-04-1';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
@@ -128,11 +128,33 @@ export function secondaryFromPrimary(primaryRounded) {
   return (k in SECONDARY_BY_PRIMARY) ? SECONDARY_BY_PRIMARY[k] : 0;
 }
 
+// Дробный вторичный: линейная интерполяция между официальными якорями шкалы.
+// В отличие от secondaryFromPrimary (по округлённому целому) — непрерывна по
+// дробному первичному, поэтому любое улучшение точности двигает балл, без полок
+// и без резких скачков на границе округления. Якоря (8→46, 9→52, …) не меняются.
+export function secondaryFromPrimaryExact(primaryExact) {
+  const p = Math.max(0, Math.min(12, Number(primaryExact || 0) || 0));
+  const lo = Math.floor(p);
+  const hi = Math.ceil(p);
+  const sLo = SECONDARY_BY_PRIMARY[lo] || 0;
+  if (lo === hi) return sLo;
+  const sHi = SECONDARY_BY_PRIMARY[hi] || 0;
+  return sLo + (p - lo) * (sHi - sLo);
+}
+
 export function fmtPrimaryExact(x) {
   if (x === null || x === undefined) return '—';
   const v = Number(x);
   if (!isFinite(v)) return '—';
   return v.toFixed(2).replace('.', ',');
+}
+
+// Вторичный с одним знаком после запятой (запятая — десятичный разделитель).
+export function fmtSecondaryExact(x) {
+  if (x === null || x === undefined) return '—';
+  const v = Number(x);
+  if (!isFinite(v)) return '—';
+  return v.toFixed(1).replace('.', ',');
 }
 
 /* ── Термометр правой колонки (desktop teacher-student-view) ────────────── */
@@ -170,7 +192,7 @@ export function thermoColorByPrimary(primaryRounded) {
 
 // Внутренний guard isStudentLikeHome снят (W2 Шаг 2): все вызовы — из guarded-оркестраторов
 // picker.js. Реальный гейт thermo здесь — наличие combo-элементов (только на teacher-home).
-export function updateScoreThermo(primaryRounded, secondary, opts = {}) {
+export function updateScoreThermo(primaryExact, secondary, opts = {}) {
   const inputEl    = document.getElementById('studentComboInput');
   const comboScore = document.getElementById('studentComboScore');
   const elS        = document.getElementById('comboScoreSecondary');
@@ -188,8 +210,8 @@ export function updateScoreThermo(primaryRounded, secondary, opts = {}) {
     return;
   }
 
-  const v = Number(primaryRounded || 0);
-  const p = Math.max(0, Math.min(12, Math.round(isFinite(v) ? v : 0)));
+  const v = Number(primaryExact || 0);
+  const p = Math.max(0, Math.min(12, isFinite(v) ? v : 0)); // дробный: заливка и подпись непрерывны
   const s = Math.max(0, Number(secondary || 0) || 0);
 
   const COLOR_MAP = {
@@ -203,8 +225,8 @@ export function updateScoreThermo(primaryRounded, secondary, opts = {}) {
   inputEl.style.setProperty('--combo-fill-pct',   `${(p / 12) * 100}%`);
   inputEl.style.setProperty('--combo-fill-color',  COLOR_MAP[thermoColorByPrimary(p)] || COLOR_MAP.gray);
 
-  elS.textContent = `${s} втор.`;
-  elP.textContent = `${p} перв.`;
+  elS.textContent = `${fmtSecondaryExact(s)} втор.`;
+  elP.textContent = `${fmtPrimaryExact(p)} перв.`;
   comboScore.classList.add('is-visible');
   if (combo) combo.classList.add('has-score');
 }
@@ -235,18 +257,17 @@ export function updateScoreForecast(sectionPctById, opts = {}) {
   }
 
   const primaryExact = sum;
-  const primaryRounded = Math.round(primaryExact);
-  const secondary = secondaryFromPrimary(primaryRounded);
+  const secondary = secondaryFromPrimaryExact(primaryExact);
 
   if (elP) elP.textContent = fmtPrimaryExact(primaryExact);
-  if (elS) elS.textContent = String(secondary);
+  if (elS) elS.textContent = fmtSecondaryExact(secondary);
 
   if (elN) {
     elN.hidden = false;
-    elN.textContent = `Округление: ${primaryRounded} перв. → ${secondary} втор.`;
+    elN.textContent = `Прогноз по текущей точности: ${fmtPrimaryExact(primaryExact)} перв. → ${fmtSecondaryExact(secondary)} втор.`;
   }
 
-  updateScoreThermo(primaryRounded, secondary, { signedIn: true });
+  updateScoreThermo(primaryExact, secondary, { signedIn: true });
 }
 
 /* ───────────── recommendation-хелперы (teacher) ───────────── */
