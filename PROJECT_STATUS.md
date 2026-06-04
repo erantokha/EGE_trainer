@@ -1,6 +1,6 @@
 # PROJECT_STATUS
 
-Дата обновления: 2026-05-26
+Дата обновления: 2026-06-05
 Репозиторий: `EGE_rep`
 Ветка: `main`
 
@@ -45,7 +45,7 @@
 ### 2.2 Runtime-статус
 
 По состоянию репозитория:
-- активных runtime-RPC в реестре: `31`
+- активных runtime-RPC в реестре: `34`
 - SQL-артефакты для runtime-контрактов лежат в `docs/supabase/*.sql`
 - frontend переведён на canonical read/write seams
 - открытых migration exceptions в handoff-документации нет
@@ -159,6 +159,8 @@
 - `question_stats_for_teacher_v2`
 - `teacher_picking_screen_v2`
 - `teacher_picking_resolve_batch_v1`
+- `proto_last3_for_teacher_v1` (WMB1 — per-unic last-3 для модального бейджа, teacher-scope)
+- `proto_last3_for_self_v1` (WMB4/5 — per-unic last-3 + all-time + дата, self-scope `auth.uid()`)
 
 Полный реестр:
 - `docs/supabase/runtime_rpc_registry.md`
@@ -174,6 +176,7 @@
 - self-статистика по `student_analytics_screen_v1`
 - умная тренировка от статистики
 - просмотр и выполнение домашних заданий
+- оценка прототипов в окне подбора: точность за последние 3 попытки + дата последнего решения (паритет с учительским видом; без мигания при открытии — WMB4/WMB5/WFX1)
 - student-лендинг
 
 ### 6.2 Учитель
@@ -186,6 +189,7 @@
 - удаление ученика из списка
 - карточка ученика
 - просмотр выполненных работ ученика
+- оценка прототипов ученика в окне подбора: точность за последние 3 попытки + дата последнего решения (WMB1/WMB3)
 - smart-homework builder
 - variant-12 builder
 - создание и назначение домашней работы
@@ -269,3 +273,4 @@ python3 -m http.server 8000
 - параллельно W1 открыт продуктовый трек **WS — Session Links** (2026-05-13): уникальные URL-ссылки на тренажёр/список задач с замороженным набором. План — `WS_session_links_PLAN.md`. Подволна `WS.1` принята `2026-05-19`; не сдвигает критический путь W1. Подробности — `GLOBAL_PLAN.md §6.1`.
 - **Трек W1 закрыт `2026-05-26`** — декомпозиция `tasks/trainer.css` завершена. Монолит (3930 строк) физически разнесён на `tasks/trainer/{tokens.css, base.css, print.css}` + 9 per-page файлов `pages/*.css` (volume W1.1' под `W1_REPLAN.md` per-page-вектор). Conservation доказана (859 leaf-правил источника = 859 в выходе, 0 потерь). Page-файлы созданы только где есть screen-эксклюзивные селекторы: home-student/hw-create/student/trainer/my-students/my-homeworks/profile/list/unique; auth/hw/home-teacher/analog/stats — все в `base.css`/`print.css`. `tools/check_trainer_css_layers.mjs` переписан под per-page инварианты с allowed-set из footprint-матрицы W1.0b. `@layer` не используется (footgun с layered `!important`), cascade-гарантия — через дисциплину порядка `<link>` (`tokens → base → page → print`), enforce'нную governance v2. Каждая страница теперь редактируется изолированно. **W1.2' Claude Design rehearsal** (`2026-05-26`) подтвердил Claude Design-readiness: handoff bundle через `Export → Handoff to Claude Code` получен и распакован, все ~25 наших токенов извлечены инструментом verbatim с семантическими аннотациями (slate/blue/emerald), ни одного red-расхождения, sample-компоненты используют `var(--*)`, `tokens.css` не правился. Claude Design самостоятельно нашёл наш dead `.theme-toggle` (independent OQ10 confirmation). **Критический путь переходит на W2** (декомпозиция `tasks/picker.js`). Параллельно может быть открыта продуктовая волна **WD.1** (редизайн первого экрана — рекомендация `tasks/auth.html` как минимально-рискованный calibration case). Отчёты — `reports/w1_1prime_report.md`, `reports/w1_2prime_report.md`.
 - реактивный hotfix-трек **WHF** (2026-05-25): три волны подряд закрыли две регрессии вокруг входа на странице ДЗ. **WHF1** — анонимное открытие `tasks/hw.html?token=...` теперь авто-редиректит на `auth.html?next=<original>` (паттерн 1-в-1 из `tasks/trainer.js:bootSessionMode` после WS.1), отчёт `reports/whf1_report.md`. **WHF2** — research-диагностика «Войти бесконечно входит»: C/D опровергнуты, B/F — deterministic harm доказан на десктопе, A/E gating на iOS-репро от оператора, отчёт `reports/whf2_diagnostic_report.md`. **WHF2-fix-1** — снос мёртвого `auth_email_exists` pre-check (RPC всегда отдавал 401 anon'у, дёргался зря на каждом логине +~1.2с) и защита submit-кнопок до `markAuthReady()` против тихого нативного GET-сабмита на медленной jsdelivr, отчёт `reports/whf2_fix_1_report.md`. Билд `2026-05-25-2`. Латентность логина уменьшена ~на 1.2с для всех юзеров. **WHF2-fix-2** (A/E — custom storage adapter / session-polling) на паузе до iOS-репро; закроется как ✅ unnecessary, если жалобы на iPhone-вход прекратятся после релиза WHF2-fix-1. Подробности — `GLOBAL_PLAN.md §6.3`.
+- параллельный продуктовый/UX-трек **WMB + WFX** (модальный бейдж прототипа, 2026-05-29…06-05): корректность данных бейджа (WMB1–3, teacher) → паритет для ученика (WMB4 точность, WMB5 давность+all-time, новый self-RPC `proto_last3_for_self_v1`) → стабильность отрисовки без мигания (WFX1, рендер-с-данными + прогрев кеша). `WMB6` (подсветка слабых мест ученику) отложена (Low). Не сдвигает критический путь W2. Подробности — `GLOBAL_PLAN.md §6.4`.
