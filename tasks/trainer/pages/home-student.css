@@ -451,6 +451,18 @@ body[data-home-variant="student"] #accordion .home-topic-badge{
   min-width: var(--home-topic-badge-w, auto) !important;
 }
 
+/* Косметика 2026-06-05: на десктопе бейджи 2-го уровня (точность подтемы) — по
+   контенту, как на главной учителя (base.css `.badge:not(...)` width:auto), а не
+   единой максимальной шириной. Точное зеркало teacher-правила: та же специфичность
+   (перебивает .home-topic-badge выше), section %/покрытие сохраняют фикс-ширину.
+   Мобильное поведение (≤640px) не трогаем — там, как и у учителя, ширина единая. */
+@media (min-width:1025px) {
+  body[data-home-variant="student"] #accordion .badge:not(.home-section-pct):not(.home-section-cov){
+    width:auto !important;
+    min-width:0 !important;
+  }
+}
+
 
 
 /* --- Home student: spacing corrections (2026-02-06) ---
