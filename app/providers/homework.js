@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-06-04-3';
-import { requireSession } from './supabase.js?v=2026-06-04-3';
-import { supaRest } from './supabase-rest.js?v=2026-06-04-3';
+import { CONFIG } from '../config.js?v=2026-06-04-5';
+import { requireSession } from './supabase.js?v=2026-06-04-5';
+import { supaRest } from './supabase-rest.js?v=2026-06-04-5';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -657,9 +657,10 @@ export async function protoLast3ForTeacherV1({
 }
 
 // WMB4: per-prototype (unic) last-3 counters for the SELF proto-picker modal badge.
+// WMB5: + per-unic all-time (total/correct) и дата последней попытки (last_attempt_at).
 // Self-зеркало protoLast3ForTeacherV1: без student_id (RPC скоупится по auth.uid()).
-// Тот же rpcTry-слой и chunking по 500. Формат ответа идентичен teacher-версии:
-// { ok, map, error }, где map: unic_id -> { last3_total, last3_correct }.
+// Тот же rpcTry-слой и chunking по 500. Формат ответа: { ok, map, error }, где
+// map: unic_id -> { last3_total, last3_correct, total, correct, last_attempt_at }.
 export async function protoLast3ForSelfV1({
   unic_ids,
   timeoutMs = 8000,
@@ -684,6 +685,9 @@ export async function protoLast3ForSelfV1({
         map.set(uid, {
           last3_total: Number(row?.last3_total || 0) || 0,
           last3_correct: Number(row?.last3_correct || 0) || 0,
+          total: Number(row?.total || 0) || 0,
+          correct: Number(row?.correct || 0) || 0,
+          last_attempt_at: row?.last_attempt_at ?? null,
         });
       }
     }
