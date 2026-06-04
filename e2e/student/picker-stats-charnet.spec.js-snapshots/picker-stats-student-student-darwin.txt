@@ -1140,7 +1140,7 @@
     "primary": "<N>",
     "secondary": "<N>",
     "noteHidden": false,
-    "note": "Округление: <N> перв. → <N> втор."
+    "note": "Прогноз по текущей точности: <N> перв. → <N> втор."
   },
   "thermo": {
     "present": false
