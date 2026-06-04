@@ -910,6 +910,12 @@ body[data-theme="light"] .task-card{
 
 .modal-stats-badge{ min-width:96px; }
 
+/* Косметика 2026-06-05: бейдж точности в модалке подбора прототипов — по контенту,
+   без жёсткой min-width:96px (она оставляла большие пустоты слева/справа от «33%»).
+   Класс .proto-modal-badge стоит ТОЛЬКО на этой модалке (added-tasks с .added-task-badge
+   не затрагивается). Правило общее для ученика и учителя — модальный бейдж у них один. */
+.proto-modal-badge{ min-width:0; }
+
 .modal-date-badge{ min-width:74px; font-weight:600; }
 
 .modal-date-badge[hidden]{ display:none !important; }
