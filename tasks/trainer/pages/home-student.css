@@ -445,19 +445,21 @@ body[data-home-variant="student"] #accordion .children{
   margin-top: 0 !important;
 }
 
-/* 2-й уровень: одинаковая ширина бейджа по самой широкой подписи */
+/* 2-й уровень: ширина = бейджу «%» раздела (--home-pct-w=40px).
+   WFX2 §5.6 (2026-06-05): по фидбэку оператора — вместо узкой --home-topic-badge-w.
+   Контент идентичен section-«%» (только «%», .small пуст), центрируется через
+   .badge{justify-content:center}. Симметрично teacher (base.css). */
 body[data-home-variant="student"] #accordion .home-topic-badge{
-  width: var(--home-topic-badge-w, auto) !important;
-  min-width: var(--home-topic-badge-w, auto) !important;
+  width: var(--home-pct-w, 40px) !important;
+  min-width: var(--home-pct-w, 40px) !important;
 }
 
-/* Косметика 2026-06-05: на десктопе бейджи 2-го уровня (точность подтемы) — по
-   контенту, как на главной учителя (base.css `.badge:not(...)` width:auto), а не
-   единой максимальной шириной. Точное зеркало teacher-правила: та же специфичность
-   (перебивает .home-topic-badge выше), section %/покрытие сохраняют фикс-ширину.
-   Мобильное поведение (≤640px) не трогаем — там, как и у учителя, ширина единая. */
+/* WFX2 (2026-06-05): зеркало teacher-правила (base.css). Исключаем .home-topic-badge
+   из width:auto-сброса — у бейджей точности подтем фикс-ширина (--home-pct-w, правило
+   выше, §5.6). section %/покрытие сохраняют свою фикс-ширину. Мобильное (≤1025px) и так
+   использует это правило (вне media-query). */
 @media (min-width:1025px) {
-  body[data-home-variant="student"] #accordion .badge:not(.home-section-pct):not(.home-section-cov){
+  body[data-home-variant="student"] #accordion .badge:not(.home-section-pct):not(.home-section-cov):not(.home-topic-badge){
     width:auto !important;
     min-width:0 !important;
   }

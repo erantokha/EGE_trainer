@@ -910,11 +910,15 @@ body[data-theme="light"] .task-card{
 
 .modal-stats-badge{ min-width:96px; }
 
-/* Косметика 2026-06-05: бейдж точности в модалке подбора прототипов — по контенту,
-   без жёсткой min-width:96px (она оставляла большие пустоты слева/справа от «33%»).
-   Класс .proto-modal-badge стоит ТОЛЬКО на этой модалке (added-tasks с .added-task-badge
-   не затрагивается). Правило общее для ученика и учителя — модальный бейдж у них один. */
-.proto-modal-badge{ min-width:0; }
+/* WFX2 (2026-06-05): бейджи модалки подбора прототипов — ЕДИНАЯ фиксированная ширина,
+   точность ровно под давностью. 96px = прежняя проверенная min-width .modal-stats-badge:
+   вмещает самый широкий контент обоих бейджей («100% 3/3», «Не решал», «Загрузка…»,
+   дату «дд.мм.гг») без переноса/обрезки. box-sizing:border-box — чтобы padding+border
+   входили в ширину и обе пилюли были РОВНО одной ширины (justify-content:center задан выше).
+   Класс .proto-modal-* стоит ТОЛЬКО на этой модалке (added-tasks с .added-task-* не
+   затрагивается). Правило общее для ученика и учителя — модальный бейдж у них один. */
+.proto-modal-badge,
+.proto-modal-date-badge{ width:96px; box-sizing:border-box; }
 
 .modal-date-badge{ min-width:74px; font-weight:600; }
 
@@ -2534,8 +2538,11 @@ body.teacher-student-view.home-stats-loading #accordion .home-last10-badge::afte
 
 
   /* neutralize old fixed width for badges,
-     BUT keep top-level %/coverage badges fixed-width like on student home */
-  body.teacher-student-view #accordion .badge:not(.home-section-pct):not(.home-section-cov){
+     BUT keep top-level %/coverage badges fixed-width like on student home.
+     WFX2 (2026-06-05): исключаем и .home-topic-badge — у него своя фикс-ширина
+     (--home-pct-w, правило ниже, §5.6). Без этого width:auto (выше по специфичности)
+     перебивал её → бейджи точности подтем «прыгали». */
+  body.teacher-student-view #accordion .badge:not(.home-section-pct):not(.home-section-cov):not(.home-topic-badge){
     width:auto !important;
     min-width:0 !important;
   }
@@ -2575,9 +2582,14 @@ body.teacher-student-view.home-stats-loading #accordion .home-last10-badge::afte
   }
 
 
-  /* 2nd level badge width (same approach as student) */
+  /* 2nd level badge width (same approach as student).
+     WFX2 §5.6 (2026-06-05): по фидбэку оператора — подтемный бейдж точности той же
+     фикс-ширины, что бейдж «%» раздела (--home-pct-w=40px), а не узкой по контенту
+     --home-topic-badge-w. Контент идентичен section-«%» (только «%», .small пуст),
+     текст центрируется через .badge{justify-content:center}. JS-переменная
+     --home-topic-badge-w для ширины больше не используется (JS не трогаем). */
   body.teacher-student-view #accordion .home-topic-badge{
-    width:var(--home-topic-badge-w, auto) !important;
-    min-width:var(--home-topic-badge-w, auto) !important;
+    width:var(--home-pct-w, 40px) !important;
+    min-width:var(--home-pct-w, 40px) !important;
   }
 }
