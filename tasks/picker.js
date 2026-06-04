@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-04-6';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-04-6';
-import { CONFIG } from '../app/config.js?v=2026-06-04-6';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-04-6';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-04-6';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-04-6';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-04-6';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-04-6';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-04-6';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-04-6';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-04-6';
+import { withBuild } from '../app/build.js?v=2026-06-05-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-05-2';
+import { CONFIG } from '../app/config.js?v=2026-06-05-2';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-05-2';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-05-2';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-05-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-05-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-05-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-05-2';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-05-2';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-05-2';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-04-6';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-05-2';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-04-6';
+} from './picker_common.js?v=2026-06-05-2';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-04-6';
+} from './picker_stats.js?v=2026-06-05-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -624,6 +624,13 @@ const _TEACHER_PROTO_LAST3_CACHE = new Map();
 // Без sid-ключа (RPC proto_last3_for_self_v1 скоупится по auth.uid()):
 // unic_id -> { last3_total, last3_correct }.
 const _SELF_PROTO_LAST3_CACHE = new Map();
+// WFX1 (3b): фоновый прогрев self per-unic last-3 по раскрытию раздела, чтобы открытие
+// подтем раздела было мгновенным из кеша. seq — отменяемость (смена/сворачивание раздела);
+// WARM_AT (sectionId -> ts) — TTL-дедуп; concurrency ограничена как у teacher-прогрева.
+let _SELF_PROTO_PRELOAD_SEQ = 0;
+const _SELF_PROTO_PRELOAD_WARM_AT = new Map();
+const SELF_PROTO_PRELOAD_TTL_MS = 10 * 60 * 1000;
+const SELF_PROTO_PRELOAD_CONCURRENCY = 4;
 const _TEACHER_MODAL_PRELOAD_WARM_AT = new Map();
 let _TEACHER_MODAL_PRELOAD_SEQ = 0;
 let _TEACHER_MODAL_PRELOAD_PROMISE = null;
@@ -754,6 +761,17 @@ async function warmTeacherModalStatsForStudent(studentId, opts = {}) {
           });
           if (res?.ok && res.map instanceof Map) {
             rememberTeacherModalStats(sid, normalizeTeacherModalStatsMap(ids, res.map));
+          }
+
+          // WFX1 (3b): прогреть и per-unic last-3 (источник X/3 бейджа карточки),
+          // чтобы открытие модалки было мгновенным, без сетевого ожидания. unic =
+          // baseIdFromProtoId(question_id); loadProtoLast3ForModal кладёт в
+          // _TEACHER_PROTO_LAST3_CACHE (включая нули). Тот же worker/seq/TTL.
+          if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
+          if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
+          const unicIds = Array.from(new Set(ids.map((qid) => baseIdFromProtoId(qid)).filter(Boolean)));
+          if (unicIds.length) {
+            await loadProtoLast3ForModal(sid, unicIds, { timeoutMs: 8000 });
           }
         } catch (e) {
           console.warn('teacher modal stats warmup failed', { sid, topicId: String(topic?.id || '').trim(), error: e });
@@ -889,7 +907,7 @@ async function loadProtoLast3ForSelf(unicIds, opts = {}) {
     for (const id of missing) {
       const st = fetched.get(id);
       // WMB5: пробрасываем all-time (total/correct) и дату последней попытки —
-      // их ждут date-бейдж и all-time строки тултипа в refreshProtoModalBadges.
+      // их ждут date-бейдж и all-time строки тултипа (loadProtoModalStatsMap).
       const norm = {
         last3_total: Number(st?.last3_total || 0) || 0,
         last3_correct: Number(st?.last3_correct || 0) || 0,
@@ -903,6 +921,52 @@ async function loadProtoLast3ForSelf(unicIds, opts = {}) {
   }
 
   return { ok: true, map: out, error: null };
+}
+
+// WFX1 (3b): прогрев self per-unic last-3 для всех подтем раскрытого раздела.
+// По образцу warmTeacherModalStatsForStudent: ограниченная конкуренция, TTL-дедуп,
+// отменяемость через seq (новый вызов / сворачивание раздела инкрементит seq → старые
+// воркеры выходят). Грузит манифесты подтем → unic-ключи (buildProtoModalCards) →
+// loadProtoLast3ForSelf (наполняет _SELF_PROTO_LAST3_CACHE, включая нули). Без блокировки UI.
+async function warmSelfProtoLast3ForSection(section, opts = {}) {
+  if (!IS_STUDENT_PAGE) return;
+  const secId = String(section?.id || '').trim();
+  const topics = (section?.topics || []).filter((t) => t && String(t.id || '').trim());
+  if (!secId || !topics.length) return;
+
+  const now = Date.now();
+  const lastWarmAt = Number(_SELF_PROTO_PRELOAD_WARM_AT.get(secId) || 0) || 0;
+  if (!opts?.force && lastWarmAt && (now - lastWarmAt) < SELF_PROTO_PRELOAD_TTL_MS) return;
+
+  const seq = ++_SELF_PROTO_PRELOAD_SEQ;
+  let cursor = 0;
+  const worker = async () => {
+    while (true) {
+      if (seq !== _SELF_PROTO_PRELOAD_SEQ) return;
+      const topic = topics[cursor++];
+      if (!topic) return;
+      try {
+        const man = await ensurePickerManifest(topic);
+        if (seq !== _SELF_PROTO_PRELOAD_SEQ) return;
+        if (!man) continue;
+        const types = (man.types || []).filter((t) => Array.isArray(t.prototypes) && t.prototypes.length > 0);
+        const cards = buildProtoModalCards(types);
+        const unicIds = Array.from(new Set(cards.map((c) => String(c?.key || '').trim()).filter(Boolean)));
+        if (!unicIds.length) continue;
+        if (seq !== _SELF_PROTO_PRELOAD_SEQ) return;
+        await loadProtoLast3ForSelf(unicIds, { timeoutMs: 8000 });
+      } catch (e) {
+        console.warn('self proto last3 warmup failed', { secId, topicId: String(topic?.id || '').trim(), error: e });
+      }
+    }
+  };
+
+  const workerCount = Math.max(1, Math.min(SELF_PROTO_PRELOAD_CONCURRENCY, topics.length || 1));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+
+  if (seq === _SELF_PROTO_PRELOAD_SEQ) {
+    _SELF_PROTO_PRELOAD_WARM_AT.set(secId, Date.now());
+  }
 }
 
 function buildModalBadgeEl(extraClass = '') {
@@ -2475,6 +2539,12 @@ function renderSectionNode(sec) {
 
     if (!wasExpanded) {
       node.classList.add('expanded', 'show-uniq');
+      // WFX1 (3b): фоном прогреть per-unic last-3 подтем раскрытого раздела (self).
+      // Не блокирует клик; teacher прогревается отдельно при выборе ученика (§5.4).
+      if (IS_STUDENT_PAGE) { try { warmSelfProtoLast3ForSection(sec); } catch (_) {} }
+    } else if (IS_STUDENT_PAGE) {
+      // Свернули раздел — отменить любой in-flight self-прогрев (seq-cancel).
+      _SELF_PROTO_PRELOAD_SEQ++;
     }
 
     syncHomeTopicBadgesWidth();
@@ -2773,72 +2843,49 @@ function closeProtoPickerModal() {
 
 let _PROTO_MODAL_BADGE_SEQ = 0;
 
-async function refreshProtoModalBadges(cards = [], opts = {}) {
-  if (!CAN_PROTO_MODAL) return;
-  const { list } = getProtoModalEls();
-  if (!list) return;
-
-  const seq = ++_PROTO_MODAL_BADGE_SEQ;
-  const domCards = $$('.tp-item', list);
-  if (!domCards.length) return;
-
+// WFX1: роле-зависимая ЧИСТАЯ загрузка статистики карточек модалки → Map<unicKey, badgeStat>.
+// Без DOM. Возвращает { ok, map, mode }:
+//   mode 'self'               — ученик (источник proto_last3_for_self_v1, скоуп auth.uid());
+//   mode 'teacher'            — учитель с выбранным учеником (question_stats + proto_last3_for_teacher);
+//   mode 'teacher-no-student' — учитель без выбранного ученика (карта пустая → нейтральный статус);
+//   mode 'empty'             — нет карточек/ключей.
+// badgeStat в карте есть для КАЖДОЙ карточки с ключом (нули, если попыток нет) — чтобы
+// applyProtoCardBadgeEls мог отличить «подтверждённый ноль» от «данных ещё нет».
+async function loadProtoModalStatsMap(cards = [], opts = {}) {
   const cardList = Array.isArray(cards) ? cards : [];
+  const out = new Map();
+  const timeoutMs = Number(opts?.timeoutMs || 8000) || 8000;
+  if (!cardList.length) return { ok: true, map: out, mode: 'empty' };
 
-  // WMB4: self-путь — без student_id, источник proto_last3_for_self_v1 (скоуп auth.uid()).
-  // WMB5: RPC отдаёт ещё total/correct/last_attempt_at → наполняем и stats-бейдж X/3
-  // (+ all-time / last-attempt строки тултипа), и date-бейдж «Последнее решение».
+  // WMB4/5: self — без student_id; per-unic last-3 + all-time + last_attempt_at из одного RPC.
   if (IS_STUDENT_PAGE) {
     const unicIds = [];
     for (const card of cardList) {
       const key = String(card?.key || '').trim();
       if (key) unicIds.push(key);
     }
-    if (!unicIds.length) return;
+    if (!unicIds.length) return { ok: true, map: out, mode: 'self' };
 
-    const last3Res = await loadProtoLast3ForSelf(unicIds, { timeoutMs: 8000 });
-    if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
-
+    const last3Res = await loadProtoLast3ForSelf(unicIds, { timeoutMs });
     const last3Map = last3Res?.map instanceof Map ? last3Res.map : new Map();
     for (const card of cardList) {
       const key = String(card?.key || '').trim();
       if (!key) continue;
-      const cardEl = list.querySelector(`.tp-item[data-type-id="${CSS.escape(key)}"]`);
-      const badge = cardEl?.querySelector('.proto-modal-badge');
-      if (!badge) continue;
       const protoLast3 = last3Map.get(key) || null;
-      const badgeStat = {
+      out.set(key, {
         total: Number(protoLast3?.total || 0) || 0,
         correct: Number(protoLast3?.correct || 0) || 0,
         last_attempt_at: protoLast3?.last_attempt_at ?? null,
         last3_total: Number(protoLast3?.last3_total || 0) || 0,
         last3_correct: Number(protoLast3?.last3_correct || 0) || 0,
-      };
-      setModalStatsBadge(badge, badgeStat, {
-        baseTitle: 'Моя статистика по группе',
-        emptyLabel: last3Res?.ok ? 'Не решал' : '—',
-        emptyText: last3Res?.ok ? 'Попыток нет' : 'Статистика недоступна',
-      });
-      setModalDateBadge(cardEl?.querySelector('.proto-modal-date-badge'), badgeStat, {
-        baseTitle: 'Последнее решение по группе',
       });
     }
-    return;
+    return { ok: !!last3Res?.ok, map: out, mode: 'self' };
   }
 
+  // teacher
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-  if (!sid) {
-    for (const card of domCards) {
-      setModalStatsBadge(card.querySelector('.proto-modal-badge'), null, {
-        baseTitle: 'Статистика ученика по группе',
-        emptyLabel: '—',
-        emptyText: 'Ученик не выбран',
-      });
-      setModalDateBadge(card.querySelector('.proto-modal-date-badge'), null, {
-        baseTitle: 'Последнее решение по группе',
-      });
-    }
-    return;
-  }
+  if (!sid) return { ok: true, map: out, mode: 'teacher-no-student' };
 
   // WMB3: per-вопросная статистика — для date-бейджа и all-time строки тултипа;
   // unicIds (ключи карточек = baseId) — для per-unic last-3 (proto_last3_for_teacher_v1).
@@ -2852,49 +2899,102 @@ async function refreshProtoModalBadges(cards = [], opts = {}) {
       if (qid) allIds.push(qid);
     }
   }
-  if (!allIds.length) return;
+  if (!allIds.length) return { ok: true, map: out, mode: 'teacher' };
 
-  // По-вопросная статистика нужна для date-бейджа группы и для all-time строки тултипа.
-  // Per-unic last-3 (WMB1) задаёт знаменатель самого бейджа карточки (X/3, не сумма X/4).
   const [res, last3Res] = await Promise.all([
     loadTeacherStatsForModal(sid, allIds, {
       topicId: String(opts?.topicId || '').trim() || null,
-      timeoutMs: 8000,
+      timeoutMs,
     }),
-    loadProtoLast3ForModal(sid, unicIds, { timeoutMs: 8000 }),
+    loadProtoLast3ForModal(sid, unicIds, { timeoutMs }),
   ]);
-
-  if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
 
   const statsMap = res?.map instanceof Map ? res.map : new Map();
   const last3Map = last3Res?.map instanceof Map ? last3Res.map : new Map();
   for (const card of cardList) {
     const key = String(card?.key || '').trim();
     if (!key) continue;
-    const cardEl = list.querySelector(`.tp-item[data-type-id="${CSS.escape(key)}"]`);
-    const badge = cardEl?.querySelector('.proto-modal-badge');
-    if (!badge) continue;
     const ids = (card?.protos || []).map(p => String(p?.id || '').trim()).filter(Boolean);
     // Агрегат по вопросам — для date-бейджа и all-time контекста тултипа.
     const aggStat = aggregateStatsForQuestionIds(ids, statsMap);
     // WMB3: last-3 на уровне прототипа (unic_id = baseId карточки), а не type.id.
     const protoLast3 = last3Map.get(key) || null;
-    const badgeStat = {
+    out.set(key, {
       total: aggStat.total,
       correct: aggStat.correct,
       last_attempt_at: aggStat.last_attempt_at,
       last3_total: Number(protoLast3?.last3_total || 0) || 0,
       last3_correct: Number(protoLast3?.last3_correct || 0) || 0,
-    };
-    setModalStatsBadge(badge, badgeStat, {
-      baseTitle: 'Статистика ученика по группе',
-      emptyLabel: (res?.ok && last3Res?.ok) ? 'Не решал' : '—',
-      emptyText: (res?.ok && last3Res?.ok) ? 'Попыток нет' : 'Статистика недоступна',
-    });
-    setModalDateBadge(cardEl?.querySelector('.proto-modal-date-badge'), aggStat, {
-      baseTitle: 'Последнее решение по группе',
     });
   }
+  return { ok: !!(res?.ok && last3Res?.ok), map: out, mode: 'teacher' };
+}
+
+// WFX1: единая установка плашек карточки прототипа из badgeStat + контекста загрузки.
+// Инвариант «не дезинформируем»: «Не решал» рисуем ТОЛЬКО при подтверждённых данных
+// (загрузка ок И есть badgeStat для этой карточки); иначе нейтрально — «—»/«…»/«Ученик
+// не выбран». teacher-без-ученика всегда нейтрально. Используется и при первичном
+// рендере (renderProtoModalCard), и при повторном применении (applyProtoModalBadges).
+function applyProtoCardBadgeEls(statsBadgeEl, dateBadgeEl, badgeStat, ctx = {}) {
+  const ok = !!ctx.ok;
+  const teacherNoStudent = IS_TEACHER_HOME && !String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  const baseTitleStats = IS_STUDENT_PAGE ? 'Моя статистика по группе' : 'Статистика ученика по группе';
+
+  let stat = badgeStat || null;
+  let emptyLabel;
+  let emptyText;
+  if (teacherNoStudent) {
+    stat = null;
+    emptyLabel = '—';
+    emptyText = 'Ученик не выбран';
+  } else if (ok && badgeStat) {
+    // подтверждённый ответ сервера — можно честно сказать «Не решал» при нулях
+    emptyLabel = 'Не решал';
+    emptyText = 'Попыток нет';
+  } else {
+    // данных ещё нет (нет badgeStat) или загрузка не удалась — нейтрально, без «Не решал»
+    emptyLabel = '—';
+    emptyText = badgeStat ? 'Статистика недоступна' : 'Загрузка…';
+  }
+
+  setModalStatsBadge(statsBadgeEl, stat, { baseTitle: baseTitleStats, emptyLabel, emptyText });
+  setModalDateBadge(dateBadgeEl, stat, { baseTitle: 'Последнее решение по группе' });
+}
+
+// WFX1: применение загруженной карты к DOM (повторный путь — смена студента у учителя).
+function applyProtoModalBadges(cards = [], loadResult = null) {
+  const { list } = getProtoModalEls();
+  if (!list) return;
+  const cardList = Array.isArray(cards) ? cards : [];
+  const ok = !!loadResult?.ok;
+  const map = loadResult?.map instanceof Map ? loadResult.map : new Map();
+
+  for (const card of cardList) {
+    const key = String(card?.key || '').trim();
+    if (!key) continue;
+    const cardEl = list.querySelector(`.tp-item[data-type-id="${CSS.escape(key)}"]`);
+    const badge = cardEl?.querySelector('.proto-modal-badge');
+    if (!badge) continue;
+    applyProtoCardBadgeEls(badge, cardEl?.querySelector('.proto-modal-date-badge'), map.get(key) || null, { ok });
+  }
+}
+
+// WFX1: тонкая обёртка load+apply (повторный refresh из onTeacherContextChanged).
+// Первичное открытие модалки рендерит карточки уже с данными (см. openProtoPickerModal),
+// поэтому через эту обёртку оно больше не идёт.
+async function refreshProtoModalBadges(cards = [], opts = {}) {
+  if (!CAN_PROTO_MODAL) return;
+  const { list } = getProtoModalEls();
+  if (!list) return;
+
+  const seq = ++_PROTO_MODAL_BADGE_SEQ;
+  const domCards = $$('.tp-item', list);
+  if (!domCards.length) return;
+
+  const cardList = Array.isArray(cards) ? cards : [];
+  const loadResult = await loadProtoModalStatsMap(cardList, opts);
+  if (seq !== _PROTO_MODAL_BADGE_SEQ || !PROTO_MODAL_OPEN) return;
+  applyProtoModalBadges(cardList, loadResult);
 }
 
 async function openProtoPickerModal(topic) {
@@ -2940,16 +3040,26 @@ async function openProtoPickerModal(topic) {
   cards.sort((a, b) => compareId(a.key, b.key));
   PROTO_MODAL_CARDS = cards;
 
-  list.innerHTML = '';
   if (!cards.length) {
+    list.innerHTML = '';
     hint.textContent = 'В этой подтеме пока нет прототипов.';
     updateProtoModalSelectedCount();
     return;
   }
 
+  // WFX1 (3a): грузим статистику ДО рендера карточек, чтобы бейджи появились сразу
+  // корректными (без промежуточного «Не решал»). «Загрузка…» висит до этого момента;
+  // на тёплом кеше (3b-прогрев) загрузка мгновенна.
+  const loadResult = await loadProtoModalStatsMap(cards, { topicId });
+  if (seq !== _PROTO_MODAL_SEQ) return;
+  const statsMap = loadResult?.map instanceof Map ? loadResult.map : new Map();
+  const loadOk = !!loadResult?.ok;
+
+  list.innerHTML = '';
   const frag = document.createDocumentFragment();
   for (const card of cards) {
-    frag.appendChild(renderProtoModalCard(man, card));
+    const badgeStat = statsMap.get(String(card?.key || '').trim()) || null;
+    frag.appendChild(renderProtoModalCard(man, card, { badgeStat, ok: loadOk }));
   }
   list.appendChild(frag);
   list.scrollTop = 0;
@@ -2958,13 +3068,12 @@ async function openProtoPickerModal(topic) {
 
   updateProtoModalSelectedCount();
   await typesetMathIfNeeded(list);
-  await refreshProtoModalBadges(cards, { topicId });
 }
 
 // WMB3: card — дескриптор из buildProtoModalCards: { key (unic/baseId), type, title, protos[], cap }.
 // data-type-id и счётчик (CHOICE_PROTOS) ключуются card.key (unic), чтобы и бейдж, и подбор
 // (resolve по scope_id == unic_id) совпадали с catalog_question_dim.unic_id.
-function renderProtoModalCard(manifest, card) {
+function renderProtoModalCard(manifest, card, opts = {}) {
   const type = card?.type || {};
   const protos = (card?.protos || []);
   const cap = Number(card?.cap || protos.length) || protos.length;
@@ -2983,36 +3092,16 @@ function renderProtoModalCard(manifest, card) {
   meta.className = 'tp-item-meta';
   meta.textContent = `${String(card?.title || '').trim()} (вариантов: ${cap})`.trim();
 
-  // WMB4: бейдж точности «последние 3» рисуем обеим ролям (CAN_PROTO_MODAL).
-  // WMB5: self получает ту же группу (date-бейдж + stats-бейдж), что и teacher —
-  // структура карточки идентична, различаются только baseTitle-тексты и источник
-  // данных (self: proto_last3_for_self_v1; teacher: question_stats + proto_last3_for_teacher).
+  // WMB4/5: бейдж точности «последние 3» + date-бейдж рисуем обеим ролям (CAN_PROTO_MODAL),
+  // структура карточки идентична — различаются только baseTitle и источник данных.
+  // WFX1 (3a): рендерим бейдж СРАЗУ с подтверждёнными данными (opts.badgeStat), без
+  // промежуточного «Не решал». Если данных нет (opts пуст / загрузка не удалась) —
+  // applyProtoCardBadgeEls даёт нейтральный fallback, НИКОГДА «Не решал».
   if (CAN_PROTO_MODAL) {
-    if (IS_TEACHER_HOME) {
-      const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
-      setModalStatsBadge(statsBadge, null, {
-        baseTitle: 'Статистика ученика по группе',
-        emptyLabel: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Не решал' : '—',
-        emptyText: String(TEACHER_VIEW_STUDENT_ID || '').trim() ? 'Попыток нет' : 'Ученик не выбран',
-      });
-      setModalDateBadge(dateBadge, null, {
-        baseTitle: 'Последнее решение по группе',
-      });
-      head.appendChild(meta);
-      head.appendChild(badgeGroup);
-    } else {
-      const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
-      setModalStatsBadge(statsBadge, null, {
-        baseTitle: 'Моя статистика по группе',
-        emptyLabel: 'Не решал',
-        emptyText: 'Попыток нет',
-      });
-      setModalDateBadge(dateBadge, null, {
-        baseTitle: 'Последнее решение по группе',
-      });
-      head.appendChild(meta);
-      head.appendChild(badgeGroup);
-    }
+    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
+    applyProtoCardBadgeEls(statsBadge, dateBadge, opts?.badgeStat || null, { ok: !!opts?.ok });
+    head.appendChild(meta);
+    head.appendChild(badgeGroup);
   }
 
   const stem = document.createElement('div');
