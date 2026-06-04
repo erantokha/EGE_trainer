@@ -445,13 +445,15 @@ body[data-home-variant="student"] #accordion .children{
   margin-top: 0 !important;
 }
 
-/* 2-й уровень: ширина = бейджу «%» раздела (--home-pct-w=40px).
-   WFX2 §5.6 (2026-06-05): по фидбэку оператора — вместо узкой --home-topic-badge-w.
+/* 2-й уровень: ширина = бейджу «%» раздела. ВАЖНО: реальная ширина section-бейджей
+   задаётся правилом ниже (.home-section-pct/.home-section-cov{width:var(--home-badge-w)
+   !important} = 60px), а НЕ токеном --home-pct-w (40px, это только ширина grid-колонки).
+   WFX2 §5.6-fix (2026-06-05): равняем на --home-badge-w (60px), иначе подтема у́же раздела.
    Контент идентичен section-«%» (только «%», .small пуст), центрируется через
    .badge{justify-content:center}. Симметрично teacher (base.css). */
 body[data-home-variant="student"] #accordion .home-topic-badge{
-  width: var(--home-pct-w, 40px) !important;
-  min-width: var(--home-pct-w, 40px) !important;
+  width: var(--home-badge-w, 60px) !important;
+  min-width: var(--home-badge-w, 60px) !important;
 }
 
 /* WFX2 (2026-06-05): зеркало teacher-правила (base.css). Исключаем .home-topic-badge

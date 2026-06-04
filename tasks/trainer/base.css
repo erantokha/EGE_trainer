@@ -2583,13 +2583,13 @@ body.teacher-student-view.home-stats-loading #accordion .home-last10-badge::afte
 
 
   /* 2nd level badge width (same approach as student).
-     WFX2 §5.6 (2026-06-05): по фидбэку оператора — подтемный бейдж точности той же
-     фикс-ширины, что бейдж «%» раздела (--home-pct-w=40px), а не узкой по контенту
-     --home-topic-badge-w. Контент идентичен section-«%» (только «%», .small пуст),
-     текст центрируется через .badge{justify-content:center}. JS-переменная
-     --home-topic-badge-w для ширины больше не используется (JS не трогаем). */
+     WFX2 §5.6-fix (2026-06-05): равняем на --home-badge-w (60px) — реальную ширину
+     section-бейджей (их width задаётся var(--home-badge-w) !important на десктопе),
+     а НЕ на --home-pct-w (40px, только grid-колонка). Иначе подтема у́же раздела.
+     Контент идентичен section-«%» (только «%», .small пуст), текст центрируется
+     через .badge{justify-content:center}. JS-переменную --home-topic-badge-w не трогаем. */
   body.teacher-student-view #accordion .home-topic-badge{
-    width:var(--home-pct-w, 40px) !important;
-    min-width:var(--home-pct-w, 40px) !important;
+    width:var(--home-badge-w, 60px) !important;
+    min-width:var(--home-badge-w, 60px) !important;
   }
 }
