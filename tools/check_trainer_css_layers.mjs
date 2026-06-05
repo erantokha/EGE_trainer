@@ -36,7 +36,7 @@ const FILE_PAGES = { // page-file → which prod pages it serves (for footprint 
   'list': ['list'], 'unique': ['unique'], 'hw': ['hw'], 'hw-create': ['hw_create'],
   'stats': ['stats'], 'my-students': ['my_students'], 'student': ['student'],
   'my-homeworks': ['my_homeworks', 'my_homeworks_archive'], 'profile': ['profile'], 'analog': ['analog'],
-  'auth': ['auth'], // WD.1 (2026-06-05): редизайн экрана входа через Claude Design.
+  'auth': ['auth', 'auth_reset', 'google_complete'], // WD.1/.1: редизайн входа + reset + google_complete (Claude Design).
 };
 
 // ---- minimal CSS leaf walker (comment/string aware), yields {selector, mediaStack, important} ----
@@ -150,8 +150,8 @@ const HTML = {
   'tasks/profile.html': ['tokens', 'base', 'pages/profile'],
   'tasks/auth.html': ['tokens', 'base', 'pages/auth'],
   'tasks/auth_callback.html': ['tokens', 'base'],
-  'tasks/auth_reset.html': ['tokens', 'base'],
-  'tasks/google_complete.html': ['tokens', 'base'],
+  'tasks/auth_reset.html': ['tokens', 'base', 'pages/auth'],
+  'tasks/google_complete.html': ['tokens', 'base', 'pages/auth'],
 };
 function linksOf(html) {
   const out = [];

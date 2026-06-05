@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-05-13">
+  <meta name="app-build" content="2026-06-05-14">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -42,7 +42,7 @@
   <!-- cache-check:end -->
   <title>Регистрация</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="../app/diag_bootstrap.js?v=2026-06-05-13"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-05-14"></script>
 
 
   <script id="sentry-loader"
@@ -107,117 +107,92 @@
 
 
   
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-05-13">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-05-13">
-  <script src="./theme.js?v=2026-06-05-13" defer></script>
-  <style>
-    input[type="email"],
-    input[type="text"],
-    select{
-      background:var(--muted);
-      color:var(--text);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:8px 10px;
-      outline:none;
-      width:100%;
-      box-sizing:border-box;
-    }
-
-    .small{font-size:12px;opacity:.8}
-    .status{margin-top:10px;opacity:.85}
-    .status.error{opacity:1;color:#b00}
-
-    .form-wrap{max-width:420px}
-    .form-row{margin:10px 0}
-    .radio-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-    .radio-row label{display:flex;gap:6px;align-items:center}
-    .form-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
-  </style>
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-05-14">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-05-14">
+  <link rel="stylesheet" href="./trainer/pages/auth.css?v=2026-06-05-14">
+  <script src="./theme.js?v=2026-06-05-14" defer></script>
 </head>
-<body>
-  <main class="container">
-    <section>
-      <div class="panel">
-        <header id="appHeader" class="page-head">
-          <h1>Регистрация</h1>
-          <div class="theme-toggle" data-header-extra="1">
-            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
+<body class="auth-page">
+  <div class="auth-wrap">
+    <a class="brand" href="#" aria-label="EGE-trainer">EGE<span>-trainer</span></a>
+
+    <main class="auth-card" id="auth">
+      <div class="auth-head">
+        <h1 class="auth-title">Почти готово</h1>
+        <p class="auth-sub">Вы вошли через Google — заполните данные профиля.</p>
+      </div>
+
+      <form id="completeForm" novalidate>
+        <div class="form-row">
+          <span class="field-label">Кто вы?</span>
+          <div class="role-row" role="radiogroup" aria-label="Роль">
+            <label class="role-chip">
+              <input type="radio" name="role" value="student" checked>
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="4.5" r="2.5" fill="currentColor" stroke="none"/><path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke-linecap="round"/></svg>
+              Ученик
+            </label>
+            <label class="role-chip">
+              <input type="radio" name="role" value="teacher">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="4.5" r="2.5" fill="currentColor" stroke="none"/><path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke-linecap="round"/><rect x="5" y="7.5" width="4" height="3" rx="0.5" fill="currentColor" stroke="none" opacity="0.55"/></svg>
+              Учитель
             </label>
           </div>
-        </header>
-        <script type="module">
-          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
-          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false, hideLogin: true }));
-        </script>
-
-        <div class="muted" style="margin-top:10px">Вы вошли через Google. Заполните данные профиля.</div>
-
-        <div class="form-wrap" style="margin-top:12px">
-          <form id="completeForm">
-            <div class="form-row">
-              <div class="small" style="margin-bottom:6px">Кто вы?</div>
-              <div class="radio-row" role="radiogroup" aria-label="Роль">
-                <label><input type="radio" name="role" value="student" checked> Ученик</label>
-                <label><input type="radio" name="role" value="teacher"> Учитель</label>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="small" style="margin-bottom:6px">Фамилия</div>
-              <input id="lastName" type="text" autocomplete="family-name" required>
-            </div>
-            <div class="form-row">
-              <div class="small" style="margin-bottom:6px">Имя</div>
-              <input id="firstName" type="text" autocomplete="given-name" required>
-            </div>
-
-            <div id="studentFields">
-              <div class="form-row">
-                <div class="small" style="margin-bottom:6px">Класс</div>
-                <select id="studentGrade" required>
-                  <option value="" selected disabled>Выберите класс</option>
-                  <option value="5">5</option>
-                  <option value="6">6</option>
-                  <option value="7">7</option>
-                  <option value="8">8</option>
-                  <option value="9">9</option>
-                  <option value="10">10</option>
-                  <option value="11">11</option>
-                </select>
-              </div>
-            </div>
-
-            <div id="teacherFields" class="hidden">
-              <div class="form-row">
-                <div class="small" style="margin-bottom:6px">Вы</div>
-                <select id="teacherType">
-                  <option value="" selected disabled>Выберите вариант</option>
-                  <option value="school">Школьный учитель</option>
-                  <option value="tutor">Репетитор</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="small" style="margin-bottom:6px">Email</div>
-              <input id="email" type="email" autocomplete="email" disabled>
-            </div>
-
-            <div class="form-actions">
-              <button id="saveBtn" type="submit">Сохранить</button>
-            </div>
-            <div id="status" class="status"></div>
-          </form>
         </div>
-      </div>
-    </section>
-  </main>
 
-  <script type="module" src="./google_complete.js?v=2026-06-05-13"></script>
+        <div class="form-row">
+          <label class="field-label" for="lastName">Фамилия</label>
+          <input id="lastName" type="text" autocomplete="family-name" placeholder="Иванова" required>
+        </div>
+        <div class="form-row">
+          <label class="field-label" for="firstName">Имя</label>
+          <input id="firstName" type="text" autocomplete="given-name" placeholder="Анна" required>
+        </div>
+
+        <div id="studentFields">
+          <div class="form-row">
+            <label class="field-label" for="studentGrade">Класс</label>
+            <select id="studentGrade" required>
+              <option value="" selected disabled>Выберите класс</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+              <option value="9">9</option>
+              <option value="10">10</option>
+              <option value="11">11</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="teacherFields" class="hidden">
+          <div class="form-row">
+            <label class="field-label" for="teacherType">Вы</label>
+            <select id="teacherType">
+              <option value="" selected disabled>Выберите вариант</option>
+              <option value="school">Школьный учитель</option>
+              <option value="tutor">Репетитор</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="field-label" for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" disabled>
+        </div>
+
+        <div class="form-actions">
+          <button id="saveBtn" type="submit" class="btn-primary">
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="btn-label">Сохранить</span>
+          </button>
+        </div>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </form>
+    </main>
+
+    <p class="auth-foot">Продолжая, вы соглашаетесь с <a href="#">условиями использования</a>.</p>
+  </div>
+
+  <script type="module" src="./google_complete.js?v=2026-06-05-14"></script>
 </body>
 </html>
