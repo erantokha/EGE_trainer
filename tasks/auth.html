@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-05-11">
+  <meta name="app-build" content="2026-06-05-12">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -42,7 +42,7 @@
   <!-- cache-check:end -->
   <title>Авторизация</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="../app/diag_bootstrap.js?v=2026-06-05-11"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-05-12"></script>
 
 
 
@@ -106,238 +106,198 @@
 })();
 </script>
 
-  
-  
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-05-11">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-05-11">
-  <script src="./theme.js?v=2026-06-05-11" defer></script>
-  <style>
-    input[type="email"],
-    input[type="password"],
-    input[type="text"],
-    select{
-      background:var(--muted);
-      color:var(--text);
-      border:1px solid var(--border);
-      border-radius:10px;
-      padding:8px 10px;
-      outline:none;
-      width:100%;
-      box-sizing:border-box;
-    }
 
-    /* Заголовок в шапке как на главной */
-    .page-head h1{margin:0}
-
-    .auth-box{max-width:920px;margin:12px auto 0}
-    .auth-grid{display:flex;gap:24px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap}
-    .auth-col{flex:1 1 320px;min-width:280px}
-
-    .provider-btn{
-      width:100%;
-      max-width:360px;
-      display:flex;
-      align-items:center;
-      gap:12px;
-      justify-content:center;
-      padding:14px 16px;
-      border-radius:16px;
-      border:1px solid var(--border);
-      background:var(--panel);
-      color:var(--text);
-      cursor:pointer;
-    }
-    .provider-logo{width:28px;height:28px;object-fit:contain}
-
-    .mail-head{display:flex;align-items:center;gap:12px;margin:2px 0 12px}
-    .mail-logo{width:46px;height:46px;object-fit:contain}
-    .mail-caption{font-size:16px}
-
-    .mail-form-wrap{max-width:260px} /* в 2 раза уже прежних 520px */
-    .form-row{margin:10px 0}
-    .form-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
-
-    .auth-links{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
-    .auth-links a{color:var(--text);text-decoration:underline}
-    .auth-links a:hover{opacity:.85}
-    .auth-links a.active{text-decoration:none;opacity:.8;cursor:default}
-
-    .status{margin-top:10px;opacity:.85}
-    .status.error{opacity:1;color:#b00}
-    .small{font-size:12px;opacity:.8}
-
-    .radio-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
-    .radio-row label{display:flex;gap:6px;align-items:center}
-
-    .pw-wrap{position:relative}
-    .pw-wrap input{padding-right:38px}
-    .pw-toggle{
-      position:absolute;
-      right:8px;
-      top:50%;
-      transform:translateY(-50%);
-      border:0;
-      background:transparent;
-      cursor:pointer;
-      opacity:.75;
-      padding:2px 4px;
-      line-height:1;
-    }
-    .pw-toggle:hover{opacity:1}
-
-    /* На auth странице скрываем кнопку "Войти" из header.js (на всякий случай) */
-    #loginGoogleBtn{display:none !important}
-  </style>
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-05-12">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-05-12">
+  <link rel="stylesheet" href="./trainer/pages/auth.css?v=2026-06-05-12">
+  <script src="./theme.js?v=2026-06-05-12" defer></script>
 </head>
-<body>
-  <main class="container">
-    <section id="auth">
-      <div class="panel">
-        <header id="appHeader" class="page-head">
-          <h1>Авторизация</h1>
-          <div class="theme-toggle" data-header-extra="1">
-            <input type="checkbox" id="themeToggle" class="theme-toggle-input" aria-label="Переключить тему">
-            <label for="themeToggle" class="theme-toggle-label">
-              <span class="theme-toggle-icon theme-toggle-icon-light">☀</span>
-              <span class="theme-toggle-icon theme-toggle-icon-dark">🌙</span>
-            </label>
-          </div>
-        </header>
-        <script type="module">
-          const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
-          const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURIComponent(BUILD)}` : p;
-          import(withV('../app/ui/header.js')).then((m) => m.initHeader({ isHome: false, hideLogin: true }));
-        </script>
+<body class="auth-page">
+  <div class="auth-wrap">
+    <a class="brand" href="#" aria-label="EGE-trainer">EGE<span>-trainer</span></a>
 
-        <div class="auth-box">
-          <div class="auth-grid">
-            <div class="auth-col auth-google">
-              <button id="googleBtn" type="button" class="provider-btn">
-                <img class="provider-logo" src="./img/google.png" alt="Google">
-                <span>Войти через Google</span>
+    <main class="auth-card" id="auth">
+      <div class="auth-head">
+        <h1 class="auth-title" id="authTitle">С возвращением</h1>
+        <p class="auth-sub" id="authSub">Войдите, чтобы продолжить подготовку к ЕГЭ.</p>
+      </div>
+
+      <nav class="auth-tabs" role="tablist" aria-label="Действия">
+        <a id="tabLogin" href="#" class="active" role="tab" aria-selected="true">Войти</a>
+        <a id="tabSignup" href="#" role="tab" aria-selected="false">Регистрация</a>
+        <a id="tabReset" href="#" role="tab" aria-selected="false">Сброс пароля</a>
+      </nav>
+
+      <!-- ── LOGIN ────────────────────────────────────────────── -->
+      <section id="panelLogin">
+        <button id="googleBtn" type="button" class="provider-btn">
+          <img class="provider-logo" src="./img/google.png" alt="">
+          <span>Продолжить с Google</span>
+        </button>
+
+        <div class="divider">или по почте</div>
+
+        <form id="loginForm" novalidate>
+          <div class="form-row">
+            <label class="field-label" for="loginEmail">Email</label>
+            <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div class="form-row">
+            <div class="field-row-head">
+              <label class="field-label" for="loginPass">Пароль</label>
+              <a class="link-inline" data-goto="reset" href="#">Забыли пароль?</a>
+            </div>
+            <div class="pw-wrap">
+              <input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••" required>
+              <button type="button" class="pw-toggle" data-toggle-for="loginPass" aria-label="Показать пароль" title="Показать пароль">
+                <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.8 10S4.8 4.2 10 4.2 18.2 10 18.2 10 15.2 15.8 10 15.8 1.8 10 1.8 10Z"/><circle cx="10" cy="10" r="2.6"/></svg>
               </button>
             </div>
+          </div>
+          <div class="form-actions">
+            <button id="loginSubmit" type="submit" class="btn-primary">
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="btn-label">Войти</span>
+            </button>
+          </div>
+          <div id="loginStatus" class="status" role="status" aria-live="polite"></div>
+        </form>
+      </section>
 
-            <div class="auth-col auth-mail">
-              <div class="mail-head">
-                <img class="mail-logo" src="./img/post.png" alt="Почта">
-                <div class="mail-caption">Вход через логин и пароль</div>
-              </div>
-
-              <div class="mail-form-wrap">
-                <section id="panelLogin">
-                  <form id="loginForm">
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Email</div>
-                      <input id="loginEmail" type="email" autocomplete="email" required>
-                    </div>
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Пароль</div>
-                      <div class="pw-wrap">
-                        <input id="loginPass" type="password" autocomplete="current-password" required>
-                        <button type="button" class="pw-toggle" data-toggle-for="loginPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
-                      </div>
-                    </div>
-                    <div class="form-actions">
-                      <button id="loginSubmit" type="submit">Войти</button>
-                    </div>
-                    <div id="loginStatus" class="status"></div>
-                  </form>
-                </section>
-
-                <section id="panelSignup" class="hidden">
-                  <form id="signupForm">
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Кто вы?</div>
-                      <div class="radio-row" role="radiogroup" aria-label="Роль">
-                        <label><input type="radio" name="signupRole" value="student" checked> Ученик</label>
-                        <label><input type="radio" name="signupRole" value="teacher"> Учитель</label>
-                      </div>
-                    </div>
-
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Фамилия</div>
-                      <input id="signupLastName" type="text" autocomplete="family-name" required>
-                    </div>
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Имя</div>
-                      <input id="signupFirstName" type="text" autocomplete="given-name" required>
-                    </div>
-
-                    <div id="studentFields">
-                      <div class="form-row">
-                        <div class="small" style="margin-bottom:6px">Класс</div>
-                        <select id="signupGrade" required>
-                          <option value="" selected disabled>Выберите класс</option>
-                          <option value="5">5</option>
-                          <option value="6">6</option>
-                          <option value="7">7</option>
-                          <option value="8">8</option>
-                          <option value="9">9</option>
-                          <option value="10">10</option>
-                          <option value="11">11</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div id="teacherFields" class="hidden">
-                      <div class="form-row">
-                        <div class="small" style="margin-bottom:6px">Вы</div>
-                        <select id="signupTeacherType">
-                          <option value="" selected disabled>Выберите вариант</option>
-                          <option value="school">Школьный учитель</option>
-                          <option value="tutor">Репетитор</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Email</div>
-                      <input id="signupEmail" type="email" autocomplete="email" required>
-                    </div>
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Пароль</div>
-                      <div class="pw-wrap">
-                        <input id="signupPass" type="password" autocomplete="new-password" required>
-                        <button type="button" class="pw-toggle" data-toggle-for="signupPass" aria-label="Показать пароль" title="Показать пароль">👁</button>
-                      </div>
-                    </div>
-
-                    <div class="form-actions">
-                      <button id="signupSubmit" type="submit">Зарегистрироваться</button>
-                      <button id="resendBtn" type="button" class="hidden">Отправить письмо ещё раз</button>
-                    </div>
-                    <div id="signupStatus" class="status"></div>
-                    <div class="small" style="margin-top:8px">После регистрации нужно подтвердить почту по ссылке из письма.</div>
-                  </form>
-                </section>
-
-                <section id="panelReset" class="hidden">
-                  <form id="resetForm">
-                    <div class="form-row">
-                      <div class="small" style="margin-bottom:6px">Email</div>
-                      <input id="resetEmail" type="email" autocomplete="email" required>
-                    </div>
-                    <div class="form-actions">
-                      <button id="resetSubmit" type="submit">Отправить письмо</button>
-                    </div>
-                    <div id="resetStatus" class="status"></div>
-                  </form>
-                </section>
-              </div>
-
-              <div class="auth-links" role="navigation" aria-label="Действия">
-                <a id="tabLogin" href="#" class="active" aria-selected="true">Войти</a>
-                <a id="tabSignup" href="#" aria-selected="false">Регистрация</a>
-                <a id="tabReset" href="#" aria-selected="false">Сменить пароль</a>
-              </div>
+      <!-- ── SIGNUP ───────────────────────────────────────────── -->
+      <section id="panelSignup" class="hidden">
+        <form id="signupForm" novalidate>
+          <div class="form-row">
+            <span class="field-label">Кто вы?</span>
+            <div class="role-row" role="radiogroup" aria-label="Роль">
+              <label class="role-chip">
+                <input type="radio" name="signupRole" value="student" checked>
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="4.5" r="2.5" fill="currentColor" stroke="none"/><path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke-linecap="round"/></svg>
+                Ученик
+              </label>
+              <label class="role-chip">
+                <input type="radio" name="signupRole" value="teacher">
+                <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="4.5" r="2.5" fill="currentColor" stroke="none"/><path d="M2 13c0-2.76 2.24-5 5-5s5 2.24 5 5" stroke-linecap="round"/><rect x="5" y="7.5" width="4" height="3" rx="0.5" fill="currentColor" stroke="none" opacity="0.55"/></svg>
+                Учитель
+              </label>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
-  </main>
 
-  <script type="module" src="./auth.js?v=2026-06-05-11"></script>
+          <div class="form-row">
+            <label class="field-label" for="signupLastName">Фамилия</label>
+            <input id="signupLastName" type="text" autocomplete="family-name" placeholder="Иванова" required>
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="signupFirstName">Имя</label>
+            <input id="signupFirstName" type="text" autocomplete="given-name" placeholder="Анна" required>
+          </div>
+
+          <div id="studentFields">
+            <div class="form-row">
+              <label class="field-label" for="signupGrade">Класс</label>
+              <select id="signupGrade" required>
+                <option value="" selected disabled>Выберите класс</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="teacherFields" class="hidden">
+            <div class="form-row">
+              <label class="field-label" for="signupTeacherType">Вы</label>
+              <select id="signupTeacherType">
+                <option value="" selected disabled>Выберите вариант</option>
+                <option value="school">Школьный учитель</option>
+                <option value="tutor">Репетитор</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label class="field-label" for="signupEmail">Email</label>
+            <input id="signupEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div class="form-row">
+            <label class="field-label" for="signupPass">Пароль</label>
+            <div class="pw-wrap">
+              <input id="signupPass" type="password" autocomplete="new-password" placeholder="Минимум 8 символов" required>
+              <button type="button" class="pw-toggle" data-toggle-for="signupPass" aria-label="Показать пароль" title="Показать пароль">
+                <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1.8 10S4.8 4.2 10 4.2 18.2 10 18.2 10 15.2 15.8 10 15.8 1.8 10 1.8 10Z"/><circle cx="10" cy="10" r="2.6"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="signupSubmit" type="submit" class="btn-primary">
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="btn-label">Зарегистрироваться</span>
+            </button>
+            <button id="resendBtn" type="button" class="resend-btn hidden">Отправить письмо ещё раз</button>
+          </div>
+          <div id="signupStatus" class="status" role="status" aria-live="polite"></div>
+          <p class="hint">После регистрации нужно подтвердить почту по ссылке из письма.</p>
+        </form>
+      </section>
+
+      <!-- ── RESET ────────────────────────────────────────────── -->
+      <section id="panelReset" class="hidden">
+        <form id="resetForm" novalidate>
+          <div class="form-row">
+            <label class="field-label" for="resetEmail">Email</label>
+            <input id="resetEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+          </div>
+          <div class="form-actions">
+            <button id="resetSubmit" type="submit" class="btn-primary">
+              <span class="spinner" aria-hidden="true"></span>
+              <span class="btn-label">Отправить письмо</span>
+            </button>
+          </div>
+          <div id="resetStatus" class="status" role="status" aria-live="polite"></div>
+          <p class="hint">Мы пришлём ссылку для смены пароля на указанную почту.</p>
+        </form>
+      </section>
+    </main>
+
+    <p class="auth-foot">Продолжая, вы соглашаетесь с <a href="#">условиями использования</a>.</p>
+  </div>
+
+  <!-- WD.1: косметический апдейтер заголовка карточки по активному табу.
+       Переключение панелей/состояний делает auth.js (по тем же id). Здесь —
+       только текст заголовка/подзаголовка + проброс ссылки «Забыли пароль?» на таб. -->
+  <script>
+  (function () {
+    var meta = {
+      tabLogin:  ['С возвращением', 'Войдите, чтобы продолжить подготовку к ЕГЭ.'],
+      tabSignup: ['Создать аккаунт', 'Бесплатно. Регистрация занимает меньше минуты.'],
+      tabReset:  ['Сброс пароля', 'Укажите почту — пришлём ссылку для восстановления.'],
+    };
+    var title = document.getElementById('authTitle');
+    var sub = document.getElementById('authSub');
+    function setHead(id) {
+      var m = meta[id]; if (!m || !title || !sub) return;
+      title.textContent = m[0]; sub.textContent = m[1];
+    }
+    ['tabLogin', 'tabSignup', 'tabReset'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener('click', function () { setHead(id); });
+    });
+    // «Забыли пароль?» → переключить на таб сброса (auth.js навесит панель).
+    document.querySelectorAll('[data-goto="reset"]').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        var t = document.getElementById('tabReset');
+        if (t) t.click();
+      });
+    });
+  })();
+  </script>
+
+  <script type="module" src="./auth.js?v=2026-06-05-12"></script>
 </body>
 </html>

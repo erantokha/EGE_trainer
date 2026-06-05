@@ -36,6 +36,7 @@ const FILE_PAGES = { // page-file → which prod pages it serves (for footprint 
   'list': ['list'], 'unique': ['unique'], 'hw': ['hw'], 'hw-create': ['hw_create'],
   'stats': ['stats'], 'my-students': ['my_students'], 'student': ['student'],
   'my-homeworks': ['my_homeworks', 'my_homeworks_archive'], 'profile': ['profile'], 'analog': ['analog'],
+  'auth': ['auth'], // WD.1 (2026-06-05): редизайн экрана входа через Claude Design.
 };
 
 // ---- minimal CSS leaf walker (comment/string aware), yields {selector, mediaStack, important} ----
@@ -147,7 +148,7 @@ const HTML = {
   'tasks/my_homeworks.html': ['tokens', 'base', 'pages/my-homeworks'],
   'tasks/my_homeworks_archive.html': ['tokens', 'base', 'pages/my-homeworks'],
   'tasks/profile.html': ['tokens', 'base', 'pages/profile'],
-  'tasks/auth.html': ['tokens', 'base'],
+  'tasks/auth.html': ['tokens', 'base', 'pages/auth'],
   'tasks/auth_callback.html': ['tokens', 'base'],
   'tasks/auth_reset.html': ['tokens', 'base'],
   'tasks/google_complete.html': ['tokens', 'base'],
