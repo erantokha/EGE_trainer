@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-1';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-1';
-import { CONFIG } from '../app/config.js?v=2026-06-07-1';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-1';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-1';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-1';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-1';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-1';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-1';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-1';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-1';
+import { withBuild } from '../app/build.js?v=2026-06-07-2';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-2';
+import { CONFIG } from '../app/config.js?v=2026-06-07-2';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-2';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-2';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-2';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-2';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-2';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-2';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-2';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-2';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-1';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-2';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-1';
+} from './picker_common.js?v=2026-06-07-2';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-1';
+} from './picker_stats.js?v=2026-06-07-2';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4918,19 +4918,9 @@ function renderAddedTasksPreview(questions, opts = {}) {
       return;
     }
 
-    // ── Учитель: бейджи по выбранному ученику в шапке + крошка «раздел • подтема» (вид без изменений в Ф1) ──
-    const card = document.createElement('article');
-    card.className = 'task-card added-task-card';
-    card.dataset.questionId = String(q?.question_id || '').trim();
-
-    const head = document.createElement('div');
-    head.className = 'added-task-head';
-
-    const num = document.createElement('div');
-    num.className = 'task-num';
-    num.textContent = String(idx + 1);
-    head.appendChild(num);
-
+    // ── Учитель (WD.2.7 Ф4): карточка-эталон (buildPreviewCard), label = № + название, бейджи
+    //    выбранного ученика. Контролов пока нет (+/× добавит Ф5). Крошку «раздел•подтема» убрали.
+    //    proto_id/proto_title у учительских q есть — резолв тоже через buildQuestionForPreview. ──
     const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('added-task-badge', 'added-task-date-badge');
     const sidForBadges = String(TEACHER_VIEW_STUDENT_ID || '').trim();
     const cachedStat = sidForBadges
@@ -4948,43 +4938,11 @@ function renderAddedTasksPreview(questions, opts = {}) {
       setModalStatsBadge(statsBadge, null, { baseTitle: 'Статистика ученика по задаче', emptyLabel: '—', emptyText: sidForBadges ? 'Загрузка статистики' : 'Ученик не выбран' });
       setModalDateBadge(dateBadge, null, { baseTitle: 'Последнее решение по задаче' });
     }
-    head.appendChild(badgeGroup);
-    card.appendChild(head);
 
-    const parts = [];
-    if (q.section_id || q.section_title) {
-      const s = `${String(q.section_id || '').trim()}${q.section_title ? `. ${q.section_title}` : ''}`.trim();
-      if (s) parts.push(s);
-    }
-    if (q.topic_id || q.topic_title) {
-      const t = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
-      if (t) parts.push(t);
-    }
-    if (parts.length) {
-      const m = document.createElement('div');
-      m.className = 'muted';
-      m.style.fontSize = '12px';
-      m.style.marginBottom = '4px';
-      m.textContent = parts.join(' • ');
-      card.appendChild(m);
-    }
-
-    const stem = document.createElement('div');
-    stem.className = 'task-stem';
-    setStem(stem, q.stem);
-    card.appendChild(stem);
-
-    if (q.figure?.img) {
-      const figWrap = document.createElement('div');
-      figWrap.className = 'task-fig';
-      const img = document.createElement('img');
-      img.src = asset(q.figure.img);
-      img.alt = q.figure.alt || '';
-      figWrap.appendChild(img);
-      card.appendChild(figWrap);
-    }
-
-    list.appendChild(card);
+    list.appendChild(buildPreviewCard(
+      { seqNum: idx + 1, protoId: q.proto_id, protoName: q.proto_title, stem: q.stem, figure: q.figure, questionId: q.question_id },
+      { badgeGroup },
+    ));
   });
 }
 
