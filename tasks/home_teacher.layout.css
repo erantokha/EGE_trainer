@@ -782,7 +782,37 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 @media (max-width: 1024px) {
   body[data-home-variant="teacher"] #appHeader {
     padding: 10px 16px;
+    flex-wrap: wrap;
   }
+
+  /* WD.2.8 — мобильный адаптив: строка ученика — отдельной строкой во всю ширину (не absolute
+     с фикс-пикером 450px). Иначе пикер вылезает за экран → iOS shrink-to-fit зумит всю страницу
+     наружу → мелкий текст (в т.ч. в модалке). Рейл-сайдбар (бургер) оставляем. */
+  body[data-home-variant="teacher"] #appHeader .ht-student-bar {
+    position: static;
+    right: auto;
+    top: auto;
+    transform: none;
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    margin-top: 8px;
+    box-sizing: border-box;
+  }
+  body[data-home-variant="teacher"] #appHeader .ht-student-picker {
+    flex: 1 1 auto;
+    width: auto;
+    max-width: 100%;
+    min-width: 0;
+  }
+  body[data-home-variant="teacher"] #appHeader .ht-action-toolbar {
+    margin-left: 0;
+  }
+  /* инпут комбобокса должен сжиматься (без min-width:0 его intrinsic-ширина распирает строку) */
+  body[data-home-variant="teacher"] #appHeader .ht-combo-input { min-width: 0; }
+  /* страховка: клипуем горизонтальное переполнение контента → нет iOS shrink-to-fit → нет zoom-out.
+     overflow:clip не создаёт скролл-контейнер (sticky-хедер/панель не ломаются). */
+  body[data-home-variant="teacher"] main { overflow-x: clip; }
 
   body[data-home-variant="teacher"] .ht-content-wrap {
     padding: 0 16px;
