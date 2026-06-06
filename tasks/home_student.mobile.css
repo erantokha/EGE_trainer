@@ -99,7 +99,7 @@
   body[data-home-variant="student"] #accordion .node.section > .row,
   body[data-home-variant="student"] #accordion .node.topic > .row{
     display:grid !important;
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: minmax(0,1fr) auto !important; /* minmax(0,…): колонка реально сжимается → 📊 не лезет в степпер */
     grid-template-rows: auto auto !important;
     column-gap:10px !important; row-gap:8px !important;
     align-items:center !important; padding:11px 4px !important;
@@ -108,8 +108,17 @@
   /* строка названия (.row-title) — верх, колонка 1 */
   body[data-home-variant="student"] #accordion .node.section > .row > .row-title,
   body[data-home-variant="student"] #accordion .node.topic > .row > .row-title{
-    grid-column:1 !important; grid-row:1 !important;
+    grid-column:1 !important; grid-row:1 !important; align-items:flex-start !important;
   }
+  /* название ДОЛЖНО сжиматься (flex-shrink) и переноситься в 2 строки — иначе (flex:0 0 auto из
+     home-student.css:191) 📊 переполняет колонку и наезжает на «−». Высокая специфичность + !important. */
+  body[data-home-variant="student"] #accordion .node.section > .row > .row-title > .section-title,
+  body[data-home-variant="student"] #accordion .node.topic > .row > .row-title > .title{
+    flex:0 1 auto !important; min-width:0 !important; width:auto !important; max-width:100% !important;
+    white-space:normal !important; overflow:hidden !important;
+    display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:2 !important;
+  }
+  body[data-home-variant="student"] #accordion .row-title .unique-btn{ flex:0 0 auto !important; }
   /* степпер — верх, колонка 2 (рядом с названием) */
   body[data-home-variant="student"] #accordion .node.section > .row > .countbox,
   body[data-home-variant="student"] #accordion .node.topic > .row > .countbox{
@@ -153,6 +162,10 @@
     width:38px; height:5px; border-radius:999px; background:rgba(15,23,42,.18); z-index:3;
   }
   body[data-home-variant="student"] #addedTasksModal .modal-head{ padding-top:20px !important; }
+
+  /* на мобайле в подписи прототипа показываем только НОМЕР (название скрываем — не влезает в строку
+     вместе с бейджами и кнопками +/×) */
+  body[data-home-variant="student"] #addedTasksModal .added-task-toplabel .proto-name{ display:none !important; }
 
   /* на узком экране карточка в ОДНУ колонку: подпись и условие во всю ширину, картинка ПОД условием
      (иначе картинка справа сжимала условие в 1–2 символа в строке) */
