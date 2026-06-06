@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-15';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-15';
-import { CONFIG } from '../app/config.js?v=2026-06-07-15';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-15';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-15';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-15';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-15';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-15';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-15';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-15';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-15';
+import { withBuild } from '../app/build.js?v=2026-06-07-16';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-16';
+import { CONFIG } from '../app/config.js?v=2026-06-07-16';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-16';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-16';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-16';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-16';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-16';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-16';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-16';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-16';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-15';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-16';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-15';
+} from './picker_common.js?v=2026-06-07-16';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-15';
+} from './picker_stats.js?v=2026-06-07-16';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4319,7 +4319,7 @@ let _STUDENT_PREVIEW_RETURN_FOCUS = null;
    два независимых вызова дают РАЗНЫЕ наборы. Поэтому резолвим ОДИН раз на сигнатуру выбора и
    переиспользуем: и предпросмотр, и старт (saveSelectionAndGo) берут один и тот же набор.
    Аналог teacher-паттерна (там набор замораживается в teacher_picked_refs и переиспользуется). */
-let STUDENT_RESOLVE = { sig: null, questions: null };
+let STUDENT_RESOLVE = { sig: null, questions: null, buckets: null };
 
 // WD.2.6 — состояние готовности предпросмотра: #previewBtn активна только когда задачи для
 // текущего выбора уже зарезолвлены+статистика загружена (фоновый префетч). До этого — блеклая.
@@ -4332,33 +4332,88 @@ function studentSelectionSignature() {
   return `t=${norm(CHOICE_TOPICS)}|s=${norm(CHOICE_SECTIONS)}|p=${norm(CHOICE_PROTOS)}`;
 }
 
-async function resolveStudentSelection() {
-  const sig = studentSelectionSignature();
-  if (STUDENT_RESOLVE.sig === sig && Array.isArray(STUDENT_RESOLVE.questions)) {
-    return STUDENT_RESOLVE.questions;
-  }
-  let questions = [];
+// добор дельты по ОДНОМУ бакету (proto/topic/section), исключая уже занятые id (без дублей).
+async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
+  const want = Math.max(0, Math.floor(Number(delta) || 0));
+  if (want <= 0) return [];
+  const sep = bucketKey.indexOf(':');
+  if (sep < 0) return [];
+  const kind = bucketKey.slice(0, sep);
+  const id = bucketKey.slice(sep + 1);
+  const choiceProtos = {}, choiceTopics = {}, choiceSections = {};
+  if (kind === 'proto') choiceProtos[id] = want;
+  else if (kind === 'topic') choiceTopics[id] = want;
+  else if (kind === 'section') choiceSections[id] = want;
+  else return [];
+  let qs = [];
   try {
-    questions = await pickQuestionsScopedForList({
+    qs = await pickQuestionsScopedForList({
       sections: SECTIONS,
       topicById: TOPIC_BY_ID,
-      choiceProtos: CHOICE_PROTOS || {},
-      choiceTopics: CHOICE_TOPICS || {},
-      choiceSections: CHOICE_SECTIONS || {},
+      choiceProtos,
+      choiceTopics,
+      choiceSections,
       shuffleTasks: false, // набор фиксируем без шафла; порядок перемешает сессия при SHUFFLE_TASKS
       teacherStudentId: '',
       teacherFilters: { old: false, badAcc: false },
       prioActive: false,
       loadTopicPool: loadTopicPoolForPreview,
       buildQuestion: buildQuestionForPreview,
-      excludeQuestionIds: new Set(),
+      excludeQuestionIds: excludeIds, // уже занятые id — добираем только НОВЫЕ
     });
   } catch (e) {
-    console.warn('resolveStudentSelection: threw', e);
-    questions = [];
+    console.warn('pickStudentBucketDelta: threw', bucketKey, e);
+    qs = [];
   }
-  const arr = Array.isArray(questions) ? questions : [];
-  STUDENT_RESOLVE = { sig, questions: arr };
+  return Array.isArray(qs) ? qs.slice(0, want) : [];
+}
+
+// ИНКРЕМЕНТАЛЬНЫЙ резолв: храним подобранные задачи по бакетам и при изменении выбора
+// добираем/срезаем ТОЛЬКО дельту (раньше — полный перевыбор на любое изменение сигнатуры через
+// недетерминированный pickQuestionsScopedForList → все задачи перегенерировались). Аналог
+// учительского _ADDED_CTX. Существующие задачи (их question_id) при добавлении не меняются.
+async function resolveStudentSelection() {
+  const sig = studentSelectionSignature();
+  if (STUDENT_RESOLVE.sig === sig && Array.isArray(STUDENT_RESOLVE.questions)) {
+    return STUDENT_RESOLVE.questions;
+  }
+  const buckets = (STUDENT_RESOLVE.buckets && typeof STUDENT_RESOLVE.buckets === 'object')
+    ? STUDENT_RESOLVE.buckets : {};
+  const { desired } = getDesiredCountsFromSelection(); // Map: 'proto:|topic:|section:<id>' -> want
+
+  // 1) убрать бакеты, которых больше нет в выборе
+  for (const key of Object.keys(buckets)) {
+    if (!desired.has(key)) delete buckets[key];
+  }
+
+  // занятые question_id по всем бакетам (для exclude при доборе — без дублей между бакетами)
+  const usedIds = new Set();
+  for (const arr of Object.values(buckets)) {
+    for (const q of (arr || [])) { const id = String(q?.question_id || '').trim(); if (id) usedIds.add(id); }
+  }
+
+  // 2) по каждому желаемому бакету — трим с конца или добор дельты
+  for (const [key, wantRaw] of desired) {
+    const want = Math.max(0, Math.floor(Number(wantRaw) || 0));
+    const cur = Array.isArray(buckets[key]) ? buckets[key] : (buckets[key] = []);
+    if (cur.length > want) {
+      // срезаем лишние с КОНЦА — стабильные первые `want` остаются (как teacher-трим)
+      for (const q of cur.slice(want)) usedIds.delete(String(q?.question_id || '').trim());
+      buckets[key] = cur.slice(0, want);
+    } else if (cur.length < want) {
+      const picked = await pickStudentBucketDelta(key, want - cur.length, usedIds);
+      for (const q of picked) {
+        cur.push(q);
+        const id = String(q?.question_id || '').trim(); if (id) usedIds.add(id);
+      }
+    }
+  }
+
+  // 3) флэттен в стабильном порядке (section/topic/proto/question_id, как у учителя)
+  const flat = [];
+  for (const arr of Object.values(buckets)) for (const q of (arr || [])) flat.push(q);
+  const arr = sortAddedQuestions(flat);
+  STUDENT_RESOLVE = { sig, questions: arr, buckets };
   return arr;
 }
 
