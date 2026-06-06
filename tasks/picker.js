@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-3';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-3';
-import { CONFIG } from '../app/config.js?v=2026-06-07-3';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-3';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-3';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-3';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-3';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-3';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-3';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-3';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-3';
+import { withBuild } from '../app/build.js?v=2026-06-07-4';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-4';
+import { CONFIG } from '../app/config.js?v=2026-06-07-4';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-4';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-4';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-4';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-4';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-4';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-4';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-4';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-4';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-3';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-4';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-3';
+} from './picker_common.js?v=2026-06-07-4';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-3';
+} from './picker_stats.js?v=2026-06-07-4';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4243,7 +4243,7 @@ async function openAddedTasksModalFast() {
 
 function initAddedTasksModal() {
   if (!IS_TEACHER_HOME || _ADDED_TASKS_MODAL_EVENTS_BOUND) return;
-  const { modal, close, backdrop, btn } = getAddedTasksModalEls();
+  const { modal, close, backdrop, btn, list } = getAddedTasksModalEls();
   if (!modal || !btn) return;
 
   _ADDED_TASKS_MODAL_EVENTS_BOUND = true;
@@ -4254,6 +4254,14 @@ function initAddedTasksModal() {
   });
   if (close) close.addEventListener('click', () => closeAddedTasksModal());
   if (backdrop) backdrop.addEventListener('click', () => closeAddedTasksModal());
+
+  // WD.2.7 Ф5 — делегирование +/× в карточках учительского предпросмотра
+  if (list) list.addEventListener('click', (e) => {
+    const add = e.target.closest('.added-task-add');
+    const rm = e.target.closest('.added-task-remove');
+    if (add) { e.preventDefault(); teacherAddedAdd(add.dataset.qid, add); }
+    else if (rm) { e.preventDefault(); teacherAddedRemove(rm.dataset.qid); }
+  });
 
   document.addEventListener('keydown', (e) => {
     if (!ADDED_TASKS_MODAL_OPEN) return;
@@ -4799,6 +4807,63 @@ async function refreshAddedTasksModalView(questions, opts = {}) {
   await refreshAddedTasksModalBadges(questions);
 }
 
+// WD.2.7 Ф5 — +/× в учительском предпросмотре над учительским store (_ADDED_CTX.buckets + CHOICE_*).
+function rerenderTeacherAddedPreview() {
+  refreshAddedTasksModalView(sortAddedQuestions(flattenAddedQuestions()), { wantTotal: getTotalSelected() });
+}
+
+// «×» — убрать КОНКРЕТНУЮ задачу: splice из её bucket + decIdCount + уменьшить desired-счётчик scope
+// (proto/topic/section) через сеттер. После: have==need → последующий sync — no-op (не доливает/не тримит).
+function teacherAddedRemove(qid) {
+  if (!IS_TEACHER_HOME) return;
+  const ctx = _ADDED_CTX;
+  if (!ctx?.buckets) return;
+  const id = String(qid || '').trim();
+  if (!id) return;
+  let bk = null, i = -1;
+  for (const [k, arr] of Object.entries(ctx.buckets)) {
+    const j = (arr || []).findIndex((q) => String(q?.question_id || '').trim() === id);
+    if (j >= 0) { bk = k; i = j; break; }
+  }
+  if (!bk) return;
+  ctx.buckets[bk].splice(i, 1);
+  decIdCount(id);
+  if (!ctx.buckets[bk].length) delete ctx.buckets[bk];
+  if (bk.startsWith('proto:')) { const k = bk.slice(6); setProtoCount(k, Math.max(0, (Number(CHOICE_PROTOS[k] || 0)) - 1)); }
+  else if (bk.startsWith('topic:')) { const k = bk.slice(6); setTopicCount(k, Math.max(0, (Number(CHOICE_TOPICS[k] || 0)) - 1)); }
+  else if (bk.startsWith('section:')) { const k = bk.slice(8); setSectionCount(k, Math.max(0, (Number(CHOICE_SECTIONS[k] || 0)) - 1)); }
+  persistAddedTasksContext();
+  rerenderTeacherAddedPreview();
+}
+
+// «+» — добавить ещё вариант того же прототипа в proto-bucket (как у ученика); при исчерпании — гасим кнопку.
+async function teacherAddedAdd(qid, btn) {
+  if (!IS_TEACHER_HOME) return;
+  const ctx = _ADDED_CTX;
+  if (!ctx) return;
+  const id = String(qid || '').trim();
+  const src = flattenAddedQuestions().find((q) => String(q?.question_id || '').trim() === id);
+  if (!src) return;
+  const topic = TOPIC_BY_ID.get(String(src.topic_id || '').trim());
+  if (!topic) return;
+  let pool = [];
+  try { pool = await loadTopicPoolForPreview(topic); } catch (_) { pool = []; }
+  const used = new Set(flattenAddedQuestions().map((q) => String(q?.question_id || '').trim()));
+  const cands = (pool || []).filter((e) =>
+    String(e?.type?.id || '') === String(src.proto_id || '') && !used.has(String(e?.proto?.id || '')));
+  if (!cands.length) { if (btn) { btn.disabled = true; btn.title = 'Больше вариантов нет'; } return; }
+  const pick = cands[Math.floor(Math.random() * cands.length)];
+  const newQ = buildQuestionForPreview(pick.manifest, pick.type, pick.proto);
+  const unic = baseIdFromProtoId(String(newQ.question_id || '').trim()) || baseIdFromProtoId(id);
+  const bk = `proto:${unic}`;
+  if (!Array.isArray(ctx.buckets[bk])) ctx.buckets[bk] = [];
+  ctx.buckets[bk].push(newQ);
+  incIdCount(String(newQ.question_id || '').trim());
+  setProtoCount(unic, (Number(CHOICE_PROTOS[unic] || 0)) + 1); // desired совпадает с новым размером bucket → sync no-op
+  persistAddedTasksContext();
+  rerenderTeacherAddedPreview();
+}
+
 // WD.2.7 — единый билдер карточки предпросмотра (общий для 4 поверхностей: ученик/учитель ×
 // предпросмотр/аккордеон). Каркас идентичен эталону студенческого предпросмотра; правые контролы
 // (opts.controls: [+,×] для предпросмотра ИЛИ степпер для аккордеона) передаёт вызывающий.
@@ -4939,9 +5004,27 @@ function renderAddedTasksPreview(questions, opts = {}) {
       setModalDateBadge(dateBadge, null, { baseTitle: 'Последнее решение по задаче' });
     }
 
+    // WD.2.7 Ф5 — те же +/×, что у ученика (логика — teacherAddedAdd/Remove над учительским store)
+    const tqid = String(q?.question_id || '').trim();
+    const tAdd = document.createElement('button');
+    tAdd.type = 'button';
+    tAdd.className = 'added-task-act added-task-add';
+    tAdd.textContent = '+';
+    tAdd.title = 'Добавить ещё задачу этого прототипа (другие числа)';
+    tAdd.setAttribute('aria-label', 'Добавить ещё задачу этого прототипа');
+    tAdd.dataset.qid = tqid;
+
+    const tRm = document.createElement('button');
+    tRm.type = 'button';
+    tRm.className = 'added-task-act added-task-remove';
+    tRm.textContent = '×';
+    tRm.title = 'Убрать эту задачу из подборки';
+    tRm.setAttribute('aria-label', 'Убрать задачу из подборки');
+    tRm.dataset.qid = tqid;
+
     list.appendChild(buildPreviewCard(
       { seqNum: idx + 1, protoId: q.proto_id, protoName: q.proto_title, stem: q.stem, figure: q.figure, questionId: q.question_id },
-      { badgeGroup },
+      { badgeGroup, controls: [tAdd, tRm] },
     ));
   });
 }
