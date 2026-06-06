@@ -5,8 +5,71 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-06-06-33';
+import { CONFIG } from '../config.js?v=2026-06-06-35';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
+
+// --- Сетевые ретраи (resilience к интермиттентным дропам RF→VPS, инцидент 2026-06-06) ---
+// Повторяем ТОЛЬКО сетевой сбой/таймаут (когда HTTP-ответа НЕТ). Любой HTTP-ответ (даже не-2xx)
+// возвращаем сразу — это не сетевой сбой. Промежуточные попытки помечаем init.__egeNoOverlay,
+// чтобы диаг-оверлей (app/diag_bootstrap.js) всплывал только после ИСЧЕРПАНИЯ ретраев.
+const __RETRY_BACKOFFS_MS = [350, 800, 1500];
+
+function __retrySleep(ms) { return new Promise((r) => setTimeout(r, Math.max(0, ms | 0))); }
+
+function __isRetryableNetErr(e) {
+  const n = e && e.name;
+  // AbortError = наш таймаут; TypeError = «Failed to fetch» / «Load failed» (сетевой сбой fetch).
+  return n === 'AbortError' || n === 'TypeError' || (e instanceof TypeError);
+}
+
+function __mkTimeoutErr(input, timeoutMs) {
+  const e = new Error('TIMEOUT');
+  e.code = 'TIMEOUT';
+  e.status = 0;
+  e.url = (typeof input === 'string') ? input : (input && input.url) || '';
+  e.timeoutMs = timeoutMs;
+  e.details = 'timeout';
+  return e;
+}
+
+// Единый ретраящий fetch. opts: { retries, timeoutMs }.
+// timeoutMs применяется per-attempt (если у init нет своего signal).
+export async function fetchWithRetry(input, init = {}, opts = {}) {
+  const retries = Math.max(0, Number(opts?.retries ?? 0) || 0);
+  const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 0) || 0);
+  const base = init || {};
+  let lastErr = null;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const isLast = attempt === retries;
+    const useTimeout = timeoutMs > 0 && !base.signal;
+    const ctrl = useTimeout ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+
+    const attemptInit = { ...base };
+    if (ctrl) attemptInit.signal = ctrl.signal;
+    // тихо на всех попытках, кроме финальной — оверлей покажет только финальный фейл
+    if (!isLast) attemptInit.__egeNoOverlay = true;
+
+    try {
+      return await fetch(input, attemptInit);
+    } catch (e) {
+      lastErr = (e && e.name === 'AbortError') ? __mkTimeoutErr(input, timeoutMs) : e;
+      if (isLast || !__isRetryableNetErr(e)) throw lastErr;
+      await __retrySleep(__RETRY_BACKOFFS_MS[Math.min(attempt, __RETRY_BACKOFFS_MS.length - 1)]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+  throw lastErr;
+}
+
+// fetch для Supabase JS SDK: auth-вызовы (login/refresh/getUser/exchange) идемпотентны на уровне
+// выдачи токена → ретраим сетевые сбои/таймауты. На код-обмен/ротацию refresh повторный HTTP-ответ
+// «code/token already used» НЕ ретраится (это ответ, не сетевой сбой).
+function __sdkFetch(input, init) {
+  return fetchWithRetry(input, init || {}, { retries: 2, timeoutMs: 9000 });
+}
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
 // хотим принудительно показать окно выбора Google-аккаунта.
@@ -28,6 +91,8 @@ export const supabase = __g[__SB_GLOBAL_KEY] || (__g[__SB_GLOBAL_KEY] = createCl
       detectSessionInUrl: true,
       flowType: 'pkce',
     },
+    // ретраи сетевых сбоев для всех auth-вызовов SDK (см. __sdkFetch)
+    global: { fetch: __sdkFetch },
   },
 ));
 
@@ -117,17 +182,12 @@ function __writeStoredSession(key, raw, newObj) {
 }
 
 async function __fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { method, headers, body, signal: ctrl.signal });
-    const text = await res.text().catch(() => '');
-    let data = null;
-    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
-    return { ok: res.ok, status: res.status, data };
-  } finally {
-    clearTimeout(t);
-  }
+  // ретраи сетевых сбоев/таймаутов; таймаут per-attempt внутри fetchWithRetry.
+  const res = await fetchWithRetry(url, { method, headers, body }, { retries: 2, timeoutMs });
+  const text = await res.text().catch(() => '');
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }
+  return { ok: res.ok, status: res.status, data };
 }
 
 async function __refreshByToken(refreshToken) {

@@ -351,14 +351,19 @@
           return res;
         }).catch(function (err) {
           try {
+            // Промежуточные сетевые ретраи провайдеров помечены init.__egeNoOverlay:
+            // фиксируем фейл для диагностики, но НЕ показываем оверлей до финальной попытки.
+            var __noOverlay = !!(init && init.__egeNoOverlay);
             if (isSupabaseUrl(url) || isContentUrl(url) || isJsdelivr(url)) {
               addFetchFail({ url: String(url || ''), status: 0, err: safeStr(err) });
 
               if (isSupabaseUrl(url)) {
-                state.supabaseFailCount += 1;
-                // Показываем и до, и после readiness: это именно «не работает сеть/доступ».
-                if (state.supabaseFailCount >= 1) {
-                  show('E_SUPABASE_NET', 'Не удаётся связаться с сервером (Supabase).', { url: String(url || ''), err: safeStr(err) });
+                if (!__noOverlay) {
+                  state.supabaseFailCount += 1;
+                  // Показываем и до, и после readiness: это именно «не работает сеть/доступ».
+                  if (state.supabaseFailCount >= 1) {
+                    show('E_SUPABASE_NET', 'Не удаётся связаться с сервером (Supabase).', { url: String(url || ''), err: safeStr(err) });
+                  }
                 }
               } else if (isJsdelivr(url)) {
                 show('E_CDN_NET', 'Не удаётся загрузить данные с CDN.', { url: String(url || ''), err: safeStr(err) });

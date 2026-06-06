@@ -5,8 +5,17 @@
 // - 1 ретрай при 401 с принудительным refresh (forceRefresh)
 // - единый формат ошибок (code/status/endpoint/details)
 
-import { CONFIG } from '../config.js?v=2026-06-06-33';
-import { getSession, requireSession } from './supabase.js?v=2026-06-06-33';
+import { CONFIG } from '../config.js?v=2026-06-06-35';
+import { getSession, requireSession, fetchWithRetry } from './supabase.js?v=2026-06-06-35';
+
+// Сколько раз повторять при сетевом сбое/таймауте (status=0). По умолчанию:
+// чтения (rpc/select) — 2 ретрая; записи (insert/update/remove) — 0.
+// opts.retry===false принудительно отключает; opts.retries — явное число.
+function __resolveRetries(opts, def) {
+  if (opts?.retry === false) return 0;
+  const r = Number(opts?.retries);
+  return Number.isFinite(r) ? Math.max(0, r) : def;
+}
 
 function __baseUrl() {
   return String(CONFIG?.supabase?.url || '').replace(/\/+$/g, '');
@@ -41,30 +50,13 @@ function __makeErr(code, meta = null) {
   return e;
 }
 
-async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 15000, meta = {}) {
+async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 9000, meta = {}, retries = 0) {
   const ms = Math.max(0, Number(timeoutMs || 0) || 0);
-  if (!ms) return await fetch(url, fetchOpts);
-
-  // если уже есть signal — не перетираем, но таймаут будет best-effort (без abort)
-  if (fetchOpts.signal) {
-    const t = new Promise((_, reject) => setTimeout(() => {
-      reject(__makeErr('TIMEOUT', {
-        status: 0,
-        url,
-        endpoint: meta?.endpoint,
-        details: 'timeout',
-        timeoutMs: ms,
-      }));
-    }, ms));
-    return await Promise.race([fetch(url, fetchOpts), t]);
-  }
-
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    return await fetch(url, { ...fetchOpts, signal: ctrl.signal });
+    // fetchWithRetry: per-attempt таймаут + ретраи сетевых сбоев + тихие промежуточные попытки.
+    return await fetchWithRetry(url, fetchOpts, { retries, timeoutMs: ms });
   } catch (e) {
-    if (e?.name === 'AbortError') {
+    if (e?.code === 'TIMEOUT' || e?.name === 'AbortError') {
       throw __makeErr('TIMEOUT', {
         status: 0,
         url,
@@ -74,8 +66,6 @@ async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 15000, meta =
       });
     }
     throw e;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -86,15 +76,16 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
   // - anon: всегда идём как anon (без Authorization)
   const authMode = String(opts?.authMode || 'session');
   const retry401 = opts?.retry401 !== false;
-  const timeoutMs = Number(opts?.timeoutMs ?? 15000) || 15000;
+  const timeoutMs = Number(opts?.timeoutMs ?? 9000) || 9000;
   const sessionTimeoutMs = Number(opts?.sessionTimeoutMs ?? 900) || 900;
+  const retries = Math.max(0, Number(opts?.retries ?? 0) || 0);
 
   // 1) anon: без сессии, без ретрая
   if (authMode === 'anon') {
     return await __fetchWithTimeout(url, {
       ...options,
       headers: __headers('', options.headers || {}),
-    }, timeoutMs, meta);
+    }, timeoutMs, meta, retries);
   }
 
   // 2) auto: не требуем сессию; если она есть — добавляем Authorization
@@ -105,7 +96,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
     let res = await __fetchWithTimeout(url, {
       ...options,
       headers: __headers(token, options.headers || {}),
-    }, timeoutMs, meta);
+    }, timeoutMs, meta, retries);
 
     // ретрай имеет смысл только если мы реально ходили с Authorization
     if (token && res.status === 401 && retry401) {
@@ -115,7 +106,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
       res = await __fetchWithTimeout(url, {
         ...options,
         headers: __headers(s2.access_token, options.headers || {}),
-      }, timeoutMs, meta);
+      }, timeoutMs, meta, retries);
     }
 
     return res;
@@ -135,7 +126,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
   let res = await __fetchWithTimeout(url, {
     ...options,
     headers: __headers(session.access_token, options.headers || {}),
-  }, timeoutMs, meta);
+  }, timeoutMs, meta, retries);
 
   if (res.status === 401 && retry401) {
     const s2 = await getSession({ forceRefresh: true, timeoutMs: sessionTimeoutMs });
@@ -144,7 +135,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
     res = await __fetchWithTimeout(url, {
       ...options,
       headers: __headers(s2.access_token, options.headers || {}),
-    }, timeoutMs, meta);
+    }, timeoutMs, meta, retries);
   }
 
   return res;
@@ -158,7 +149,7 @@ async function rpc(fnName, args = {}, opts = {}) {
   const res = await __fetchWithAuth(url, {
     method: 'POST',
     body: JSON.stringify(args ?? {}),
-  }, opts, { endpoint: `rpc:${fnName}` });
+  }, { ...opts, retries: __resolveRetries(opts, 2) }, { endpoint: `rpc:${fnName}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -184,7 +175,7 @@ async function select(table, query = {}, opts = {}) {
   }
   const url = `${base}/rest/v1/${encodeURIComponent(table)}${qs ? `?${qs}` : ''}`;
 
-  const res = await __fetchWithAuth(url, { method: 'GET' }, opts, { endpoint: `table:${table}` });
+  const res = await __fetchWithAuth(url, { method: 'GET' }, { ...opts, retries: __resolveRetries(opts, 2) }, { endpoint: `table:${table}` });
   const data = await __readBody(res);
 
   if (!res.ok) {
@@ -210,7 +201,7 @@ async function insert(table, rows, opts = {}) {
     method: 'POST',
     headers: { Prefer: prefer },
     body: JSON.stringify(rows),
-  }, opts, { endpoint: `insert:${table}` });
+  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `insert:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -237,7 +228,7 @@ async function update(table, query, patchObj, opts = {}) {
     method: 'PATCH',
     headers: { Prefer: prefer },
     body: JSON.stringify(patchObj),
-  }, opts, { endpoint: `update:${table}` });
+  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `update:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -263,7 +254,7 @@ async function remove(table, query, opts = {}) {
   const res = await __fetchWithAuth(url, {
     method: 'DELETE',
     headers: { Prefer: prefer },
-  }, opts, { endpoint: `delete:${table}` });
+  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `delete:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
