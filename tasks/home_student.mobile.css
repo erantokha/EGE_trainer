@@ -73,16 +73,18 @@
     border:0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important;
     box-shadow:0 -8px 24px rgba(15,23,42,.06) !important;
     background:rgba(255,255,255,.94); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-    padding:12px 16px calc(12px + env(safe-area-inset-bottom)) !important;
-    display:flex !important; align-items:stretch; gap:10px;
+    padding:12px 12px calc(12px + env(safe-area-inset-bottom)) !important;
+    display:flex !important; align-items:stretch; gap:8px;
   }
   body[data-home-variant="student"] #picker .start-card .sc-head,
   body[data-home-variant="student"] #picker .start-card .sc-empty{ display:none !important; }
   body[data-home-variant="student"] #picker .start-card .sc-preview{
-    flex:0 0 auto !important; margin:0 !important; height:50px; padding:0 16px !important; border-radius:12px !important;
+    flex:0 0 auto !important; margin:0 !important; height:50px; padding:0 14px !important; border-radius:12px !important;
   }
+  /* «Начать» сжимается, чтобы панель влезала когда появляется вертикальный скроллбар
+     (контент загрузился → страница длинная → ширина ужимается). «Начать N» короткая — не обрежется. */
   body[data-home-variant="student"] #picker .start-card .sc-start{
-    flex:1 1 auto !important; margin:0 !important; height:50px; border-radius:12px !important; font-size:16px !important;
+    flex:1 1 auto !important; min-width:0 !important; margin:0 !important; height:50px; border-radius:12px !important; font-size:16px !important;
     display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:8px;
   }
   /* «Начать тренировку» → «Начать N»: слово прячем, показываем бейдж-счётчик */

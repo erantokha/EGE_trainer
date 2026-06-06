@@ -23,6 +23,12 @@
 
 *{box-sizing:border-box}
 
+/* мобильные браузеры (Chrome mobile, iOS Safari) при дефолте text-size-adjust:auto
+   АВТО-увеличивают текст после загрузки контента → страница «раздувается» ~110%, нижняя
+   панель уезжает под экран. Фиксируем 100% — текст рендерится в своём CSS-размере.
+   (В headless-Chromium авто-увеличение выключено, поэтому в тестах не воспроизводилось.) */
+html{ -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+
 html,body{height:100%}
 
 body{
