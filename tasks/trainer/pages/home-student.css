@@ -1021,7 +1021,8 @@ body[data-home-variant="student"] #accordion .home-head-tasks{ grid-column:3 !im
   background:var(--panel); color:var(--text);
   font-weight:600; font-size:13.5px; line-height:1; white-space:nowrap;
   cursor:pointer;
-  transition:background .15s ease, border-color .15s ease, opacity .15s ease;
+  /* без opacity-перехода: смена active↔dim должна быть мгновенной, иначе при выборе мигает «вспышкой» */
+  transition:background .15s ease, border-color .15s ease;
 }
 .start-card .sc-preview svg{ flex:0 0 auto; }
 .start-card .sc-preview:hover{ background:var(--surface2,#f1f5f9); border-color:#c2c9d4; }

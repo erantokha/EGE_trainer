@@ -9,6 +9,10 @@
 
 @media (orientation: portrait) and (max-width: 1024px), (max-width: 900px) {
 
+  /* защита от горизонтального переполнения (страница не должна быть шире экрана → iOS не «зумит»).
+     clip не создаёт скролл-контейнер (не ломает sticky/fixed); вертикальный скролл сохраняется. */
+  body[data-home-variant="student"]{ overflow-x:clip !important; }
+
   /* ── 0. Скрываем старый мобильный термометр готовности (используем сам прогноз-градусник) ── */
   body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
   /* строка управления (переключатель режима скрыт ещё в desktop; тему-тоггл прячем на мобайле) */
@@ -69,7 +73,8 @@
   /* ── 3. Липкая нижняя панель: «Предпросмотр» (слева) + крупная «Начать» (справа) ── */
   body[data-home-variant="student"] #picker .start-card{
     position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important; z-index:60;
-    width:auto !important; max-width:none !important; margin:0 !important;
+    width:auto !important; max-width:100vw !important; margin:0 !important; box-sizing:border-box !important;
+    overflow:hidden !important; /* контент не должен распирать панель шире экрана (иначе iOS «зумит») */
     border:0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important;
     box-shadow:0 -8px 24px rgba(15,23,42,.06) !important;
     background:rgba(255,255,255,.94); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
@@ -79,10 +84,10 @@
   body[data-home-variant="student"] #picker .start-card .sc-head,
   body[data-home-variant="student"] #picker .start-card .sc-empty{ display:none !important; }
   body[data-home-variant="student"] #picker .start-card .sc-preview{
-    flex:0 0 auto !important; margin:0 !important; height:50px; padding:0 16px !important; border-radius:12px !important;
+    flex:0 1 auto !important; min-width:0 !important; margin:0 !important; height:50px; padding:0 16px !important; border-radius:12px !important;
   }
   body[data-home-variant="student"] #picker .start-card .sc-start{
-    flex:1 1 auto !important; margin:0 !important; height:50px; border-radius:12px !important; font-size:16px !important;
+    flex:1 1 auto !important; min-width:0 !important; margin:0 !important; height:50px; border-radius:12px !important; font-size:16px !important;
     display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:8px;
   }
   /* «Начать тренировку» → «Начать N»: слово прячем, показываем бейдж-счётчик */
@@ -118,11 +123,22 @@
     white-space:normal !important; overflow:hidden !important;
     display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:2 !important;
   }
-  body[data-home-variant="student"] #accordion .row-title .unique-btn{ flex:0 0 auto !important; }
+  /* 📊 «уникальные прототипы»: на мобайле скрыт у свёрнутого раздела (не захламляет),
+     появляется при раскрытии — выровнен ВПРАВО (к счётчику), не «скачет» за названием. */
+  body[data-home-variant="student"] #accordion .row-title .unique-btn{ display:none !important; }
+  body[data-home-variant="student"] #accordion .node.section.show-uniq > .row > .row-title > .unique-btn{
+    display:inline-flex !important; flex:0 0 auto !important; margin-left:auto !important; align-self:center !important;
+  }
   /* степпер — верх, колонка 2 (рядом с названием) */
   body[data-home-variant="student"] #accordion .node.section > .row > .countbox,
   body[data-home-variant="student"] #accordion .node.topic > .row > .countbox{
     grid-column:2 !important; grid-row:1 !important; justify-self:end !important; align-self:center !important;
+  }
+  /* iOS Safari зумит при фокусе на input с font-size < 16px и не возвращает масштаб →
+     ставим ровно 16px, чтобы мобильная версия не «приближалась». */
+  body[data-home-variant="student"] #accordion .countbox input[type="number"],
+  body[data-home-variant="student"] #accordion .countbox .count{
+    font-size:16px !important;
   }
   /* бейджи раздела (display:contents в десктопе) — pct(бар) + cov: вторая строка, обе колонки */
   body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct,

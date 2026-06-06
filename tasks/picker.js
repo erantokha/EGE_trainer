@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-06-17';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-06-17';
-import { CONFIG } from '../app/config.js?v=2026-06-06-17';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-06-17';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-06-17';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-06-17';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-06-17';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-06-17';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-06-17';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-06-17';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-06-17';
+import { withBuild } from '../app/build.js?v=2026-06-06-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-06-23';
+import { CONFIG } from '../app/config.js?v=2026-06-06-23';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-06-23';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-06-23';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-06-23';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-06-23';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-06-23';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-06-23';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-06-23';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-06-23';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-06-17';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-06-23';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-06-17';
+} from './picker_common.js?v=2026-06-06-23';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-06-17';
+} from './picker_stats.js?v=2026-06-06-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2745,9 +2745,9 @@ function refreshTotalSum() {
     addedBtn.classList.toggle('is-ready', total > 0);
   }
 
-  // WD.2.5 — кнопка предпросмотра ученика: тусклая при 0, активная при ≥1
-  const previewBtn = $('#previewBtn');
-  if (previewBtn) previewBtn.disabled = total <= 0;
+  // WD.2.6 — предпросмотр активен только по готовности резолва (фоновый префетч), не сразу;
+  // блеклый при 0 задач и пока идёт прогрузка. «Начать» при этом активна сразу (ниже).
+  updatePreviewBtnState();
 
   // Мобильная панель кнопок: фиксируем к низу viewport только когда есть выбор
   document.body.classList.toggle('ht-has-selection', total > 0);
@@ -4333,6 +4333,12 @@ let _STUDENT_PREVIEW_RETURN_FOCUS = null;
    Аналог teacher-паттерна (там набор замораживается в teacher_picked_refs и переиспользуется). */
 let STUDENT_RESOLVE = { sig: null, questions: null };
 
+// WD.2.6 — состояние готовности предпросмотра: #previewBtn активна только когда задачи для
+// текущего выбора уже зарезолвлены+статистика загружена (фоновый префетч). До этого — блеклая.
+let _PREVIEW_READY_SIG = null;
+let _PREVIEW_PREWARM_TIMER = null;
+let _PREVIEW_PREWARM_SEQ = 0;
+
 function studentSelectionSignature() {
   const norm = (obj) => Object.keys(obj || {}).sort().map((k) => `${k}:${(obj || {})[k]}`).join(',');
   return `t=${norm(CHOICE_TOPICS)}|s=${norm(CHOICE_SECTIONS)}|p=${norm(CHOICE_PROTOS)}`;
@@ -4396,35 +4402,60 @@ async function openStudentPreview() {
   // единый резолв (кэш по сигнатуре) — тот же набор, что и при «Начать»
   const questions = await resolveStudentSelection();
   if (seq !== _STUDENT_PREVIEW_SEQ || !STUDENT_PREVIEW_OPEN) return; // закрыли/переоткрыли
+  // грузим self-статистику ДО рендера (анти-мигание: бейджи появляются сразу корректными)
+  const stats = await loadSelfStatsForQuestions(questions);
+  if (seq !== _STUDENT_PREVIEW_SEQ || !STUDENT_PREVIEW_OPEN) return;
 
   if (hint) hint.textContent = '';
-  renderAddedTasksPreview(Array.isArray(questions) ? questions : [], { wantTotal, studentLabel: true });
+  renderAddedTasksPreview(Array.isArray(questions) ? questions : [], {
+    wantTotal, studentLabel: true, selfStatsMap: stats.map, selfStatsOk: stats.ok,
+  });
   try { await typesetMathIfNeeded(listWrap || list); } catch (_) {}
-  refreshStudentPreviewBadges(Array.isArray(questions) ? questions : []);
 }
 
-// WD.2.6 — бейджи СВОЕЙ статистики (last-3 с фолбэком на all-time) в карточках предпросмотра.
-let _STUDENT_BADGE_SEQ = 0;
-async function refreshStudentPreviewBadges(questions) {
+// WD.2.6 — загрузка СВОЕЙ статистики (last-3) по прототипам набора. Возвращает { map, ok }.
+// Грузится ДО рендера (как в прото-модалке) — чтобы бейджи не мигали «Загрузка»→значение.
+async function loadSelfStatsForQuestions(questions) {
   const arr = Array.isArray(questions) ? questions : [];
-  const { list } = getAddedTasksModalEls();
-  if (!list || !arr.length) return;
-  const seq = ++_STUDENT_BADGE_SEQ;
   const unicIds = Array.from(new Set(arr.map((q) => baseIdFromProtoId(String(q?.question_id || '').trim())).filter(Boolean)));
-  if (!unicIds.length) return;
+  if (!unicIds.length) return { map: new Map(), ok: true };
   const res = await loadProtoLast3ForSelf(unicIds, { timeoutMs: 8000 });
-  if (seq !== _STUDENT_BADGE_SEQ || !STUDENT_PREVIEW_OPEN) return; // переоткрыли/закрыли
-  const map = res?.map instanceof Map ? res.map : new Map();
-  const ok = !!res?.ok;
-  for (const card of list.querySelectorAll('.added-task-card')) {
-    const unic = baseIdFromProtoId(String(card.dataset.questionId || '').trim());
-    applyProtoCardBadgeEls(
-      card.querySelector('.added-task-badge'),
-      card.querySelector('.added-task-date-badge'),
-      map.get(unic) || null,
-      { ok },
-    );
-  }
+  return { map: res?.map instanceof Map ? res.map : new Map(), ok: !!res?.ok };
+}
+
+// WD.2.6 — состояние #previewBtn: активна только когда выбор зарезолвлен (префетч готов).
+// «Начать» при этом активна сразу (логика в refreshTotalSum); предпросмотр — по готовности.
+function updatePreviewBtnState() {
+  if (!IS_STUDENT_PAGE) return;
+  const btn = $('#previewBtn');
+  if (!btn) return;
+  const total = getTotalSelected();
+  if (total <= 0) { btn.disabled = true; return; }
+  const ready = _PREVIEW_READY_SIG === studentSelectionSignature();
+  btn.disabled = !ready; // блеклая (disabled) пока не готово
+  if (!ready) schedulePreviewPrewarm();
+}
+
+function schedulePreviewPrewarm() {
+  if (_PREVIEW_PREWARM_TIMER) clearTimeout(_PREVIEW_PREWARM_TIMER);
+  _PREVIEW_PREWARM_TIMER = setTimeout(() => { _PREVIEW_PREWARM_TIMER = null; prewarmStudentPreview(); }, 500);
+}
+
+// фоновый префетч: резолв + self-статистика для текущего выбора → по готовности включаем #previewBtn
+async function prewarmStudentPreview() {
+  if (!IS_STUDENT_PAGE) return;
+  if (getTotalSelected() <= 0) return;
+  if (STUDENT_PREVIEW_OPEN) return; // не дёргаем, пока модалка открыта (выбор не меняется)
+  const sig = studentSelectionSignature();
+  const seq = ++_PREVIEW_PREWARM_SEQ;
+  try {
+    const questions = await resolveStudentSelection();
+    await loadSelfStatsForQuestions(questions);
+  } catch (_) { return; }
+  if (seq !== _PREVIEW_PREWARM_SEQ) return;            // запущен новый префетч
+  if (sig !== studentSelectionSignature()) return;     // выбор сменился — не готово
+  _PREVIEW_READY_SIG = sig;
+  updatePreviewBtnState();
 }
 
 // WD.2.6 — счётчик подборки = длине рабочего набора (после +/×).
@@ -4445,11 +4476,11 @@ function syncStudentPreviewCount() {
 async function rerenderStudentPreview() {
   const { meta, listWrap, list } = getAddedTasksModalEls();
   const arr = Array.isArray(STUDENT_RESOLVE.questions) ? STUDENT_RESOLVE.questions : [];
-  renderAddedTasksPreview(arr, { wantTotal: 0, studentLabel: true });
+  const stats = await loadSelfStatsForQuestions(arr); // кэш тёплый → мгновенно, без мигания
+  renderAddedTasksPreview(arr, { wantTotal: 0, studentLabel: true, selfStatsMap: stats.map, selfStatsOk: stats.ok });
   if (meta) meta.textContent = `Всего: ${arr.length}`;
   syncStudentPreviewCount();
   try { await typesetMathIfNeeded(listWrap || list); } catch (_) {}
-  refreshStudentPreviewBadges(arr);
 }
 
 // «×» — убрать задачу из рабочего набора
@@ -4834,8 +4865,9 @@ function renderAddedTasksPreview(questions, opts = {}) {
 
     if (opts.studentLabel) {
       // ── Студенческий предпросмотр: верхняя строка [подпись прототипа] … [бейджи][+][×] ──
-      // Бейджи (своя статистика last-3) наполняет refreshStudentPreviewBadges (async); пока «Загрузка…».
-      applyProtoCardBadgeEls(statsBadge, dateBadge, null, { ok: false });
+      // Бейджи (своя статистика last-3) ставим СРАЗУ из selfStatsMap (загружена до рендера) — без мигания.
+      const _unic = baseIdFromProtoId(String(q?.question_id || '').trim());
+      applyProtoCardBadgeEls(statsBadge, dateBadge, (opts.selfStatsMap && opts.selfStatsMap.get(_unic)) || null, { ok: !!opts.selfStatsOk });
 
       const toprow = document.createElement('div');
       toprow.className = 'added-task-toprow';
