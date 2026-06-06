@@ -1799,6 +1799,8 @@ input:focus:not(:focus-visible){
 :is(#addedTasksModal, #protoPickerModal) .added-task-remove{ color:#dc2626; }
 /* степпер количества (аккордеон) — кнопки/значение/«из N» используют общие .tp-ctr-* выше */
 :is(#addedTasksModal, #protoPickerModal) .added-task-stepper{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
+/* контейнер кнопок «+»/«×» (предпросмотр) — единый блок справа, как и степпер */
+:is(#addedTasksModal, #protoPickerModal) .added-task-acts{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
 /* WD.2.7 fix (П3) — бейджи точности и давности РАВНОЙ ширины (96px, как было у .proto-modal-badge);
    .modal-stats-badge иначе min-width:96, а .modal-date-badge min-width:74 → точность была шире. */
 :is(#addedTasksModal, #protoPickerModal) .modal-stats-badge,
@@ -1810,16 +1812,35 @@ body.preview-open{ overflow:hidden !important; }
   flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
 }
 
+/* ФБ4 — модалки центрируются по ВИДИМОЙ области (dvh), не по 100vh. На iOS Safari 100vh больше
+   видимого (адресная строка/тулбар тянутся за её пределы), и высокая модалка (≈100vh-24) верхним
+   краем уходит под верхнюю панель → заголовок+× обрезаются. dvh = динамический вьюпорт (с учётом
+   тулбаров). vh-правила выше (.modal inset:0 / .modal-card max-height:100vh) остаются fallback'ом. */
+#addedTasksModal, #protoPickerModal { height: 100dvh; bottom: auto; }
+#addedTasksModal .modal-card, #protoPickerModal .modal-card { max-height: calc(100dvh - 24px); }
+
 /* WD.2.7 — мобайл: карточка в 1 колонку (картинка под условием). Брейкпоинт как в
    home_student.mobile.css; обе модалки, обе роли.
    П1: модалка НЕ нижний-лист — центрируется через .modal{flex} (как десктоп); .modal-card берёт
    десктоп-размеры (min(980,100vw-24) + max-height + внутренний скролл), растёт по контенту по центру. */
 @media (orientation: portrait) and (max-width: 1024px), (max-width: 900px) {
-  /* П2: в аккордеон-модалке прячем подпись (номер) целиком — иначе номер+бейджи+степпер не влезают
-     в строку. Верхняя строка остаётся = бейджи + степпер. (Предпросмотр номер сохраняет.) */
-  #protoPickerModal .added-task-toplabel{ display:none !important; }
-  /* предпросмотр на мобайле: название прячем, остаётся номер */
-  :is(#addedTasksModal, #protoPickerModal) .added-task-toplabel .proto-name{ display:none !important; }
+  /* ФБ1 — на мобайле прячем подпись (номер) в ОБЕИХ модалках: длинные строки иначе не влезают.
+     Верхняя строка = бейджи + контролы (+/× или степпер). */
+  :is(#addedTasksModal, #protoPickerModal) .added-task-toplabel{ display:none !important; }
+  /* ФБ3 — номера нет → бейджи ВЛЕВО, контролы (acts/степпер) — ВПРАВО, через space-between
+     (без margin:auto и без grow — иначе ломается сжатие/растягивается бейдж). 2 элемента:
+     бейдж-группа + единый контейнер контролов (.added-task-acts или .added-task-stepper). */
+  :is(#addedTasksModal, #protoPickerModal) .added-task-right{
+    flex:1 1 100% !important; margin-left:0 !important; justify-content:space-between !important; flex-wrap:wrap !important;
+  }
+  :is(#addedTasksModal, #protoPickerModal) .added-task-right .modal-badge-group{ flex:0 1 auto !important; min-width:0 !important; }
+  /* ФБ2 — на узком экране бейджи сжимаются РАВНОМЕРНО (вместо фикс-96px из десктоп-правила),
+     при крайней нехватке строка переносится (flex-wrap выше). */
+  :is(#addedTasksModal, #protoPickerModal) .modal-stats-badge,
+  :is(#addedTasksModal, #protoPickerModal) .modal-date-badge{ width:auto !important; flex:0 1 96px !important; min-width:0 !important; }
+  /* компактнее зазоры на узких экранах, чтобы строка [бейджи · контролы] влезала (320px) */
+  :is(#addedTasksModal, #protoPickerModal) .modal-badge-group{ gap:4px !important; }
+  :is(#addedTasksModal, #protoPickerModal) .added-task-stepper{ gap:4px !important; }
   :is(#addedTasksModal, #protoPickerModal) .added-task-stepper .tp-ctr-cap{ display:none !important; }
   :is(#addedTasksModal, #protoPickerModal) .added-task-card,
   :is(#addedTasksModal, #protoPickerModal) .added-task-card:has(.task-fig){
