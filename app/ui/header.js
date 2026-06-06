@@ -256,6 +256,13 @@ btn.className = 'btn small user-menu-btn';
 btn.setAttribute('aria-haspopup', 'menu');
 btn.setAttribute('aria-expanded', 'false');
 
+// WD.2.6: аватар-кружок с инициалом (показывается только на мобайле через CSS)
+const avatar = document.createElement('span');
+avatar.id = 'userMenuAvatar';
+avatar.className = 'user-menu-avatar';
+avatar.setAttribute('aria-hidden', 'true');
+btn.appendChild(avatar);
+
 const label = document.createElement('span');
 label.className = 'user-menu-btn-label';
 label.textContent = 'Аккаунт';
@@ -306,6 +313,7 @@ auth.appendChild(userMenuWrap);
     userMenuWrap,
     userBtn: $('#userMenuBtn', userMenuWrap),
     userBtnLabel: $('#userMenuBtn .user-menu-btn-label', userMenuWrap),
+    userAvatar: $('#userMenuAvatar', userMenuWrap),
     myHwBellTop: $('#myHwBellTop', userMenuWrap),
     menu: $('#userMenu', userMenuWrap),
     menuMyHw: $('#menuMyHw', userMenuWrap),
@@ -679,6 +687,7 @@ export async function initHeader(opts = {}) {
     const nm = String(name || '').trim();
     if (ui.userBtnLabel) ui.userBtnLabel.textContent = nm || 'Аккаунт';
     else ui.userBtn.textContent = nm || 'Аккаунт';
+    if (ui.userAvatar) ui.userAvatar.textContent = (nm || '?').charAt(0).toUpperCase();
   };
 
   const applySessionToUI = (session) => {

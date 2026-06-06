@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-05-15">
+  <meta name="app-build" content="2026-06-06-13">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -108,17 +108,20 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-05-15">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-05-15">
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-05-15">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-05-15">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-06-13">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-06-13">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-06-13">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-06-13">
 </head>
 <body data-home-variant="student">
   <main class="container">
     <section id="picker">
       <div class="panel">
         <header id="appHeader" class="page-head">
-          <h1 style="margin:0">Тренажер по задачам из банка ФИПИ</h1>
+          <div class="home-head-text">
+            <div class="home-eyebrow">Подготовка к ЕГЭ по профильной математике</div>
+            <h1 class="home-h1">Выберите темы для тренировки</h1>
+          </div>
         </header>
         <script type="module">
           const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
@@ -155,8 +158,6 @@
               Умная тренировка
             </button>
           </div>
-
-          <button id="start" class="start-sum-btn" disabled>Начать · Итого: <span id="sum">0</span></button>
         </div>
 
         <div class="theme-toggle">
@@ -182,33 +183,91 @@
         <div id="smartHint" class="smart-hint"></div>
       </div>
 
-      <!-- Ряд 2: массовые кнопки (слева) + итого (справа) -->
-      <div class="sub-controls">
-        <div class="bulk-controls" id="bulkControls">
-          <button id="bulkPickAll" type="button">Выбрать все</button>
-          <button id="bulkResetAll" type="button">Сбросить все</button>
-          <label class="shuffle shuffle-inline">
-            <input type="checkbox" id="shuffleToggle">
-            Перемешать задачи
-          </label>
-        </div>
-      </div>
-
       <!-- Ряд 3: аккордеон + прогноз баллов -->
       <div class="picker-grid">
         <div class="picker-left">
+          <!-- WD.2.4-polish: массовые кнопки внутри колонки аккордеона → правый рельс
+               выравнивается по их уровню (см. референс Варианта 2). -->
+          <div class="sub-controls">
+            <div class="bulk-controls" id="bulkControls">
+              <button id="bulkPickAll" type="button">Выбрать все</button>
+              <button id="bulkResetAll" type="button">Сбросить все</button>
+              <label class="shuffle shuffle-inline">
+                <input type="checkbox" id="shuffleToggle">
+                Перемешать задачи
+              </label>
+            </div>
+          </div>
           <div id="accordion" class="accordion"></div>
         </div>
-        <aside class="picker-right" aria-label="Прогноз баллов">
+        <aside class="picker-right" aria-label="Подборка и прогноз">
+          <div class="start-card" id="startCard">
+            <div class="sc-head">
+              <span class="sc-eyebrow">Подборка</span>
+              <span class="sc-count"><span id="sum">0</span> <span id="sumWord">задач</span></span>
+            </div>
+            <button id="previewBtn" class="sc-preview" type="button" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Предпросмотр</span>
+            </button>
+            <button id="start" class="sc-start" disabled><span class="sc-start-label">Начать<span class="sc-start-word">&nbsp;тренировку</span></span><span class="sc-start-count" id="startCount" hidden></span></button>
+            <div class="sc-empty">Добавьте задачи в темах слева</div>
+          </div>
+
+          <!-- WD.2.6: компактный мобильный прогноз (strip). На десктопе скрыт (home-student.css),
+               на мобайле показан вместо вертикального градусника; наполняет picker_stats.updateScoreForecast. -->
+          <div class="mf-strip" id="mForecast" aria-hidden="true" style="--sec:0">
+            <div class="mf-row1">
+              <span class="mf-eyebrow">Прогноз ЕГЭ</span>
+              <span class="mf-primary">первичные <b id="mfPrimary">—</b></span>
+            </div>
+            <div class="mf-row2">
+              <span class="mf-big"><b id="mfSecondary">—</b><span class="mf-max"> из 100 баллов</span></span>
+              <span class="mf-delta">+<b id="mfDelta">—</b> до цели</span>
+            </div>
+            <div class="mf-bar" aria-hidden="true">
+              <div class="mf-fill"></div>
+              <div class="mf-goalline"></div>
+            </div>
+            <div class="mf-marks" aria-hidden="true">
+              <span>0</span>
+              <span class="mf-goal">цель 70</span>
+              <span>100</span>
+            </div>
+          </div>
+
           <div class="score-forecast" id="scoreForecast">
-<div class="sf-row">
-              <div class="sf-label">Первичные (до округления)</div>
-              <div class="sf-value" id="sfPrimaryExact">—</div>
+            <div class="sf-eyebrow">Прогноз ЕГЭ</div>
+            <div class="sf-bignum">
+              <span class="sf-value sf-secondary" id="sfSecondary">—</span>
+              <span class="sf-max">из 100</span>
             </div>
-            <div class="sf-row">
-              <div class="sf-label">Вторичные</div>
-              <div class="sf-value" id="sfSecondary">—</div>
+            <div class="sf-caption">вторичный балл сейчас</div>
+
+            <div class="sf-gauge" id="sfGauge" style="--sec:0">
+              <div class="sf-track" aria-hidden="true">
+                <div class="sf-goalzone"></div>
+                <div class="sf-fill"></div>
+                <div class="sf-goalline"></div>
+              </div>
+              <div class="sf-marks" aria-hidden="true">
+                <span class="sf-mark sf-mark-edge" style="--at:100">100</span>
+                <span class="sf-mark sf-mark-goal" style="--at:70">цель 70</span>
+                <span class="sf-mark sf-mark-cur" id="sfMarkCur" style="--at:0">вы здесь</span>
+                <span class="sf-mark sf-mark-edge" style="--at:0">0</span>
+              </div>
             </div>
+
+            <div class="sf-delta">
+              <div class="sf-delta-label">До цели в 70 баллов</div>
+              <div class="sf-delta-val">+<span id="sfDelta">—</span><span class="sf-delta-unit"> балла</span></div>
+            </div>
+
+            <div class="sf-primary-row">
+              <span class="sf-primary-label">Первичные баллы</span>
+              <span class="sf-value" id="sfPrimaryExact">—</span>
+            </div>
+
             <div class="sf-note" id="sfNote" hidden></div>
           </div>
 
@@ -243,8 +302,30 @@
     </div>
   </div>
 
-  <script src="./tasks/theme.js?v=2026-06-05-15" defer></script>
-  <script type="module" src="./tasks/home_guard.js?v=2026-06-05-15"></script>
-  <script type="module" src="./tasks/picker.js?v=2026-06-05-15"></script>
+  <!-- WD.2.5: модалка предпросмотра подборки (конкретные задачи). Те же id, что у teacher-модалки
+       (home_teacher.html) — нужны готовому renderAddedTasksPreview/getAddedTasksModalEls. Без шафл-тоггла
+       (на странице уже есть #shuffleToggle). Триггер — кнопка #previewBtn в карточке «Подборка». -->
+  <div id="addedTasksModal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Предпросмотр задач">
+      <div class="modal-head">
+        <div class="modal-title">Предпросмотр задач</div>
+        <div class="tp-main-actions">
+          <div id="addedTasksMeta" class="muted">—</div>
+          <button id="addedTasksClose" class="btn small" type="button" aria-label="Закрыть">×</button>
+        </div>
+      </div>
+      <div class="added-tasks-main">
+        <div id="addedTasksListWrap" class="added-tasks-listwrap">
+          <div id="addedTasksList" class="task-list"></div>
+        </div>
+        <div id="addedTasksHint" class="muted tp-hint"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./tasks/theme.js?v=2026-06-06-13" defer></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-06-06-13"></script>
+  <script type="module" src="./tasks/picker.js?v=2026-06-06-13"></script>
 </body>
 </html>

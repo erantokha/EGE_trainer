@@ -128,7 +128,7 @@
       "titleText": "8. Производная и графики",
       "titleStat": [],
       "last10": {
-        "color": "red",
+        "color": "yellow",
         "value": "<N>%",
         "small": null,
         "tip": "Процент правильных ответов"
@@ -732,7 +732,7 @@
       "titleText": "8.1. Значение производной в точке касания",
       "titleStat": [],
       "last10": {
-        "color": "red",
+        "color": "green",
         "value": "<N>%",
         "small": "",
         "tip": "Средняя точность прототипов (последние <N> попытки)"

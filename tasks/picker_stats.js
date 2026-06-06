@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-05-15';
+} from './picker_common.js?v=2026-06-06-13';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
@@ -44,6 +44,13 @@ export function setHomeBadge(badgeEl, p, total, correct, title) {
   const cls = badgeClassByPct(p);
   badgeEl.classList.remove(...BADGE_COLOR_CLASSES);
   badgeEl.classList.add(cls);
+
+  // WD.2.4 — заливка прогресс-бара аккордеона (только вид; класс-цвет/текст/tip не трогаем,
+  // charnet снимает их, а --pct/no-pct — нет). hasPct=false → пустой/серый бар.
+  const pv = Number(p);
+  const hasPct = (p !== null && p !== undefined && Number.isFinite(pv));
+  badgeEl.style.setProperty('--pct', hasPct ? String(Math.max(0, Math.min(100, pv))) : '0');
+  badgeEl.classList.toggle('no-pct', !hasPct);
 
   const b = badgeEl.querySelector('b');
   if (b) b.textContent = fmtPct(p);
@@ -236,13 +243,33 @@ export function updateScoreForecast(sectionPctById, opts = {}) {
   const elP = document.getElementById('sfPrimaryExact');
   const elS = document.getElementById('sfSecondary');
   const elN = document.getElementById('sfNote');
+  // WD.2.1 — узлы «градусника» прогноза (есть только на главной ученика; иначе no-op)
+  const gauge = document.getElementById('sfGauge');
+  const markCur = document.getElementById('sfMarkCur');
+  const elDelta = document.getElementById('sfDelta');
+  // WD.2.6 — узлы компактного мобильного strip-прогноза (есть только на главной ученика)
+  const mfSec = document.getElementById('mfSecondary');
+  const mfPrim = document.getElementById('mfPrimary');
+  const mfDel = document.getElementById('mfDelta');
+  const mForecast = document.getElementById('mForecast');
+  const GOAL = 70; // фиксированная цель (вторичных баллов); позже — настройка на ученика
 
+  const setGauge = (secClamped) => {
+    if (gauge) gauge.style.setProperty('--sec', String(secClamped));
+    if (markCur) markCur.style.setProperty('--at', String(secClamped));
+    if (mForecast) mForecast.style.setProperty('--sec', String(secClamped));
+  };
 
   const signedIn = opts?.signedIn !== false;
 
   if (!signedIn) {
     if (elP) elP.textContent = '—';
     if (elS) elS.textContent = '—';
+    if (elDelta) elDelta.textContent = '—';
+    if (mfSec) mfSec.textContent = '—';
+    if (mfPrim) mfPrim.textContent = '—';
+    if (mfDel) mfDel.textContent = '—';
+    setGauge(0);
     if (elN) { elN.hidden = true; elN.textContent = ''; }
     updateScoreThermo(0, 0, { signedIn: false });
     return;
@@ -258,9 +285,16 @@ export function updateScoreForecast(sectionPctById, opts = {}) {
 
   const primaryExact = sum;
   const secondary = secondaryFromPrimaryExact(primaryExact);
+  const secClamped = Math.max(0, Math.min(100, secondary));
+  const toGoal = Math.max(0, Math.round(GOAL - secondary));
 
   if (elP) elP.textContent = fmtPrimaryExact(primaryExact);
   if (elS) elS.textContent = fmtSecondaryExact(secondary);
+  if (elDelta) elDelta.textContent = String(toGoal);
+  if (mfSec) mfSec.textContent = String(Math.round(secondary));
+  if (mfPrim) mfPrim.textContent = fmtPrimaryExact(primaryExact);
+  if (mfDel) mfDel.textContent = String(toGoal);
+  setGauge(secClamped);
 
   if (elN) {
     elN.hidden = false;

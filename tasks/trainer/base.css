@@ -1277,6 +1277,25 @@ input:focus:not(:focus-visible){
 /* кликабельные названия подтем для выбора прототипов */
 #accordion .node.topic .title.proto-clickable{cursor:pointer}
 
+/* Аккордеон (главная ученика И учителя, оба уровня): единая лёгкая hover-анимация —
+   название чуть сдвигается вправо, без рамок. Прямоугольная фокус-обводка убрана
+   (у подтемы .title — это <div>, не покрытый глобальным button/input:focus-правилом);
+   клавиатурный фокус показываем тем же сдвигом. */
+#accordion .section-title,
+#accordion .node.topic .title{
+  transition: transform .15s ease;
+}
+#accordion .section-title:hover,
+#accordion .section-title:focus-visible,
+#accordion .node.topic .title:hover,
+#accordion .node.topic .title:focus-visible{
+  transform: translateX(3px);
+}
+#accordion .section-title:focus,
+#accordion .node.topic .title:focus{
+  outline: none;
+}
+
 
 /* hw_create: верхняя панель + авторизация */
 .create-head { display:flex; justify-content:space-between; align-items:center; }
@@ -2024,6 +2043,10 @@ body.vs-modal-open{ overflow:hidden; }
   gap: 6px;
   white-space: nowrap;
 }
+
+/* WD.2.6: аватар-кружок в пилюле — по умолчанию скрыт; показывается только на мобайле
+   главной ученика (home_student.mobile.css), чтобы пилюля читалась как меню. */
+.user-menu-avatar{ display: none; }
 
 
 .user-menu-btn-label{

@@ -9,37 +9,144 @@ body[data-home-variant="student"] #picker .picker-grid{
 
 body[data-home-variant="student"] #picker .picker-left{flex:1 1 auto; min-width:0}
 
-body[data-home-variant="student"] #picker .picker-right{flex:0 0 260px; width:260px}
+body[data-home-variant="student"] #picker .picker-right{flex:0 0 280px; width:280px}
 
+/* WD.2.2 — карточка «Подборка → Начать» (Claude Design, Вариант 2).
+   #sum/#start ведёт picker.js (счётчик + disabled); пустую подсказку
+   гасим по body.ht-has-selection (его ставит picker.js при total>0). */
+.start-card{
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--panel);
+  box-shadow:0 10px 30px rgba(15,23,42,.10);
+  padding:16px 18px;
+  margin-bottom:16px;
+}
+.start-card .sc-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
+.start-card .sc-eyebrow{
+  font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-dim);
+}
+.start-card .sc-count{ font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--text-dim); }
+body.ht-has-selection .start-card .sc-count{ color:var(--text); }
+.start-card .sc-start{
+  width:100%; margin-top:13px; padding:13px 16px;
+  border-radius:12px; border:1px solid transparent;
+  font-size:15px; font-weight:700; letter-spacing:-0.01em;
+  background:linear-gradient(135deg,#3b82f6 0%,#1a3fa8 100%); color:#fff; cursor:pointer;
+  box-shadow:0 4px 14px rgba(37,99,235,.4);
+  transition:filter .15s ease, opacity .15s ease;
+}
+.start-card .sc-start:hover{ filter:brightness(1.05); }
+.start-card .sc-start:active{ transform:translateY(1px); }
+.start-card .sc-start:disabled{
+  background:var(--panel-2); color:var(--text-dim); box-shadow:none; cursor:not-allowed;
+}
+.start-card .sc-empty{ font-size:12px; color:var(--text-dim); margin-top:10px; text-align:center; }
+body.ht-has-selection .start-card .sc-empty{ display:none; }
+
+/* WD.2.3 — шапка: надзаголовок + H1 + подпись (слева), пилюля пользователя (справа).
+   Контент кладём в #appHeader → header.js переносит его в .page-head-left;
+   пилюлю #userMenuBtn строит header.js в .page-head-right — рестайлим скоупленно,
+   без правок header.js. Прочие страницы (учитель/тренажёр) не затрагиваются. */
+body[data-home-variant="student"] #picker .page-head{ align-items:flex-start; }
+body[data-home-variant="student"] .home-head-text{ min-width:0; }
+body[data-home-variant="student"] .home-eyebrow{
+  font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:7px;
+}
+body[data-home-variant="student"] .home-h1{
+  margin:0; font-size:28px; font-weight:800; letter-spacing:-0.03em; line-height:1.05; color:var(--text);
+}
+body[data-home-variant="student"] .home-sub{
+  margin:8px 0 0; font-size:14px; color:var(--text-dim); max-width:62ch;
+}
+
+/* пилюля пользователя — рестайл #userMenuBtn (только на главной ученика) */
+body[data-home-variant="student"] #userMenuBtn{
+  border:1px solid var(--border); background:var(--panel);
+  border-radius:999px; padding:5px 12px; gap:9px;
+}
+body[data-home-variant="student"] #userMenuBtn:hover{ background:var(--surface2,#f1f5f9); }
+body[data-home-variant="student"] #userMenuBtn .user-menu-btn-label{
+  font-size:14px; font-weight:600; color:var(--text);
+}
+body[data-home-variant="student"] #userMenuBtn .hw-bell--top{
+  width:18px; height:18px; margin-left:7px; padding-left:9px;
+  border-left:1px solid var(--border); box-sizing:content-box;
+}
+
+/* WD.2.1 — прогноз как «градусник» ЕГЭ (Claude Design, Вариант 2).
+   Значения заливки/«вы здесь»/«до цели» подаёт picker_stats.js через --sec
+   на #sfGauge; цель/макс фиксированы в CSS (--goal:70, шкала 0..100). */
 body[data-home-variant="student"] #picker .score-forecast{
   border:1px solid var(--border);
-  border-radius:14px;
-  padding:12px;
-  background:rgba(148,163,184,.06);
+  border-radius:16px;
+  padding:20px;
+  background:var(--panel);
+  box-shadow:0 10px 30px rgba(15,23,42,.10);
 }
-
-body[data-home-variant="student"] #picker .score-forecast .sf-row{
-  display:flex;
-  align-items:baseline;
-  justify-content:space-between;
-  gap:10px;
-  padding:6px 0;
+.score-forecast .sf-eyebrow{
+  font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--accent);
 }
-
-body[data-home-variant="student"] #picker .score-forecast .sf-label{
-  font-size:12px;
-  color:var(--text-dim);
+.score-forecast .sf-bignum{ display:flex; align-items:flex-end; gap:8px; margin-top:12px; }
+.score-forecast .sf-secondary{
+  font-size:56px; font-weight:800; letter-spacing:-0.045em; line-height:.85;
+  font-variant-numeric:tabular-nums; color:var(--text);
 }
+.score-forecast .sf-max{ font-size:15px; color:var(--text-dim); margin-bottom:6px; }
+.score-forecast .sf-caption{ font-size:13px; color:var(--text-dim); margin-top:5px; }
 
-body[data-home-variant="student"] #picker .score-forecast .sf-value{
-  font-size:18px;
-  font-variant-numeric:tabular-nums;
+.score-forecast .sf-gauge{ display:flex; gap:16px; margin-top:20px; --goal:70; }
+.score-forecast .sf-track{
+  position:relative; width:28px; height:210px; flex:0 0 auto;
+  border-radius:999px; background:rgba(15,23,42,.05);
 }
+.score-forecast .sf-goalzone{
+  position:absolute; left:0; right:0; top:0; bottom:calc(var(--goal,70)*1%);
+  border-radius:999px 999px 0 0;
+  background:repeating-linear-gradient(135deg, rgba(37,99,235,.06) 0 6px, transparent 6px 12px);
+}
+.score-forecast .sf-fill{
+  position:absolute; left:0; right:0; bottom:0;
+  height:calc(var(--sec,0)*1%);
+  border-radius:999px;
+  background:linear-gradient(180deg,#60a5fa,#1d4ed8);
+  box-shadow:0 2px 10px rgba(37,99,235,.35);
+  transition:height .3s ease;
+}
+.score-forecast .sf-goalline{
+  position:absolute; left:-6px; right:-6px; bottom:calc(var(--goal,70)*1%);
+  border-top:2px dashed var(--accent);
+}
+.score-forecast .sf-marks{ position:relative; flex:1; height:210px; font-variant-numeric:tabular-nums; }
+.score-forecast .sf-mark{
+  position:absolute; left:0; right:0; bottom:calc(var(--at,0)*1%);
+  transform:translateY(50%);
+  font-size:12px; color:var(--text-dim); white-space:nowrap;
+}
+.score-forecast .sf-mark-goal{ color:var(--accent); font-weight:700; font-size:13px; }
+.score-forecast .sf-mark-cur{ color:var(--text); font-weight:700; font-size:13px; transition:bottom .3s ease; }
 
-body[data-home-variant="student"] #picker .score-forecast .sf-note{
-  margin-top:6px;
-  font-size:12px;
-  color:var(--text-dim);
+.score-forecast .sf-delta{
+  margin-top:20px; padding:13px 15px; border-radius:12px;
+  background:var(--surface,#f8fafc); border:1px solid var(--border);
+}
+.score-forecast .sf-delta-label{ font-size:12.5px; color:var(--text-dim); }
+.score-forecast .sf-delta-val{ font-size:23px; font-weight:800; letter-spacing:-0.02em; margin-top:2px; color:var(--text); }
+.score-forecast .sf-delta-unit{ font-size:14px; font-weight:500; color:var(--text-dim); }
+
+.score-forecast .sf-primary-row{
+  display:flex; justify-content:space-between; align-items:baseline;
+  margin-top:14px; padding-top:14px; border-top:1px solid rgba(15,23,42,.07);
+}
+.score-forecast .sf-primary-label{ font-size:13px; color:var(--text-dim); }
+.score-forecast .sf-primary-row .sf-value{ font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--text); }
+
+/* #sfNote сохранён для charnet/e2e-гейта (waitForStudentStatsReady), визуально скрыт */
+.score-forecast .sf-note{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
 }
 @media (max-width: 900px) {
 
@@ -311,7 +418,9 @@ body[data-home-variant="student"].home-stats-loading #accordion .home-last10-bad
 }
 
 
-/* главная ученика: окантовка только при наведении, а фокус-обводка — только для клавиатуры */
+/* главная ученика: фокус-обводка только для клавиатуры (focus-visible). Hover-обводки нет
+   (WD.2.4-polish — убран button:hover{outline}; вместо рамки — лёгкий сдвиг названий
+   в base.css, единый с учителем). */
 body[data-home-variant="student"] button:focus{
   outline:none;
 }
@@ -321,29 +430,11 @@ body[data-home-variant="student"] button:focus-visible{
   outline-offset:2px;
 }
 
-body[data-home-variant="student"] button:hover{
-  outline:2px solid rgba(59,130,246,.35);
-  outline-offset:2px;
-}
 
-
-/* главная ученика: овальная окантовка у названий тем/подтем в аккордеоне */
-body[data-home-variant="student"] #accordion .section-title,
-body[data-home-variant="student"] #accordion .node.topic .title{
-  border-radius:9999px;
-  padding-inline:0.75ch;
-}
-
-body[data-home-variant="student"] #accordion .section-title:hover,
-body[data-home-variant="student"] #accordion .section-title:focus-visible{
-  outline:none;
-  box-shadow:0 0 0 2px rgba(59,130,246,.35);
-}
-
-body[data-home-variant="student"] #accordion .node.topic .title:hover,
-body[data-home-variant="student"] #accordion .node.topic .title:focus-visible{
-  box-shadow:0 0 0 2px rgba(59,130,246,.35);
-}
+/* WD.2.4-polish: убрана «овальная окантовка» названий тем/подтем при наведении
+   (был border-radius:9999px + box-shadow-кольцо на :hover/:focus). Теперь названия плоские,
+   как на странице преподавателя (base.css 2263-2300: border:none; border-radius:0; без hover-кольца).
+   Фокус-индикатор — браузерный по умолчанию + глобальный button:focus-visible. */
 
 /* --- Home student: badges layout hard-fix (2026-02-06) ---
    Цели:
@@ -559,8 +650,8 @@ body[data-home-variant="student"] #accordion .home-badges-head .row > .home-sect
 body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{grid-column:5 / -1 !important}
 
 
-/* less vertical gap: controls -> accordion and labels -> first row */
-body[data-home-variant="student"] #picker .accordion{margin-top:4px !important}
+/* WD.2.4-polish: отступ «Выбрать все» → шапка аккордеона = отступу H1 → «Выбрать все» (~22px) */
+body[data-home-variant="student"] #picker .accordion{margin-top:22px !important}
 
 body[data-home-variant="student"] #accordion .home-badges-head{padding:0 0 1px !important}
 
@@ -720,3 +811,264 @@ body.teacher-student-view .score-thermo__primary{
   color:var(--text-dim);
   white-space:nowrap;
 }
+
+/* ============================================================================
+   WD.2.4 — аккордеон как ТАБЛИЦА (Claude Design, Вариант 2). Скоуп: главная ученика.
+   Перекрывает прежний WMB/WFX pill-грид (7 колонок) НА ТЕХ ЖЕ селекторах
+   (.node.section > .row > X) — та же специфичность, ниже по файлу, !important.
+   Колонки: [название/бар | покрытие | задачи], 2 ряда (название/ряд1, бар/ряд2).
+   Бейдж %/topic → синий бар по --pct (ставит picker_stats.setHomeBadge).
+   ============================================================================ */
+
+/* сетка строк: раздел/подтема — 3 колонки × 2 ряда */
+body[data-home-variant="student"] #accordion .node.section > .row,
+body[data-home-variant="student"] #accordion .node.topic > .row{
+  display:grid !important;
+  grid-template-columns: minmax(0,1fr) 56px 96px !important;
+  grid-template-rows: auto auto !important;
+  column-gap:16px !important; row-gap:3px !important;
+  align-items:center !important;
+  padding:6px 12px !important;
+}
+body[data-home-variant="student"] #accordion .node.topic > .row{ padding-left:34px !important; }
+/* шапка — те же колонки, один ряд */
+body[data-home-variant="student"] #accordion .home-badges-head .row{
+  display:grid !important;
+  grid-template-columns: minmax(0,1fr) 56px 96px !important;
+  grid-template-rows: auto !important;
+  column-gap:16px !important;
+  padding:0 12px 8px !important;
+  border-bottom:1px solid var(--border) !important;
+  align-items:end !important;
+}
+
+/* строка названия (стрелка + название + 📊) → колонка 1, ряд 1 */
+body[data-home-variant="student"] #accordion .node.section > .row > .row-title,
+body[data-home-variant="student"] #accordion .node.topic > .row > .row-title{
+  grid-column:1 !important; grid-row:1 !important;
+  display:flex; align-items:center; gap:7px; min-width:0;
+}
+body[data-home-variant="student"] #accordion .row-title .section-title,
+body[data-home-variant="student"] #accordion .row-title .title{
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;
+}
+
+/* контейнер бейджей раздела → contents (pct/cov становятся ячейками сетки .row) */
+body[data-home-variant="student"] #accordion .node.section > .row > .home-section-badges{
+  display:contents !important;
+}
+
+/* степпер → колонка 3 (span 2 ряда, по центру) */
+body[data-home-variant="student"] #accordion .node.section > .row > .countbox,
+body[data-home-variant="student"] #accordion .node.topic > .row > .countbox{
+  grid-column:3 !important; grid-row:1 / span 2 !important;
+  justify-self:end; align-self:center; margin:0 !important;
+}
+
+/* спейсеры не нужны */
+body[data-home-variant="student"] #accordion .node.section > .row > .spacer,
+body[data-home-variant="student"] #accordion .node.topic > .row > .spacer,
+body[data-home-variant="student"] #accordion .home-badges-head .row > .spacer{
+  display:none !important;
+}
+
+/* ── бар точности (раздел + подтема): колонка 1, ряд 2 ── */
+body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct,
+body[data-home-variant="student"] #accordion .node.topic > .row > .home-topic-badge{
+  grid-column:1 !important; grid-row:2 !important;
+  display:flex !important; align-items:center; gap:10px;
+  width:auto !important; min-width:0 !important; max-width:none !important;
+  height:auto !important; padding:0 !important; margin:0 !important;
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important; justify-self:stretch !important; align-self:center !important;
+  --bar-color: color-mix(in oklab, var(--accent) calc(34% + var(--pct,0) * 0.66%), #94a3b8);
+}
+/* WD.2.4-fix (вариант B): бар — отдельный реальный элемент .acc-bar.
+   Псевдоэлементы ::before/::after полностью возвращены тултипу [data-tip]
+   (ушли z-index:9999 и border стрелки → нет просвечивания сквозь модалку и тёмной полосы).
+   Свой z-index у .acc-bar — auto (ниже модалки). */
+body[data-home-variant="student"] #accordion .home-section-pct .acc-bar,
+body[data-home-variant="student"] #accordion .home-topic-badge .acc-bar{
+  flex:1 1 auto; display:block; height:7px; border-radius:999px; min-width:0;
+  background:linear-gradient(to right,
+    var(--bar-color) 0 calc(var(--pct,0) * 1%),
+    rgba(15,23,42,.10) calc(var(--pct,0) * 1%) 100%);
+}
+body[data-home-variant="student"] #accordion .home-section-pct.no-pct .acc-bar,
+body[data-home-variant="student"] #accordion .home-topic-badge.no-pct .acc-bar{
+  background:rgba(15,23,42,.10);
+}
+body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct b,
+body[data-home-variant="student"] #accordion .node.topic > .row > .home-topic-badge b{
+  flex:0 0 auto; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;
+  color:var(--text); min-width:38px; text-align:right;
+}
+body[data-home-variant="student"] #accordion .home-section-pct.no-pct b,
+body[data-home-variant="student"] #accordion .home-topic-badge.no-pct b{ color:var(--text-dim) !important; }
+body[data-home-variant="student"] #accordion .home-topic-badge .small{ display:none !important; }
+
+/* ── покрытие: колонка 2, числом ── */
+body[data-home-variant="student"] #accordion .node.section > .row .home-section-cov{
+  grid-column:2 !important; grid-row:1 / span 2 !important;
+  justify-self:end !important; align-self:center !important;
+  width:auto !important; min-width:0 !important; max-width:none !important;
+  height:auto !important; padding:0 !important; margin:0 !important;
+  background:transparent !important; border:0 !important; border-radius:0 !important;
+  box-shadow:none !important;
+  font-size:13px !important; color:var(--text-dim) !important; font-variant-numeric:tabular-nums;
+}
+body[data-home-variant="student"] #accordion .home-section-cov b{ font-weight:600; }
+
+/* ── названия (теперь внутри .row-title) ── */
+body[data-home-variant="student"] #accordion .row-title .section-title{
+  border:0 !important; background:transparent !important; padding:0 !important;
+  font-size:15px !important; font-weight:650 !important; color:var(--text) !important;
+  width:auto !important; line-height:1.25 !important;
+  display:inline-flex; align-items:center;
+}
+body[data-home-variant="student"] #accordion .node.topic .row-title .title{
+  font-size:14px !important; color:var(--text-dim) !important;
+}
+/* стрелка раскрытия */
+body[data-home-variant="student"] #accordion .row-title .section-title::before{
+  content:"▶"; font-size:9px; color:var(--text-dim); margin-right:7px;
+  display:inline-block; transition:transform .15s ease;
+}
+body[data-home-variant="student"] #accordion .node.section.expanded .row-title .section-title::before{
+  transform:rotate(90deg);
+}
+/* кнопка 📊 «уникальные» в .row-title */
+body[data-home-variant="student"] #accordion .row-title .unique-btn{
+  flex:0 0 auto; width:26px !important; height:26px !important; padding:0 !important;
+  border:0 !important; background:none !important; color:#b0bfd0 !important;
+  border-radius:8px !important; cursor:pointer; font-size:0 !important;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:background .15s, color .15s;
+}
+body[data-home-variant="student"] #accordion .row-title .unique-btn:hover{ background:#f0f4f8 !important; color:var(--accent) !important; }
+body[data-home-variant="student"] #accordion .row-title .unique-btn svg{ width:16px !important; height:16px !important; }
+
+/* лёгкая зебра по разделам: 1-я строка как фон, затенение со 2-й (head — 1-й div,
+   поэтому :nth-of-type(odd) попадает на 2,4,6-ю секции). Без искусственного отделения. */
+body[data-home-variant="student"] #accordion .node.section:nth-of-type(odd) > .row{
+  background:var(--surface,#f8fafc);
+}
+
+/* WD.2.4-polish (2026-06-05) — визуальные коррективы под референс Варианта 2:
+   шапка/аккордеон сливаются с фоном (контент без «карточки»), отступ от кнопок. */
+body[data-home-variant="student"] #picker .panel{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+/* отступ между «Выбрать все/Сбросить все» и аккордеоном (раньше прилипал) */
+body[data-home-variant="student"] #picker .picker-grid{ margin-top:7px !important; }
+
+/* WD.2.4-polish (2-я итерация): скрыть переключатель режима (пока), убрать линию под
+   шапкой аккордеона, липкий правый рельс (подборка/прогноз остаются при скролле). */
+body[data-home-variant="student"] #picker #pickSwitch{ display:none !important; }
+body[data-home-variant="student"] #accordion .home-badges-head .row{ border-bottom:0 !important; }
+body[data-home-variant="student"] #picker .picker-right{
+  position:sticky !important;
+  top:16px;
+  align-self:flex-start;
+}
+/* контрастные числа в счётчиках (как на референсе) */
+body[data-home-variant="student"] #accordion .countbox .count{
+  font-weight:700 !important;
+  color:var(--text) !important;
+}
+
+/* WD.2.4-polish (3-я итерация): сузить рельс под содержимое «Прогноза» с симметричными
+   боковыми отступами (20→40px), карточки прижать вправо → больше воздуха от счётчиков.
+   Колонка остаётся 280px, карточки уже → слева появляется зазор от аккордеона. */
+body[data-home-variant="student"] #picker .picker-right{
+  display:flex; flex-direction:column; gap:16px; align-items:flex-end;
+}
+body[data-home-variant="student"] #picker .start-card,
+body[data-home-variant="student"] #picker .score-forecast,
+body[data-home-variant="student"] #picker .home-proto-panel{
+  width:240px !important; max-width:240px !important; margin-bottom:0 !important;
+}
+/* «Прогноз»: симметричные боковые отступы 40px (было 20) — убирает пустоту справа от чисел */
+body[data-home-variant="student"] #picker .score-forecast{
+  padding:20px 40px !important;
+}
+/* «16,0 из 100» в одну строку (без переноса «из 100» при узком блоке) */
+body[data-home-variant="student"] #picker .score-forecast .sf-bignum{ flex-wrap:nowrap; white-space:nowrap; }
+body[data-home-variant="student"] #picker .score-forecast .sf-max{ white-space:nowrap; }
+/* верх карточки «Подборка» выровнять по ряду кнопок «Выбрать все» (+8px) */
+body[data-home-variant="student"] #picker .start-card{ margin-top:8px !important; }
+
+/* ── шапка-таблица: 3 лейбла ── */
+body[data-home-variant="student"] #accordion .home-head-label{
+  font-size:11px; color:var(--text-dim); letter-spacing:.04em; text-transform:uppercase;
+}
+body[data-home-variant="student"] #accordion .home-head-title{ grid-column:1 !important; }
+body[data-home-variant="student"] #accordion .home-head-cov{ grid-column:2 !important; justify-self:end; text-align:right; }
+body[data-home-variant="student"] #accordion .home-head-tasks{ grid-column:3 !important; justify-self:end; text-align:right; }
+
+/* ============================================================================
+   WD.2.5 — кнопка «Предварительный просмотр» + студенческая модалка предпросмотра.
+   Модалка (.modal/.modal-card/.task-card/.task-list) использует базовые стили base.css.
+   ============================================================================ */
+/* кнопка в карточке «Подборка»: контур + глаз; тусклая при 0 задач, активная при ≥1 */
+.start-card .sc-preview{
+  width:fit-content; max-width:100%; margin:11px auto 0; padding:9px 14px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  border:1px solid var(--border); border-radius:11px;
+  background:var(--panel); color:var(--text);
+  font-weight:600; font-size:13.5px; line-height:1; white-space:nowrap;
+  cursor:pointer;
+  transition:background .15s ease, border-color .15s ease, opacity .15s ease;
+}
+.start-card .sc-preview svg{ flex:0 0 auto; }
+.start-card .sc-preview:hover{ background:var(--surface2,#f1f5f9); border-color:#c2c9d4; }
+.start-card .sc-preview:disabled{ opacity:.5; cursor:not-allowed; }
+
+/* у ученика per-task teacher-бейджи статистики не нужны (нет teacher-контекста →
+   они показали бы «Ученик не выбран»). Прячем именно бейдж-группу (не всю шапку — там теперь подпись). */
+/* WD.2.6 — карточка предпросмотра ученика: верхняя строка [подпись прототипа][бейджи][+][×]
+   во всю ширину; ниже — [номер][условие][картинка]. .task-card — grid; "label" спан во всю ширину. */
+body[data-home-variant="student"] #addedTasksModal .added-task-card{
+  grid-template-areas: "label label" "num stem" "ans ans" !important;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-card:has(.task-fig){
+  grid-template-areas: "label label label" "num stem fig" "ans ans ans" !important;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-toprow{
+  grid-area: label; display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-toplabel{
+  flex:1 1 auto; min-width:0; font-size:13px; line-height:1.3; color:var(--text-dim); overflow-wrap:anywhere;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-right{
+  flex:0 0 auto; display:flex; align-items:center; gap:6px; margin-left:auto;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-right .modal-badge-group{ margin-left:0; }
+/* кнопки «+» / «×» */
+body[data-home-variant="student"] #addedTasksModal .added-task-act{
+  flex:0 0 auto; width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text);
+  font-size:18px; line-height:1; cursor:pointer;
+}
+body[data-home-variant="student"] #addedTasksModal .added-task-act:hover{ background:var(--surface2,#f1f5f9); }
+body[data-home-variant="student"] #addedTasksModal .added-task-act:disabled{ opacity:.4; cursor:not-allowed; }
+body[data-home-variant="student"] #addedTasksModal .added-task-remove{ color:#dc2626; }
+
+/* WD.2.6 — скролл модалки предпросмотра (десктоп + мобайл): фон не скролится, скролится список внутри.
+   .modal-card уже flex-колонка с max-height + overflow:hidden (base.css). */
+body.preview-open{ overflow:hidden !important; }
+body[data-home-variant="student"] #addedTasksModal .modal-head{ flex:0 0 auto; }
+body[data-home-variant="student"] #addedTasksModal .added-tasks-main{
+  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+}
+
+/* WD.2.6 — десктоп-дефолты для мобильных элементов: компактный strip-прогноз и бейдж-счётчик
+   в «Начать» скрыты на десктопе (показываются только на мобайле в home_student.mobile.css). */
+body[data-home-variant="student"] #mForecast{ display:none !important; }
+body[data-home-variant="student"] .start-card .sc-start-count{ display:none; }
+/* старый мобильный «термометр готовности» больше не используется (мобайл — strip, десктоп — градусник):
+   прячем везде, чтобы не «вылезал» на десктопе под H1. */
+body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }

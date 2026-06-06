@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-05-15';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-05-15';
-import { CONFIG } from '../app/config.js?v=2026-06-05-15';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-05-15';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-05-15';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-05-15';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-05-15';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-05-15';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-05-15';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-05-15';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-05-15';
+import { withBuild } from '../app/build.js?v=2026-06-06-13';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-06-13';
+import { CONFIG } from '../app/config.js?v=2026-06-06-13';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-06-13';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-06-13';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-06-13';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-06-13';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-06-13';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-06-13';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-06-13';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-06-13';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-05-15';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-06-13';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-05-15';
+} from './picker_common.js?v=2026-06-06-13';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-05-15';
+} from './picker_stats.js?v=2026-06-06-13';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1916,6 +1916,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initProtoPickerModal();
     initBulkControls();
     initAddedTasksModal();
+    initStudentPreviewModal();
     // Главная учителя: если ученик выбран — переключаемся в режим «как у ученика»
     if (IS_TEACHER_HOME) {
       const sid = String($('#teacherStudentSelect')?.value || readTeacherSelectedStudentId() || _TEACHER_VIEW_PENDING_ID || '').trim();
@@ -2471,6 +2472,18 @@ function renderSectionBadgesHead() {
   const node = document.createElement('div');
   node.className = 'home-badges-head';
 
+  // WD.2.4 — на главной ученика шапка-таблица (3 колонки); учитель — прежняя шапка.
+  if (isStudentLikeHome()) {
+    node.innerHTML = `
+    <div class="row">
+      <div class="home-head-label home-head-title">Тема и точность</div>
+      <div class="home-head-label home-head-cov">Покрытие</div>
+      <div class="home-head-label home-head-tasks">Задачи</div>
+    </div>
+  `;
+    return node;
+  }
+
   node.innerHTML = `
     <div class="row">
       <div class="countbox countbox-head" aria-hidden="true">
@@ -2503,10 +2516,11 @@ function renderSectionNode(sec) {
       </div>
       ${isStudentLikeHome() ? `
       <span class="home-section-badges">
-        <span class="badge gray home-last10-badge home-section-pct" data-tip="Процент правильных ответов"><b>—</b></span>
+        <span class="badge gray home-last10-badge home-section-pct" data-tip="Процент правильных ответов"><i class="acc-bar" aria-hidden="true"></i><b>—</b></span>
         <span class="badge gray home-coverage-badge home-section-cov" data-tip="Покрытие тем"><b>0/0</b></span>
       </span>
       ` : ''}
+      ${isStudentLikeHome() ? '<div class="row-title">' : ''}
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button" aria-label="Уникальные прототипы" data-tip="Уникальные прототипы">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -2517,6 +2531,7 @@ function renderSectionNode(sec) {
           <line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
       </button>
+      ${isStudentLikeHome() ? '</div>' : ''}
       <div class="spacer"></div>
       
     </div>
@@ -2560,18 +2575,14 @@ function renderSectionNode(sec) {
 
   const num = $('.count', node);
 
-  // автовыделение количества при клике/фокусе
+  // автовыделение количества при клике/фокусе (надёжно: select после mouseup через rAF + по click —
+  // выделение не сбрасывается каретой и срабатывает даже на уже сфокусированном поле)
   if (num) {
     num.addEventListener('focus', (e) => {
-      e.target.select();
-      e.target.dataset.selectAll = 'true';
+      const el = e.target;
+      requestAnimationFrame(() => { try { el.select(); } catch (_) {} });
     });
-    num.addEventListener('mouseup', (e) => {
-      if (e.target.dataset.selectAll === 'true') {
-        e.preventDefault();           // не даём браузеру сбросить выделение
-        e.target.dataset.selectAll = '';
-      }
-    });
+    num.addEventListener('click', (e) => { try { e.target.select(); } catch (_) {} });
   }
 
   $('.minus', node).onclick = () => {
@@ -2604,8 +2615,10 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><b>—</b><span class="small"></span></span>' : ''}
+      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><i class="acc-bar" aria-hidden="true"></i><b>—</b><span class="small"></span></span>' : ''}
+      ${isStudentLikeHome() ? '<div class="row-title">' : ''}
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      ${isStudentLikeHome() ? '</div>' : ''}
       <div class="spacer"></div>
       
     </div>
@@ -2638,18 +2651,13 @@ function renderTopicRow(topic) {
     num.value = CHOICE_TOPICS[topic.id] || 0;
   }
 
-  // автовыделение количества при клике/фокусе
+  // автовыделение количества при клике/фокусе (надёжно: select после mouseup через rAF + по click)
   if (num) {
     num.addEventListener('focus', (e) => {
-      e.target.select();
-      e.target.dataset.selectAll = 'true';
+      const el = e.target;
+      requestAnimationFrame(() => { try { el.select(); } catch (_) {} });
     });
-    num.addEventListener('mouseup', (e) => {
-      if (e.target.dataset.selectAll === 'true') {
-        e.preventDefault();
-        e.target.dataset.selectAll = '';
-      }
-    });
+    num.addEventListener('click', (e) => { try { e.target.select(); } catch (_) {} });
   }
 
   $('.minus', row).onclick = () => {
@@ -2719,6 +2727,16 @@ function refreshTotalSum() {
 
   const sumEl = $('#sum');
   if (sumEl) sumEl.textContent = total;
+  // WD.2.2 — склонение слова рядом со счётчиком в карточке «Подборка»
+  const sumWordEl = $('#sumWord');
+  if (sumWordEl) {
+    const a = total % 10, b = total % 100;
+    sumWordEl.textContent = (a === 1 && b !== 11) ? 'задача'
+      : (a >= 2 && a <= 4 && (b < 10 || b >= 20)) ? 'задачи' : 'задач';
+  }
+  // WD.2.6 — бейдж-счётчик в кнопке «Начать» (виден на мобайле)
+  const startCountEl = $('#startCount');
+  if (startCountEl) { startCountEl.textContent = total; startCountEl.hidden = total <= 0; }
 
 
   const addedBtn = $('#addedTasksBtn');
@@ -2726,6 +2744,10 @@ function refreshTotalSum() {
     addedBtn.disabled = total <= 0;
     addedBtn.classList.toggle('is-ready', total > 0);
   }
+
+  // WD.2.5 — кнопка предпросмотра ученика: тусклая при 0, активная при ≥1
+  const previewBtn = $('#previewBtn');
+  if (previewBtn) previewBtn.disabled = total <= 0;
 
   // Мобильная панель кнопок: фиксируем к низу viewport только когда есть выбор
   document.body.classList.toggle('ht-has-selection', total > 0);
@@ -4286,6 +4308,7 @@ function buildQuestionForPreview(manifest, type, proto) {
     topic_id: topicId,
     topic_title: String(manifest?.title || '').trim(),
     proto_id: String(type?.id || '').trim(),
+    proto_title: String(type?.title || '').trim(),
     question_id: String(proto?.id || '').trim(),
     badge_question_ids: (Array.isArray(type?.prototypes) ? type.prototypes : [])
       .map((p) => String(p?.id || '').trim())
@@ -4293,6 +4316,195 @@ function buildQuestionForPreview(manifest, type, proto) {
     stem,
     figure: fig,
   };
+}
+
+/* WD.2.5 — студенческий предпросмотр подборки. Переиспользуем рендер teacher-модалки
+   (renderAddedTasksPreview / getAddedTasksModalEls) + студенческий резолв pick_engine
+   (pickQuestionsScopedForList, БЕЗ teacher-RPC, как при «Начать»). Teacher-флоу не трогаем. */
+let _STUDENT_PREVIEW_BOUND = false;
+let STUDENT_PREVIEW_OPEN = false;
+let _STUDENT_PREVIEW_SEQ = 0;
+let _STUDENT_PREVIEW_RETURN_FOCUS = null;
+
+/* WD.2.6 — консистентность «предпросмотр == тренировка».
+   pickQuestionsScopedForList НЕдетерминирован (sampleKByBase + shuffleArr на Math.random):
+   два независимых вызова дают РАЗНЫЕ наборы. Поэтому резолвим ОДИН раз на сигнатуру выбора и
+   переиспользуем: и предпросмотр, и старт (saveSelectionAndGo) берут один и тот же набор.
+   Аналог teacher-паттерна (там набор замораживается в teacher_picked_refs и переиспользуется). */
+let STUDENT_RESOLVE = { sig: null, questions: null };
+
+function studentSelectionSignature() {
+  const norm = (obj) => Object.keys(obj || {}).sort().map((k) => `${k}:${(obj || {})[k]}`).join(',');
+  return `t=${norm(CHOICE_TOPICS)}|s=${norm(CHOICE_SECTIONS)}|p=${norm(CHOICE_PROTOS)}`;
+}
+
+async function resolveStudentSelection() {
+  const sig = studentSelectionSignature();
+  if (STUDENT_RESOLVE.sig === sig && Array.isArray(STUDENT_RESOLVE.questions)) {
+    return STUDENT_RESOLVE.questions;
+  }
+  let questions = [];
+  try {
+    questions = await pickQuestionsScopedForList({
+      sections: SECTIONS,
+      topicById: TOPIC_BY_ID,
+      choiceProtos: CHOICE_PROTOS || {},
+      choiceTopics: CHOICE_TOPICS || {},
+      choiceSections: CHOICE_SECTIONS || {},
+      shuffleTasks: false, // набор фиксируем без шафла; порядок перемешает сессия при SHUFFLE_TASKS
+      teacherStudentId: '',
+      teacherFilters: { old: false, badAcc: false },
+      prioActive: false,
+      loadTopicPool: loadTopicPoolForPreview,
+      buildQuestion: buildQuestionForPreview,
+      excludeQuestionIds: new Set(),
+    });
+  } catch (e) {
+    console.warn('resolveStudentSelection: threw', e);
+    questions = [];
+  }
+  const arr = Array.isArray(questions) ? questions : [];
+  STUDENT_RESOLVE = { sig, questions: arr };
+  return arr;
+}
+
+function closeStudentPreview() {
+  const { modal } = getAddedTasksModalEls();
+  if (!modal) return;
+  STUDENT_PREVIEW_OPEN = false;
+  _STUDENT_PREVIEW_SEQ++; // отменить любой in-flight резолв
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('preview-open'); // снять блокировку скролла фона
+  try { _STUDENT_PREVIEW_RETURN_FOCUS?.focus?.(); } catch (_) {}
+}
+
+async function openStudentPreview() {
+  const { modal, meta, hint, listWrap, list } = getAddedTasksModalEls();
+  if (!modal || STUDENT_PREVIEW_OPEN) return;
+  STUDENT_PREVIEW_OPEN = true;
+  _STUDENT_PREVIEW_RETURN_FOCUS = $('#previewBtn');
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('preview-open'); // блокируем скролл фона (модалка/лист скролится сам)
+  if (list) list.innerHTML = '';
+  if (meta) meta.textContent = '—';
+  if (hint) hint.textContent = 'Загружаю…';
+
+  const seq = ++_STUDENT_PREVIEW_SEQ;
+  const wantTotal = getTotalSelected();
+  // единый резолв (кэш по сигнатуре) — тот же набор, что и при «Начать»
+  const questions = await resolveStudentSelection();
+  if (seq !== _STUDENT_PREVIEW_SEQ || !STUDENT_PREVIEW_OPEN) return; // закрыли/переоткрыли
+
+  if (hint) hint.textContent = '';
+  renderAddedTasksPreview(Array.isArray(questions) ? questions : [], { wantTotal, studentLabel: true });
+  try { await typesetMathIfNeeded(listWrap || list); } catch (_) {}
+  refreshStudentPreviewBadges(Array.isArray(questions) ? questions : []);
+}
+
+// WD.2.6 — бейджи СВОЕЙ статистики (last-3 с фолбэком на all-time) в карточках предпросмотра.
+let _STUDENT_BADGE_SEQ = 0;
+async function refreshStudentPreviewBadges(questions) {
+  const arr = Array.isArray(questions) ? questions : [];
+  const { list } = getAddedTasksModalEls();
+  if (!list || !arr.length) return;
+  const seq = ++_STUDENT_BADGE_SEQ;
+  const unicIds = Array.from(new Set(arr.map((q) => baseIdFromProtoId(String(q?.question_id || '').trim())).filter(Boolean)));
+  if (!unicIds.length) return;
+  const res = await loadProtoLast3ForSelf(unicIds, { timeoutMs: 8000 });
+  if (seq !== _STUDENT_BADGE_SEQ || !STUDENT_PREVIEW_OPEN) return; // переоткрыли/закрыли
+  const map = res?.map instanceof Map ? res.map : new Map();
+  const ok = !!res?.ok;
+  for (const card of list.querySelectorAll('.added-task-card')) {
+    const unic = baseIdFromProtoId(String(card.dataset.questionId || '').trim());
+    applyProtoCardBadgeEls(
+      card.querySelector('.added-task-badge'),
+      card.querySelector('.added-task-date-badge'),
+      map.get(unic) || null,
+      { ok },
+    );
+  }
+}
+
+// WD.2.6 — счётчик подборки = длине рабочего набора (после +/×).
+function syncStudentPreviewCount() {
+  const n = Array.isArray(STUDENT_RESOLVE.questions) ? STUDENT_RESOLVE.questions.length : 0;
+  const sumEl = $('#sum'); if (sumEl) sumEl.textContent = n;
+  const sumWordEl = $('#sumWord');
+  if (sumWordEl) {
+    const a = n % 10, b = n % 100;
+    sumWordEl.textContent = (a === 1 && b !== 11) ? 'задача' : (a >= 2 && a <= 4 && (b < 10 || b >= 20)) ? 'задачи' : 'задач';
+  }
+  const startCountEl = $('#startCount'); if (startCountEl) { startCountEl.textContent = n; startCountEl.hidden = n <= 0; }
+  const startEl = $('#start'); if (startEl) startEl.disabled = n <= 0;
+  const previewEl = $('#previewBtn'); if (previewEl) previewEl.disabled = n <= 0;
+}
+
+// перерендер модалки из рабочего набора (после +/×)
+async function rerenderStudentPreview() {
+  const { meta, listWrap, list } = getAddedTasksModalEls();
+  const arr = Array.isArray(STUDENT_RESOLVE.questions) ? STUDENT_RESOLVE.questions : [];
+  renderAddedTasksPreview(arr, { wantTotal: 0, studentLabel: true });
+  if (meta) meta.textContent = `Всего: ${arr.length}`;
+  syncStudentPreviewCount();
+  try { await typesetMathIfNeeded(listWrap || list); } catch (_) {}
+  refreshStudentPreviewBadges(arr);
+}
+
+// «×» — убрать задачу из рабочего набора
+function studentPreviewRemove(qid) {
+  const arr = STUDENT_RESOLVE.questions;
+  if (!Array.isArray(arr)) return;
+  const i = arr.findIndex((q) => String(q?.question_id || '') === String(qid));
+  if (i < 0) return;
+  arr.splice(i, 1);
+  rerenderStudentPreview();
+}
+
+// «+» — добавить ещё экземпляр того же прототипа (другие числа), следующим в подборке
+async function studentPreviewAdd(qid, btn) {
+  const arr = STUDENT_RESOLVE.questions;
+  if (!Array.isArray(arr)) return;
+  const idx = arr.findIndex((q) => String(q?.question_id || '') === String(qid));
+  if (idx < 0) return;
+  const q = arr[idx];
+  const topic = TOPIC_BY_ID.get(String(q.topic_id || '').trim());
+  if (!topic) return;
+  let pool = [];
+  try { pool = await loadTopicPoolForPreview(topic); } catch (_) { pool = []; }
+  const used = new Set(arr.map((x) => String(x?.question_id || '')));
+  const cands = (pool || []).filter((e) =>
+    String(e?.type?.id || '') === String(q.proto_id || '') && !used.has(String(e?.proto?.id || '')));
+  if (!cands.length) { // варианты прототипа исчерпаны — гасим «+»
+    if (btn) { btn.disabled = true; btn.title = 'Больше вариантов нет'; }
+    return;
+  }
+  const pick = cands[Math.floor(Math.random() * cands.length)];
+  const newQ = buildQuestionForPreview(pick.manifest, pick.type, pick.proto);
+  arr.splice(idx + 1, 0, newQ); // следующим в подборке
+  rerenderStudentPreview();
+}
+
+function initStudentPreviewModal() {
+  if (!IS_STUDENT_PAGE || _STUDENT_PREVIEW_BOUND) return;
+  const btn = $('#previewBtn');
+  const { modal, close, backdrop, list } = getAddedTasksModalEls();
+  if (!btn || !modal) return;
+  _STUDENT_PREVIEW_BOUND = true;
+  btn.addEventListener('click', () => { if (!btn.disabled) openStudentPreview(); });
+  if (close) close.addEventListener('click', () => closeStudentPreview());
+  if (backdrop) backdrop.addEventListener('click', () => closeStudentPreview());
+  document.addEventListener('keydown', (e) => {
+    if (STUDENT_PREVIEW_OPEN && e.key === 'Escape') { e.preventDefault(); closeStudentPreview(); }
+  });
+  // делегирование кнопок «+» / «×» в карточках предпросмотра
+  if (list) list.addEventListener('click', (e) => {
+    const add = e.target.closest('.added-task-add');
+    const rm = e.target.closest('.added-task-remove');
+    if (add) { e.preventDefault(); studentPreviewAdd(add.dataset.qid, add); }
+    else if (rm) { e.preventDefault(); studentPreviewRemove(rm.dataset.qid); }
+  });
 }
 
 async function getTeacherResolveManifestIndex(manifestPath) {
@@ -4619,55 +4831,84 @@ function renderAddedTasksPreview(questions, opts = {}) {
     head.appendChild(num);
 
     const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('added-task-badge', 'added-task-date-badge');
-    const sidForBadges = String(TEACHER_VIEW_STUDENT_ID || '').trim();
-    const cachedStat = sidForBadges
-      ? getTeacherModalCachedAggregate(
-        sidForBadges,
-        (Array.isArray(q?.badge_question_ids) && q.badge_question_ids.length)
-          ? q.badge_question_ids
-          : [q?.question_id],
-      )
-      : null;
-    if (cachedStat) {
-      setModalStatsBadge(statsBadge, cachedStat, {
-        baseTitle: 'Статистика ученика по задаче',
-        emptyLabel: 'Не решал',
-        emptyText: 'Попыток нет',
-      });
-      setModalDateBadge(dateBadge, cachedStat, {
-        baseTitle: 'Последнее решение по задаче',
-      });
+
+    if (opts.studentLabel) {
+      // ── Студенческий предпросмотр: верхняя строка [подпись прототипа] … [бейджи][+][×] ──
+      // Бейджи (своя статистика last-3) наполняет refreshStudentPreviewBadges (async); пока «Загрузка…».
+      applyProtoCardBadgeEls(statsBadge, dateBadge, null, { ok: false });
+
+      const toprow = document.createElement('div');
+      toprow.className = 'added-task-toprow';
+
+      const lbl = document.createElement('div');
+      lbl.className = 'added-task-toplabel';
+      lbl.textContent = `${String(q.proto_id || '').trim()}${q.proto_title ? ` ${q.proto_title}` : ''}`.trim();
+      toprow.appendChild(lbl);
+
+      const right = document.createElement('div');
+      right.className = 'added-task-right';
+      right.appendChild(badgeGroup);
+
+      const qid = String(q?.question_id || '').trim();
+      const addBtn = document.createElement('button');
+      addBtn.type = 'button';
+      addBtn.className = 'added-task-act added-task-add';
+      addBtn.textContent = '+';
+      addBtn.title = 'Добавить ещё задачу этого прототипа (другие числа)';
+      addBtn.setAttribute('aria-label', 'Добавить ещё задачу этого прототипа');
+      addBtn.dataset.qid = qid;
+      right.appendChild(addBtn);
+
+      const rmBtn = document.createElement('button');
+      rmBtn.type = 'button';
+      rmBtn.className = 'added-task-act added-task-remove';
+      rmBtn.textContent = '×';
+      rmBtn.title = 'Убрать эту задачу из подборки';
+      rmBtn.setAttribute('aria-label', 'Убрать задачу из подборки');
+      rmBtn.dataset.qid = qid;
+      right.appendChild(rmBtn);
+
+      toprow.appendChild(right);
+      card.appendChild(toprow); // grid-area:label — во всю ширину сверху
+      card.appendChild(head);   // head = только номер
     } else {
-      setModalStatsBadge(statsBadge, null, {
-        baseTitle: 'Статистика ученика по задаче',
-        emptyLabel: '—',
-        emptyText: sidForBadges ? 'Загрузка статистики' : 'Ученик не выбран',
-      });
-      setModalDateBadge(dateBadge, null, {
-        baseTitle: 'Последнее решение по задаче',
-      });
-    }
-    head.appendChild(badgeGroup);
+      // ── Учитель: бейджи по выбранному ученику в шапке + крошка «раздел • подтема» ──
+      const sidForBadges = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+      const cachedStat = sidForBadges
+        ? getTeacherModalCachedAggregate(
+          sidForBadges,
+          (Array.isArray(q?.badge_question_ids) && q.badge_question_ids.length)
+            ? q.badge_question_ids
+            : [q?.question_id],
+        )
+        : null;
+      if (cachedStat) {
+        setModalStatsBadge(statsBadge, cachedStat, { baseTitle: 'Статистика ученика по задаче', emptyLabel: 'Не решал', emptyText: 'Попыток нет' });
+        setModalDateBadge(dateBadge, cachedStat, { baseTitle: 'Последнее решение по задаче' });
+      } else {
+        setModalStatsBadge(statsBadge, null, { baseTitle: 'Статистика ученика по задаче', emptyLabel: '—', emptyText: sidForBadges ? 'Загрузка статистики' : 'Ученик не выбран' });
+        setModalDateBadge(dateBadge, null, { baseTitle: 'Последнее решение по задаче' });
+      }
+      head.appendChild(badgeGroup);
+      card.appendChild(head);
 
-    card.appendChild(head);
-
-    const parts = [];
-    if (q.section_id || q.section_title) {
-      const s = `${String(q.section_id || '').trim()}${q.section_title ? `. ${q.section_title}` : ''}`.trim();
-      if (s) parts.push(s);
-    }
-    if (q.topic_id || q.topic_title) {
-      const t = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
-      if (t) parts.push(t);
-    }
-
-    if (parts.length) {
-      const m = document.createElement('div');
-      m.className = 'muted';
-      m.style.fontSize = '12px';
-      m.style.marginBottom = '4px';
-      m.textContent = parts.join(' • ');
-      card.appendChild(m);
+      const parts = [];
+      if (q.section_id || q.section_title) {
+        const s = `${String(q.section_id || '').trim()}${q.section_title ? `. ${q.section_title}` : ''}`.trim();
+        if (s) parts.push(s);
+      }
+      if (q.topic_id || q.topic_title) {
+        const t = `${String(q.topic_id || '').trim()}${q.topic_title ? `. ${q.topic_title}` : ''}`.trim();
+        if (t) parts.push(t);
+      }
+      if (parts.length) {
+        const m = document.createElement('div');
+        m.className = 'muted';
+        m.style.fontSize = '12px';
+        m.style.marginBottom = '4px';
+        m.textContent = parts.join(' • ');
+        card.appendChild(m);
+      }
     }
 
     const stem = document.createElement('div');
@@ -4738,20 +4979,24 @@ async function saveSelectionAndGo() {
       || Object.keys(CHOICE_PROTOS || {}).length > 0;
     if (hasAny) {
       try {
-        const picked = await pickQuestionsScopedForList({
-          sections: SECTIONS,
-          topicById: TOPIC_BY_ID,
-          choiceProtos: CHOICE_PROTOS || {},
-          choiceTopics: CHOICE_TOPICS || {},
-          choiceSections: CHOICE_SECTIONS || {},
-          shuffleTasks: SHUFFLE_TASKS,
-          teacherStudentId: '',
-          teacherFilters: { old: false, badAcc: false },
-          prioActive: false,
-          loadTopicPool: loadTopicPoolForPreview,
-          buildQuestion: buildQuestionForPreview,
-          excludeQuestionIds: new Set(),
-        });
+        // Ученик: тот же кэшированный набор, что показан в предпросмотре (консистентность
+        // «превью == тренировка»). Учитель без refs: прежний резолв.
+        const picked = IS_STUDENT_PAGE
+          ? await resolveStudentSelection()
+          : await pickQuestionsScopedForList({
+            sections: SECTIONS,
+            topicById: TOPIC_BY_ID,
+            choiceProtos: CHOICE_PROTOS || {},
+            choiceTopics: CHOICE_TOPICS || {},
+            choiceSections: CHOICE_SECTIONS || {},
+            shuffleTasks: SHUFFLE_TASKS,
+            teacherStudentId: '',
+            teacherFilters: { old: false, badAcc: false },
+            prioActive: false,
+            loadTopicPool: loadTopicPoolForPreview,
+            buildQuestion: buildQuestionForPreview,
+            excludeQuestionIds: new Set(),
+          });
         if (Array.isArray(picked) && picked.length > 0) {
           const frozen = picked
             .map(q => ({
