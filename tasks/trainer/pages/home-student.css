@@ -1030,46 +1030,9 @@ body[data-home-variant="student"] #accordion .home-head-tasks{ grid-column:3 !im
 
 /* у ученика per-task teacher-бейджи статистики не нужны (нет teacher-контекста →
    они показали бы «Ученик не выбран»). Прячем именно бейдж-группу (не всю шапку — там теперь подпись). */
-/* WD.2.6 — карточка предпросмотра ученика: верхняя строка [подпись прототипа][бейджи][+][×]
-   во всю ширину; ниже — [номер][условие][картинка]. .task-card — grid; "label" спан во всю ширину. */
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card{
-  grid-template-areas: "label label" "num stem" "ans ans" !important;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card:has(.task-fig){
-  grid-template-areas: "label label label" "num stem fig" "ans ans ans" !important;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-toprow{
-  grid-area: label; display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:6px;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-toplabel{
-  flex:1 1 auto; min-width:0; font-size:13px; line-height:1.3; color:var(--text-dim); overflow-wrap:anywhere;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-right{
-  flex:0 0 auto; display:flex; align-items:center; gap:6px; margin-left:auto;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-right .modal-badge-group{ margin-left:0; }
-/* кнопки «+» / «×» */
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-act{
-  flex:0 0 auto; width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;
-  border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text);
-  font-size:18px; line-height:1; cursor:pointer;
-}
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-act:hover{ background:var(--surface2,#f1f5f9); }
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-act:disabled{ opacity:.4; cursor:not-allowed; }
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-remove{ color:#dc2626; }
-/* WD.2.7 — степпер количества в карточке аккордеона (вместо +/× предпросмотра); кнопки/значение/«из N»
-   используют общие .tp-ctr-* из base.css */
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-stepper{
-  display:flex; align-items:center; gap:6px; flex:0 0 auto;
-}
-
-/* WD.2.6 — скролл модалки предпросмотра (десктоп + мобайл): фон не скролится, скролится список внутри.
-   .modal-card уже flex-колонка с max-height + overflow:hidden (base.css). */
-body.preview-open{ overflow:hidden !important; }
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .modal-head{ flex:0 0 auto; }
-body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-tasks-main{
-  flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
-}
+/* WD.2.7 — карточки и каркас модалок (#addedTasksModal, #protoPickerModal) перенесены в base.css
+   (универсально для ученика и учителя: teacher этот page-файл не грузит). Здесь — только
+   студенческие НЕ-модальные дефолты ниже. */
 
 /* WD.2.6 — десктоп-дефолты для мобильных элементов: компактный strip-прогноз и бейдж-счётчик
    в «Начать» скрыты на десктопе (показываются только на мобайле в home_student.mobile.css). */

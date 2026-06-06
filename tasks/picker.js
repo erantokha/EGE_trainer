@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-06-36';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-06-36';
-import { CONFIG } from '../app/config.js?v=2026-06-06-36';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-06-36';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-06-36';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-06-36';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-06-36';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-06-36';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-06-36';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-06-36';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-06-36';
+import { withBuild } from '../app/build.js?v=2026-06-07-1';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-1';
+import { CONFIG } from '../app/config.js?v=2026-06-07-1';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-1';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-1';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-1';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-1';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-1';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-1';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-1';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-1';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-06-36';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-1';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-06-36';
+} from './picker_common.js?v=2026-06-07-1';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-06-36';
+} from './picker_stats.js?v=2026-06-07-1';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2857,7 +2857,7 @@ function closeProtoPickerModal() {
 
   modal.classList.add('hidden');
   modal.setAttribute('aria-hidden', 'true');
-  if (IS_STUDENT_PAGE) document.body.classList.remove('preview-open'); // снять блокировку скролла фона (WD.2.7)
+  document.body.classList.remove('preview-open'); // снять блокировку скролла фона (WD.2.7, обе роли)
   if (title) title.textContent = 'Прототипы';
   if (cnt) cnt.textContent = 'Выбрано: 0';
   if (list) list.innerHTML = '';
@@ -3035,7 +3035,7 @@ async function openProtoPickerModal(topic) {
 
   modal.classList.remove('hidden');
   modal.setAttribute('aria-hidden', 'false');
-  if (IS_STUDENT_PAGE) document.body.classList.add('preview-open'); // блокируем скролл фона под нижним-листом (WD.2.7)
+  document.body.classList.add('preview-open'); // блокируем скролл фона под нижним-листом (WD.2.7, обе роли)
 
   const topicId = String(topic.id).trim();
   title.textContent = `${topicId}. ${topic.title || ''}`.trim();
@@ -3146,71 +3146,24 @@ function renderProtoModalCard(manifest, card, opts = {}) {
 
   setBtnState();
 
-  // WD.2.7 Ф2 — Ученик: карточка-эталон (buildPreviewCard) со степпером вместо +/×.
-  // Условие+картинку берём у образца-прототипа (buildQuestionForPreview), бейджи — opts.badgeStat.
-  if (IS_STUDENT_PAGE) {
-    const q = proto0 ? buildQuestionForPreview(manifest, type, proto0) : { stem: '', figure: null };
-    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('added-task-badge', 'added-task-date-badge');
-    applyProtoCardBadgeEls(statsBadge, dateBadge, opts?.badgeStat || null, { ok: !!opts?.ok });
+  // WD.2.7 Ф3 — ОБЕ роли (ученик и учитель): карточка-эталон (buildPreviewCard) со степпером вместо +/×.
+  // Условие+картинку берём у образца-прототипа (buildQuestionForPreview); бейджи — opts.badgeStat
+  // (для учителя — статистика выбранного ученика; applyProtoCardBadgeEls роль-агностичен).
+  // Бейджи в классах added-task-badge (авто-ширина, как в предпросмотре), а не proto-modal-badge (96px).
+  const q = proto0 ? buildQuestionForPreview(manifest, type, proto0) : { stem: '', figure: null };
+  const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('added-task-badge', 'added-task-date-badge');
+  applyProtoCardBadgeEls(statsBadge, dateBadge, opts?.badgeStat || null, { ok: !!opts?.ok });
 
-    const stepper = document.createElement('div');
-    stepper.className = 'added-task-stepper';
-    stepper.append(minus, val, plus, capEl);
+  const stepper = document.createElement('div');
+  stepper.className = 'added-task-stepper';
+  stepper.append(minus, val, plus, capEl);
 
-    const cardEl = buildPreviewCard(
-      { seqNum: opts.seqNum, protoId: cardKey, protoName: card?.title, stem: q.stem, figure: q.figure, questionId: proto0?.id },
-      { badgeGroup, controls: [stepper] },
-    );
-    cardEl.dataset.typeId = cardKey;
-    return cardEl;
-  }
-
-  // ── Учитель: прежняя верстка .tp-item (на Ф3 переведём на эталон) ──
-  const row = document.createElement('div');
-  row.className = 'tp-item';
-  row.dataset.typeId = cardKey;
-
-  const left = document.createElement('div');
-  left.className = 'tp-item-left';
-
-  const head = document.createElement('div');
-  head.className = 'tp-item-head';
-
-  const meta = document.createElement('div');
-  meta.className = 'tp-item-meta';
-  meta.textContent = `${String(card?.title || '').trim()} (вариантов: ${cap})`.trim();
-
-  // WMB4/5: бейдж точности «последние 3» + date-бейдж рисуем обеим ролям (CAN_PROTO_MODAL),
-  // структура карточки идентична — различаются только baseTitle и источник данных.
-  // WFX1 (3a): рендерим бейдж СРАЗУ с подтверждёнными данными (opts.badgeStat), без
-  // промежуточного «Не решал». Если данных нет (opts пуст / загрузка не удалась) —
-  // applyProtoCardBadgeEls даёт нейтральный fallback, НИКОГДА «Не решал».
-  if (CAN_PROTO_MODAL) {
-    const { wrap: badgeGroup, dateBadge, statsBadge } = buildModalBadgeGroup('proto-modal-badge', 'proto-modal-date-badge');
-    applyProtoCardBadgeEls(statsBadge, dateBadge, opts?.badgeStat || null, { ok: !!opts?.ok });
-    head.appendChild(meta);
-    head.appendChild(badgeGroup);
-  }
-
-  const stem = document.createElement('div');
-  stem.className = 'tp-item-stem';
-  stem.innerHTML = proto0 ? buildStemPreview(manifest, type, proto0) : '<div class="tp-stem">—</div>';
-
-  if (CAN_PROTO_MODAL) left.appendChild(head);
-  else left.appendChild(meta);
-  left.appendChild(stem);
-
-  const right = document.createElement('div');
-  right.className = 'tp-item-right';
-  right.appendChild(minus);
-  right.appendChild(val);
-  right.appendChild(plus);
-  right.appendChild(capEl);
-
-  row.appendChild(left);
-  row.appendChild(right);
-
-  return row;
+  const cardEl = buildPreviewCard(
+    { seqNum: opts.seqNum, protoId: cardKey, protoName: card?.title, stem: q.stem, figure: q.figure, questionId: proto0?.id },
+    { badgeGroup, controls: [stepper] },
+  );
+  cardEl.dataset.typeId = cardKey;
+  return cardEl;
 }
 
 let _PROTO_MODAL_EVENTS_BOUND = false;

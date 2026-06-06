@@ -170,37 +170,6 @@
   body[data-home-variant="student"] #userMenuBtn{ padding:4px 9px 4px 9px !important; gap:9px !important; }
   body[data-home-variant="student"] #userMenuBtn .hw-bell--top{ margin-left:0 !important; }
 
-  /* ── 6. Модалка предпросмотра — нижний лист, почти во весь экран (95%) + грабер ──
-     (flex-колонка и скролл содержимого — общие, в home-student.css) */
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .modal-card{
-    position:absolute !important; left:0 !important; right:0 !important; bottom:0 !important; top:auto !important;
-    width:100% !important; max-width:none !important; max-height:95% !important;
-    border-radius:22px 22px 0 0 !important;
-  }
-  /* грабер («руль») по центру сверху листа */
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .modal-card::before{
-    content:''; position:absolute; top:8px; left:50%; transform:translateX(-50%);
-    width:38px; height:5px; border-radius:999px; background:rgba(15,23,42,.18); z-index:3;
-  }
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .modal-head{ padding-top:20px !important; }
-
-  /* на мобайле в подписи прототипа показываем только НОМЕР (название скрываем — не влезает в строку
-     вместе с бейджами и кнопками +/×) */
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-toplabel .proto-name{ display:none !important; }
-  /* WD.2.7 — на мобайле у степпера аккордеона убираем «из N» (тесно в верхней строке) */
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-stepper .tp-ctr-cap{ display:none !important; }
-
-  /* на узком экране карточка в ОДНУ колонку: подпись и условие во всю ширину, картинка ПОД условием
-     (иначе картинка справа сжимала условие в 1–2 символа в строке) */
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card,
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card:has(.task-fig){
-    grid-template-columns: auto minmax(0,1fr) !important;
-    grid-template-areas: "label label" "num stem" "fig fig" "ans ans" !important;
-  }
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card .task-fig{
-    grid-area: fig !important; justify-self:start !important; margin:12px 0 0 0 !important; max-width:100% !important;
-  }
-  body[data-home-variant="student"] :is(#addedTasksModal, #protoPickerModal) .added-task-card .task-fig img{
-    max-width:100% !important; height:auto !important;
-  }
+  /* ── 6. Модалки (#addedTasksModal/#protoPickerModal) — нижний-лист 95% + грабер + 1-колонка ──
+     WD.2.7: перенесено в base.css @media (универсально для ученика и учителя), здесь не дублируем. */
 }
