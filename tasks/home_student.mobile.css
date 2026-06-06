@@ -9,6 +9,14 @@
 
 @media (orientation: portrait) and (max-width: 1024px), (max-width: 900px) {
 
+  /* КОРЕНЬ горизонтального переполнения «страница ползёт вбок после рендера аккордеона»:
+     тултипы [data-tip]::after (position:absolute + white-space:nowrap + content:attr(data-tip),
+     всегда в layout с opacity:0) на бейджах аккордеона длинные и выходят за правый край →
+     раздувают scrollWidth документа (409 вместо 390) → горизонтальный скролл/«зум» на тач.
+     На мобайле hover нет — тултипы всё равно не показываются. Отключаем → scrollWidth=clientWidth. */
+  body[data-home-variant="student"] [data-tip]::after,
+  body[data-home-variant="student"] [data-tip]::before{ content:none !important; display:none !important; }
+
   /* ── 0. Скрываем старый мобильный термометр готовности (используем сам прогноз-градусник) ── */
   body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
   /* строка управления (переключатель режима скрыт ещё в desktop; тему-тоггл прячем на мобайле) */
