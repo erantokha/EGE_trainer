@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-06-07-35';
+} from '../app/core/pick.js?v=2026-06-07-36';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-35';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-36';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-07-35';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-07-35';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-07-36';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-07-36';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -703,6 +703,7 @@ export async function pickQuestionsScopedForList({
   loadTopicPool,
   buildQuestion,
   excludeQuestionIds,
+  protoTopicById, // опц. карта { typeId/baseId -> topicId } — надёжная тема прототипа (id-вывод темы ненадёжен)
 }) {
   const usedIds = new Set();
 
@@ -944,7 +945,11 @@ export async function pickQuestionsScopedForList({
   // группируем typeId по теме, чтобы stats для темы тянуть один раз
   const typesByTopic = new Map();
   for (const it of typeEntries) {
-    const topicId = resolveTopicIdFromTypeId(it.id, topicById); // самый длинный префикс, реально существующий как тема
+    // надёжная тема — из карты (источник: манифест); fallback — резолв по самому длинному префиксу-теме.
+    const mapped = (protoTopicById && protoTopicById[it.id]) ? String(protoTopicById[it.id]).trim() : '';
+    const topicId = (mapped && topicById && typeof topicById.has === 'function' && topicById.has(mapped))
+      ? mapped
+      : resolveTopicIdFromTypeId(it.id, topicById);
     if (!topicId) continue;
     if (!typesByTopic.has(topicId)) typesByTopic.set(topicId, []);
     typesByTopic.get(topicId).push(it);

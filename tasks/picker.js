@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-35';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-35';
-import { CONFIG } from '../app/config.js?v=2026-06-07-35';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-35';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-35';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-35';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-35';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-35';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-35';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-35';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-35';
+import { withBuild } from '../app/build.js?v=2026-06-07-36';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-36';
+import { CONFIG } from '../app/config.js?v=2026-06-07-36';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-36';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-36';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-36';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-36';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-36';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-36';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-36';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-36';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-35';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-36';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-35';
+} from './picker_common.js?v=2026-06-07-36';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-35';
+} from './picker_stats.js?v=2026-06-07-36';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3098,12 +3098,19 @@ async function openProtoPickerModal(topic) {
 // WMB3: card — дескриптор из buildProtoModalCards: { key (unic/baseId), type, title, protos[], cap }.
 // data-type-id и счётчик (CHOICE_PROTOS) ключуются card.key (unic), чтобы и бейдж, и подбор
 // (resolve по scope_id == unic_id) совпадали с catalog_question_dim.unic_id.
+// Карта «ключ прототипа (база) → id темы». Источник истины — манифест (man.topic), т.к. id прототипа
+// НЕ всегда кодирует его тему (напр. протос "2.3.1" лежит в теме "2.1" — id-вывод темы тут врёт).
+// Заполняется при рендере карточек прото-модалки; используется движком для корректного резолва.
+const PROTO_TOPIC_BY_KEY = {};
+
 function renderProtoModalCard(manifest, card, opts = {}) {
   const type = card?.type || {};
   const protos = (card?.protos || []);
   const cap = Number(card?.cap || protos.length) || protos.length;
   const cardKey = String(card?.key || '').trim();
   const proto0 = protos[0] || null;
+  // запомнить реальную тему прототипа (из манифеста) — для надёжного резолва в движке
+  if (cardKey) { const _tid = String(manifest?.topic || '').trim(); if (_tid) PROTO_TOPIC_BY_KEY[cardKey] = _tid; }
 
   // ── Степпер количества (общий для ученика и учителя): − N + и «из cap».
   //    Логика выбора — CHOICE_PROTOS[cardKey] (не меняется). ──
@@ -4360,6 +4367,7 @@ async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
       loadTopicPool: loadTopicPoolForPreview,
       buildQuestion: buildQuestionForPreview,
       excludeQuestionIds: excludeIds, // уже занятые id — добираем только НОВЫЕ
+      protoTopicById: PROTO_TOPIC_BY_KEY, // реальная тема прототипа (id-вывод темы ненадёжен)
     });
   } catch (e) {
     console.warn('pickStudentBucketDelta: threw', bucketKey, e);
