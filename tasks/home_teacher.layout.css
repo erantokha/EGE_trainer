@@ -43,29 +43,39 @@ body[data-home-variant="teacher"] #picker > div {
   padding: 0;
 }
 
-/* ── Хедер: sticky, flex, на всю ширину ── */
+/* ── Хедер: flow-раскладка как у ученика (eyebrow+H1 слева, поиск справа) ──
+   WSF-restyle: убран sticky + absolute-позиционирование строки ученика.
+   #appHeader = .page-head (flex, justify-content:space-between из base.css);
+   header.js оборачивает содержимое в .page-head-left. */
 body[data-home-variant="teacher"] #appHeader {
-  position: sticky;
-  top: 0;
+  position: relative;       /* якорь для абсолютного гамбургера на мобилке */
   z-index: 30;
-  display: flex;
-  align-items: center;
-  padding: 10px 0;
-  min-height: 90px;
+  /* Выровнен по тому же контент-боксу, что и .ht-content-wrap ниже
+     (max-width:1200px; centered; горизонтальный padding 40px). */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 40px;
   box-sizing: border-box;
   background: var(--bg);
 }
 
-/* header.js оборачивает содержимое хедера в .page-head-left.
-   Растягиваем на всю ширину: тулбар слева, градусник справа. */
+/* .page-head-left занимает всю ширину: текст слева, строка ученика справа. */
 body[data-home-variant="teacher"] #appHeader .page-head-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   flex: 1;
+  min-width: 0;
+  gap: 16px;
+}
+
+/* Блок eyebrow+H1 — слева, тянется; .home-eyebrow/.home-h1 стилизует home-student.css */
+body[data-home-variant="teacher"] #appHeader .home-head-text {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-/* Бургер — крайний левый элемент хедера */
+/* Бургер — общий стиль; на десктопе скрыт (сайдбар — левый рельс), показывается на мобилке */
 body[data-home-variant="teacher"] .ht-burger {
   flex-shrink: 0;
   display: flex;
@@ -85,28 +95,21 @@ body[data-home-variant="teacher"] .ht-burger:hover {
   background: var(--panel-2);
 }
 
-/* Заголовок — чуть крупнее + отступ от бургера */
-body[data-home-variant="teacher"] #appHeader h1 {
-  font-size: 15px;
-  font-weight: 700;
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin: 0;
-}
-
-/* Скрываем кнопку «Антон» из хедера — она переезжает в сайдбар */
-body[data-home-variant="teacher"] .page-head-right {
+/* Гамбургер в шапке скрыт на десктопе (сайдбар-рельс уже есть слева) */
+body[data-home-variant="teacher"] #htSidebarOpen {
   display: none;
 }
 
-/* Строка ученика — абсолютно позиционирована внутри #appHeader (position:sticky).
-   100% в right: = ширина #appHeader = main-width.
-   Нужный отступ справа = (main-width−1200)/2 + 70, мин. 70px. */
+/* Скрываем «А»-пилюлю из header.js (.page-head-right) — навигация в сайдбаре */
+body[data-home-variant="teacher"] .page-head-right,
+body[data-home-variant="teacher"] #userMenuBtn,
+body[data-home-variant="teacher"] #userMenuWrap {
+  display: none;
+}
+
+/* Строка ученика — справа в шапке (нормальный поток) */
 body[data-home-variant="teacher"] #appHeader .ht-student-bar {
-  position: absolute;
-  right: max(70px, calc((100% - 1200px) / 2 + 70px));
-  top: 50%;
-  transform: translateY(-50%);
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
@@ -199,6 +202,23 @@ body[data-home-variant="teacher"] .ht-main {
   color: var(--text-dim);
   line-height: 1;
   white-space: nowrap;
+}
+
+/* ── WSF-restyle D3: поле поиска ученика — обычный input ──
+   Убираем цветной «градусник»-фон (linear-gradient) и инлайн-балл.
+   Балл показывается только в карточке ПРОГНОЗ ЕГЭ справа. */
+body[data-home-variant="teacher"] input[type="text"].ht-combo-input {
+  background-image: none !important;   /* гасим заливку-градусник */
+  background-color: var(--muted);      /* нейтральный фон как у обычного input */
+  padding-right: 32px;                 /* место только под кнопку × */
+}
+/* счёт больше не нужен в поле — место только под × */
+body[data-home-variant="teacher"] .ht-combo.has-score .ht-combo-input:not([aria-expanded="true"]) {
+  padding-right: 32px;
+}
+/* балл рядом с именем не показываем (только карточка ПРОГНОЗ ЕГЭ) */
+body[data-home-variant="teacher"] #studentComboScore {
+  display: none !important;
 }
 
 
@@ -480,16 +500,15 @@ body[data-home-variant="teacher"] .ht-badges-spacer {
   display: none;
 }
 
-/* Тулбар: в хедере, левый край совпадает с левым краем «−» в аккордеоне.
-   100% = main-width (padding хедера = 0), нужный отступ = (main-width−1200)/2 + 70 */
-body[data-home-variant="teacher"] #appHeader .ht-action-toolbar {
+/* WSF-restyle: тулбар «Выбрать всё / Сбросить всё / фильтр» перенесён из шапки в
+   .picker-left над аккордеоном. Лежит в .sub-controls (отступ до #accordion даёт
+   #picker .accordion{margin-top}). Раскладка — строка слева. */
+body[data-home-variant="teacher"] .picker-left .ht-action-toolbar {
   display: flex;
   flex-direction: row;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 6px;
-  flex-shrink: 0;
-  margin-left: max(70px, calc((100% - 1200px) / 2 + 70px));
 }
 
 /* Дропдаун фильтров teacher picking */
@@ -596,17 +615,18 @@ body[data-home-variant="teacher"] .ht-hw-btn {
 @media (max-width: 1024px) {
   body[data-home-variant="teacher"] #appHeader {
     padding: 10px 16px;
+  }
+
+  /* WSF-restyle: на мобилке шапка стопкой — eyebrow+H1 (+гамбургер справа) сверху,
+     поле поиска ученика отдельной строкой во всю ширину. .page-head-left = flex-контейнер,
+     заворачиваем его дети. */
+  body[data-home-variant="teacher"] #appHeader .page-head-left {
     flex-wrap: wrap;
   }
 
-  /* WD.2.8 — мобильный адаптив: строка ученика — отдельной строкой во всю ширину (не absolute
-     с фикс-пикером 450px). Иначе пикер вылезает за экран → iOS shrink-to-fit зумит всю страницу
-     наружу → мелкий текст (в т.ч. в модалке). Рейл-сайдбар (бургер) оставляем. */
+  /* WD.2.8 — строка ученика отдельной строкой во всю ширину (не фикс-пикером 450px). Иначе
+     пикер вылезает за экран → iOS shrink-to-fit зумит всю страницу наружу → мелкий текст. */
   body[data-home-variant="teacher"] #appHeader .ht-student-bar {
-    position: static;
-    right: auto;
-    top: auto;
-    transform: none;
     flex: 1 1 100%;
     width: 100%;
     max-width: 100%;
@@ -619,11 +639,25 @@ body[data-home-variant="teacher"] .ht-hw-btn {
     max-width: 100%;
     min-width: 0;
   }
-  body[data-home-variant="teacher"] #appHeader .ht-action-toolbar {
+  body[data-home-variant="teacher"] .picker-left .ht-action-toolbar {
     margin-left: 0;
   }
   /* инпут комбобокса должен сжиматься (без min-width:0 его intrinsic-ширина распирает строку) */
   body[data-home-variant="teacher"] #appHeader .ht-combo-input { min-width: 0; }
+
+  /* WSF-restyle M5: гамбургер в правом верхнем углу вместо «А»-пилюли (она скрыта).
+     Лежит в .page-head-left, абсолютно позиционирован в правый верхний угол шапки. */
+  body[data-home-variant="teacher"] #htSidebarOpen {
+    display: flex;
+    position: absolute;
+    top: 10px;
+    right: 16px;
+    z-index: 2;
+  }
+  /* eyebrow/H1 не должны заезжать под гамбургер */
+  body[data-home-variant="teacher"] #appHeader .home-head-text {
+    padding-right: 40px;
+  }
   /* страховка: клипуем горизонтальное переполнение контента → нет iOS shrink-to-fit → нет zoom-out.
      overflow:clip не создаёт скролл-контейнер (sticky-хедер/панель не ломаются). */
   body[data-home-variant="teacher"] main { overflow-x: clip; }
@@ -897,4 +931,58 @@ body[data-home-variant="teacher"] .ht-sidebar-logout-btn:hover {
 }
 body[data-home-variant="teacher"] .ht-sidebar-logout-btn:hover .ht-sidebar-icon {
   color: #dc2626;
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   8. WSF-restyle M5: сайдбар на мобилке — гамбургер + full-screen overlay
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  /* Рельс не нужен: контент во всю ширину, открытие — по гамбургеру */
+  body[data-home-variant="teacher"] main,
+  body[data-home-variant="teacher"].ht-sidebar-open main {
+    margin-left: 0;
+  }
+
+  /* Затемнение под full-screen панелью */
+  body[data-home-variant="teacher"] .ht-sidebar-overlay {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(15, 23, 42, .45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Свёрнутый сайдбар на мобилке полностью спрятан слева за экран */
+  body[data-home-variant="teacher"] .ht-sidebar-panel {
+    width: min(86vw, 320px);
+    z-index: 999;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 0 transparent;
+    transition: transform 240ms cubic-bezier(.4, 0, .2, 1);
+  }
+  /* Открыт — выезжает поверх контента (full-height, высокий z-index) */
+  body[data-home-variant="teacher"] .ht-sidebar.open .ht-sidebar-panel {
+    width: min(86vw, 320px);
+    transform: translateX(0);
+    background: var(--panel);
+    box-shadow: 4px 0 28px rgba(15, 23, 42, .22);
+  }
+
+  /* На мобилке лейблы/заголовок видны всегда (панель раскрыта на всю) */
+  body[data-home-variant="teacher"] .ht-sidebar-panel .ht-sidebar-label,
+  body[data-home-variant="teacher"] .ht-sidebar-panel .ht-sidebar-title,
+  body[data-home-variant="teacher"] .ht-sidebar-panel .ht-sidebar-user-name,
+  body[data-home-variant="teacher"] .ht-sidebar-panel .ht-sidebar-chevron {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
