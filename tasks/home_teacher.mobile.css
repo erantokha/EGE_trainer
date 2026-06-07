@@ -98,6 +98,91 @@ body[data-home-variant="teacher"] .score-thermo-slot{
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   M2 — мобилка: ряд «Выбрать всё / Сбросить всё / фильтр» В ОДНУ строку.
+   .ht-action-toolbar = flex nowrap; .bulk-controls (2 кнопки) занимает 2 доли,
+   .ht-filter-wrap (dropdown) — 1 долю; внутри bulk-controls кнопки flex:1.
+   У dropdown снимаем intrinsic-ширину (min-width:0, width:100% внутри своей доли),
+   текст не переносим — три элемента пропорционально ужимаются под 360–390px.
+   M3 — мобилка: нижняя липкая панель (#startCard) — 3 кнопки разного размера:
+   [👁 #addedTasksBtn][Начать #start][Создать ДЗ #createHwBtn]. Селекторы по id —
+   чтобы перебить общий home_student.mobile.css (.sc-preview/.sc-start), который
+   грузится ПОСЛЕ teacher-mobile с той же спецификой.
+   Брейкпоинт идентичен общему студенческому (home_student.mobile.css): именно под ним
+   .picker-grid встаёт стопкой, а .start-card превращается в липкую нижнюю панель —
+   поэтому M3-правила кнопок должны жить под тем же запросом. M2 (тулбар) тоже здесь.
+   ══════════════════════════════════════════════════════════════ */
+@media (orientation: portrait) and (max-width: 1024px), (max-width: 900px) {
+  /* ── M2 ── */
+  body[data-home-variant="teacher"] .picker-left .ht-action-toolbar{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:nowrap !important;
+    align-items:center !important;
+    gap:8px !important;
+  }
+  /* «Выбрать все» + «Сбросить все» — 2 доли, внутри кнопки делят пополам */
+  body[data-home-variant="teacher"] .ht-action-toolbar .bulk-controls{
+    flex:2 1 0 !important;
+    min-width:0 !important;
+    flex-wrap:nowrap !important;
+    gap:6px !important;
+  }
+  body[data-home-variant="teacher"] .ht-action-toolbar .bulk-controls button{
+    flex:1 1 0 !important;
+    min-width:0 !important;
+    white-space:nowrap !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    padding:6px 8px !important;
+  }
+  /* фильтр — 1 доля; убираем жёсткую ширину/min-width, dropdown тянется на всю долю */
+  body[data-home-variant="teacher"] .ht-action-toolbar .ht-filter-wrap{
+    flex:1 1 0 !important;
+    min-width:0 !important;
+    display:block !important;
+  }
+  body[data-home-variant="teacher"] .ht-action-toolbar .ht-filter-wrap .ht-filter-dropdown{
+    width:100% !important;
+    min-width:0 !important;
+    box-sizing:border-box !important;
+    text-overflow:ellipsis !important;
+  }
+
+  /* ── M3 ── */
+  /* 👁 «Предпросмотр»: только иконка, узкая квадратная кнопка */
+  body[data-home-variant="teacher"] #picker #addedTasksBtn.sc-preview{
+    flex:0 0 auto !important;
+    width:44px !important;
+    min-width:44px !important;
+    padding:0 !important;
+  }
+  body[data-home-variant="teacher"] #picker #addedTasksBtn.sc-preview > span{
+    display:none !important;
+  }
+  /* «Начать» — крупная, по центру, растягивается (shared уже flex:1 1 auto, но фиксируем) */
+  body[data-home-variant="teacher"] #picker #start.sc-start{
+    flex:1 1 auto !important;
+    min-width:0 !important;
+  }
+  /* «Создать ДЗ» — подпись в одну строку, меньше #start (паддинги/шрифт), не растягивается */
+  body[data-home-variant="teacher"] #picker #createHwBtn.ht-hw-btn{
+    flex:0 0 auto !important;
+    width:auto !important;
+    margin:0 !important;
+    height:50px !important;
+    padding:0 14px !important;
+    border-radius:12px !important;
+    font-size:13px !important;
+    line-height:1 !important;
+    white-space:nowrap !important;
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    box-sizing:border-box !important;
+  }
+}
+
 /* ---------- Added tasks preview (home_teacher) ---------- */
 body[data-home-variant="teacher"] #addedTasksModal .added-tasks-main{
   display:flex;

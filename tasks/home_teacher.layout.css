@@ -59,19 +59,24 @@ body[data-home-variant="teacher"] #appHeader {
   background: var(--bg);
 }
 
-/* .page-head-left занимает всю ширину: текст слева, строка ученика справа. */
+/* D4 (десктоп): eyebrow сверху, СТРОКОЙ НИЖЕ — заголовок «Ученик» и поле поиска В ОДНУ
+   строку, поле сразу справа от заголовка с маленьким зазором (не space-between по краям).
+   Достигается: .page-head-left = flex-ряд с justify-content:flex-start; .home-head-text
+   (eyebrow+H1 стопкой) не растягивается (flex:0 0 auto); .ht-student-bar bottom-aligned →
+   поле визуально встаёт сразу за H1. Мобильный override (@media ≤1024px) делает стопку. */
 body[data-home-variant="teacher"] #appHeader .page-head-left {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: flex-end;
+  justify-content: flex-start;
   flex: 1;
   min-width: 0;
-  gap: 16px;
+  gap: 14px;
 }
 
-/* Блок eyebrow+H1 — слева, тянется; .home-eyebrow/.home-h1 стилизует home-student.css */
+/* Блок eyebrow+H1 — слева, по содержимому (не тянется, иначе поле уезжает вправо);
+   .home-eyebrow/.home-h1 стилизует home-student.css */
 body[data-home-variant="teacher"] #appHeader .home-head-text {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
 }
 
@@ -128,9 +133,10 @@ body[data-home-variant="teacher"] #appHeader #teacherStudentStatus:empty {
   display: none;
 }
 
+/* D4: поле поиска — фиксированная разумная ширина (НЕ flex:1 / width:100%), рядом с H1 */
 body[data-home-variant="teacher"] #appHeader .ht-student-picker {
-  flex: 0 0 450px;
-  width: 450px;
+  flex: 0 0 320px;
+  width: 320px;
   max-width: none;
   min-width: 0;
 }
@@ -557,9 +563,15 @@ body[data-home-variant="teacher"] .ht-accordion-col {
   padding: 0 20px 40px 30px;
 }
 
-/* Перебиваем «margin-top:4px !important» из trainer.css при выбранном ученике */
+/* D5-fix: при выбранном ученике аккордеон «прыгал» вверх (слипался с рядом
+   «Выбрать всё/Сбросить всё»). Корень: base.css:2385
+   `body.teacher-student-view #picker .accordion{margin-top:4px!important}` (спец. 1,2,1)
+   применяется ТОЛЬКО при выбранном ученике, а это правило раньше ставило margin-top:0
+   (спец. 1,4,1 — самое высокое, выигрывало). Без ученика действует home-student.css:654
+   (22px). → отступ скакал 22px↔0. Делаем отступ СТАБИЛЬНЫМ (22px как без ученика),
+   перебивая 4px-правило base.css. */
 body[data-home-variant="teacher"].teacher-student-view #picker .accordion {
-  margin-top: 0 !important;
+  margin-top: 22px !important;
 }
 
 /* Панель действий — 196px, без sticky (родитель .ht-right-col sticky) */
@@ -603,9 +615,41 @@ body[data-home-variant="teacher"] .ht-start-btn:hover:not(:disabled) {
   filter: none;
 }
 
-/* «Создать ДЗ» — compact вторичная */
-body[data-home-variant="teacher"] .ht-hw-btn {
-  font-size: 13px;
+/* D6 (десктоп): «Создать ДЗ» оформлена как «Предпросмотр» (.sc-preview) — та же
+   обводка/фон/высота/радиус/шрифт, по центру по горизонтали, fit-content (как .sc-preview),
+   с тем же верт. отступом (11px) от #start, что у .sc-preview сверху. Только десктоп —
+   на мобилке у #createHwBtn своё оформление (M3 в home_teacher.mobile.css). */
+@media (min-width: 1025px) {
+  body[data-home-variant="teacher"] #createHwBtn.ht-hw-btn {
+    width: fit-content;
+    max-width: 100%;
+    margin: 11px auto 0;
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--panel);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 13.5px;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: background .15s ease, border-color .15s ease;
+  }
+  body[data-home-variant="teacher"] #createHwBtn.ht-hw-btn:hover {
+    background: var(--surface2, #f1f5f9);
+    border-color: #c2c9d4;
+    filter: none;
+  }
+  body[data-home-variant="teacher"] #createHwBtn.ht-hw-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
 }
 
 
@@ -622,6 +666,11 @@ body[data-home-variant="teacher"] .ht-hw-btn {
      заворачиваем его дети. */
   body[data-home-variant="teacher"] #appHeader .page-head-left {
     flex-wrap: wrap;
+    align-items: flex-start; /* D4: на мобилке стопка — сбрасываем десктопный flex-end */
+  }
+  /* D4: на мобилке блок eyebrow+H1 занимает строку целиком (десктоп flex:0 0 auto) */
+  body[data-home-variant="teacher"] #appHeader .home-head-text {
+    flex: 1 1 100%;
   }
 
   /* WD.2.8 — строка ученика отдельной строкой во всю ширину (не фикс-пикером 450px). Иначе
