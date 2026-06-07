@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-39';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-39';
-import { CONFIG } from '../app/config.js?v=2026-06-07-39';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-39';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-39';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-39';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-39';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-39';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-39';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-39';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-39';
+import { withBuild } from '../app/build.js?v=2026-06-07-41';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-41';
+import { CONFIG } from '../app/config.js?v=2026-06-07-41';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-41';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-41';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-41';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-41';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-41';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-41';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-41';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-41';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-39';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-41';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-39';
+} from './picker_common.js?v=2026-06-07-41';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-39';
+} from './picker_stats.js?v=2026-06-07-41';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3642,8 +3642,10 @@ async function pickQuestionsViaTeacherScreenResolveBatch({
   requests = [],
   excludeTopicIds = [],
   excludeQuestionIds = [],
+  studentId = null,   // self (auth.uid) для home_student (Ш3); по умолчанию — выбранный ученик учителя
+  filterId,           // undefined → берём учительский getActiveTeacherFilterId(sid)
 } = {}) {
-  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  const sid = String(studentId != null ? studentId : (TEACHER_VIEW_STUDENT_ID || '')).trim();
   if (!sid) return null;
 
   const normalizedRequests = Array.isArray(requests)
@@ -3692,7 +3694,7 @@ async function pickQuestionsViaTeacherScreenResolveBatch({
   const res = await loadTeacherPickingResolveBatchV1({
     student_id: sid,
     source: 'all',
-    filter_id: getActiveTeacherFilterId(sid),
+    filter_id: filterId !== undefined ? filterId : getActiveTeacherFilterId(sid),
     selection: buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds }),
     requests: normalizedRequests,
     seed: getCurrentTeacherPickSessionSeed(sid),
@@ -4439,7 +4441,121 @@ async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
 // добираем/срезаем ТОЛЬКО дельту (раньше — полный перевыбор на любое изменение сигнатуры через
 // недетерминированный pickQuestionsScopedForList → все задачи перегенерировались). Аналог
 // учительского _ADDED_CTX. Существующие задачи (их question_id) при добавлении не меняются.
+// WSF-student (Ш3/Ш4): быстрый батч-добор under-бакетов через self-RPC при активном фильтре.
+// Зеркало учительского syncAddedTasksToSelection: 1 батч-RPC на ВИД (proto/topic) + section-батч,
+// а для «Выбрать всё» (все секции с одинаковой дельтой K) — K× global_all (WP2, обходит section-таймаут).
+// Заполняет buckets/usedIds на месте. Остаток (shortage) и полный сбой батча добирает per-bucket step 2.
+async function batchFillStudentBuckets(buckets, desired, usedIds, filterId) {
+  const selfId = String(readSessionFallback()?.user?.id || '').trim();
+  if (!selfId) return;
+
+  const byKind = { proto: [], topic: [], section: [] };
+  for (const [key, wantRaw] of desired) {
+    const want = Math.max(0, Math.floor(Number(wantRaw) || 0));
+    const cur = Array.isArray(buckets[key]) ? buckets[key] : (buckets[key] = []);
+    const delta = want - cur.length;
+    if (delta <= 0) continue;
+    const sep = key.indexOf(':');
+    const kind = key.slice(0, sep);
+    if (byKind[kind]) byKind[kind].push([key, delta]);
+  }
+
+  const distribute = (entries, byBucket) => {
+    for (const [key, delta] of entries) {
+      const got = byBucket.get(key) || [];
+      const cur = buckets[key] || (buckets[key] = []);
+      for (const q of got.slice(0, delta)) {
+        const id = String(q?.question_id || '').trim();
+        if (id && usedIds.has(id)) continue;
+        cur.push(q);
+        if (id) usedIds.add(id);
+      }
+    }
+  };
+
+  // proto + topic — один батч-RPC на вид (растущий exclude между видами)
+  for (const kind of ['proto', 'topic']) {
+    const entries = byKind[kind];
+    if (!entries.length) continue;
+    let res = null;
+    try {
+      res = await pickQuestionsViaTeacherScreenResolveBatch({
+        requests: entries.map(([key, delta]) => ({ scope_kind: kind, scope_id: key.slice(kind.length + 1), n: delta })),
+        excludeQuestionIds: Array.from(usedIds),
+        studentId: selfId,
+        filterId,
+      });
+    } catch (e) { console.warn('batchFillStudentBuckets: ' + kind + ' threw', e); }
+    if (res?.byBucket instanceof Map) distribute(entries, res.byBucket);
+    // иначе — under-бакеты этого вида останутся на per-bucket фоллбэк (step 2)
+  }
+
+  // section — WP2: «Выбрать всё» (все секции, одинаковая дельта K) → K× global_all; иначе section-батч.
+  const secEntries = byKind.section;
+  if (secEntries.length) {
+    const allSections = secEntries.length === (SECTIONS?.length || 0);
+    const deltaSet = new Set(secEntries.map(([, d]) => d));
+    const uniformK = (allSections && deltaSet.size === 1) ? secEntries[0][1] : 0;
+    const secNeed = new Set(secEntries.map(([key]) => key.slice('section:'.length)));
+
+    if (uniformK > 0) {
+      for (let round = 0; round < uniformK; round++) {
+        let resolved = null;
+        try {
+          resolved = await pickQuestionsViaTeacherScreenResolve({
+            request: { scope_kind: 'global_all', n: 1 },
+            excludeQuestionIds: Array.from(usedIds), // растёт между раундами → разные задачи
+            studentId: selfId,
+            filterId,
+          });
+        } catch (e) { console.warn('batchFillStudentBuckets: global_all threw', e); break; }
+        if (!Array.isArray(resolved) || !resolved.length) break; // фильтр исчерпал / сбой
+        for (const q of resolved) {
+          const secId = String(q?.section_id || '').trim();
+          if (!secNeed.has(secId)) continue;
+          const key = `section:${secId}`;
+          const want = Number(desired.get(key) || 0) || 0;
+          const cur = buckets[key] || (buckets[key] = []);
+          if (cur.length >= want) continue;
+          const id = String(q?.question_id || '').trim();
+          if (id && usedIds.has(id)) continue;
+          cur.push(q);
+          if (id) usedIds.add(id);
+        }
+      }
+    } else {
+      let res = null;
+      try {
+        res = await pickQuestionsViaTeacherScreenResolveBatch({
+          requests: secEntries.map(([key, delta]) => ({ scope_kind: 'section', scope_id: key.slice('section:'.length), n: delta })),
+          excludeQuestionIds: Array.from(usedIds),
+          studentId: selfId,
+          filterId,
+        });
+      } catch (e) { console.warn('batchFillStudentBuckets: section threw', e); }
+      if (res?.byBucket instanceof Map) distribute(secEntries, res.byBucket);
+    }
+  }
+}
+
+// WSF-student (Ш5): single-flight-гард (WP1 in-flight). Не запускаем параллельные резолвы — иначе
+// быстрые смены фильтра/счётчиков шлют перекрывающиеся тяжёлые батч-RPC (риск 500). Параллельный
+// вызов ждёт текущий и попадает в кэш (если sig совпал) либо отрабатывает после (без перекрытия).
+let _studentResolveInFlight = null;
 async function resolveStudentSelection() {
+  if (_studentResolveInFlight) {
+    try { await _studentResolveInFlight; } catch (_) {}
+    const sig0 = studentSelectionSignature();
+    if (STUDENT_RESOLVE.sig === sig0 && Array.isArray(STUDENT_RESOLVE.questions)) {
+      return STUDENT_RESOLVE.questions;
+    }
+  }
+  const p = resolveStudentSelectionInner();
+  _studentResolveInFlight = p;
+  try { return await p; } finally { if (_studentResolveInFlight === p) _studentResolveInFlight = null; }
+}
+
+async function resolveStudentSelectionInner() {
   const sig = studentSelectionSignature();
   if (STUDENT_RESOLVE.sig === sig && Array.isArray(STUDENT_RESOLVE.questions)) {
     return STUDENT_RESOLVE.questions;
@@ -4457,6 +4573,14 @@ async function resolveStudentSelection() {
   const usedIds = new Set();
   for (const arr of Object.values(buckets)) {
     for (const q of (arr || [])) { const id = String(q?.question_id || '').trim(); if (id) usedIds.add(id); }
+  }
+
+  // 1.5) при активном фильтре — быстрый батч-добор всех under-бакетов одним RPC на вид (вместо N
+  //      последовательных per-bucket RPC ≈12с). Остаток/сбой батча добирает per-bucket step 2.
+  const _filterId = getActiveStudentFilterId();
+  if (_filterId) {
+    try { await batchFillStudentBuckets(buckets, desired, usedIds, _filterId); }
+    catch (e) { console.warn('batchFillStudentBuckets failed', e); }
   }
 
   // 2) по каждому желаемому бакету — трим с конца или добор дельты
