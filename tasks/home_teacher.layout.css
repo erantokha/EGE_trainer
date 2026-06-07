@@ -78,6 +78,23 @@ body[data-home-variant="teacher"] #appHeader .page-head-left {
 body[data-home-variant="teacher"] #appHeader .home-head-text {
   flex: 0 0 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+/* WSF (D4-fix): H1 и поле поиска — в одном ряду; H1 ужимается по своему тексту (не по
+   широкому eyebrow), поэтому поле встаёт сразу за словом «Выберите ученика»/«Ученик»
+   с маленьким зазором (а не уезжает за широкий eyebrow-блок). */
+body[data-home-variant="teacher"] #appHeader .ht-head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+body[data-home-variant="teacher"] #appHeader .ht-head-row .home-h1 {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 /* Бургер — общий стиль; на десктопе скрыт (сайдбар — левый рельс), показывается на мобилке */
@@ -135,8 +152,8 @@ body[data-home-variant="teacher"] #appHeader #teacherStudentStatus:empty {
 
 /* D4: поле поиска — фиксированная разумная ширина (НЕ flex:1 / width:100%), рядом с H1 */
 body[data-home-variant="teacher"] #appHeader .ht-student-picker {
-  flex: 0 0 320px;
-  width: 320px;
+  flex: 0 0 210px;
+  width: 210px;
   max-width: none;
   min-width: 0;
 }
@@ -671,6 +688,10 @@ body[data-home-variant="teacher"] .ht-start-btn:hover:not(:disabled) {
   /* D4: на мобилке блок eyebrow+H1 занимает строку целиком (десктоп flex:0 0 auto) */
   body[data-home-variant="teacher"] #appHeader .home-head-text {
     flex: 1 1 100%;
+  }
+  /* D4-fix: ряд H1+поле на мобилке — во всю ширину, поле сворачивается под H1 (стопка) */
+  body[data-home-variant="teacher"] #appHeader .ht-head-row {
+    width: 100%;
   }
 
   /* WD.2.8 — строка ученика отдельной строкой во всю ширину (не фикс-пикером 450px). Иначе
