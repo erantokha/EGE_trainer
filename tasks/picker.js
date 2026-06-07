@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-22';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-22';
-import { CONFIG } from '../app/config.js?v=2026-06-07-22';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-22';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-22';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-22';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-22';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-22';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-22';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-22';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-22';
+import { withBuild } from '../app/build.js?v=2026-06-07-23';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-23';
+import { CONFIG } from '../app/config.js?v=2026-06-07-23';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-23';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-23';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-23';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-23';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-23';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-23';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-23';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-23';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-22';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-23';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-22';
+} from './picker_common.js?v=2026-06-07-23';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-22';
+} from './picker_stats.js?v=2026-06-07-23';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4517,11 +4517,12 @@ function syncStudentPreviewCount() {
 
 // перерендер модалки из рабочего набора (после +/×)
 async function rerenderStudentPreview() {
-  const { meta, listWrap, list } = getAddedTasksModalEls();
+  const { listWrap, list } = getAddedTasksModalEls();
   const arr = Array.isArray(STUDENT_RESOLVE.questions) ? STUDENT_RESOLVE.questions : [];
   const stats = await loadSelfStatsForQuestions(arr); // кэш тёплый → мгновенно, без мигания
-  renderAddedTasksPreview(arr, { wantTotal: 0, studentLabel: true, selfStatsMap: stats.map, selfStatsOk: stats.ok });
-  if (meta) meta.textContent = `Всего: ${arr.length}`;
+  // wantTotal = актуальный выбор → renderAddedTasksPreview сам ставит «Показано: N из M» СРАЗУ
+  // (раньше передавали 0 + «Всего: N» → заголовок обновлялся только при переоткрытии модалки).
+  renderAddedTasksPreview(arr, { wantTotal: getTotalSelected(), studentLabel: true, selfStatsMap: stats.map, selfStatsOk: stats.ok });
   syncStudentPreviewCount();
   try { await typesetMathIfNeeded(listWrap || list); } catch (_) {}
 }
@@ -4587,11 +4588,20 @@ async function studentPreviewAdd(qid, btn) {
   const newQ = buildQuestionForPreview(pick.manifest, pick.type, pick.proto);
   const unic = baseIdFromProtoId(String(newQ.question_id || '').trim())
     || baseIdFromProtoId(id) || String(q.proto_id || '').trim();
-  const bk = `proto:${unic}`;
   const buckets = STUDENT_RESOLVE.buckets || (STUDENT_RESOLVE.buckets = {});
+  // кладём вариант в ТОТ ЖЕ бакет, что и исходная задача (а не всегда proto), чтобы счётчик нужного
+  // scope в аккордеоне рос: выбрал секцию → «+» наращивает секцию (1→2), а не плодит proto-бакет.
+  let bk = null;
+  for (const [k, a] of Object.entries(buckets)) {
+    if ((a || []).some((x) => String(x?.question_id || '').trim() === id)) { bk = k; break; }
+  }
+  if (!bk) bk = `proto:${unic}`; // fallback — исходная не в бакете → новый proto-бакет
   if (!Array.isArray(buckets[bk])) buckets[bk] = [];
   buckets[bk].push(newQ);
-  setProtoCount(unic, (Number(CHOICE_PROTOS[unic] || 0)) + 1); // desired совпадает с новым размером bucket → sync no-op
+  // увеличиваем счётчик соответствующего scope (→ аккордеон/#sum синхронны)
+  if (bk.startsWith('proto:')) { const k = bk.slice(6); setProtoCount(k, (Number(CHOICE_PROTOS[k] || 0)) + 1); }
+  else if (bk.startsWith('topic:')) { const k = bk.slice(6); setTopicCount(k, (Number(CHOICE_TOPICS[k] || 0)) + 1); }
+  else if (bk.startsWith('section:')) { const k = bk.slice(8); setSectionCount(k, (Number(CHOICE_SECTIONS[k] || 0)) + 1); }
   commitStudentBuckets();
   rerenderStudentPreview();
 }
