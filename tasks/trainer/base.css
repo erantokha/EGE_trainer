@@ -440,9 +440,13 @@ body[data-theme="dark"] .theme-toggle-icon-dark{
   background:var(--muted);
   color:var(--text);
   border-radius:8px;
+  touch-action:manipulation; /* П2: без double-tap-to-zoom при быстром двойном тапе по +/− */
 }
 
 .countbox .btn:active{transform:translateY(1px)}
+
+/* П2: убираем double-tap zoom на всех счётчиках/степперах/кнопках подборки (мобайл/iOS) */
+.countbox, .tp-ctr-btn, .added-task-act, .added-task-stepper, .added-task-acts{ touch-action:manipulation; }
 
 
 /* блок действий в шапке (лист задач) */
@@ -1649,7 +1653,8 @@ input:focus:not(:focus-visible){
   box-shadow:0 20px 50px rgba(0,0,0,.22);
   display:flex;
   flex-direction:column;
-  min-height:320px;
+  /* П4: без min-height — высота по контенту (head + карточки), чтобы при 1-2 карточках не было
+     пустого места до края; max-height выше + внутренний скролл сохраняют поведение для длинных. */
 }
 
 .modal-head {
@@ -1848,10 +1853,10 @@ body.preview-open{ overflow:hidden !important; }
     grid-template-areas: "label label" "num stem" "fig fig" "ans ans" !important;
   }
   :is(#addedTasksModal, #protoPickerModal) .added-task-card .task-fig{
-    grid-area: fig !important; justify-self:start !important; margin:12px 0 0 0 !important; max-width:100% !important;
+    grid-area: fig !important; justify-self:center !important; margin:12px auto 0 !important; max-width:100% !important;
   }
   :is(#addedTasksModal, #protoPickerModal) .added-task-card .task-fig img{
-    max-width:100% !important; height:auto !important;
+    max-width:100% !important; height:auto !important; display:block !important; margin:0 auto !important;
   }
 }
 

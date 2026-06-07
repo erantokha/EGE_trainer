@@ -942,8 +942,12 @@ body[data-home-variant="student"] #accordion .row-title .unique-btn{
   flex:0 0 auto; width:26px !important; height:26px !important; padding:0 !important;
   border:0 !important; background:none !important; color:#b0bfd0 !important;
   border-radius:8px !important; cursor:pointer; font-size:0 !important;
-  display:inline-flex; align-items:center; justify-content:center;
+  display:none; align-items:center; justify-content:center;
   transition:background .15s, color .15s;
+}
+/* П1: на десктопе кнопка «уникальные» видна только у РАСКРЫТОЙ секции (как на мобайле) */
+body[data-home-variant="student"] #accordion .node.section.show-uniq .row-title .unique-btn{
+  display:inline-flex !important;
 }
 body[data-home-variant="student"] #accordion .row-title .unique-btn:hover{ background:#f0f4f8 !important; color:var(--accent) !important; }
 body[data-home-variant="student"] #accordion .row-title .unique-btn svg{ width:16px !important; height:16px !important; }
