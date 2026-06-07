@@ -529,6 +529,23 @@ body[data-home-variant="teacher"] .picker-left .ht-action-toolbar {
   display: inline-block;
 }
 
+/* WSF-restyle: чекбокс «Перемешать задачи» в тулбаре (.ht-action-toolbar), перенесён из
+   модалки. Стиль = прежний .added-tasks-shuffle (inline-flex + gap + dim-цвет), чтобы на
+   десктопе чекбокс с подписью стоял в ряд рядом с фильтром (как .shuffle у ученика). */
+body[data-home-variant="teacher"] .ht-action-toolbar .shuffle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+  white-space: nowrap;
+}
+body[data-home-variant="teacher"] .ht-action-toolbar .shuffle input {
+  margin: 0;
+  cursor: pointer;
+}
+
 /* Кнопка перехода в профиль ученика */
 .ht-student-profile-btn[hidden] { display: none; }
 .ht-student-profile-btn {

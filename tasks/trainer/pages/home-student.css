@@ -1105,6 +1105,11 @@ body[data-home-variant] .ht-filter-dropdown {
   background-repeat: no-repeat !important;
   background-position: right 7px center !important;
   background-size: 11px !important;
+  /* текст выбранного значения — по центру (text-align-last надёжнее для <select>);
+     стрелка-шеврон справа зарезервирована padding-right (мобильное правило ниже), поэтому
+     центрированный текст на неё не наезжает; у короткого значения нет пустоты справа. */
+  text-align: center !important;
+  text-align-last: center !important;
 }
 
 /* iOS-fix (зум): убираем double-tap-to-zoom на интерактиве главных (focus-zoom поля поиска

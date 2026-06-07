@@ -113,34 +113,34 @@ body[data-home-variant="teacher"] .score-thermo-slot{
    поэтому M3-правила кнопок должны жить под тем же запросом. M2 (тулбар) тоже здесь.
    ══════════════════════════════════════════════════════════════ */
 @media (orientation: portrait) and (max-width: 1024px), (max-width: 900px) {
-  /* ── M2 ── */
+  /* ── M2 ── раскладка идентична ученику (home_student.mobile.css): кнопки по натуральной
+     ширине (nowrap, БЕЗ ellipsis — текст и так влезает), фильтр забирает остаток строки.
+     flex-wrap:wrap — чтобы шаффл уходил на 2-ю строку (см. правило шаффла ниже). */
   body[data-home-variant="teacher"] .picker-left .ht-action-toolbar{
     display:flex !important;
     flex-direction:row !important;
-    flex-wrap:nowrap !important;
+    flex-wrap:wrap !important;
     align-items:center !important;
     gap:8px !important;
   }
-  /* «Выбрать все» + «Сбросить все» — 2 доли, внутри кнопки делят пополам */
+  /* «Выбрать все» + «Сбросить все» — по содержимому (не доли), как у ученика */
   body[data-home-variant="teacher"] .ht-action-toolbar .bulk-controls{
-    flex:2 1 0 !important;
+    flex:0 1 auto !important;
     min-width:0 !important;
     flex-wrap:nowrap !important;
     gap:6px !important;
   }
+  /* кнопки — натуральная ширина + nowrap (текст в одну строку, без обрезки ellipsis) */
   body[data-home-variant="teacher"] .ht-action-toolbar .bulk-controls button{
-    flex:1 1 0 !important;
+    flex:0 1 auto !important;
     min-width:0 !important;
     white-space:nowrap !important;
-    overflow:hidden !important;
-    text-overflow:ellipsis !important;
     padding:6px 8px !important;
   }
-  /* фильтр — 1 доля; убираем жёсткую ширину/min-width, dropdown тянется на всю долю */
-  /* фильтру — чуть больше доли (1.4 vs 2 у пары кнопок), чтобы «Без фильтра» влезало целиком
-     (нативной стрелке нужно место); кнопкам оставшейся ширины хватает на полный текст. */
+  /* фильтр забирает остаток строки (flex:1 1 0 + min-width:0), как #studentFilterDropdown у ученика
+     → ширина ~156px, средние названия фильтров влезают; dropdown тянется на всю долю. */
   body[data-home-variant="teacher"] .ht-action-toolbar .ht-filter-wrap{
-    flex:1.4 1 0 !important;
+    flex:1 1 0 !important;
     min-width:0 !important;
     display:block !important;
   }
@@ -149,6 +149,12 @@ body[data-home-variant="teacher"] .score-thermo-slot{
     min-width:0 !important;
     box-sizing:border-box !important;
     text-overflow:ellipsis !important;
+  }
+  /* шаффл «Перемешать задачи» — на ВТОРУЮ строку (вся ширина), как у ученика */
+  body[data-home-variant="teacher"] .ht-action-toolbar > .shuffle{
+    flex:1 1 100% !important;
+    order:9 !important;
+    margin-top:2px !important;
   }
 
   /* ── M3 ── */
