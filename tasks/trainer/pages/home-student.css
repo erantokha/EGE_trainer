@@ -1366,7 +1366,7 @@ body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-label {
 }
 
 /* ── Активный пункт (текущая страница). Сигнал — класс .active, его ставит
-   app/ui/sidebar.js по текущему пути. На свёрнутом рельсе видны только иконки →
+   синхронный inline-контроллер сайдбара по текущему пути. На свёрнутом рельсе видны только иконки →
    подсвечивается иконка + левая акцентная полоска; на раскрытом/мобилке — вся строка. ── */
 body[data-home-variant] .ht-sidebar-item.active {
   color: var(--accent, #2563eb);
@@ -1379,11 +1379,13 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   transform: translateY(-50%) scaleY(1);
 }
 
-/* Восстановление сохранённого состояния рельса без анимации-мигания
-   (app/ui/sidebar.js на загрузке ставит body.ht-sidebar-restoring на 2 кадра). */
-body.ht-sidebar-restoring,
-body.ht-sidebar-restoring .ht-sidebar-panel {
-  transition: none !important;
+/* Профиль — общая для обеих ролей страница: меню содержит ОБА набора пунктов
+   (data-role="student"/"teacher"), CSS показывает только набор текущей роли. Роль ставит
+   синхронный inline-контроллер (body[data-home-variant]) до первой отрисовки → без мигания.
+   На остальных страницах пунктов с data-role нет → правило их не касается. */
+body[data-home-variant="student"] #htSidebar .ht-sidebar-item[data-role="teacher"],
+body[data-home-variant="teacher"] #htSidebar .ht-sidebar-item[data-role="student"] {
+  display: none;
 }
 
 /* Нижняя зона: пользователь + выход */

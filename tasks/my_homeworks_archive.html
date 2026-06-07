@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-08-8">
+  <meta name="app-build" content="2026-06-08-9">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -42,7 +42,7 @@
   <!-- cache-check:end -->
   <title>Архив ДЗ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <script src="../app/diag_bootstrap.js?v=2026-06-08-8"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-08-9"></script>
 
 
   <script id="sentry-loader" src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js" crossorigin="anonymous"></script>
@@ -58,11 +58,11 @@
     });
   </script>
 
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-8">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-8">
-  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-08-8">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-8">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-8">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-9">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-9">
+  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-08-9">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-9">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-9">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -120,34 +120,27 @@
         <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
       </div>
       <div class="ht-sidebar-nav">
-        <button type="button" class="ht-sidebar-item" id="htNavStats">
+        <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_student.html" data-match="home_student">
           <span class="ht-sidebar-icon" aria-hidden="true">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"/>
-              <line x1="12" y1="20" x2="12" y2="4"/>
-              <line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+          </span>
+          <span class="ht-sidebar-label">Главная</span>
+        </button>
+        <button type="button" class="ht-sidebar-item" id="htNavStats" data-href="tasks/stats.html" data-match="stats">
+          <span class="ht-sidebar-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           </span>
           <span class="ht-sidebar-label">Статистика</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavWorks">
+        <button type="button" class="ht-sidebar-item" id="htNavWorks" data-href="tasks/my_homeworks.html" data-match="my_homeworks">
           <span class="ht-sidebar-icon" aria-hidden="true">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-              <line x1="10" y1="9" x2="8" y2="9"/>
-            </svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
           </span>
           <span class="ht-sidebar-label">Мои ДЗ</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavProfile">
+        <button type="button" class="ht-sidebar-item" id="htNavProfile" data-href="tasks/profile.html" data-match="profile">
           <span class="ht-sidebar-icon" aria-hidden="true">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </span>
           <span class="ht-sidebar-label">Профиль</span>
         </button>
@@ -181,8 +174,8 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-08-8" defer></script>
-  <script type="module" src="./my_homeworks_archive.js?v=2026-06-08-8"></script>
+  <script src="./theme.js?v=2026-06-08-9" defer></script>
+  <script type="module" src="./my_homeworks_archive.js?v=2026-06-08-9"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html / stats.html.
@@ -320,22 +313,47 @@
     })();
   })();
   </script>
-  <!-- WSF: единый контроллер сайдбара (Главная / активный пункт / персист рельса / role-aware) -->
+  <!-- WSF: контроллер сайдбара — СИНХРОННЫЙ (до первой отрисовки, без сетевого запроса):
+       меню статично в HTML, здесь только восстановление рельса, роль профиля, активный пункт,
+       клики и персист. Это устраняет мигание при навигации (меню не достраивается после paint). -->
   <script>
-    (function () {
-      /* Синхронно (до первой отрисовки) восстанавливаем сохранённое раскрытое состояние рельса —
-         иначе async-модуль применит .open уже после paint → мигание ширины 56→220 при навигации. */
-      try {
-        if (window.matchMedia('(min-width:1025px)').matches && localStorage.getItem('ege_sidebar_open') === '1') {
-          var sb = document.getElementById('htSidebar');
-          if (sb) { sb.classList.add('open'); if (document.body) document.body.classList.add('ht-sidebar-open'); }
-        }
-      } catch (e) {}
-      var B = document.querySelector('meta[name="app-build"]')?.content?.trim();
-      var withV = function (p) { return B ? (p + (p.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(B)) : p; };
-      var rel = /\/tasks(\/|$)/.test(location.pathname) ? '../' : './';
-      import(withV(rel + 'app/ui/sidebar.js')).then(function (m) { m.initSidebar && m.initSidebar(); });
-    })();
+  (function () {
+    var sb = document.getElementById('htSidebar');
+    if (!sb) return;
+    var nav = sb.querySelector('.ht-sidebar-nav');
+    function homeUrl() { try { return /\/tasks(\/|$)/.test(location.pathname) ? new URL('../', location.href).toString() : new URL('./', location.href).toString(); } catch (e) { return './'; } }
+    function isDesktop() { try { return window.matchMedia('(min-width:1025px)').matches; } catch (e) { return false; } }
+    function pageKey() { var p = location.pathname; if (/\/home_student\.html$/.test(p)) return 'home_student'; if (/\/home_teacher\.html$/.test(p)) return 'home_teacher'; if (p === '/' || p === '' || /\/index\.html$/.test(p)) return 'root'; var m = p.match(/\/tasks\/([a-z0-9_]+)\.html$/i); return m ? m[1].toLowerCase() : ''; }
+    function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } } catch (e) {} return null; }
+    function menuStatsRole() { var el = document.getElementById('menuStats'); if (!el) return null; var t = (el.textContent || '').trim(); if (!t) return null; return /ученик/i.test(t) ? 'teacher' : 'student'; }
+
+    // 1) Профиль (универсальная страница): роль -> body[data-home-variant] СИНХРОННО (до paint).
+    var auto = sb.getAttribute('data-sidebar-role') === 'auto';
+    if (auto) { var r = cachedRole(); if (r) document.body.setAttribute('data-home-variant', r); }
+
+    // 2) Восстановление рельса (десктоп) — синхронно, до paint (без скачка ширины).
+    try { if (isDesktop() && localStorage.getItem('ege_sidebar_open') === '1') { sb.classList.add('open'); document.body.classList.add('ht-sidebar-open'); } } catch (e) {}
+
+    // 3) Активный пункт — по data-match среди ВИДИМЫХ пунктов.
+    function markActive() { var key = pageKey(); var it = nav ? nav.querySelectorAll('.ht-sidebar-item') : []; for (var i = 0; i < it.length; i++) { var m = it[i].getAttribute('data-match') || ''; it[i].classList.toggle('active', !!m && m === key); } }
+    markActive();
+
+    // 4) Клики — по data-href (работают сразу, без ожидания чего-либо).
+    if (nav) { var its = nav.querySelectorAll('.ht-sidebar-item[data-href]'); for (var j = 0; j < its.length; j++) { (function (btn) { btn.addEventListener('click', function () { try { location.href = homeUrl() + btn.getAttribute('data-href'); } catch (e) {} }); })(its[j]); } }
+
+    // 5) Персист состояния рельса (только десктоп).
+    try { new MutationObserver(function () { if (isDesktop()) { try { localStorage.setItem('ege_sidebar_open', sb.classList.contains('open') ? '1' : '0'); } catch (e) {} } }).observe(sb, { attributes: true, attributeFilter: ['class'] }); } catch (e) {}
+
+    // 6) Профиль: если роли не было в кэше — уточняем асинхронно (header.js дотянет profiles.role),
+    //    меняем только variant (наборы пунктов уже оба в DOM, CSS показывает нужный) + active. Редкий случай.
+    if (auto) {
+      var fix = function () { var nr = menuStatsRole() || cachedRole(); if (nr && nr !== document.body.getAttribute('data-home-variant')) { document.body.setAttribute('data-home-variant', nr); markActive(); } };
+      var ms = document.getElementById('menuStats'); if (ms) { try { new MutationObserver(fix).observe(ms, { childList: true, characterData: true, subtree: true }); } catch (e) {} }
+      try { new MutationObserver(function () { if (document.getElementById('menuStats')) fix(); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+      try { window.addEventListener('app-auth-changed', fix); } catch (e) {}
+      setTimeout(fix, 1200); setTimeout(fix, 2600);
+    }
+  })();
   </script>
 </body>
 </html>

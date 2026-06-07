@@ -113,8 +113,8 @@ body[data-home-variant] #profileActions .profile-delete-btn:disabled {
   }
 }
 
-/* ── Профиль — общая для обеих ролей страница. Когда роль = учитель, app/ui/sidebar.js
-   ставит body[data-home-variant="teacher"]. Clearance под рельс в home-student.css завязан
+/* ── Профиль — общая для обеих ролей страница. Когда роль = учитель, синхронный inline-контроллер
+   сайдбара ставит body[data-home-variant="teacher"]. Clearance под рельс в home-student.css завязан
    на ="student", поэтому для teacher дублируем здесь (профиль НЕ грузит home_teacher.layout.css
    → конфликта с его main{margin-left} нет). Значения 1-в-1 со student. ── */
 @media (min-width: 1025px) {
