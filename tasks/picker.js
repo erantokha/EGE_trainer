@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-26';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-26';
-import { CONFIG } from '../app/config.js?v=2026-06-07-26';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-26';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-26';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-26';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-26';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-26';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-26';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-26';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-26';
+import { withBuild } from '../app/build.js?v=2026-06-07-27';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-27';
+import { CONFIG } from '../app/config.js?v=2026-06-07-27';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-27';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-27';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-27';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-27';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-27';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-27';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-27';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-27';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-26';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-27';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-26';
+} from './picker_common.js?v=2026-06-07-27';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-26';
+} from './picker_stats.js?v=2026-06-07-27';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -5027,6 +5027,9 @@ function buildPreviewCard(data = {}, opts = {}) {
   return card;
 }
 
+// иконка «корзина» (удалить) для кнопки убирания задачи в предпросмотре (вместо красного «×»)
+const TRASH_ICON_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+
 function renderAddedTasksPreview(questions, opts = {}) {
   const { meta, list, hint } = getAddedTasksModalEls();
   const arr = Array.isArray(questions) ? questions : [];
@@ -5074,7 +5077,7 @@ function renderAddedTasksPreview(questions, opts = {}) {
       const rmBtn = document.createElement('button');
       rmBtn.type = 'button';
       rmBtn.className = 'added-task-act added-task-remove';
-      rmBtn.textContent = '×';
+      rmBtn.innerHTML = TRASH_ICON_SVG; // удалить (корзина) вместо красного «×»
       rmBtn.title = 'Убрать эту задачу из подборки';
       rmBtn.setAttribute('aria-label', 'Убрать задачу из подборки');
       rmBtn.dataset.qid = qid;
@@ -5124,7 +5127,7 @@ function renderAddedTasksPreview(questions, opts = {}) {
     const tRm = document.createElement('button');
     tRm.type = 'button';
     tRm.className = 'added-task-act added-task-remove';
-    tRm.textContent = '×';
+    tRm.innerHTML = TRASH_ICON_SVG; // удалить (корзина) вместо красного «×»
     tRm.title = 'Убрать эту задачу из подборки';
     tRm.setAttribute('aria-label', 'Убрать задачу из подборки');
     tRm.dataset.qid = tqid;

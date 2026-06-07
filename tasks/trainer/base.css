@@ -1802,6 +1802,15 @@ input:focus:not(:focus-visible){
 :is(#addedTasksModal, #protoPickerModal) .added-task-act:hover{ background:var(--surface2,#f1f5f9); }
 :is(#addedTasksModal, #protoPickerModal) .added-task-act:disabled{ opacity:.4; cursor:not-allowed; }
 :is(#addedTasksModal, #protoPickerModal) .added-task-remove{ color:#dc2626; }
+:is(#addedTasksModal, #protoPickerModal) .added-task-remove svg{ width:16px; height:16px; display:block; }
+/* кнопка закрытия модалки предпросмотра — в стиле карточного крестика (тот же размер 28×28/18px),
+   но чёрная (а не красная). Перебивает .btn.small. */
+#addedTasksClose{
+  flex:0 0 auto; width:28px; height:28px; padding:0; display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid var(--border); border-radius:8px; background:var(--panel); color:var(--text);
+  font-size:18px; line-height:1; cursor:pointer; min-width:0;
+}
+#addedTasksClose:hover{ background:var(--surface2,#f1f5f9); }
 /* степпер количества (аккордеон) — кнопки/значение/«из N» используют общие .tp-ctr-* выше */
 :is(#addedTasksModal, #protoPickerModal) .added-task-stepper{ display:flex; align-items:center; gap:6px; flex:0 0 auto; }
 /* контейнер кнопок «+»/«×» (предпросмотр) — единый блок справа, как и степпер */
