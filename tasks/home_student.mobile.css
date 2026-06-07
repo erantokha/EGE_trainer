@@ -111,8 +111,8 @@
     display:grid !important;
     grid-template-columns: minmax(0,1fr) auto !important; /* minmax(0,…): колонка реально сжимается → 📊 не лезет в степпер */
     grid-template-rows: auto auto !important;
-    column-gap:10px !important; row-gap:8px !important;
-    align-items:center !important; padding:11px 4px !important;
+    column-gap:10px !important; row-gap:4px !important;
+    align-items:center !important; padding:6px 4px !important; /* #2: компрессия (было 11px 4px / row-gap 8) */
   }
   body[data-home-variant="student"] #accordion .node.topic > .row{ padding-left:22px !important; }
   /* строка названия (.row-title) — верх, колонка 1 */

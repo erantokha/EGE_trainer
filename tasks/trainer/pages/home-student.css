@@ -1045,3 +1045,17 @@ body[data-home-variant="student"] .start-card .sc-start-count{ display:none; }
 /* старый мобильный «термометр готовности» больше не используется (мобайл — strip, десктоп — градусник):
    прячем везде, чтобы не «вылезал» на десктопе под H1. */
 body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
+
+/* ── (2026-06-07) #1: на десктопе число % точности — на одном уровне с числом покрытия.
+   Раньше cov центрировался через grid-row:1/span 2 (выше), а pct сидел в row 2 (ниже) → расхождение.
+   Опускаем cov на строку точности (row 2), как на мобайле (home_student.mobile.css уже row 2). */
+body[data-home-variant="student"] #accordion .node.section > .row .home-section-cov{
+  grid-row:2 !important;
+  align-self:center !important;
+}
+/* ── #2: компрессия аккордеона по вертикали (десктоп+мобайл) — строки были слишком растянуты.
+   Уменьшаем вертикальные паддинги строк + межстрочные интервалы названий (не слипая). */
+body[data-home-variant="student"] #accordion .node.section > .row{ padding-top:4px !important; padding-bottom:4px !important; }
+body[data-home-variant="student"] #accordion .node.topic > .row{ padding-top:2px !important; padding-bottom:2px !important; }
+body[data-home-variant="student"] #accordion .row-title .section-title{ line-height:1.15 !important; }
+body[data-home-variant="student"] #accordion .node.topic .row-title .title{ line-height:1.15 !important; }
