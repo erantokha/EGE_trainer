@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-06-07-32';
+} from '../app/core/pick.js?v=2026-06-07-34';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-32';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-34';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-07-32';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-07-32';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-07-34';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-07-34';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);
@@ -34,6 +34,19 @@ function topicIdFromTypeId(typeId) {
   const parts = String(typeId || '').split('.').map(s => String(s).trim()).filter(Boolean);
   if (parts.length < 2) return '';
   return parts[0] + '.' + parts[1];
+}
+
+// Тема может быть 2-сегментной ("4.1") ИЛИ 3-сегментной ("3.1.1" — напр. стереометрия). topicIdFromTypeId
+// всегда брал 2 сегмента → для 3-сегментных тем тема не находилась и прото-пик молча пропускался.
+// Берём самый ДЛИННЫЙ префикс type/base-id, который реально есть в topicById.
+function resolveTopicIdFromTypeId(typeId, topicById) {
+  const parts = String(typeId || '').split('.').map(s => String(s).trim()).filter(Boolean);
+  if (parts.length < 2) return '';
+  for (let n = parts.length - 1; n >= 2; n--) {
+    const cand = parts.slice(0, n).join('.');
+    if (topicById && typeof topicById.has === 'function' && topicById.has(cand)) return cand;
+  }
+  return parts[0] + '.' + parts[1]; // fallback — как раньше
 }
 
 function shuffleArr(arr, rnd = Math.random) {
@@ -666,8 +679,13 @@ async function buildCandidatesForType({ topic, typeId, loadTopicPool }) {
   if (!topic || !typeId) return [];
   const pool = await loadTopicPool(topic);
   const out = [];
+  const key = String(typeId);
   for (const it of pool || []) {
-    if (String(it?.type?.id) === String(typeId)) out.push(it);
+    // typeId из прото-модалки = БАЗА прототипа (baseIdFromProtoId), а не всегда type.id.
+    // Матчим по базе ИЛИ по type.id (бэк-совместимость). Иначе для типов, где база ≠ type.id
+    // (напр. стереометрия: база "3.1.1.1" при type.id "3.1.1"), кандидаты не находились → поштучное
+    // добавление прототипа из аккордеона не срабатывало.
+    if (String(it?.type?.id) === key || baseIdFromProtoId(String(it?.proto?.id || '')) === key) out.push(it);
   }
   return out;
 }
@@ -926,7 +944,7 @@ export async function pickQuestionsScopedForList({
   // группируем typeId по теме, чтобы stats для темы тянуть один раз
   const typesByTopic = new Map();
   for (const it of typeEntries) {
-    const topicId = topicIdFromTypeId(it.id);
+    const topicId = resolveTopicIdFromTypeId(it.id, topicById); // самый длинный префикс, реально существующий как тема
     if (!topicId) continue;
     if (!typesByTopic.has(topicId)) typesByTopic.set(topicId, []);
     typesByTopic.get(topicId).push(it);
