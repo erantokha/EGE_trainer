@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-37';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-37';
-import { CONFIG } from '../app/config.js?v=2026-06-07-37';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-37';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-37';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-37';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-37';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-37';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-37';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-37';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-37';
+import { withBuild } from '../app/build.js?v=2026-06-07-38';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-38';
+import { CONFIG } from '../app/config.js?v=2026-06-07-38';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-38';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-38';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-38';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-38';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-38';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-38';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-38';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-38';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-37';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-38';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-37';
+} from './picker_common.js?v=2026-06-07-38';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-37';
+} from './picker_stats.js?v=2026-06-07-38';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -86,24 +86,28 @@ function normalizeTeacherFilterId(value) {
   return VALID_TEACHER_FILTER_IDS.has(raw) ? raw : null;
 }
 
-function loadTeacherPickFilterId() {
-  try {
-    return normalizeTeacherFilterId(sessionStorage.getItem(TEACHER_FILTER_ID_KEY));
-  } catch (_) {
-    return null;
-  }
+// ── Общий core фильтра подбора (teacher + student): нормализация + sessionStorage по ключу.
+// Набор id (VALID_TEACHER_FILTER_IDS) и логика фильтра общие; различаются только ключ хранилища
+// и точка применения (teacher → RPC по ученику; student → тот же RPC self после Ф1/SQL).
+function loadPickFilterId(key) {
+  try { return normalizeTeacherFilterId(sessionStorage.getItem(key)); } catch (_) { return null; }
 }
-
-function saveTeacherPickFilterId(filterId) {
+function savePickFilterId(key, filterId) {
   try {
     const normalized = normalizeTeacherFilterId(filterId);
-    if (!normalized) {
-      sessionStorage.removeItem(TEACHER_FILTER_ID_KEY);
-      return;
-    }
-    sessionStorage.setItem(TEACHER_FILTER_ID_KEY, normalized);
+    if (!normalized) { sessionStorage.removeItem(key); return; }
+    sessionStorage.setItem(key, normalized);
   } catch (_) {}
 }
+
+function loadTeacherPickFilterId() { return loadPickFilterId(TEACHER_FILTER_ID_KEY); }
+function saveTeacherPickFilterId(filterId) { savePickFilterId(TEACHER_FILTER_ID_KEY, filterId); }
+
+// ── Student-фильтр (home_student): тот же набор id, свой ключ; на странице ученика «ученик» = self,
+// поэтому фильтр активен без гейта по выбранному ученику (в отличие от учителя).
+const STUDENT_FILTER_ID_KEY = 'student_pick_filter_id_v2';
+let STUDENT_PICK_FILTER_ID = null;
+function getActiveStudentFilterId() { return normalizeTeacherFilterId(STUDENT_PICK_FILTER_ID); }
 
 function setTeacherPickFiltersEnabled(enabled) {
   const radios = $$('#teacherFilters input[name="teacherFilterMode"]');
@@ -1917,6 +1921,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initBulkControls();
     initAddedTasksModal();
     initStudentPreviewModal();
+    initStudentPickFilterUI();
     // Главная учителя: если ученик выбран — переключаемся в режим «как у ученика»
     if (IS_TEACHER_HOME) {
       const sid = String($('#teacherStudentSelect')?.value || readTeacherSelectedStudentId() || _TEACHER_VIEW_PENDING_ID || '').trim();
@@ -3562,8 +3567,10 @@ async function pickQuestionsViaTeacherScreenResolve({
   request = {},
   excludeTopicIds = [],
   excludeQuestionIds = [],
+  studentId = null,   // self (auth.uid) для home_student (Ф4); по умолчанию — выбранный ученик учителя
+  filterId,           // undefined → берём учительский getActiveTeacherFilterId(sid)
 } = {}) {
-  const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  const sid = String(studentId != null ? studentId : (TEACHER_VIEW_STUDENT_ID || '')).trim();
   if (!sid) return null;
 
   const scopeKind = String(request?.scope_kind || '').trim().toLowerCase();
@@ -3604,7 +3611,7 @@ async function pickQuestionsViaTeacherScreenResolve({
     student_id: sid,
     mode: 'resolve',
     source: 'all',
-    filter_id: getActiveTeacherFilterId(sid),
+    filter_id: filterId !== undefined ? filterId : getActiveTeacherFilterId(sid),
     selection: buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds }),
     request: normalizedRequest,
     seed: getCurrentTeacherPickSessionSeed(sid),
@@ -4336,10 +4343,56 @@ let _PREVIEW_PREWARM_SEQ = 0;
 
 function studentSelectionSignature() {
   const norm = (obj) => Object.keys(obj || {}).sort().map((k) => `${k}:${(obj || {})[k]}`).join(',');
-  return `t=${norm(CHOICE_TOPICS)}|s=${norm(CHOICE_SECTIONS)}|p=${norm(CHOICE_PROTOS)}`;
+  // фильтр входит в сигнатуру: смена фильтра инвалидирует кэш резолва (другой набор задач).
+  return `t=${norm(CHOICE_TOPICS)}|s=${norm(CHOICE_SECTIONS)}|p=${norm(CHOICE_PROTOS)}|f=${getActiveStudentFilterId() || ''}`;
+}
+
+// WSF-student: проводка dropdown фильтра на главной ученика. Смена фильтра → инвалидация резолва
+// (через сигнатуру) + перепрогрев предпросмотра. Логика подбора — в resolveStudentSelection (Ф4).
+let _STUDENT_FILTER_WIRED = false;
+function initStudentPickFilterUI() {
+  if (!IS_STUDENT_PAGE || _STUDENT_FILTER_WIRED) return;
+  const sel = document.getElementById('studentFilterDropdown');
+  if (!sel) return;
+  _STUDENT_FILTER_WIRED = true;
+  STUDENT_PICK_FILTER_ID = loadPickFilterId(STUDENT_FILTER_ID_KEY);
+  sel.value = STUDENT_PICK_FILTER_ID || '';
+  sel.addEventListener('change', () => {
+    STUDENT_PICK_FILTER_ID = normalizeTeacherFilterId(sel.value);
+    savePickFilterId(STUDENT_FILTER_ID_KEY, STUDENT_PICK_FILTER_ID);
+    // набор меняется → сбрасываем кэш бакетов и перепрогреваем предпросмотр
+    STUDENT_RESOLVE = { sig: null, questions: null, buckets: null };
+    try { updatePreviewBtnState(); } catch (_) {}
+    try { schedulePreviewPrewarm(); } catch (_) {}
+  });
 }
 
 // добор дельты по ОДНОМУ бакету (proto/topic/section), исключая уже занятые id (без дублей).
+// WSF-student (Ф4): добор дельты бакета ЧЕРЕЗ self-RPC с фильтром (зеркало учительского resolve).
+// Возвращает массив вопросов; null — если RPC недоступен/сбой (напр. SQL ещё не задеплоен) →
+// вызывающий делает фолбэк на локальный движок (без фильтра).
+async function pickStudentBucketViaFilter(kind, id, want, excludeIds, filterId) {
+  const selfId = String(readSessionFallback()?.user?.id || '').trim();
+  if (!selfId) return null;
+  const request = (kind === 'section')
+    ? { scope_kind: 'section', scope_id: id, n: want }
+    : (kind === 'topic')
+      ? { scope_kind: 'topic', scope_id: id, n: want }
+      : { scope_kind: 'proto', scope_id: id, n: want };
+  _ADDED_RESOLVE_NET_ERROR = false;
+  let qs = null;
+  try {
+    qs = await pickQuestionsViaTeacherScreenResolve({
+      request,
+      excludeQuestionIds: excludeIds,
+      studentId: selfId,
+      filterId,
+    });
+  } catch (e) { console.warn('pickStudentBucketViaFilter: threw', e); return null; }
+  if (_ADDED_RESOLVE_NET_ERROR) return null; // RPC-сбой (в т.ч. не задеплоен) → фолбэк на локальный
+  return Array.isArray(qs) ? qs.slice(0, want) : [];
+}
+
 async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
   const want = Math.max(0, Math.floor(Number(delta) || 0));
   if (want <= 0) return [];
@@ -4347,6 +4400,12 @@ async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
   if (sep < 0) return [];
   const kind = bucketKey.slice(0, sep);
   const id = bucketKey.slice(sep + 1);
+  // Активен фильтр → добор через self-RPC (логика фильтра как у учителя); null от RPC → фолбэк локально.
+  const filterId = getActiveStudentFilterId();
+  if (filterId) {
+    const filtered = await pickStudentBucketViaFilter(kind, id, want, excludeIds, filterId);
+    if (filtered != null) return filtered;
+  }
   const choiceProtos = {}, choiceTopics = {}, choiceSections = {};
   if (kind === 'proto') choiceProtos[id] = want;
   else if (kind === 'topic') choiceTopics[id] = want;

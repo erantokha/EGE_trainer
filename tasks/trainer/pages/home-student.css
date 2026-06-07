@@ -1073,3 +1073,18 @@ body[data-home-variant="student"] #accordion .node.section > .row{ padding-top:4
 body[data-home-variant="student"] #accordion .node.topic > .row{ padding-top:2px !important; padding-bottom:2px !important; }
 body[data-home-variant="student"] #accordion .row-title .section-title{ line-height:1.15 !important; }
 body[data-home-variant="student"] #accordion .node.topic .row-title .title{ line-height:1.15 !important; }
+
+/* ── WSF-student: dropdown фильтра подбора на главной ученика (вид как у учителя .ht-filter-dropdown,
+   который живёт в home_teacher.layout.css и сюда не грузится). */
+body[data-home-variant="student"] #studentFilterDropdown{
+  padding:5px 8px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--muted);
+  color:var(--text);
+  font:inherit;
+  font-size:13px;
+  outline:none;
+  cursor:pointer;
+}
+body[data-home-variant="student"] #studentFilterDropdown:disabled{ opacity:.55; cursor:not-allowed; }
