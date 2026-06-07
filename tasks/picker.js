@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-47';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-47';
-import { CONFIG } from '../app/config.js?v=2026-06-07-47';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-47';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-47';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-47';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-47';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-47';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-47';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-47';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-47';
+import { withBuild } from '../app/build.js?v=2026-06-07-48';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-48';
+import { CONFIG } from '../app/config.js?v=2026-06-07-48';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-48';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-48';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-48';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-48';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-48';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-48';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-48';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-48';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-47';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-48';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-47';
+} from './picker_common.js?v=2026-06-07-48';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-47';
+} from './picker_stats.js?v=2026-06-07-48';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4445,6 +4445,18 @@ async function pickStudentBucketDelta(bucketKey, delta, excludeIds) {
 // Зеркало учительского syncAddedTasksToSelection: 1 батч-RPC на ВИД (proto/topic) + section-батч,
 // а для «Выбрать всё» (все секции с одинаковой дельтой K) — K× global_all (WP2, обходит section-таймаут).
 // Заполняет buckets/usedIds на месте. Остаток (shortage) и полный сбой батча добирает per-bucket step 2.
+// Параллельный прогон с лимитом конкурентности (общего mapLimit в модуле нет).
+async function runCapped(items, limit, fn) {
+  const arr = Array.isArray(items) ? items : [];
+  const out = new Array(arr.length);
+  let i = 0;
+  const worker = async () => {
+    while (i < arr.length) { const idx = i++; out[idx] = await fn(arr[idx], idx); }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(limit, arr.length || 1)) }, worker));
+  return out;
+}
+
 // WSF-student (Вариант2): из кандидатов взять want штук, ПРЕДПОЧИТАЯ прототипы не в usedProtos
 // (ротация «вширь» по прототипам), затем добить любыми оставшимися. Помечает usedIds. Нужно потому,
 // что сервер при n=1 отдаёт один самый слабый прототип; even-distribution «вширь» включается лишь при
@@ -4538,30 +4550,28 @@ async function batchFillStudentBuckets(buckets, desired, usedIds, filterId) {
     const uniformK = (allSections && new Set(secEntries.map(([, d]) => d)).size === 1) ? secEntries[0][1] : 0;
 
     if (uniformK > 0) {
-      const secNeed = new Set(secEntries.map(([key]) => key.slice('section:'.length)));
-      for (let round = 0; round < uniformK; round++) {
-        let resolved = null;
+      // «Выбрать всё»: по ОДНОМУ резолву на секцию (каждый лёгкий и спредит через even-distribution),
+      // ПАРАЛЛЕЛЬНО с лимитом конкурентности. Обходит и timeout 12-секционного батча, и concurrency-500.
+      const fetched = await runCapped(secEntries, 4, async ([key, delta]) => {
+        const secId = key.slice('section:'.length);
+        let res = null;
         try {
-          resolved = await pickQuestionsViaTeacherScreenResolve({
-            request: { scope_kind: 'global_all', n: 1 },
-            excludeQuestionIds: Array.from(usedIds), // растёт между раундами → разные задачи
+          res = await pickQuestionsViaTeacherScreenResolveBatch({
+            requests: [{ scope_kind: 'section', scope_id: secId, n: overN(key, delta) }],
+            excludeQuestionIds: Array.from(usedIds),
             studentId: selfId,
             filterId,
           });
-        } catch (e) { console.warn('batchFillStudentBuckets: global_all threw', e); break; }
-        if (!Array.isArray(resolved) || !resolved.length) break;
-        for (const q of resolved) {
-          const secId = String(q?.section_id || '').trim();
-          if (!secNeed.has(secId)) continue;
-          const key = `section:${secId}`;
-          const want = Number(desired.get(key) || 0) || 0;
-          const cur = buckets[key] || (buckets[key] = []);
-          if (cur.length >= want) continue;
-          const id = String(q?.question_id || '').trim();
-          if (id && usedIds.has(id)) continue;
-          cur.push(q);
-          if (id) usedIds.add(id);
-        }
+        } catch (e) { console.warn('batchFillStudentBuckets: section(par) threw', e); return null; }
+        return res?.byBucket instanceof Map ? (res.byBucket.get(key) || []) : null;
+      });
+      // ротация per-section ПОСЛЕДОВАТЕЛЬНО (usedIds без гонки; секции не пересекаются по задачам)
+      for (let idx = 0; idx < secEntries.length; idx++) {
+        const [key, delta] = secEntries[idx];
+        const candidates = fetched[idx];
+        if (!candidates || !candidates.length) continue;
+        const cur = buckets[key] || (buckets[key] = []);
+        for (const q of pickByProtoRotation(candidates, delta, protosOf(cur), usedIds)) cur.push(q);
       }
     } else {
       let res = null;
