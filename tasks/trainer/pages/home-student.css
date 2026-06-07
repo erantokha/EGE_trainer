@@ -1057,6 +1057,9 @@ body[data-home-variant] .score-thermo-slot{ display:none !important; }
   body[data-home-variant] #accordion .node.section > .row .home-section-pct{ display:contents !important; }
   body[data-home-variant] #accordion .node.section > .row .home-section-pct .acc-bar{
     grid-column:1 !important; grid-row:2 !important; align-self:center !important;
+    /* WSF-restyle: полоса не доходит по горизонтали до числа % (оно у правого края той же колонки,
+       justify-self:end) — оставляем зазор, чтобы полоса и процент не слипались. */
+    margin-right:48px !important;
   }
   body[data-home-variant] #accordion .node.section > .row .home-section-pct b{
     grid-column:1 !important; grid-row:1 / span 2 !important; align-self:center !important; justify-self:end !important;
