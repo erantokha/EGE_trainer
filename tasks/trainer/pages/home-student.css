@@ -1483,9 +1483,12 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
    Сайдбар на мобилке — гамбургер + full-screen overlay (≤1024px)
    ══════════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {
-  /* Рельс не нужен: контент во всю ширину, открытие — по гамбургеру */
+  /* Рельс не нужен: контент во всю ширину, открытие — по гамбургеру.
+     margin-top:10 (вместо базовых 28) → шапка ученика у верха, как у учителя (его main margin-top:0),
+     чтобы гамбургер/eyebrow стояли в правом ВЕРХНЕМ углу одинаково на обеих страницах. */
   body[data-home-variant="student"] .container {
     margin-left: auto;
+    margin-top: 10px;
   }
 
   /* WSF M5: гамбургер в правом верхнем углу шапки вместо «А»-пилюли (она скрыта).
@@ -1498,10 +1501,16 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
   body[data-home-variant] #htSidebarOpen {
     display: flex;
     position: absolute;
-    top: 8px;
+    /* top:0 → бургер на одном уровне с eyebrow-блоком (раньше 8px ниже текста). Бургер
+       absolute относительно #appHeader (его первый ребёнок — eyebrow на top:0). Обе страницы
+       идентичны (top одинаковый), красный кружок-бейдж (::after, absolute) бургер не сдвигает. */
+    top: 0;
     right: 12px;
     z-index: 5;
   }
+  /* учитель: его #appHeader с padding-top:10 → eyebrow ниже padding-box top, поэтому бургеру нужен
+     top:10 (а не 0), чтобы встать на уровень eyebrow (у ученика padding-top:0 → top:0 уже выравнивает). */
+  body[data-home-variant="teacher"] #htSidebarOpen { top: 10px; }
   /* eyebrow/H1 не должны заезжать под гамбургер */
   body[data-home-variant="student"] #appHeader .home-head-text {
     padding-right: 40px;
