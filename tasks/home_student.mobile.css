@@ -46,12 +46,14 @@
   body[data-home-variant="student"] #picker .bulk-controls{
     display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:6px !important;
   }
+  /* кнопки — по натуральной ширине + nowrap (текст в одну строку, без переноса «Сбросить все») */
   body[data-home-variant="student"] #picker .bulk-controls > button{
-    flex:1 1 0 !important; min-width:0 !important;
+    flex:0 1 auto !important; min-width:0 !important; white-space:nowrap !important;
   }
-  /* фильтру — больше доли, чтобы «Без фильтра» влезало целиком (нативной стрелке нужно место) */
+  /* фильтр забирает остаток строки (flex-basis:0 + min-width:0 → ужимается под доступную ширину,
+     иначе intrinsic-ширина select по самой длинной опции «Не решал / мало решал» переносит его). */
   body[data-home-variant="student"] #picker .bulk-controls > #studentFilterDropdown{
-    flex:1.4 1 0 !important; min-width:0 !important;
+    flex:1 1 0 !important; min-width:0 !important;
   }
   body[data-home-variant="student"] #picker .bulk-controls > .shuffle{
     flex:1 1 100% !important; order:9 !important; margin-top:2px !important;

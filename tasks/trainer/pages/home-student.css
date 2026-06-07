@@ -1092,6 +1092,31 @@ body[data-home-variant] #studentFilterDropdown{
 }
 body[data-home-variant] #studentFilterDropdown:disabled{ opacity:.55; cursor:not-allowed; }
 
+/* iOS-fix: нативный <select> игнорирует CSS-высоту/паддинги → на iPhone поле фильтра ниже кнопок.
+   appearance:none заставляет select уважать бокс (высота = как у кнопок); своя стрелка-шеврон (фон-SVG),
+   т.к. нативная стрелка с appearance:none пропадает. box-sizing:border-box — паддинги внутри высоты. */
+body[data-home-variant] #studentFilterDropdown,
+body[data-home-variant] #teacherFilterDropdown,
+body[data-home-variant] .ht-filter-dropdown {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  box-sizing: border-box !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 7px center !important;
+  background-size: 11px !important;
+}
+
+/* iOS-fix (зум): убираем double-tap-to-zoom на интерактиве главных (focus-zoom поля поиска
+   снят через viewport maximum-scale=1). touch-action:manipulation — pan/pinch ок, двойной тап не зумит. */
+body[data-home-variant] button,
+body[data-home-variant] input,
+body[data-home-variant] select,
+body[data-home-variant] a,
+body[data-home-variant] label {
+  touch-action: manipulation;
+}
+
 /* WSF-fix: контролы на мобилке — ЕДИНЫЙ размер шрифта (кнопки = фильтр) и помещаются ПОЛНОСТЬЮ
    в одну строку. 14px — компромисс: читаемо (в т.ч. нативный пикер фильтра) и три элемента
    влезают на 360–390px без обрезки. Обе страницы (home-student.css грузится на обеих). */
@@ -1104,10 +1129,10 @@ body[data-home-variant] #studentFilterDropdown:disabled{ opacity:.55; cursor:not
     padding: 8px 5px !important;
     border-radius: 10px !important;
   }
-  /* select: меньше место под нативную стрелку, чтобы «Без фильтра» влезало целиком */
+  /* select: место справа под свою стрелку-шеврон, «Без фильтра» влезает целиком */
   body[data-home-variant] #studentFilterDropdown,
   body[data-home-variant] #teacherFilterDropdown {
-    padding-right: 16px !important;
+    padding-right: 22px !important;
   }
 }
 
