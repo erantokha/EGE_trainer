@@ -53,7 +53,10 @@ begin
     raise exception 'BAD_STUDENT_ID';
   end if;
 
-  if not public.is_teacher_for_student(p_student_id) then
+  -- Доступ: self (ученик о себе — для фильтров на home_student) ИЛИ teacher своего ученика.
+  -- v_uid := auth.uid() (объявлен выше). Self видит только свои данные (student_topic_state_v1
+  -- считается для p_student_id), расширение безопасно — anon (auth.uid()=NULL) сюда не пройдёт.
+  if p_student_id <> v_uid and not public.is_teacher_for_student(p_student_id) then
     raise exception 'ACCESS_DENIED';
   end if;
 
