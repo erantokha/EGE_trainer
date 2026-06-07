@@ -1100,3 +1100,393 @@ body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-to
 body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-topic-badge .small{
   visibility:hidden;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WSF-student-sidebar — БОКОВОЕ МЕНЮ (сайдбар).
+   Перенесено из tasks/home_teacher.layout.css и обобщено с
+   body[data-home-variant="teacher"] → body[data-home-variant], чтобы рельс
+   работал и на ученике, и на учителе (общий слой, источник один).
+   Токены #htSidebar* / .ht-sidebar* / .ht-burger / #htNav* отсутствуют в
+   footprint_matrix.csv → governance их пропускает; .page-head-right/.hw-bell*
+   входят в футпринт обеих главных.
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Бургер (общий стиль). На десктопе скрыт (сайдбар — левый рельс),
+   показывается на мобилке. ── */
+body[data-home-variant] .ht-burger {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 120ms ease;
+}
+body[data-home-variant] .ht-burger:hover {
+  background: var(--panel-2);
+}
+/* Гамбургер в шапке скрыт на десктопе (сайдбар-рельс уже есть слева) */
+body[data-home-variant] #htSidebarOpen {
+  display: none;
+}
+
+/* Скрываем «А»-пилюлю + меню из header.js (.page-head-right) — навигация в сайдбаре.
+   #userMenuBtn/#userMenu остаются в DOM (header.js: имя для сайдбара, скрытый
+   #menuLogout для выхода) — только визуально прячем. */
+body[data-home-variant] .page-head-right,
+body[data-home-variant] #userMenuBtn,
+body[data-home-variant] #userMenuWrap {
+  display: none;
+}
+
+/* ── Рельс-clearance: контент не должен залезать под фиксированный рельс (56px).
+   teacher двигает свой #appHeader/.ht-content-wrap собственными правилами
+   (home_teacher.layout.css); student центрирует .container (base.css) — сдвигаем
+   её вправо на ширину рельса, чтобы не было нахлёста. Только десктоп. ── */
+@media (min-width: 1025px) {
+  body[data-home-variant="student"] .container {
+    margin-left: 56px;
+    transition: margin-left 220ms cubic-bezier(.4, 0, .2, 1);
+  }
+  /* Та же механика, что у учителя: при раскрытии рельса контент сдвигается вправо. */
+  body[data-home-variant="student"].ht-sidebar-open .container {
+    margin-left: 220px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Сайдбар — десктоп (рельс + hover-expand)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Оверлей — на десктопе убран полностью */
+body[data-home-variant] .ht-sidebar-overlay {
+  display: none !important;
+}
+
+/* Панель сайдбара — всегда видима, width-toggle */
+body[data-home-variant] .ht-sidebar-panel {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 40;
+  width: 56px;          /* свёрнуто: только иконки */
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: width 220ms cubic-bezier(.4, 0, .2, 1),
+              background 220ms ease;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-panel {
+  width: 220px;
+  background: #f9f9f9;
+}
+
+/* Шапка сайдбара: бургер + заголовок */
+body[data-home-variant] .ht-sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 10px 12px;
+  flex-shrink: 0;
+}
+body[data-home-variant] .ht-sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease;
+  pointer-events: none;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-title {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms;
+  pointer-events: auto;
+}
+/* Бургер внутри сайдбара — те же размеры, что в хедере */
+body[data-home-variant] .ht-sidebar-close {
+  flex-shrink: 0;
+}
+
+/* Навигационная часть */
+body[data-home-variant] .ht-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px;
+  overflow-y: auto;
+}
+
+/* Пункты меню */
+body[data-home-variant] .ht-sidebar-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+  box-shadow: none;
+  overflow: hidden;
+  /* Плавный переход цвета и фона */
+  transition: color 200ms ease, background 200ms ease;
+}
+
+/* Левая акцентная полоска (скрыта по умолчанию) */
+body[data-home-variant] .ht-sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px;
+  height: 55%;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent, #2563eb);
+  transition: transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+}
+
+body[data-home-variant] .ht-sidebar-item:hover::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* Иконка и текст сдвигаются вправо при наведении */
+body[data-home-variant] .ht-sidebar-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  transition: color 200ms ease, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+}
+body[data-home-variant] .ht-sidebar-label {
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: none;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-label {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms, transform 220ms cubic-bezier(.34, 1.56, .64, 1);
+  pointer-events: auto;
+}
+
+body[data-home-variant] .ht-sidebar-item:hover {
+  color: var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.06);
+  filter: none;
+}
+body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-icon {
+  color: var(--accent, #2563eb);
+  transform: translateX(4px);
+}
+body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-label {
+  transform: translateX(4px);
+}
+
+/* Нижняя зона: пользователь + выход */
+body[data-home-variant] .ht-sidebar-foot {
+  border-top: 1px solid var(--border);
+}
+
+body[data-home-variant] .ht-sidebar-user-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 13px 20px;
+  background: none;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+  transition: background 180ms ease;
+}
+body[data-home-variant] .ht-sidebar-user-btn:hover {
+  background: var(--panel-2);
+  filter: none;
+}
+body[data-home-variant] .ht-sidebar-user-btn .ht-sidebar-icon {
+  color: var(--text-dim);
+  transition: none;
+}
+
+body[data-home-variant] .ht-sidebar-user-name {
+  flex: 1;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 100ms ease;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-user-name {
+  opacity: 1;
+  transition: opacity 180ms ease 100ms;
+}
+
+body[data-home-variant] .ht-sidebar-chevron {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  opacity: 0;
+  transition: transform 200ms ease, opacity 100ms ease;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-chevron {
+  opacity: 1;
+  transition: transform 200ms ease, opacity 180ms ease 100ms;
+}
+body[data-home-variant] .ht-sidebar-user-btn[aria-expanded="true"] .ht-sidebar-chevron {
+  transform: rotate(180deg);
+}
+
+/* «Выйти» — красный акцент */
+body[data-home-variant] .ht-sidebar-logout-btn {
+  color: #ef4444;
+}
+body[data-home-variant] .ht-sidebar-logout-btn .ht-sidebar-icon {
+  color: #ef4444;
+}
+body[data-home-variant] .ht-sidebar-logout-btn::before {
+  background: #ef4444;
+}
+body[data-home-variant] .ht-sidebar-logout-btn:hover {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.07);
+}
+body[data-home-variant] .ht-sidebar-logout-btn:hover .ht-sidebar-icon {
+  color: #dc2626;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Красный кружок-бейдж уведомлений (iPhone-style).
+   Сигнал: body.has-notif (ставит инлайн-JS ученика по тому же сигналу,
+   что зажигал колокольчик header.js — #myHwBellTop без класса .hidden).
+   Кружка нет, если body НЕ имеет .has-notif.
+   ── ДЕСКТОП: точка в правом верхнем углу иконки пункта «Мои ДЗ»
+   (#htNavWorks .ht-sidebar-icon) — видна и в свёрнутом рельсе.
+   ── МОБИЛКА: точка в правом верхнем углу гамбургера #htSidebarOpen. ── */
+body[data-home-variant] #htNavWorks .ht-sidebar-icon {
+  position: relative;
+}
+body.has-notif[data-home-variant] #htNavWorks .ht-sidebar-icon::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid var(--bg);
+  box-sizing: content-box;
+  pointer-events: none;
+}
+/* Раскрытый рельс/мобилка: фон пункта меняется на светлый — обводку точки
+   подгоняем под него, чтобы кружок не сливался с краем иконки. */
+body.has-notif[data-home-variant] .ht-sidebar.open #htNavWorks .ht-sidebar-icon::after {
+  border-color: #f9f9f9;
+}
+
+/* Бейдж на гамбургере — позиционируется относительно самой кнопки */
+body[data-home-variant] #htSidebarOpen {
+  position: relative;
+}
+body.has-notif[data-home-variant] #htSidebarOpen::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1.5px solid var(--bg);
+  box-sizing: content-box;
+  pointer-events: none;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Сайдбар на мобилке — гамбургер + full-screen overlay (≤1024px)
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  /* Рельс не нужен: контент во всю ширину, открытие — по гамбургеру */
+  body[data-home-variant="student"] .container {
+    margin-left: auto;
+  }
+
+  /* WSF-student M5: гамбургер в правом верхнем углу шапки ученика вместо «А»-пилюли
+     (она скрыта). #appHeader=relative (см. ниже); кнопка абсолютно в правый угол. */
+  body[data-home-variant="student"] #appHeader {
+    position: relative;
+  }
+  body[data-home-variant="student"] #htSidebarOpen {
+    display: flex;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+  }
+  /* eyebrow/H1 не должны заезжать под гамбургер */
+  body[data-home-variant="student"] #appHeader .home-head-text {
+    padding-right: 40px;
+  }
+
+  /* Затемнение под full-screen панелью */
+  body[data-home-variant] .ht-sidebar-overlay {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(15, 23, 42, .45);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+  body[data-home-variant] .ht-sidebar.open .ht-sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Свёрнутый сайдбар на мобилке полностью спрятан слева за экран */
+  body[data-home-variant] .ht-sidebar-panel {
+    width: min(86vw, 320px);
+    z-index: 999;
+    transform: translateX(-100%);
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 0 transparent;
+    transition: transform 240ms cubic-bezier(.4, 0, .2, 1);
+  }
+  /* Открыт — выезжает поверх контента (full-height, высокий z-index) */
+  body[data-home-variant] .ht-sidebar.open .ht-sidebar-panel {
+    width: min(86vw, 320px);
+    transform: translateX(0);
+    background: var(--panel);
+    box-shadow: 4px 0 28px rgba(15, 23, 42, .22);
+  }
+
+  /* На мобилке лейблы/заголовок видны всегда (панель раскрыта на всю) */
+  body[data-home-variant] .ht-sidebar-panel .ht-sidebar-label,
+  body[data-home-variant] .ht-sidebar-panel .ht-sidebar-title,
+  body[data-home-variant] .ht-sidebar-panel .ht-sidebar-user-name,
+  body[data-home-variant] .ht-sidebar-panel .ht-sidebar-chevron {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
