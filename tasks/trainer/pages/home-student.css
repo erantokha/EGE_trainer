@@ -1092,6 +1092,18 @@ body[data-home-variant] #studentFilterDropdown{
 }
 body[data-home-variant] #studentFilterDropdown:disabled{ opacity:.55; cursor:not-allowed; }
 
+/* WSF-fix: на мобилке фильтр-select крупнее и ЧИТАЕМЕЕ. Нативный пикер берёт font-size селекта →
+   мелкий 13px давал «еле читаемое окошко»; 16px = читаемо и убирает iOS-зум при фокусе. Обе
+   страницы (home-student.css грузится и на ученике, и на учителе → покрывает оба #*FilterDropdown). */
+@media (max-width: 1024px) {
+  body[data-home-variant] #studentFilterDropdown,
+  body[data-home-variant] #teacherFilterDropdown {
+    font-size: 16px;
+    padding: 9px 12px;
+    border-radius: 12px;
+  }
+}
+
 /* ── WSF-restyle: учитель БЕЗ выбранного ученика — структура аккордеона та же (как с учеником),
    но бейджи пустые: полоски незаполнены, числа (%, покрытие, last-3) скрыты. */
 body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-section-pct b,
@@ -1150,13 +1162,16 @@ body[data-home-variant] #userMenuWrap {
    (home_teacher.layout.css); student центрирует .container (base.css) — сдвигаем
    её вправо на ширину рельса, чтобы не было нахлёста. Только десктоп. ── */
 @media (min-width: 1025px) {
-  body[data-home-variant="student"] .container {
-    margin-left: 56px;
-    transition: margin-left 220ms cubic-bezier(.4, 0, .2, 1);
+  /* WSF-fix: контент ученика ЦЕНТРИРУЕТСЯ в области справа от рельса (как у учителя), а не
+     прилипает влево. Сдвигаем контент body на ширину рельса через padding-left (рельс
+     position:fixed → padding его не двигает), а .container остаётся margin:auto → центрируется
+     в оставшейся ширине. При раскрытии меню — padding 220px, контент перецентрируется. */
+  body[data-home-variant="student"] {
+    padding-left: 56px;
+    transition: padding-left 220ms cubic-bezier(.4, 0, .2, 1);
   }
-  /* Та же механика, что у учителя: при раскрытии рельса контент сдвигается вправо. */
-  body[data-home-variant="student"].ht-sidebar-open .container {
-    margin-left: 220px;
+  body[data-home-variant="student"].ht-sidebar-open {
+    padding-left: 220px;
   }
 }
 
