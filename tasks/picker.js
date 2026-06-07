@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-68';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-68';
-import { CONFIG } from '../app/config.js?v=2026-06-07-68';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-68';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-68';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-68';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-68';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-68';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-68';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-68';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-68';
+import { withBuild } from '../app/build.js?v=2026-06-07-69';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-69';
+import { CONFIG } from '../app/config.js?v=2026-06-07-69';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-69';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-69';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-69';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-69';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-69';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-69';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-69';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-69';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-68';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-69';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-68';
+} from './picker_common.js?v=2026-06-07-69';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-68';
+} from './picker_stats.js?v=2026-06-07-69';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -4060,76 +4060,41 @@ async function syncAddedTasksToSelection(opts = {}) {
     );
 
     if (useRpc) {
-      const remaining = new Map(sectionNeedMap);
-      // WP2 (A): uniform «Выбрать всё» (ВСЕ секции, одинаковая delta = K ≥ 1) → K раундов global_all.
-      // global_all — быстрый путь (в БД короткое замыкание, 1 проток на тему), уважает
-      // excludeQuestionIds. 12-секционный section-batch с complete упирается в statement_timeout
-      // (HTTP 500 ~8.8 с) и тащит за собой 12-серийный фоллбэк (~18 с). Обходим его для uniform.
-      // Покрывает и K=1 (бывшая canUseGlobalAll-ветка), и K≥2 (фикс).
-      const deltaVals = Array.from(remaining.values()).map((d) => Math.max(0, Number(d || 0)));
-      const uniformK = (
-        deltaVals.length === (SECTIONS || []).length &&
-        deltaVals.length > 0 &&
-        deltaVals.every((d) => d === deltaVals[0])
-      ) ? deltaVals[0] : 0;
-
-      if (uniformK >= 1) {
-        for (let round = 0; round < uniformK; round++) {
-          if (seq !== _ADDED_SYNC_SEQ) return;
-          const resolved = await pickQuestionsViaTeacherScreenResolve({
-            request: { scope_kind: 'global_all', n: 1 },
+      // WSF-fix (спред «вширь», как у ученика в batchFillStudentBuckets): по ОДНОМУ резолву на
+      // секцию ПАРАЛЛЕЛЬНО (runCapped cap=4), каждый с over-fetch (n = есть+delta+буфер), затем
+      // pickByProtoRotation — берём delta, ПРЕДПОЧИТАЯ прототипы НЕ в бакете. Так повторное «Выбрать
+      // всё» даёт ДРУГИЕ прототипы, а не тот же слабейший с другими числами (как делал global_all
+      // «вглубь»). usedIds стартует от текущего exclude → между раундами/секциями нет дублей.
+      const secEntries = Array.from(sectionNeedMap.entries());
+      const usedIds = new Set(getExcludeSet());
+      const protosOf = (arr) => new Set((arr || []).map((q) => baseIdFromProtoId(String(q?.question_id || '').trim())).filter(Boolean));
+      const overN = (have, delta) => Math.min(40, (have || 0) + delta + 6);
+      const fetched = await runCapped(secEntries, 4, async ([sectionId, delta]) => {
+        const have = (ctx.buckets[`section:${sectionId}`]?.length) || 0;
+        let res = null;
+        try {
+          res = await pickQuestionsViaTeacherScreenResolveBatch({
+            requests: [{ scope_kind: 'section', scope_id: sectionId, n: overN(have, delta) }],
             excludeTopicIds: Array.from(excludeTopics),
-            // свежий exclude КАЖДЫЙ раунд (append→incIdCount пополняет idCounts) → раунды дают РАЗНЫЕ задачи.
-            excludeQuestionIds: getExcludeSet(),
+            excludeQuestionIds: Array.from(usedIds),
           });
+        } catch (e) { console.warn('teacher section(par) threw', e); return null; }
+        if (seq !== _ADDED_SYNC_SEQ) return null;
+        return res?.byBucket instanceof Map ? (res.byBucket.get(`section:${sectionId}`) || []) : null;
+      });
+      if (seq !== _ADDED_SYNC_SEQ) return;
+      // ротация per-section ПОСЛЕДОВАТЕЛЬНО (usedIds без гонки; секции не пересекаются по задачам)
+      for (let idx = 0; idx < secEntries.length; idx++) {
+        const [sectionId, delta] = secEntries[idx];
+        const candidates = fetched[idx];
+        if (!candidates || !candidates.length) continue;
+        const bk = `section:${String(sectionId)}`;
+        const cur = ctx.buckets[bk] || (ctx.buckets[bk] = []);
+        appendPickedQuestionsToBucket(ctx, bk, pickByProtoRotation(candidates, delta, protosOf(cur), usedIds));
+        if (ADDED_TASKS_MODAL_OPEN) {
+          const arrInc = sortAddedQuestions(flattenAddedQuestions());
+          await refreshAddedTasksModalView(arrInc, { wantTotal });
           if (seq !== _ADDED_SYNC_SEQ) return;
-
-          for (const q of (Array.isArray(resolved) ? resolved : [])) {
-            const sectionId = String(q?.section_id || '').trim();
-            if (!sectionId || !sectionNeedMap.has(sectionId)) continue;
-            appendPickedQuestionsToBucket(ctx, `section:${sectionId}`, [q]);
-          }
-
-          // WP2 (C): инкрементальный предпросмотр — открытая модалка наполняется по мере добора,
-          // а не рывком в конце синка (убирает воспринимаемое «мигание» sum↔предпросмотр).
-          if (ADDED_TASKS_MODAL_OPEN) {
-            const arrInc = sortAddedQuestions(flattenAddedQuestions());
-            await refreshAddedTasksModalView(arrInc, { wantTotal });
-            if (seq !== _ADDED_SYNC_SEQ) return;
-          }
-        }
-        // uniform добран K× global_all — section-batch (500-prone) для него НЕ нужен.
-        remaining.clear();
-      }
-
-      if (remaining.size > 0) {
-        const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
-          requests: Array.from(remaining.entries()).map(([sectionId, delta]) => ({
-            scope_kind: 'section',
-            scope_id: sectionId,
-            n: delta,
-          })),
-          excludeTopicIds: Array.from(excludeTopics),
-          excludeQuestionIds: getExcludeSet(),
-        });
-        if (seq !== _ADDED_SYNC_SEQ) return;
-
-        if (batchRes?.byBucket instanceof Map) {
-          for (const [sectionId] of remaining.entries()) {
-            const bk = `section:${String(sectionId)}`;
-            appendPickedQuestionsToBucket(ctx, bk, batchRes.byBucket.get(bk) || []);
-          }
-        } else {
-          for (const [sectionId, delta] of remaining.entries()) {
-            if (seq !== _ADDED_SYNC_SEQ) return;
-            const got = await pickQuestionsViaTeacherScreenResolve({
-              request: { scope_kind: 'section', scope_id: sectionId, n: delta },
-              excludeTopicIds: Array.from(excludeTopics),
-              excludeQuestionIds: getExcludeSet(),
-            });
-            if (seq !== _ADDED_SYNC_SEQ) return;
-            appendPickedQuestionsToBucket(ctx, `section:${String(sectionId)}`, Array.isArray(got) ? got.slice(0, delta) : []);
-          }
         }
       }
     } else {
