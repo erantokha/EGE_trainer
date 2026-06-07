@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-55';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-55';
-import { CONFIG } from '../app/config.js?v=2026-06-07-55';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-55';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-55';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-55';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-55';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-55';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-55';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-55';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-55';
+import { withBuild } from '../app/build.js?v=2026-06-07-57';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-57';
+import { CONFIG } from '../app/config.js?v=2026-06-07-57';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-57';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-57';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-57';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-57';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-57';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-57';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-57';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-57';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-55';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-57';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-55';
+} from './picker_common.js?v=2026-06-07-57';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-55';
+} from './picker_stats.js?v=2026-06-07-57';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2457,11 +2457,10 @@ function renderAccordion() {
   if (!host) return;
   host.innerHTML = '';
 
-  // На главной ученика показываем подписи над бейджами верхнего уровня,
-  // чтобы без наведения было понятно, что означают 2 колонки.
-  if (isStudentLikeHome()) {
-    host.appendChild(renderSectionBadgesHead());
-  }
+  // WSF-restyle: структура аккордеона (шапка-колонки + бейджи + row-title) рендерится на ОБЕИХ
+  // домашних страницах ВСЕГДА. Без выбранного ученика у учителя бейджи пустые (CSS прячет числа,
+  // полоски незаполнены), но раскладка не рушится.
+  host.appendChild(renderSectionBadgesHead());
 
   for (const sec of SECTIONS) {
     host.appendChild(renderSectionNode(sec));
@@ -2477,30 +2476,12 @@ function renderSectionBadgesHead() {
   const node = document.createElement('div');
   node.className = 'home-badges-head';
 
-  // WD.2.4 — на главной ученика шапка-таблица (3 колонки); учитель — прежняя шапка.
-  if (isStudentLikeHome()) {
-    node.innerHTML = `
+  // WSF-restyle: шапка-таблица (3 колонки) на ОБЕИХ домашних страницах.
+  node.innerHTML = `
     <div class="row">
       <div class="home-head-label home-head-title">Тема и точность</div>
       <div class="home-head-label home-head-cov">Покрытие</div>
       <div class="home-head-label home-head-tasks">Задачи</div>
-    </div>
-  `;
-    return node;
-  }
-
-  node.innerHTML = `
-    <div class="row">
-      <div class="countbox countbox-head" aria-hidden="true">
-        <button class="btn minus" type="button" tabindex="-1">−</button>
-        <input class="count" type="number" value="0" disabled tabindex="-1">
-        <button class="btn plus" type="button" tabindex="-1">+</button>
-      </div>
-      <span class="home-section-badges home-section-badges-head">
-        <span class="home-badge-label pct">Процент</span>
-        <span class="home-badge-label cov">Покрытие</span>
-      </span>
-      <div class="spacer"></div>
     </div>
   `;
   return node;
@@ -2519,13 +2500,11 @@ function renderSectionNode(sec) {
           value="${CHOICE_SECTIONS[sec.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${isStudentLikeHome() ? `
       <span class="home-section-badges">
         <span class="badge gray home-last10-badge home-section-pct" data-tip="Процент правильных ответов"><i class="acc-bar" aria-hidden="true" data-tip="Процент правильных ответов"></i><b>—</b></span>
         <span class="badge gray home-coverage-badge home-section-cov" data-tip="Покрытие тем"><b>0/0</b></span>
       </span>
-      ` : ''}
-      ${isStudentLikeHome() ? '<div class="row-title">' : ''}
+      <div class="row-title">
       <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
       <button class="unique-btn" type="button" aria-label="Уникальные прототипы" data-tip="Уникальные прототипы">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8"
@@ -2536,7 +2515,7 @@ function renderSectionNode(sec) {
           <line x1="2" y1="21" x2="22" y2="21"/>
         </svg>
       </button>
-      ${isStudentLikeHome() ? '</div>' : ''}
+      </div>
       <div class="spacer"></div>
       
     </div>
@@ -2620,10 +2599,10 @@ function renderTopicRow(topic) {
           value="${CHOICE_TOPICS[topic.id] || 0}">
         <button class="btn plus" type="button">+</button>
       </div>
-      ${isStudentLikeHome() ? '<span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><i class="acc-bar" aria-hidden="true"></i><b>—</b><span class="small"></span></span>' : ''}
-      ${isStudentLikeHome() ? '<div class="row-title">' : ''}
+      <span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><i class="acc-bar" aria-hidden="true"></i><b>—</b><span class="small"></span></span>
+      <div class="row-title">
       <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
-      ${isStudentLikeHome() ? '</div>' : ''}
+      </div>
       <div class="spacer"></div>
       
     </div>
@@ -2746,8 +2725,11 @@ function refreshTotalSum() {
 
   const addedBtn = $('#addedTasksBtn');
   if (addedBtn) {
-    addedBtn.disabled = total <= 0;
-    addedBtn.classList.toggle('is-ready', total > 0);
+    // WSF-restyle: предпросмотр у учителя гейтится по готовности резолва (как #previewBtn у ученика):
+    // заблокирован пока идёт/запланирован синк выбранного ученика.
+    const notReady = total <= 0 || (IS_TEACHER_HOME && isAddedSyncPending());
+    addedBtn.disabled = notReady;
+    addedBtn.classList.toggle('is-ready', !notReady);
   }
 
   // WD.2.6 — предпросмотр активен только по готовности резолва (фоновый префетч), не сразу;
@@ -3429,6 +3411,8 @@ async function runAddedSync(opts = {}) {
       _ADDED_SYNC_PENDING_OPTS = null;
       runAddedSync(next);
     } else {
+      // WSF-restyle: синк осел → резолв готов → разблокировать предпросмотр (re-gate через refreshTotalSum).
+      try { refreshTotalSum(); } catch (_) {}
       const ws = _ADDED_SYNC_SETTLE_WAITERS;
       _ADDED_SYNC_SETTLE_WAITERS = [];
       for (const w of ws) { try { w(); } catch (_) {} }
@@ -3450,6 +3434,8 @@ function isAddedSyncPending() {
 function scheduleSyncAddedTasks(opts = {}) {
   if (!IS_TEACHER_HOME) return;
   _ADDED_SYNC_DIRTY = true;
+  // WSF-restyle: как только синк запланирован — блокируем предпросмотр (резолв не готов).
+  try { const b = document.getElementById('addedTasksBtn'); if (b && getTotalSelected() > 0) { b.disabled = true; b.classList.remove('is-ready'); } } catch (_) {}
   if (_ADDED_SYNC_T) clearTimeout(_ADDED_SYNC_T);
   if (opts?.immediate) {
     _ADDED_SYNC_T = 0;
@@ -5196,8 +5182,12 @@ async function teacherAddedAdd(qid, btn) {
   let pool = [];
   try { pool = await loadTopicPoolForPreview(topic); } catch (_) { pool = []; }
   const used = new Set(flattenAddedQuestions().map((q) => String(q?.question_id || '').trim()));
+  // WSF-restyle: матч кандидатов по БАЗЕ ИЛИ type.id (id-иерархия нерегулярна: база≠type.id —
+  // та же бага, что чинилась у ученика). Иначе для таких прототипов «+» не находил вариантов.
   const cands = (pool || []).filter((e) =>
-    String(e?.type?.id || '') === String(src.proto_id || '') && !used.has(String(e?.proto?.id || '')));
+    (String(e?.type?.id || '') === String(src.proto_id || '')
+      || baseIdFromProtoId(String(e?.proto?.id || '')) === String(src.proto_id || ''))
+    && !used.has(String(e?.proto?.id || '')));
   if (!cands.length) { if (btn) { btn.disabled = true; btn.title = 'Больше вариантов нет'; } return; }
   const pick = cands[Math.floor(Math.random() * cands.length)];
   const newQ = buildQuestionForPreview(pick.manifest, pick.type, pick.proto);

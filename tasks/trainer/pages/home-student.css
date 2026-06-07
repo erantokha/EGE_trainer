@@ -1088,3 +1088,12 @@ body[data-home-variant] #studentFilterDropdown{
   cursor:pointer;
 }
 body[data-home-variant] #studentFilterDropdown:disabled{ opacity:.55; cursor:not-allowed; }
+
+/* ── WSF-restyle: учитель БЕЗ выбранного ученика — структура аккордеона та же (как с учеником),
+   но бейджи пустые: полоски незаполнены, числа (%, покрытие, last-3) скрыты. */
+body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-section-pct b,
+body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-section-cov b,
+body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-topic-badge b,
+body[data-home-variant="teacher"]:not(.teacher-student-view) #accordion .home-topic-badge .small{
+  visibility:hidden;
+}
