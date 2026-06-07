@@ -33,6 +33,11 @@ body[data-home-variant="teacher"] main {
 body[data-home-variant="teacher"].ht-sidebar-open main {
   margin-left: 220px;
 }
+/* Пре-раскрытие до первой отрисовки (html.ht-rail-open ставит head-скрипт из localStorage):
+   контент сразу со сдвигом под раскрытый рельс → без скачка при холодной навигации. */
+html.ht-rail-open body[data-home-variant="teacher"] main {
+  margin-left: 220px;
+}
 
 /* Бывший .panel — убираем карточный вид */
 body[data-home-variant="teacher"] #picker > div {

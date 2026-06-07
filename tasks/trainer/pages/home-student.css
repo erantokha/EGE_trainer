@@ -1589,3 +1589,29 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
     pointer-events: auto;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   ПРЕ-РАСКРЫТИЕ РЕЛЬСА до первой отрисовки (десктоп). Класс html.ht-rail-open ставит
+   синхронный head-скрипт из localStorage ДО paint → рельс рисуется сразу раскрытым,
+   transition(width) НЕ срабатывает (значение не меняется) → нет слайда/мигания при
+   холодной навигации. Зеркалит правила .ht-sidebar.open (значения те же). Контроллер
+   синхронизирует html.ht-rail-open с .open при пользовательских открытии/закрытии
+   (там анимация — желаемая). На мобилке класс не ставится (head-скрипт гейтит десктоп).
+   ══════════════════════════════════════════════════════════════ */
+@media (min-width: 1025px) {
+  html.ht-rail-open body[data-home-variant] .ht-sidebar-panel {
+    width: 220px;
+    background: #f9f9f9;
+  }
+  html.ht-rail-open body[data-home-variant] .ht-sidebar-title,
+  html.ht-rail-open body[data-home-variant] .ht-sidebar-label,
+  html.ht-rail-open body[data-home-variant] .ht-sidebar-user-name,
+  html.ht-rail-open body[data-home-variant] .ht-sidebar-chevron {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* клиренс контента под раскрытый рельс (ученик; профиль/teacher — в своих файлах) */
+  html.ht-rail-open body[data-home-variant="student"] {
+    padding-left: 220px;
+  }
+}
