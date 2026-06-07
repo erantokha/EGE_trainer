@@ -92,3 +92,118 @@
   border-color: rgba(239,68,68,.35);
   background: rgba(239,68,68,.10);
 }
+
+/* archive.js рисует badge класса .bad для несданных — тот же язык, что .warn */
+.myhw-badge.bad{
+  border-color: rgba(239,68,68,.35);
+  background: rgba(239,68,68,.10);
+}
+
+
+/* ============================================================================
+   WSF restyle: «Мои ДЗ» + «Архив ДЗ» под эталон главной ученика.
+   Скоуп — body[data-home-variant] (обе страницы грузят этот файл; без variant
+   старый вид сохраняется). Каркас (рельс/гамбургер/сайдбар/eyebrow+H1) —
+   общий слой home-student.css; здесь только контент-карточки и шапка.
+   ============================================================================ */
+
+/* Карточки на чистом фоне (внешняя .panel снята в разметке): язык эталона —
+   радиус 16px, поверхность --panel, мягкая тень. */
+body[data-home-variant] .myhw-card{
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(15,23,42,.10);
+}
+body[data-home-variant] .myhw-card.clickable:hover{
+  border-color: var(--accent);
+  box-shadow: 0 14px 34px rgba(15,23,42,.14);
+}
+
+/* Шапка-таблица: eyebrow+H1 слева, точка входа «Архив» справа (десктоп).
+   header.js сметает детей #appHeader в .page-head-left — делаем её flex-рядом. */
+body[data-home-variant] #appHeader .page-head-left{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+body[data-home-variant] #appHeader .page-head-left .home-head-text{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Аккуратная icon-btn архива (вместо «грязной» ⚙) */
+body[data-home-variant] .myhw-archive-btn{
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+body[data-home-variant] .myhw-archive-btn:hover{
+  background: var(--surface2,#f1f5f9);
+  border-color: #c2c9d4;
+  color: var(--text);
+}
+/* кнопка архива справа в шапке → меню открываем к правому краю, чтобы не вылезало */
+body[data-home-variant] .myhw-menu-wrap{
+  flex: 0 0 auto;
+}
+body[data-home-variant] .myhw-menu-wrap .profile-menu{
+  left: auto;
+  right: 0;
+}
+
+/* Счётчики «Несданные / Всего» — компактный ряд под шапкой */
+body[data-home-variant] .myhw-counters{
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+body[data-home-variant] .myhw-counters .muted{
+  font-size: 13px;
+}
+
+/* Архив: правая колонка строки (бейдж «Сдано» + «Открыть») выровнена вправо.
+   archive.js рендерит .myhw-card-top (заголовок+мета слева, .myhw-actions справа). */
+body[data-home-variant] .myhw-card-top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+body[data-home-variant] .myhw-card-top > .myhw-actions{
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* На мобилке шапку выпрямляем в колонку: гамбургер уже абсолютный (home-student.css),
+   архив-кнопка уезжает под H1 слева, не наезжая на гамбургер справа. */
+@media (max-width: 1024px){
+  body[data-home-variant] #appHeader .page-head-left{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  body[data-home-variant] .myhw-menu-wrap{
+    align-self: flex-start;
+    margin-top: 4px;
+  }
+  body[data-home-variant] .myhw-card{
+    padding: 14px 16px;
+  }
+}

@@ -17,3 +17,36 @@
   padding:6px 10px;
   border-radius:10px;
 }
+
+
+/* ── Рестайл под эталон home_student (page-scoped на body[data-home-variant]) ──
+   Снимаем внешнюю «коробку»-обёртку #runner > .panel, чтобы карточки задач,
+   которые list.js рендерит внутри, были самостоятельными panel-блоками.
+   Вложенные .panel (карточки) НЕ затрагиваем. */
+body[data-home-variant] #runner > .panel{
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  padding:0;
+}
+
+/* Print-контролы (#printBtn / #copySessionLink / .theme-toggle) живут в
+   .page-head-right (туда их переносит header.js). Общий home-student.css прячет
+   только пилюлю/#homeBtn, поэтому контролы видны. На мобилке раскладываем их
+   в строку под H1, чтобы не было горизонтального скролла на узком экране. */
+@media (max-width: 1024px) {
+  body[data-home-variant] #appHeader .page-head-right {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 10px;
+  }
+  body[data-home-variant] #copySessionLink {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

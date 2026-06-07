@@ -202,3 +202,92 @@
 .student-menu-item:active{background:rgba(148,163,184,.18);}
 
 .student-menu-item:disabled{opacity:.55;cursor:not-allowed;}
+
+
+/* ══════════════════════════════════════════════════════════════
+   WSF-restyle: карточка ученика (роль TEACHER) под эталон учителя.
+   Каркас (рельс/сайдбар/гамбургер, eyebrow/H1) даёт общий слой
+   home-student.css + home_teacher.layout/mobile.css (скоуп
+   body[data-home-variant="teacher"]). Здесь — только page-локальное:
+   убрать «коробку в коробке», причесать шапку и сделать внутренние
+   блоки самостоятельными карточками языка эталона.
+   ══════════════════════════════════════════════════════════════ */
+
+/* Внешняя .panel → прозрачная (контент тянется в область справа от рельса;
+   centred-box даёт .ht-content-wrap). Без двойной вложенности. */
+body[data-home-variant] .student-panel{
+  background:transparent;
+  border:none;
+  border-radius:0;
+  box-shadow:none;
+  padding:0;
+}
+
+/* Шапка: eyebrow + H1 + ряд действий (шестерёнка) справа от заголовка.
+   .home-eyebrow/.home-h1 стилизует home-student.css. */
+body[data-home-variant] #appHeader .student-head-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  min-width:0;
+}
+body[data-home-variant] #appHeader .student-head-row .home-h1{
+  flex:0 1 auto;
+  margin:0;
+  min-width:0;
+}
+/* Ряд действий — рядом с H1, не прилеплен к заголовку */
+body[data-home-variant] #appHeader .student-menu-wrap{
+  position:relative;
+  flex:0 0 auto;
+}
+/* Подпись активности — слева под H1 (без сдвига вправо) */
+body[data-home-variant] #appHeader .student-sub{
+  text-align:left;
+  display:flex;
+  gap:14px;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+
+/* Внутренние блоки — самостоятельные карточки эталона (radius 16, panel, shadow).
+   Inline <hr>-разделители больше не нужны (карточки разделены зазором). */
+body[data-home-variant] .student-panel > .ht-content-wrap > hr,
+body[data-home-variant] #smartHwBlock > hr,
+body[data-home-variant] #worksBlock > hr{
+  display:none;
+}
+
+body[data-home-variant] #smartHwBlock,
+body[data-home-variant] #worksBlock,
+body[data-home-variant] .student-stats-block{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  padding:16px 18px;
+  margin-top:16px;
+}
+
+/* Кнопка «Назад к списку» — в потоке, без карточки */
+body[data-home-variant] .student-panel > .ht-content-wrap > div:last-child{
+  margin-top:18px;
+}
+
+/* ── Stats-аккордеон (teacher student-view) на узких экранах ──
+   Корень: .acc-head{grid:1fr 1fr} ведёт себя как minmax(auto,1fr); правая половина
+   с тремя фикс-ширинами .m-slot (var(--badge-w)≈88px) имеет min-content ≈276px →
+   «голодит» левую колонку (≈20px) → несжимаемый бейдж покрытия .sec-cov («24/26 юн»)
+   выпирает из неё и налезает на первый метрик. Тот же фикс, что у stats.html
+   (pages/stats.css): делаем слоты гибкими → правая половина сжимается, левая получает
+   ширину, бейдж не налезает. Pre-existing (root stats.css), но чиним для визуального
+   паритета с эталоном stats. Только ≤420px — на десктопе раскладка корректна. */
+@media (max-width: 420px) {
+  body[data-home-variant] .acc-metrics-head,
+  body[data-home-variant] .acc-head,
+  body[data-home-variant] .sub-row { gap: 6px; }
+  body[data-home-variant] .m-slot { width: auto; flex: 1 1 0; min-width: 0; }
+  body[data-home-variant] .metrics-pos { gap: 4px; padding: 0 2px; }
+  body[data-home-variant] .acc-right .badge { width: 100%; padding: 4px 4px; font-size: 10px; }
+}

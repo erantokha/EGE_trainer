@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-      <meta name="app-build" content="2026-06-07-88">
+      <meta name="app-build" content="2026-06-08-8">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -51,8 +51,8 @@ connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trai
 frame-src 'self' https://rutube.ru https://*.rutube.ru;
 worker-src 'self' blob:;
 ">
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-  <script src="../app/diag_bootstrap.js?v=2026-06-07-88"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <script src="../app/diag_bootstrap.js?v=2026-06-08-8"></script>
 
     <title>Тренажер ЕГЭ — список задач</title>
   
@@ -132,11 +132,13 @@ worker-src 'self' blob:;
 
 
     
-    <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-07-88">
-    <link rel="stylesheet" href="./trainer/base.css?v=2026-06-07-88">
-    <link rel="stylesheet" href="./trainer/pages/list.css?v=2026-06-07-88">
-    <link rel="stylesheet" href="./trainer/print.css?v=2026-06-07-88">
-    <script src="./theme.js?v=2026-06-07-88" defer></script>
+    <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-8">
+    <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-8">
+    <link rel="stylesheet" href="./trainer/pages/list.css?v=2026-06-08-8">
+    <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-8">
+    <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-8">
+    <link rel="stylesheet" href="./trainer/print.css?v=2026-06-08-8">
+    <script src="./theme.js?v=2026-06-08-8" defer></script>
 
     <script>
       window.MathJax = {
@@ -151,15 +153,26 @@ worker-src 'self' blob:;
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
   </head>
 
-  <body>
+  <body data-home-variant="student">
     <main class="container">
       <!-- Основной контейнер, в который list.js будет рендерить список задач -->
       <section id="runner">
         <div class="panel">
           <header id="appHeader" class="page-head">
-            <div class="crumb">
-              Список задач
+            <div class="home-head-text">
+              <div class="home-eyebrow">Подготовка к ЕГЭ по профильной математике</div>
+              <h1 class="home-h1">Список задач</h1>
             </div>
+            <!-- Гамбургер в правом верхнем углу (мобилка) — открывает сайдбар.
+                 На десктопе скрыт (сайдбар — левый рельс, см. home-student.css). Лежит в
+                 #appHeader без data-header-extra → header.js переносит его в .page-head-left. -->
+            <button type="button" class="ht-burger ht-burger-open" id="htSidebarOpen" aria-label="Меню" aria-expanded="false">
+              <svg width="20" height="16" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+                <rect width="18" height="2" rx="1" fill="currentColor"/>
+                <rect y="6" width="18" height="2" rx="1" fill="currentColor"/>
+                <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
+              </svg>
+            </button>
             <button id="printBtn" type="button" class="btn small print-btn" data-header-extra="1" data-tip="Печать">
               <svg class="print-btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 6 2 18 2 18 9"/>
@@ -223,6 +236,231 @@ worker-src 'self' blob:;
       </section>
     </main>
 
-    <script type="module" src="./list.js?v=2026-06-07-88"></script>
-  </body>
+    <!-- ═══════════════════════════════════════════════
+         БОКОВОЕ МЕНЮ (сайдбар) — механика 1-в-1 с home_student.html.
+         CSS — общий слой home-student.css (body[data-home-variant]).
+         Пункты ученика: Статистика / Мои ДЗ / Профиль.
+    ═══════════════════════════════════════════════ -->
+    <div id="htSidebar" class="ht-sidebar" aria-hidden="true" aria-label="Главное меню">
+      <div class="ht-sidebar-overlay" id="htSidebarOverlay"></div>
+      <nav class="ht-sidebar-panel">
+        <div class="ht-sidebar-head">
+          <button type="button" class="ht-burger ht-sidebar-close" id="htSidebarClose" aria-label="Закрыть меню">
+            <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+              <rect width="18" height="2" rx="1" fill="currentColor"/>
+              <rect y="6" width="18" height="2" rx="1" fill="currentColor"/>
+              <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
+            </svg>
+          </button>
+          <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
+        </div>
+        <div class="ht-sidebar-nav">
+          <button type="button" class="ht-sidebar-item" id="htNavStats">
+            <span class="ht-sidebar-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/>
+                <line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </span>
+            <span class="ht-sidebar-label">Статистика</span>
+          </button>
+          <button type="button" class="ht-sidebar-item" id="htNavWorks">
+            <span class="ht-sidebar-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <line x1="10" y1="9" x2="8" y2="9"/>
+              </svg>
+            </span>
+            <span class="ht-sidebar-label">Мои ДЗ</span>
+          </button>
+          <button type="button" class="ht-sidebar-item" id="htNavProfile">
+            <span class="ht-sidebar-icon" aria-hidden="true">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="ht-sidebar-label">Профиль</span>
+          </button>
+        </div>
+        <div class="ht-sidebar-foot">
+          <button type="button" class="ht-sidebar-user-btn" id="htSidebarUserBtn">
+            <span class="ht-sidebar-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
+            <span class="ht-sidebar-user-name" id="htSidebarUserName">…</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true" class="ht-sidebar-chevron">
+              <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="ht-sidebar-logout-wrap" id="htSidebarLogoutWrap" hidden>
+            <button type="button" class="ht-sidebar-item ht-sidebar-logout-btn" id="htSidebarLogout">
+              <span class="ht-sidebar-icon" aria-hidden="true">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+              </span>
+              <span class="ht-sidebar-label">Выйти</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    </div>
+
+    <script type="module" src="./list.js?v=2026-06-08-8"></script>
+    <script>
+    /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
+       #menuLogout + навигация. Механика 1-в-1 с home_student.html.
+       Бейдж уведомлений: зеркалим состояние колокольчика #myHwBellTop (header.js)
+       в body.has-notif → CSS рисует кружок на «Мои ДЗ» и гамбургере. */
+    (function () {
+      var sidebar      = document.getElementById('htSidebar');
+      var overlay      = document.getElementById('htSidebarOverlay');
+      var sidebarClose = document.getElementById('htSidebarClose');
+      var sidebarOpen  = document.getElementById('htSidebarOpen');
+      var userBtn      = document.getElementById('htSidebarUserBtn');
+      var logoutWrap   = document.getElementById('htSidebarLogoutWrap');
+      var logoutBtn    = document.getElementById('htSidebarLogout');
+      var userNameEl   = document.getElementById('htSidebarUserName');
+      if (!sidebar) return;
+
+      /* Открыть/закрыть сайдбар */
+      function openSidebar() {
+        sidebar.classList.add('open');
+        document.body.classList.add('ht-sidebar-open');
+        if (sidebarClose) sidebarClose.setAttribute('aria-expanded', 'true');
+        if (sidebarOpen) sidebarOpen.setAttribute('aria-expanded', 'true');
+      }
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        document.body.classList.remove('ht-sidebar-open');
+        if (sidebarClose) sidebarClose.setAttribute('aria-expanded', 'false');
+        if (sidebarOpen) sidebarOpen.setAttribute('aria-expanded', 'false');
+        if (logoutWrap) logoutWrap.hidden = true;
+      }
+
+      if (sidebarClose) sidebarClose.addEventListener('click', function () {
+        sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+      });
+
+      /* Гамбургер в шапке (мобилка) — открывает сайдбар */
+      if (sidebarOpen) sidebarOpen.addEventListener('click', openSidebar);
+
+      /* Тап по затемнению (мобилка, full-screen overlay) — закрывает сайдбар */
+      if (overlay) overlay.addEventListener('click', closeSidebar);
+
+      /* Esc — закрыть */
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && sidebar.classList.contains('open')) closeSidebar();
+      });
+
+      /* Синхронизировать имя из #userMenuBtn (его строит header.js) */
+      function syncName() {
+        var label = document.querySelector('#userMenuBtn .user-menu-btn-label');
+        if (label && userNameEl) {
+          var name = (label.textContent || '').trim();
+          if (name && name !== 'Аккаунт') userNameEl.textContent = name;
+        }
+      }
+      var nameObs = new MutationObserver(function () {
+        var label = document.querySelector('#userMenuBtn .user-menu-btn-label');
+        if (!label) return;
+        nameObs.disconnect();
+        syncName();
+        new MutationObserver(syncName).observe(label, { childList: true, characterData: true, subtree: true });
+      });
+      nameObs.observe(document.body, { childList: true, subtree: true });
+
+      /* Пользователь → «Выйти» */
+      if (userBtn && logoutWrap) {
+        userBtn.addEventListener('click', function () {
+          var isOpen = !logoutWrap.hidden;
+          logoutWrap.hidden = isOpen;
+          userBtn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+        });
+      }
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+          var orig = document.getElementById('menuLogout');
+          if (orig) orig.click();
+          closeSidebar();
+        });
+      }
+
+      /* Навигация (студенческие страницы) */
+      var homeUrl = (function () {
+        try {
+          return /\/tasks(\/|$)/.test(location.pathname)
+            ? new URL('../', location.href).toString()
+            : new URL('./', location.href).toString();
+        } catch (_) { return './'; }
+      })();
+
+      var navStats   = document.getElementById('htNavStats');
+      var navWorks   = document.getElementById('htNavWorks');
+      var navProfile = document.getElementById('htNavProfile');
+
+      if (navStats) navStats.addEventListener('click', function () {
+        location.href = homeUrl + 'tasks/stats.html';
+      });
+      if (navWorks) navWorks.addEventListener('click', function () {
+        location.href = homeUrl + 'tasks/my_homeworks.html';
+      });
+      if (navProfile) navProfile.addEventListener('click', function () {
+        location.href = homeUrl + 'tasks/profile.html';
+      });
+
+      /* ── Бейдж уведомлений ── зеркалим класс .hidden колокольчика #myHwBellTop
+         (header.js) в body.has-notif — без новых запросов, следим за DOM. */
+      function syncNotif() {
+        var bell = document.getElementById('myHwBellTop');
+        var has = !!(bell && !bell.classList.contains('hidden'));
+        document.body.classList.toggle('has-notif', has);
+      }
+      syncNotif();
+      var bellClassObs = new MutationObserver(syncNotif);
+      var mountObs = new MutationObserver(function () {
+        var bell = document.getElementById('myHwBellTop');
+        if (!bell) return;
+        mountObs.disconnect();
+        syncNotif();
+        bellClassObs.observe(bell, { attributes: true, attributeFilter: ['class'] });
+      });
+      mountObs.observe(document.body, { childList: true, subtree: true });
+      (function () {
+        var bell = document.getElementById('myHwBellTop');
+        if (bell) {
+          mountObs.disconnect();
+          bellClassObs.observe(bell, { attributes: true, attributeFilter: ['class'] });
+        }
+      })();
+    })();
+    </script>
+  <!-- WSF: единый контроллер сайдбара (Главная / активный пункт / персист рельса / role-aware) -->
+  <script>
+    (function () {
+      /* Синхронно (до первой отрисовки) восстанавливаем сохранённое раскрытое состояние рельса —
+         иначе async-модуль применит .open уже после paint → мигание ширины 56→220 при навигации. */
+      try {
+        if (window.matchMedia('(min-width:1025px)').matches && localStorage.getItem('ege_sidebar_open') === '1') {
+          var sb = document.getElementById('htSidebar');
+          if (sb) { sb.classList.add('open'); if (document.body) document.body.classList.add('ht-sidebar-open'); }
+        }
+      } catch (e) {}
+      var B = document.querySelector('meta[name="app-build"]')?.content?.trim();
+      var withV = function (p) { return B ? (p + (p.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(B)) : p; };
+      var rel = /\/tasks(\/|$)/.test(location.pathname) ? '../' : './';
+      import(withV(rel + 'app/ui/sidebar.js')).then(function (m) { m.initSidebar && m.initSidebar(); });
+    })();
+  </script>
+</body>
 </html>

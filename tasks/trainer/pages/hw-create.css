@@ -186,3 +186,93 @@
 
   .tp-nav { border-right:none; border-bottom:1px solid var(--border); max-height:240px; }
 }
+
+
+/* ════════════════════════════════════════════════════════════════
+   WSF site-restyle (hw_create, role=teacher). Скоуп — body[data-home-variant].
+   Карта эталона: eyebrow + H1 + сайдбар-рельс (общий home-student.css +
+   home_teacher.layout.css), контролы печать/тема остаются в .page-head-right
+   (data-header-extra). main даёт рельс-clearance (margin-left:56px из
+   home_teacher.layout.css); здесь — контент-бокс и карточный язык формы.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Контент-секция — тот же центрированный бокс, что у шапки/эталона
+   (#appHeader: max-width:1200px; padding:10px 40px). main = full-width
+   с рельс-clearance, поэтому коробку задаём здесь. Шапка #appHeader уже
+   несёт собственный padding:10px 40px (home_teacher.layout.css) → гасим
+   его горизонтальный padding внутри section, иначе двойной отступ и
+   рассинхрон шапки с контентом. */
+body[data-home-variant] main > section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 40px;
+  box-sizing: border-box;
+}
+body[data-home-variant] main > section > #appHeader {
+  padding-left: 0;
+  padding-right: 0;
+  max-width: none;
+}
+
+/* Форма создания ДЗ — единая карточка вместо одинокой .panel. */
+body[data-home-variant] main > section > .controls,
+body[data-home-variant] main > section > #status,
+body[data-home-variant] main > section > #linkBox,
+body[data-home-variant] main > section > .grid2,
+body[data-home-variant] main > section > .hrow,
+body[data-home-variant] main > section > .added-head,
+body[data-home-variant] main > section > #addedBox {
+  max-width: 760px;
+}
+
+/* Поля ввода / select — карточный язык эталона (токены). */
+body[data-home-variant] main > section .input,
+body[data-home-variant] main > section #assignStudent {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 9px 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+/* #assignStudent — нативная стрелка сохранена (без appearance:none),
+   карточный border/radius/фон уже задан выше. */
+
+/* Dashed «editable» кнопки → мягкая карточка на токенах. */
+body[data-home-variant] main > section .editable-btn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  padding: 10px 12px;
+}
+body[data-home-variant] main > section .editable-btn:hover {
+  background: var(--panel);
+}
+
+/* Чекбоксы «Перемешать задачи» — выровнены, читаемая типографика. */
+body[data-home-variant] main > section .grid2 label {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* Блок ссылки на ДЗ — карточка на токенах (link-box уже на --panel-2). */
+body[data-home-variant] main > section #linkBox {
+  border-radius: var(--radius);
+}
+
+@media (max-width: 1024px) {
+  /* Контент-бокс на мобилке — без рельс-clearance (рельс уезжает), уменьшенные поля. */
+  body[data-home-variant] main > section {
+    padding: 0 16px 24px;
+  }
+
+  /* ВАЛИДИРОВАННЫЙ приём (trainer): контролы печать/тема — отдельным рядом во всю
+     ширину под eyebrow/H1 (правый верхний угол занят гамбургером). Цель: на 390px
+     нет горизонтального скролла. */
+  body[data-home-variant] #appHeader .page-head-right {
+    grid-column: 1 / -1;
+    flex-direction: row; flex-wrap: wrap;
+    justify-content: flex-start; align-items: center;
+    margin-top: 10px;
+  }
+}

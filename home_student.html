@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-07-88">
+  <meta name="app-build" content="2026-06-08-8">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -108,10 +108,10 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-07-88">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-07-88">
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-07-88">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-07-88">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-08-8">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-08-8">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-08-8">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-08-8">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -424,9 +424,9 @@
     </nav>
   </div>
 
-  <script src="./tasks/theme.js?v=2026-06-07-88" defer></script>
-  <script type="module" src="./tasks/home_guard.js?v=2026-06-07-88"></script>
-  <script type="module" src="./tasks/picker.js?v=2026-06-07-88"></script>
+  <script src="./tasks/theme.js?v=2026-06-08-8" defer></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-06-08-8"></script>
+  <script type="module" src="./tasks/picker.js?v=2026-06-08-8"></script>
   <script>
   /* WSF-student: открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через
      скрытый #menuLogout + навигация. Механика 1-в-1 с home_teacher.html.
@@ -561,6 +561,23 @@
       }
     })();
   })();
+  </script>
+  <!-- WSF: единый контроллер сайдбара (Главная / активный пункт / персист рельса / role-aware) -->
+  <script>
+    (function () {
+      /* Синхронно (до первой отрисовки) восстанавливаем сохранённое раскрытое состояние рельса —
+         иначе async-модуль применит .open уже после paint → мигание ширины 56→220 при навигации. */
+      try {
+        if (window.matchMedia('(min-width:1025px)').matches && localStorage.getItem('ege_sidebar_open') === '1') {
+          var sb = document.getElementById('htSidebar');
+          if (sb) { sb.classList.add('open'); if (document.body) document.body.classList.add('ht-sidebar-open'); }
+        }
+      } catch (e) {}
+      var B = document.querySelector('meta[name="app-build"]')?.content?.trim();
+      var withV = function (p) { return B ? (p + (p.indexOf('?') >= 0 ? '&' : '?') + 'v=' + encodeURIComponent(B)) : p; };
+      var rel = /\/tasks(\/|$)/.test(location.pathname) ? '../' : './';
+      import(withV(rel + 'app/ui/sidebar.js')).then(function (m) { m.initSidebar && m.initSidebar(); });
+    })();
   </script>
 </body>
 </html>

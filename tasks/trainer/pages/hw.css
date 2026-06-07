@@ -1,0 +1,50 @@
+/* tasks/trainer/pages/hw.css
+   Page-scoped рестайл экрана домашнего задания (hw.html) под эталон
+   home_student.html / trainer.html. Подключается ПЕРЕД home-student.css
+   (после base.css). Все правила скоуплены на body[data-home-variant] —
+   старый вид без variant не трогаем.
+   Экран имеет 3 режима в одном каркасе: гейт-загрузка (#hwGate),
+   активный прогон (#runner), отчёт (#summary). Каркас (шапка + сайдбар +
+   CSS-слои) общий для всех трёх. НЕ меняем id/классы рендера hw.js
+   (#hwTitle / #hwDesc / #hwGate / #hwGateMsg / #runner / #summary). */
+
+/* Шапка: выравнивание по верху (eyebrow + H1 слева, гамбургер/контролы справа). */
+body[data-home-variant] #appHeader.page-head {
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+/* Снять «коробку в коробке»: внешняя обёртка #hw > .panel прозрачна.
+   Контент дышит на фоне --bg; собственный chrome остаётся у внутренних
+   блоков — карточки-разбора (.task-card / hw-review-list) и отчёта
+   (#summary > .panel), у которых свой фон/рамка. */
+body[data-home-variant] #hw > .panel {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+/* Защита от горизонтального скролла на заполненном #runner / #summary:
+   широкие формулы MathJax / картинки-графики не должны рвать раскладку. */
+body[data-home-variant] main {
+  overflow-x: clip;
+}
+body[data-home-variant] #runner,
+body[data-home-variant] #summary {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@media (max-width: 1024px) {
+  /* Контролы печать/тема — отдельным рядом во всю ширину под eyebrow/H1
+     (правый верхний угол занят гамбургером). Валидированный приём из trainer. */
+  body[data-home-variant] #appHeader .page-head-right {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 10px;
+  }
+}

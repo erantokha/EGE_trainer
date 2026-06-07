@@ -1190,13 +1190,21 @@ body[data-home-variant] .ht-burger:hover {
   }
 }
 
-/* Скрываем «А»-пилюлю + меню из header.js (.page-head-right) — навигация в сайдбаре.
+/* Скрываем «А»-пилюлю, меню header.js и кнопку «На главную» — навигация в сайдбаре.
    #userMenuBtn/#userMenu остаются в DOM (header.js: имя для сайдбара, скрытый
-   #menuLogout для выхода) — только визуально прячем. */
-body[data-home-variant] .page-head-right,
+   #menuLogout для выхода) — только визуально прячем.
+
+   ВАЖНО: НЕ прячем всю .page-head-right. На страницах с печатью/копией/темой
+   (trainer/list/hw/unique) там лежат data-header-extra-контролы
+   (#printBtn/#copySessionLink/.theme-toggle) — их надо сохранить. Прячем только
+   избыточные элементы. !important — потому что на мобилке (≤1024px) base.css
+   форсит `header#appHeader.page-head .page-head-right{display:flex}` с ID-специфичностью
+   (1,2,1), а #homeBtn («На главную», header.js создаёт при isHome=false на всех
+   /tasks/-страницах) иначе налезает на гамбургер в правом верхнем углу. */
 body[data-home-variant] #userMenuBtn,
-body[data-home-variant] #userMenuWrap {
-  display: none;
+body[data-home-variant] #userMenuWrap,
+body[data-home-variant] #homeBtn {
+  display: none !important;
 }
 
 /* ── Рельс-clearance: контент не должен залезать под фиксированный рельс (56px).
@@ -1355,6 +1363,27 @@ body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-icon {
 }
 body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-label {
   transform: translateX(4px);
+}
+
+/* ── Активный пункт (текущая страница). Сигнал — класс .active, его ставит
+   app/ui/sidebar.js по текущему пути. На свёрнутом рельсе видны только иконки →
+   подсвечивается иконка + левая акцентная полоска; на раскрытом/мобилке — вся строка. ── */
+body[data-home-variant] .ht-sidebar-item.active {
+  color: var(--accent, #2563eb);
+  background: rgba(37, 99, 235, 0.07);
+}
+body[data-home-variant] .ht-sidebar-item.active .ht-sidebar-icon {
+  color: var(--accent, #2563eb);
+}
+body[data-home-variant] .ht-sidebar-item.active::before {
+  transform: translateY(-50%) scaleY(1);
+}
+
+/* Восстановление сохранённого состояния рельса без анимации-мигания
+   (app/ui/sidebar.js на загрузке ставит body.ht-sidebar-restoring на 2 кадра). */
+body.ht-sidebar-restoring,
+body.ht-sidebar-restoring .ht-sidebar-panel {
+  transition: none !important;
 }
 
 /* Нижняя зона: пользователь + выход */

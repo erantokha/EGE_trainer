@@ -1,0 +1,21 @@
+/* tasks/trainer/pages/analog.css
+   Page-scoped рестайл «Задача на закрепление» (analog.html) под эталон
+   home_student.html. Подключается ПЕРЕД home-student.css (после base.css).
+   Все правила скоуплены на body[data-home-variant] — старый вид без variant не трогаем.
+   НЕ меняем id/классы рендера analog.js (#analogTitle / #analogMsg / #runner). */
+
+/* Шапка: отступ как у эталона (рельс-clearance даёт home-student.css). */
+body[data-home-variant] #appHeader.page-head {
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+/* Защита от горизонтального скролла на заполненном #runner:
+   широкие формулы MathJax / картинки задачи не должны рвать раскладку. */
+body[data-home-variant] main {
+  overflow-x: clip;
+}
+body[data-home-variant] #runner {
+  max-width: 100%;
+  overflow-x: clip;
+}

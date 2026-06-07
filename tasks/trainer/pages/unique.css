@@ -9,6 +9,70 @@
   margin:10px 0 4px;
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Рестайл под эталон home_student (site-restyle wave).
+   Все правила скоупим на body[data-home-variant], чтобы не задеть
+   режимы без рестайла. Общий слой (eyebrow/H1/sub типографика, скрытие
+   старой пилюли/#homeBtn, рельс-clearance, гамбургер) даёт home-student.css.
+───────────────────────────────────────────────────────────────────────── */
+
+/* Внешняя карточка прозрачна — контент «живёт» на общем фоне страницы,
+   как body[data-home-variant] #picker .panel на эталоне. */
+body[data-home-variant] .unique-page .panel{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+
+/* Кнопка «Раскрыть все / Свернуть все» — язык эталонных контролов
+   (радиус 10, бордер/фон токенами). */
+body[data-home-variant] .uniq-controls #expandAllBtn{
+  border:1px solid var(--border);
+  background:var(--panel);
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 14px;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .15s ease, border-color .15s ease;
+}
+body[data-home-variant] .uniq-controls #expandAllBtn:hover{
+  background:var(--surface2,#f1f5f9);
+  border-color:var(--accent);
+}
+body[data-home-variant] .uniq-controls #expandAllBtn:disabled{
+  opacity:.6;
+  cursor:default;
+}
+body[data-home-variant] .uniq-controls #uniqSectionCount{
+  font-size:14px;
+  color:var(--text-dim);
+}
+
+/* Контент не должен давать горизонтальный скролл на мобилке (длинные формулы
+   MathJax/картинки в .ws-fig скроллим внутри блока, не на body). */
+body[data-home-variant] .unique-page #uniqAccordion .ws-stem,
+body[data-home-variant] .unique-page #uniqAccordion .ws-item{ min-width:0; }
+body[data-home-variant] .unique-page #uniqAccordion .ws-fig{ overflow-x:auto; }
+
+@media (max-width: 1024px) {
+  /* Print/тема/копия (data-header-extra) на мобилке: header.js кладёт их в
+     .page-head-right; ставим их под шапку отдельной строкой, не давая
+     налезать на гамбургер и не вызывая h-scroll. Приём из trainer (валидирован). */
+  body[data-home-variant] #appHeader .page-head-right {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: center;
+    margin-top: 10px;
+  }
+  /* страховка от горизонтального переполнения на узких экранах */
+  body[data-home-variant] main{ overflow-x:clip; }
+}
+
 
 /* заголовки тем на странице уникальных прототипов делаем жирными */
 #uniqAccordion .section-title{

@@ -1,0 +1,123 @@
+/* tasks/trainer/pages/stats.css
+   Page-scoped рестайл страницы статистики ученика (stats.html) под эталон
+   home_student.html. Подключается ПОСЛЕ base.css и stats.css, ПЕРЕД home-student.css.
+   Все правила скоуплены на body[data-home-variant] — старый вид (без variant) не трогаем.
+   НЕ меняем id/классы рендера stats.js/stats_view.js — только палитра/радиус/тень/раскладка.
+
+   Эталон карточек: radius 16px, background:var(--panel), shadow 0 10px 30px rgba(15,23,42,.10). */
+
+/* ── Шапка: отступ как у эталона + место под рельс уже даёт home-student.css ── */
+body[data-home-variant] #appHeader.page-head {
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+/* Сводные карточки «Последние 10 / Период / Всё время» → язык эталона */
+body[data-home-variant] .stat-cards {
+  gap: 12px;
+}
+body[data-home-variant] .stat-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .10);
+  padding: 16px 18px;
+}
+body[data-home-variant] .stat-card .t {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+/* Аккордеон тем: каждый item — карточка эталона */
+body[data-home-variant] .stats-acc {
+  gap: 10px;
+}
+body[data-home-variant] .acc-item {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .10);
+  overflow: hidden;
+}
+/* Легенда колонок («10 последних / 30 дней / Всё время») — без карточки, прозрачная */
+body[data-home-variant] .acc-metrics-head {
+  padding: 0 18px;
+}
+body[data-home-variant] .acc-head {
+  padding: 12px 18px;
+}
+body[data-home-variant] .acc-left-head .title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Подтемы внутри карточки темы */
+body[data-home-variant] .sub-list {
+  padding: 8px 14px 14px;
+  gap: 8px;
+}
+body[data-home-variant] .sub-row {
+  border-radius: 12px;
+  background: var(--surface2, rgba(148, 163, 184, .06));
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+}
+body[data-home-variant] .sub-row:hover {
+  background: rgba(148, 163, 184, .10);
+}
+
+/* Контролы (Период / Источник / Обновить / Тренировать слабые места) */
+body[data-home-variant] .stats-controls {
+  gap: 12px;
+  margin-bottom: 4px;
+}
+body[data-home-variant] .stats-controls label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+body[data-home-variant] .stats-controls select {
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+body[data-home-variant] .stats-actions .btn {
+  border-radius: 12px;
+}
+
+/* Бейджи процентов: палитра как у эталонного аккордеона (home-student.css) */
+body[data-home-variant] .badge.green  { background: rgba(16, 185, 129, .12); border-color: rgba(16, 185, 129, .35); }
+body[data-home-variant] .badge.lime   { background: rgba(132, 204, 22, .14);  border-color: rgba(132, 204, 22, .35); }
+body[data-home-variant] .badge.yellow { background: rgba(245, 158, 11, .16);  border-color: rgba(245, 158, 11, .35); }
+body[data-home-variant] .badge.red    { background: rgba(239, 68, 68, .14);   border-color: rgba(239, 68, 68, .35); }
+
+/* ── Мобильная защита от горизонтального скролла ──
+   На очень узких экранах три фиксированных стикера (var(--badge-w)) в правой половине
+   1fr|1fr могут не влезть. Разрешаем стикерам сжиматься (вместо жёсткой ширины) и
+   гасим горизонтальное переполнение, не трогая DOM/рендер stats.js. */
+@media (max-width: 420px) {
+  body[data-home-variant] .acc-metrics-head,
+  body[data-home-variant] .acc-head,
+  body[data-home-variant] .sub-row {
+    gap: 6px;
+  }
+  body[data-home-variant] .m-slot {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  body[data-home-variant] .metrics-pos {
+    gap: 4px;
+    padding: 0 2px;
+  }
+  body[data-home-variant] .acc-right .badge {
+    width: 100%;
+    padding: 4px 4px;
+    font-size: 10px;
+  }
+}

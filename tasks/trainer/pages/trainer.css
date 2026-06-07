@@ -122,3 +122,46 @@
 .smart-actions{ display:flex; gap:8px; }
 
 .smart-actions button{ padding:6px 10px; border-radius:10px; }
+
+
+/* ════════════════════════════════════════════════════════════════
+   WSF site-restyle (trainer, role=student). Скоуп — body[data-home-variant].
+   Карта эталона: eyebrow + H1 + сайдбар-рельс (общий home-student.css),
+   контролы печать/копия/тема остаются в .page-head-right (data-header-extra).
+   ════════════════════════════════════════════════════════════════ */
+
+/* Снять «коробку в коробке»: внешняя обёртка #runner > .panel прозрачна —
+   карточки задачи (.task-card/.q-card) и итоги (#summary .panel) остаются
+   самостоятельными блоками со своим chrome. */
+body[data-home-variant] #runner > .panel{
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  padding:0;
+}
+
+/* Мета-строка прогресс/таймер под H1 (runtime-узлы #idx/#total/#tmin/#tsec). */
+body[data-home-variant] #appHeader .run-meta{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-top:6px;
+  font-size:13px;
+  color:var(--text-dim);
+  font-variant-numeric:tabular-nums;
+}
+
+@media (max-width: 1024px) {
+  /* Контролы печать/копия/тема — отдельным рядом во всю ширину под eyebrow/H1
+     (правый верхний угол занят гамбургером). */
+  body[data-home-variant] #appHeader .page-head-right {
+    grid-column: 1 / -1;
+    flex-direction: row; flex-wrap: wrap;
+    justify-content: flex-start; align-items: center;
+    margin-top: 10px;
+  }
+  /* h-scroll fix: #copySessionLink не переполняет (корень 412px на 390px). */
+  body[data-home-variant] #copySessionLink {
+    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+}

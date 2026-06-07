@@ -136,18 +136,18 @@ for (const f of (fs.existsSync(pagesDir) ? fs.readdirSync(pagesDir) : [])) {
 const HTML = {
   'home_student.html': ['tokens', 'base', 'pages/home-student'],
   'home_teacher.html': ['tokens', 'base', 'pages/home-student'], // WSF-restyle: home-student.css = общий home-слой (учитель причёсан под ученика)
-  'tasks/trainer.html': ['tokens', 'base', 'pages/trainer', 'print'],
-  'tasks/list.html': ['tokens', 'base', 'pages/list', 'print'],
-  'tasks/unique.html': ['tokens', 'base', 'pages/unique', 'print'],
-  'tasks/hw.html': ['tokens', 'base', 'print'],
-  'tasks/hw_create.html': ['tokens', 'base', 'pages/hw-create', 'print'],
-  'tasks/analog.html': ['tokens', 'base'],
-  'tasks/stats.html': ['tokens', 'base'],
-  'tasks/my_students.html': ['tokens', 'base', 'pages/my-students'],
-  'tasks/student.html': ['tokens', 'base', 'pages/student'],
-  'tasks/my_homeworks.html': ['tokens', 'base', 'pages/my-homeworks'],
-  'tasks/my_homeworks_archive.html': ['tokens', 'base', 'pages/my-homeworks'],
-  'tasks/profile.html': ['tokens', 'base', 'pages/profile'],
+  'tasks/trainer.html': ['tokens', 'base', 'pages/trainer', 'pages/home-student', 'print'], // WSF site-restyle
+  'tasks/list.html': ['tokens', 'base', 'pages/list', 'pages/home-student', 'print'], // WSF site-restyle
+  'tasks/unique.html': ['tokens', 'base', 'pages/unique', 'pages/home-student', 'print'], // WSF site-restyle
+  'tasks/hw.html': ['tokens', 'base', 'pages/hw', 'pages/home-student', 'print'], // WSF site-restyle (новый pages/hw.css)
+  'tasks/hw_create.html': ['tokens', 'base', 'pages/hw-create', 'pages/home-student', 'print'], // WSF site-restyle
+  'tasks/analog.html': ['tokens', 'base', 'pages/analog', 'pages/home-student'], // WSF site-restyle: общий стиль + сайдбар
+  'tasks/stats.html': ['tokens', 'base', 'pages/stats', 'pages/home-student'], // WSF site-restyle: общий стиль + сайдбар
+  'tasks/my_students.html': ['tokens', 'base', 'pages/my-students', 'pages/home-student'], // WSF site-restyle
+  'tasks/student.html': ['tokens', 'base', 'pages/student', 'pages/home-student'], // WSF site-restyle
+  'tasks/my_homeworks.html': ['tokens', 'base', 'pages/my-homeworks', 'pages/home-student'], // WSF site-restyle
+  'tasks/my_homeworks_archive.html': ['tokens', 'base', 'pages/my-homeworks', 'pages/home-student'], // WSF site-restyle
+  'tasks/profile.html': ['tokens', 'base', 'pages/profile', 'pages/home-student'], // WSF site-restyle
   'tasks/auth.html': ['tokens', 'base', 'pages/auth'],
   'tasks/auth_callback.html': ['tokens', 'base'],
   'tasks/auth_reset.html': ['tokens', 'base', 'pages/auth'],
