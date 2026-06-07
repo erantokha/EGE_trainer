@@ -1047,25 +1047,23 @@ body[data-home-variant="student"] .start-card .sc-start-count{ display:none; }
 body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
 
 /* ── (2026-06-07) #1 (десктоп): число % точности — на одном уровне с числом покрытия (у степпера).
-   Покрытие остаётся на исходной позиции (grid-row:1/span 2, центрировано — правило выше). А число
-   точности поднимаем туда же: .home-section-pct → display:contents, бар остаётся под названием
-   (row 2), а число (b) переносим на строку покрытия (row 1/span 2, по центру, к правому краю).
+   БЕЗ display:contents (он убирал бокс у бейджа → ломались [data-tip]-тултип и скелетон-::after, что
+   давало полосу-артефакт и пропажу подсказок). Бейдж — обычный бокс на 2 строки (position:relative):
+   число (b) по центру по вертикали = уровень покрытия (у правого края), полоса (.acc-bar) — абсолютом
+   снизу (под названием). Бокс сохранён → тултип и скелетон работают корректно.
    Только десктоп — на мобайле своя раскладка (home_student.mobile.css), там уже выровнено. */
 @media (min-width:1025px) {
-  body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct{ display:contents !important; }
-  body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct .acc-bar{
-    grid-column:1 !important; grid-row:2 !important; align-self:center !important;
+  body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct{
+    grid-row:1 / span 2 !important; align-self:stretch !important;
+    position:relative !important;
+    display:flex !important; align-items:center !important; justify-content:flex-end !important;
+    padding:0 !important; gap:0 !important;
   }
   body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct b{
-    grid-column:1 !important; grid-row:1 / span 2 !important; align-self:center !important; justify-self:end !important;
+    position:static !important; flex:0 0 auto !important;
   }
-  /* ФИКС полосы-артефакта: display:contents выше убирает бокс у .home-section-pct, поэтому
-     скелетон-::after (position:absolute; left:10;right:10;top:50%) при загрузке статистики
-     позиционировался от ВЬЮПОРТА → серая полоса во всю ширину по центру (холодный/после-простоя
-     заход, когда нет кэша → home-stats-loading). Отключаем этот сломанный ::after на десктопе
-     (бейдж точности секции при загрузке остаётся faded; шиммер прочих бейджей работает). */
-  body[data-home-variant="student"].home-stats-loading #accordion .node.section > .row .home-section-pct::after{
-    content:none !important;
+  body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct .acc-bar{
+    position:absolute !important; left:0 !important; right:0 !important; bottom:4px !important; flex:none !important;
   }
 }
 /* ── #2: компрессия аккордеона по вертикали (десктоп+мобайл) — строки были слишком растянуты.
