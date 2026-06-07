@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-07-66';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-66';
-import { CONFIG } from '../app/config.js?v=2026-06-07-66';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-66';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-66';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-66';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-66';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-66';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-66';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-66';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-66';
+import { withBuild } from '../app/build.js?v=2026-06-07-67';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-67';
+import { CONFIG } from '../app/config.js?v=2026-06-07-67';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-07-67';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-07-67';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-07-67';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-67';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-07-67';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-67';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-07-67';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-07-67';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-66';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-07-67';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-07-66';
+} from './picker_common.js?v=2026-06-07-67';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-07-66';
+} from './picker_stats.js?v=2026-06-07-67';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -3736,10 +3736,14 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
 
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
   const excludeSet = getExcludeSet();
+  // WSF-perf: RPC в Supabase нужен ТОЛЬКО при активном фильтре (нужна серверная статистика
+  // ученика для weak/stale/… ). Без фильтра подбираем ЛОКАЛЬНО (как ученик) — мгновенно, без
+  // запросов. Раньше ветвление шло на `if (sid)` → при выбранном ученике всегда RPC (≈4с).
+  const useRpc = !!(sid && getActiveTeacherFilterId(sid));
 
   if (key.startsWith('proto:')) {
     const typeId = key.slice('proto:'.length);
-    if (sid) {
+    if (useRpc) {
       const resolved = await pickQuestionsViaTeacherScreenResolve({
         request: { scope_kind: 'proto', scope_id: typeId, n: want },
         excludeQuestionIds: excludeSet,
@@ -3771,7 +3775,7 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
     const topic = TOPIC_BY_ID.get(String(topicId));
     if (!topic) return [];
 
-    if (sid) {
+    if (useRpc) {
       const resolved = await pickQuestionsViaTeacherScreenResolve({
         request: { scope_kind: 'topic', scope_id: topicId, n: want },
         excludeQuestionIds: excludeSet,
@@ -3812,7 +3816,7 @@ async function pickDeltaForBucket(bucketKey, delta, seq) {
         .map(([id]) => String(id)),
     );
 
-    if (sid) {
+    if (useRpc) {
       const resolved = await pickQuestionsViaTeacherScreenResolve({
         request: { scope_kind: 'section', scope_id: sectionId, n: want },
         excludeTopicIds: Array.from(excludeTopics),
@@ -3947,6 +3951,9 @@ async function syncAddedTasksToSelection(opts = {}) {
 
   const ordered = [...protoKeys, ...topicKeys];
   const sid = String(TEACHER_VIEW_STUDENT_ID || '').trim();
+  // WSF-perf: батч-RPC в Supabase — ТОЛЬКО при активном фильтре. Без фильтра весь добор идёт
+  // локально (else-ветки → pickQuestionsScopedForList), как у ученика → мгновенно, без запросов.
+  const useRpc = !!(sid && getActiveTeacherFilterId(sid));
 
   // --- 2) добор (строго в порядке движка: protos -> topics) ---
   const protoNeedEntries = [];
@@ -3965,7 +3972,7 @@ async function syncAddedTasksToSelection(opts = {}) {
     else if (bk.startsWith('topic:')) topicNeedEntries.push([bk, delta]);
   }
 
-  if (sid && protoNeedEntries.length) {
+  if (useRpc && protoNeedEntries.length) {
     const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
       requests: protoNeedEntries.map(([bk, delta]) => ({
         scope_kind: 'proto',
@@ -3997,7 +4004,7 @@ async function syncAddedTasksToSelection(opts = {}) {
     }
   }
 
-  if (sid && topicNeedEntries.length) {
+  if (useRpc && topicNeedEntries.length) {
     const batchRes = await pickQuestionsViaTeacherScreenResolveBatch({
       requests: topicNeedEntries.map(([bk, delta]) => ({
         scope_kind: 'topic',
@@ -4052,7 +4059,7 @@ async function syncAddedTasksToSelection(opts = {}) {
         .map(([id]) => String(id)),
     );
 
-    if (sid) {
+    if (useRpc) {
       const remaining = new Map(sectionNeedMap);
       // WP2 (A): uniform «Выбрать всё» (ВСЕ секции, одинаковая delta = K ≥ 1) → K раундов global_all.
       // global_all — быстрый путь (в БД короткое замыкание, 1 проток на тему), уважает
