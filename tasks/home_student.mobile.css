@@ -41,6 +41,22 @@
   body[data-home-variant] #picker .sub-controls{ margin-top:16px !important; }
   body[data-home-variant] #picker .accordion{ margin-top:16px !important; }
 
+  /* WSF-fix (И4): 3 контрола (Выбрать всё / Сбросить всё / фильтр) — в ОДНУ строку (равные доли),
+     «Перемешать задачи» (4-й элемент) переносится на вторую строку (не влезает с полным текстом). */
+  body[data-home-variant="student"] #picker .bulk-controls{
+    display:flex !important; flex-wrap:wrap !important; align-items:center !important; gap:6px !important;
+  }
+  body[data-home-variant="student"] #picker .bulk-controls > button{
+    flex:1 1 0 !important; min-width:0 !important;
+  }
+  /* фильтру — больше доли, чтобы «Без фильтра» влезало целиком (нативной стрелке нужно место) */
+  body[data-home-variant="student"] #picker .bulk-controls > #studentFilterDropdown{
+    flex:1.4 1 0 !important; min-width:0 !important;
+  }
+  body[data-home-variant="student"] #picker .bulk-controls > .shuffle{
+    flex:1 1 100% !important; order:9 !important; margin-top:2px !important;
+  }
+
   /* ── 2. Прогноз — компактный strip СВЕРХУ (вертикальный градусник скрыт) ── */
   body[data-home-variant] #picker .score-forecast{ display:none !important; }
   body[data-home-variant] #picker #mForecast{

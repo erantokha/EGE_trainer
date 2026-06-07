@@ -704,6 +704,10 @@ body[data-home-variant="teacher"] .ht-start-btn:hover:not(:disabled) {
   /* страховка: клипуем горизонтальное переполнение контента → нет iOS shrink-to-fit → нет zoom-out.
      overflow:clip не создаёт скролл-контейнер (sticky-хедер/панель не ломаются). */
   body[data-home-variant="teacher"] main { overflow-x: clip; }
+  /* WSF-fix: на мобилке рельса нет (он — оверлей по гамбургеру), поэтому сбрасываем
+     десктопный left-clearance main (иначе остаётся пустой отступ слева). */
+  body[data-home-variant="teacher"] main,
+  body[data-home-variant="teacher"].ht-sidebar-open main { margin-left: 0; }
 
   body[data-home-variant="teacher"] .ht-content-wrap {
     padding: 0 16px;

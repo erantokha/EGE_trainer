@@ -1092,15 +1092,22 @@ body[data-home-variant] #studentFilterDropdown{
 }
 body[data-home-variant] #studentFilterDropdown:disabled{ opacity:.55; cursor:not-allowed; }
 
-/* WSF-fix: на мобилке фильтр-select крупнее и ЧИТАЕМЕЕ. Нативный пикер берёт font-size селекта →
-   мелкий 13px давал «еле читаемое окошко»; 16px = читаемо и убирает iOS-зум при фокусе. Обе
-   страницы (home-student.css грузится и на ученике, и на учителе → покрывает оба #*FilterDropdown). */
+/* WSF-fix: контролы на мобилке — ЕДИНЫЙ размер шрифта (кнопки = фильтр) и помещаются ПОЛНОСТЬЮ
+   в одну строку. 14px — компромисс: читаемо (в т.ч. нативный пикер фильтра) и три элемента
+   влезают на 360–390px без обрезки. Обе страницы (home-student.css грузится на обеих). */
 @media (max-width: 1024px) {
+  body[data-home-variant] .bulk-controls button,
+  body[data-home-variant] #studentFilterDropdown,
+  body[data-home-variant] #teacherFilterDropdown,
+  body[data-home-variant] .ht-action-toolbar .bulk-controls button {
+    font-size: 13px !important;
+    padding: 8px 5px !important;
+    border-radius: 10px !important;
+  }
+  /* select: меньше место под нативную стрелку, чтобы «Без фильтра» влезало целиком */
   body[data-home-variant] #studentFilterDropdown,
   body[data-home-variant] #teacherFilterDropdown {
-    font-size: 16px;
-    padding: 9px 12px;
-    border-radius: 12px;
+    padding-right: 16px !important;
   }
 }
 
@@ -1143,9 +1150,14 @@ body[data-home-variant] .ht-burger {
 body[data-home-variant] .ht-burger:hover {
   background: var(--panel-2);
 }
-/* Гамбургер в шапке скрыт на десктопе (сайдбар-рельс уже есть слева) */
-body[data-home-variant] #htSidebarOpen {
-  display: none;
+/* Гамбургер в шапке скрыт ТОЛЬКО на десктопе (там сайдбар-рельс слева). На мобилке гамбургер
+   виден (.ht-burger display:flex + позиционируется mobile-правилами обеих страниц). Раньше было
+   без @media → базовый display:none (грузится позже home_teacher.layout.css) гасил гамбургер
+   учителя и на мобилке. */
+@media (min-width: 1025px) {
+  body[data-home-variant] #htSidebarOpen {
+    display: none;
+  }
 }
 
 /* Скрываем «А»-пилюлю + меню из header.js (.page-head-right) — навигация в сайдбаре.
@@ -1446,17 +1458,19 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
     margin-left: auto;
   }
 
-  /* WSF-student M5: гамбургер в правом верхнем углу шапки ученика вместо «А»-пилюли
-     (она скрыта). #appHeader=relative (см. ниже); кнопка абсолютно в правый угол. */
-  body[data-home-variant="student"] #appHeader {
+  /* WSF M5: гамбургер в правом верхнем углу шапки вместо «А»-пилюли (она скрыта).
+     #appHeader=relative; кнопка абсолютно в правый угол. ОБА варианта (body[data-home-variant]):
+     иначе у учителя базовый #htSidebarOpen{position:relative} (выше в этом файле) перебивал
+     учительский absolute из home_teacher.layout.css → гамбургер уезжал в поток. */
+  body[data-home-variant] #appHeader {
     position: relative;
   }
-  body[data-home-variant="student"] #htSidebarOpen {
+  body[data-home-variant] #htSidebarOpen {
     display: flex;
     position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 2;
+    top: 8px;
+    right: 12px;
+    z-index: 5;
   }
   /* eyebrow/H1 не должны заезжать под гамбургер */
   body[data-home-variant="student"] #appHeader .home-head-text {
