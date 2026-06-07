@@ -1059,6 +1059,14 @@ body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
   body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct b{
     grid-column:1 !important; grid-row:1 / span 2 !important; align-self:center !important; justify-self:end !important;
   }
+  /* ФИКС полосы-артефакта: display:contents выше убирает бокс у .home-section-pct, поэтому
+     скелетон-::after (position:absolute; left:10;right:10;top:50%) при загрузке статистики
+     позиционировался от ВЬЮПОРТА → серая полоса во всю ширину по центру (холодный/после-простоя
+     заход, когда нет кэша → home-stats-loading). Отключаем этот сломанный ::after на десктопе
+     (бейдж точности секции при загрузке остаётся faded; шиммер прочих бейджей работает). */
+  body[data-home-variant="student"].home-stats-loading #accordion .node.section > .row .home-section-pct::after{
+    content:none !important;
+  }
 }
 /* ── #2: компрессия аккордеона по вертикали (десктоп+мобайл) — строки были слишком растянуты.
    Уменьшаем вертикальные паддинги строк + межстрочные интервалы названий (не слипая). */
