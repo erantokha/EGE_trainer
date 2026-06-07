@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-06-07-46';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-46';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-07-46';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-46';
+import { CONFIG } from '../app/config.js?v=2026-06-07-47';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-07-47';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-07-47';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-07-47';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-07-46';
+} from '../app/providers/catalog.js?v=2026-06-07-47';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-06-07-46';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-07-46';
+} from '../app/core/pick.js?v=2026-06-07-47';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-07-47';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-46';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-07-47';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
