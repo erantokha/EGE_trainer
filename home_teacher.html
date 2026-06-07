@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-07-49">
+  <meta name="app-build" content="2026-06-07-54">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -42,7 +42,7 @@
   <!-- cache-check:end -->
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <script src="./app/diag_bootstrap.js?v=2026-06-07-49"></script>
+  <script src="./app/diag_bootstrap.js?v=2026-06-07-54"></script>
 
   <script id="sentry-loader"
   src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
@@ -104,15 +104,19 @@
 })();
 </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-07-49">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-07-49">
-  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-06-07-49">
-  <link rel="stylesheet" href="./tasks/home_teacher.layout.css?v=2026-06-07-49">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-07-54">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-07-54">
+  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-06-07-54">
+  <link rel="stylesheet" href="./tasks/home_teacher.layout.css?v=2026-06-07-54">
+  <!-- WSF-restyle: общий студенческий CSS причёсывает учителя (аккордеон/каркас/карточки);
+       грузится ПОСЛЕ учительского. Собственные #accordion-правила учителя удалены → без конфликта. -->
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-07-54">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-07-54">
 </head>
 <body data-home-variant="teacher">
-<main>
+<main class="container">
   <section id="picker">
-    <div>
+    <div class="panel">
 
       <!-- ═══════════════════════════════════════════════
            ШАПКА — во всю ширину страницы
@@ -449,21 +453,6 @@
 
       <div class="ht-content-wrap">
 
-      <!-- ═══════════════════════════════════════════════
-           РЕКОМЕНДАЦИИ — под строкой ученика
-      ═══════════════════════════════════════════════ -->
-      <div class="ht-rec-panel">
-        <div class="ht-rec-label">Рекомендую сегодня</div>
-        <ul class="ht-rec-list" id="htRecList">
-          <li class="ht-rec-item muted">Выберите ученика для получения рекомендаций</li>
-        </ul>
-        <div class="ht-rec-footer">
-          <button type="button" class="ht-rec-start" id="htRecStart" disabled>
-            Начать по рекомендации →
-          </button>
-        </div>
-      </div>
-
       <!-- Радиокнопки скрыты визуально; picker.js обращается к ним по id/name -->
       <div id="teacherFilters" aria-hidden="true" style="display:none">
         <input type="radio" name="teacherFilterMode" id="teacherFilterNone" value="" checked disabled>
@@ -473,23 +462,86 @@
         <input type="radio" name="teacherFilterMode" id="teacherFilterWeakSpots" value="weak_spots" disabled>
       </div>
 
-      <div class="ht-main">
-        <div class="ht-accordion-col">
+      <!-- WSF-restyle: каркас как у ученика (picker-grid → picker-left[аккордеон] + picker-right) -->
+      <div class="picker-grid">
+        <div class="picker-left">
           <div id="accordion" class="accordion"></div>
         </div>
 
-        <div class="ht-right-col">
-          <!-- Спейсер: невидимый, выравнивает «Добавленные задачи» с первой секцией аккордеона.
-               Высота = высота строки badges-head − gap, задаётся JS через --ht-thermo-h. -->
-          <div class="ht-badges-spacer" aria-hidden="true"></div>
-          <aside class="ht-action-panel" aria-label="Действия">
-            <button id="addedTasksBtn" type="button" class="sum sum-btn ht-added-btn" disabled>
-              Добавленные задачи: <span id="sum">0</span>
+        <aside class="picker-right" aria-label="Подборка">
+          <!-- WSF-restyle: карточка «ПОДБОРКА» как у ученика. #addedTasksBtn (уже подключён к
+               предпросмотру) переиспользуем как кнопку «Предпросмотр»; #sum/#start общие. -->
+          <div class="start-card" id="startCard">
+            <div class="sc-head">
+              <span class="sc-eyebrow">Подборка</span>
+              <span class="sc-count"><span id="sum">0</span> <span id="sumWord">задач</span></span>
+            </div>
+            <button id="addedTasksBtn" class="sc-preview" type="button" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span>Предпросмотр</span>
             </button>
-            <button id="start" class="ht-start-btn" disabled>Начать</button>
+            <button id="start" class="sc-start" disabled><span class="sc-start-label">Начать</span></button>
             <button id="createHwBtn" type="button" class="btn-compact ht-hw-btn">Создать ДЗ</button>
-          </aside>
-        </div>
+            <div class="sc-empty">Добавьте задачи в темах слева</div>
+          </div>
+
+          <!-- WSF-restyle: мобильный strip «Прогноз ЕГЭ» (на десктопе скрыт; наполняет updateScoreForecast) -->
+          <div class="mf-strip" id="mForecast" aria-hidden="true" style="--sec:0">
+            <div class="mf-row1">
+              <span class="mf-eyebrow">Прогноз ЕГЭ</span>
+              <span class="mf-primary">первичные <b id="mfPrimary">—</b></span>
+            </div>
+            <div class="mf-row2">
+              <span class="mf-big"><b id="mfSecondary">—</b><span class="mf-max"> из 100 баллов</span></span>
+              <span class="mf-delta">+<b id="mfDelta">—</b> до цели</span>
+            </div>
+            <div class="mf-bar" aria-hidden="true">
+              <div class="mf-fill"></div>
+              <div class="mf-goalline"></div>
+            </div>
+            <div class="mf-marks" aria-hidden="true">
+              <span>0</span>
+              <span class="mf-goal">цель 70</span>
+              <span>100</span>
+            </div>
+          </div>
+
+          <!-- WSF-restyle: карточка «ПРОГНОЗ ЕГЭ» (балл выбранного ученика; наполняет updateScoreForecast) -->
+          <div class="score-forecast" id="scoreForecast">
+            <div class="sf-eyebrow">Прогноз ЕГЭ</div>
+            <div class="sf-bignum">
+              <span class="sf-value sf-secondary" id="sfSecondary">—</span>
+              <span class="sf-max">из 100</span>
+            </div>
+            <div class="sf-caption">вторичный балл сейчас</div>
+
+            <div class="sf-gauge" id="sfGauge" style="--sec:0">
+              <div class="sf-track" aria-hidden="true">
+                <div class="sf-goalzone"></div>
+                <div class="sf-fill"></div>
+                <div class="sf-goalline"></div>
+              </div>
+              <div class="sf-marks" aria-hidden="true">
+                <span class="sf-mark sf-mark-edge" style="--at:100">100</span>
+                <span class="sf-mark sf-mark-goal" style="--at:70">цель 70</span>
+                <span class="sf-mark sf-mark-cur" id="sfMarkCur" style="--at:0">вы здесь</span>
+                <span class="sf-mark sf-mark-edge" style="--at:0">0</span>
+              </div>
+            </div>
+
+            <div class="sf-delta">
+              <div class="sf-delta-label">До цели в 70 баллов</div>
+              <div class="sf-delta-val">+<span id="sfDelta">—</span><span class="sf-delta-unit"> балла</span></div>
+            </div>
+
+            <div class="sf-primary-row">
+              <span class="sf-primary-label">Первичные баллы</span>
+              <span class="sf-value" id="sfPrimaryExact">—</span>
+            </div>
+
+            <div class="sf-note" id="sfNote" hidden></div>
+          </div>
+        </aside>
 
       </div>
       <script>
@@ -536,12 +588,7 @@
            но не отображаются в новом layout
       ═══════════════════════════════════════════════ -->
       <div style="display:none" aria-hidden="true">
-        <!-- score forecast (picker.js пишет в эти элементы) -->
-        <div id="scoreForecast">
-          <div id="sfPrimaryExact"></div>
-          <div id="sfSecondary"></div>
-          <div id="sfNote"></div>
-        </div>
+        <!-- WSF-restyle: #scoreForecast перенесён в picker-right (видимая карточка «ПРОГНОЗ ЕГЭ»). -->
         <!-- inline proto panel (student home feature, в teacher-режиме не показывается) -->
         <div class="home-proto-panel" id="homeProtoPanel" hidden>
           <div class="home-proto-title" id="homeProtoTitle"></div>
@@ -679,9 +726,9 @@
   </div>
 </div>
 
-<script type="module" src="./tasks/home_guard.js?v=2026-06-07-49"></script>
-<script src="./tasks/theme.js?v=2026-06-07-49" defer></script>
-<script type="module" src="./tasks/picker.js?v=2026-06-07-49"></script>
+<script type="module" src="./tasks/home_guard.js?v=2026-06-07-54"></script>
+<script src="./tasks/theme.js?v=2026-06-07-54" defer></script>
+<script type="module" src="./tasks/picker.js?v=2026-06-07-54"></script>
 <script>
 (function () {
   var sidebar      = document.getElementById('htSidebar');

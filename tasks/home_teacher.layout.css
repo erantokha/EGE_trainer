@@ -479,9 +479,6 @@ body[data-home-variant="teacher"] .ht-right-col {
 body[data-home-variant="teacher"] .ht-badges-spacer {
   display: none;
 }
-body[data-home-variant="teacher"] #accordion .home-badges-head {
-  display: none;
-}
 
 /* Тулбар: в хедере, левый край совпадает с левым краем «−» в аккордеоне.
    100% = main-width (padding хедера = 0), нужный отступ = (main-width−1200)/2 + 70 */
@@ -541,46 +538,9 @@ body[data-home-variant="teacher"] .ht-accordion-col {
   padding: 0 20px 40px 30px;
 }
 
-body[data-home-variant="teacher"] .ht-accordion-col #accordion.accordion {
-  margin-top: 0 !important; /* trainer.css: #picker .accordion {margin-top:4px !important} */
-}
-
 /* Перебиваем «margin-top:4px !important» из trainer.css при выбранном ученике */
 body[data-home-variant="teacher"].teacher-student-view #picker .accordion {
   margin-top: 0 !important;
-}
-
-/* padding-top = 0 для всех режимов: термометр (teacher-student-view) или пусто (без ученика)
-   обеспечивают правильный вертикальный отступ вместо захардкоженного значения. */
-
-/* .home-badges-head не имеет класса node — обнуляем отдельно */
-body[data-home-variant="teacher"] #accordion .home-badges-head {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
-/* Первая секция сразу после badges-head — убираем padding-top */
-body[data-home-variant="teacher"] #accordion .home-badges-head + .node.section {
-  padding-top: 0 !important;
-}
-
-/* Когда ученик не выбран — первая секция идёт прямо первой */
-body[data-home-variant="teacher"] #accordion > .node.section:first-child {
-  padding-top: 0 !important;
-}
-
-/* Hover на строках аккордеона: лёгкий подъём карточки */
-body[data-home-variant="teacher"] #accordion .section-title {
-  transition: transform 120ms ease, box-shadow 120ms ease;
-  border-radius: 10px;
-}
-body[data-home-variant="teacher"] #accordion .section-title:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.09);
-}
-body[data-home-variant="teacher"] #accordion .section-title:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
 /* Панель действий — 196px, без sticky (родитель .ht-right-col sticky) */
@@ -629,152 +589,6 @@ body[data-home-variant="teacher"] .ht-hw-btn {
   font-size: 13px;
 }
 
-
-/* ══════════════════════════════════════════════════════════════
-   6. Десктоп ≥1025px: иконка «Уникальные прототипы» справа от заголовка
-   ══════════════════════════════════════════════════════════════
-   Grid 6 col × 1 строка:
-     col 1 (max-content): countbox
-     col 2 (3ch):         зазор countbox ↔ badges
-     col 3 (max-content): badges (если есть)
-     col 4 (auto):        section-title — по ширине текста
-     col 5 (auto):        .unique-btn — иконка-книги
-     col 6 (1fr):         spacer — забирает остаток строки
-   col 4 = auto (не 1fr!) → title занимает ровно ширину текста,
-   поэтому margin-left: 3ch на иконке = ровно 3ch от последнего символа.
-   Один и тот же grid для шапки и строк разделов → колонки выровнены.
-   ══════════════════════════════════════════════════════════════ */
-@media (min-width: 1025px) {
-  /* Спейсер скрыт глобально (см. выше) — badges-head убрана, offset не нужен */
-
-  /* CSS-переменные — аналогично student-variant */
-  body[data-home-variant="teacher"] #accordion {
-    --home-badge-w:    60px;
-    --home-badges-gap: 12px;
-  }
-
-  /* Один и тот же 6-col grid для шапки и строк разделов */
-  body[data-home-variant="teacher"] #accordion .home-badges-head .row,
-  body[data-home-variant="teacher"] #accordion .node.section > .row {
-    display: grid !important;
-    grid-template-columns: max-content 3ch max-content auto auto 1fr !important;
-    column-gap: 0 !important;
-    align-items: center !important;
-  }
-
-  /* A+B: шапка «Процент / Покрытие» выровнена по верху строки,
-     чтобы D1 (верх страницы → кнопки тулбара) = D2 (кнопки → метки шапки).
-     Метки появляются ровно на y = высота хедера и сразу прячутся под него при скролле. */
-  body[data-home-variant="teacher"].teacher-student-view #accordion .home-badges-head .row {
-    align-items: start !important;
-  }
-
-  /* countbox: col 1 */
-  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .countbox,
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .countbox {
-    grid-column: 1 !important;
-    width: auto !important;
-    margin-right: 0 !important;
-  }
-
-  /* badges: col 3 */
-  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .home-section-badges,
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .home-section-badges {
-    grid-column: 3 !important;
-    grid-row: 1 !important;
-    display: flex !important;
-    gap: var(--home-badges-gap) !important;
-    align-items: center !important;
-    margin-right: 0 !important;
-  }
-
-  /* spacer шапки: col 4–6 */
-  body[data-home-variant="teacher"] #accordion .home-badges-head .row > .spacer {
-    grid-column: 4 / span 3 !important;
-  }
-
-  /* section-title: col 4 (auto — по ширине текста) */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .section-title {
-    grid-column: 4 !important;
-    grid-row: 1 !important;
-    margin-left: 3ch !important;
-    width: auto !important;
-    flex: none !important;    /* отменяем flex:1 из trainer.css */
-  }
-
-  /* unique-btn: col 5 — иконка-книги справа от заголовка */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn {
-    grid-column: 5 !important;
-    grid-row: 1 !important;
-    margin-left: 3ch !important;   /* = тому же зазору badges ↔ title */
-    padding: 0 !important;
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 8px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border: none !important;
-    background: none !important;
-    color: #b0bfd0 !important;
-    cursor: pointer !important;
-    transition: background .15s, color .15s !important;
-    font-size: 0 !important;       /* текст скрыт, если SVG не отрисуется */
-  }
-
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn:hover {
-    background: #f0f4f8 !important;
-    color: #2563eb !important;
-  }
-
-  /* SVG внутри кнопки */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .unique-btn svg {
-    width: 16px !important;
-    height: 16px !important;
-    stroke: currentColor !important;
-    fill: none !important;
-    stroke-width: 1.8 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-    flex-shrink: 0 !important;
-  }
-
-  /* spacer в строках разделов — col 6 (1fr), забирает остаток строки */
-  body[data-home-variant="teacher"] #accordion .node.section > .row > .spacer {
-    grid-column: 6 !important;
-    display: block !important;
-  }
-
-  /* Ученик не выбран — бейджей нет, col 3 пустой.
-     Без коррекции зазор = col2(3ch) + col3(0) + margin-left(3ch) = 6ch.
-     Сдвигаем title в col 3 и убираем лишний margin → зазор = col2(3ch). */
-  body[data-home-variant="teacher"] #accordion
-      .node.section > .row:not(:has(> .home-section-badges)) > .section-title {
-    grid-column: 3 !important;
-    margin-left: 0 !important;
-  }
-  body[data-home-variant="teacher"] #accordion
-      .node.section > .row:not(:has(> .home-section-badges)) > .unique-btn {
-    grid-column: 4 !important;
-  }
-  body[data-home-variant="teacher"] #accordion
-      .node.section > .row:not(:has(> .home-section-badges)) > .spacer {
-    grid-column: 5 !important;
-  }
-
-  /* Фиксированная ширина бейджей = ширина меток шапки → выравнивание колонок */
-  body[data-home-variant="teacher"] #accordion .home-section-pct,
-  body[data-home-variant="teacher"] #accordion .home-section-cov {
-    width: var(--home-badge-w) !important;
-    min-width: var(--home-badge-w) !important;
-    justify-content: center !important;
-  }
-
-  body[data-home-variant="teacher"] #accordion .home-badge-label {
-    width: var(--home-badge-w) !important;
-    min-width: var(--home-badge-w) !important;
-    text-align: center !important;
-  }
-}
 
 /* ══════════════════════════════════════════════════════════════
    7. Адаптив ≤1024px — схлопываем в единую колонку

@@ -32,7 +32,7 @@ for (const l of mat.slice(1)) {
   tokenPages.set(tok, set);
 }
 const FILE_PAGES = { // page-file → which prod pages it serves (for footprint membership)
-  'home-student': ['home_student'], 'home-teacher': ['home_teacher'], 'trainer': ['trainer'],
+  'home-student': ['home_student', 'home_teacher'], 'home-teacher': ['home_teacher'], 'trainer': ['trainer'],
   'list': ['list'], 'unique': ['unique'], 'hw': ['hw'], 'hw-create': ['hw_create'],
   'stats': ['stats'], 'my-students': ['my_students'], 'student': ['student'],
   'my-homeworks': ['my_homeworks', 'my_homeworks_archive'], 'profile': ['profile'], 'analog': ['analog'],
@@ -135,7 +135,7 @@ for (const f of (fs.existsSync(pagesDir) ? fs.readdirSync(pagesDir) : [])) {
 // print.css only where print lifecycle runs: trainer/list/unique/hw/hw_create.
 const HTML = {
   'home_student.html': ['tokens', 'base', 'pages/home-student'],
-  'home_teacher.html': ['tokens', 'base'],
+  'home_teacher.html': ['tokens', 'base', 'pages/home-student'], // WSF-restyle: home-student.css = общий home-слой (учитель причёсан под ученика)
   'tasks/trainer.html': ['tokens', 'base', 'pages/trainer', 'print'],
   'tasks/list.html': ['tokens', 'base', 'pages/list', 'print'],
   'tasks/unique.html': ['tokens', 'base', 'pages/unique', 'print'],

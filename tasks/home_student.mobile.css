@@ -14,68 +14,68 @@
      всегда в layout с opacity:0) на бейджах аккордеона длинные и выходят за правый край →
      раздувают scrollWidth документа (409 вместо 390) → горизонтальный скролл/«зум» на тач.
      На мобайле hover нет — тултипы всё равно не показываются. Отключаем → scrollWidth=clientWidth. */
-  body[data-home-variant="student"] [data-tip]::after,
-  body[data-home-variant="student"] [data-tip]::before{ content:none !important; display:none !important; }
+  body[data-home-variant] [data-tip]::after,
+  body[data-home-variant] [data-tip]::before{ content:none !important; display:none !important; }
 
   /* ── 0. Скрываем старый мобильный термометр готовности (используем сам прогноз-градусник) ── */
-  body[data-home-variant="student"] .score-thermo-slot{ display:none !important; }
+  body[data-home-variant] .score-thermo-slot{ display:none !important; }
   /* строка управления (переключатель режима скрыт ещё в desktop; тему-тоггл прячем на мобайле) */
-  body[data-home-variant="student"] #picker .controls{ display:none !important; }
+  body[data-home-variant] #picker .controls{ display:none !important; }
 
   /* ── 1. Одна колонка + переупорядочивание ──
      picker-right (старт + прогноз) «растворяем» (display:contents) → его дети попадают
      прямыми элементами в picker-grid; дальше order: прогноз наверх, старт — в fixed-панель. */
-  body[data-home-variant="student"] #picker .picker-grid{
+  body[data-home-variant] #picker .picker-grid{
     display:flex !important; flex-direction:column !important; align-items:stretch !important;
     gap:0 !important; margin-top:0 !important;
   }
-  body[data-home-variant="student"] #picker .picker-right{ display:contents !important; }
-  body[data-home-variant="student"] #picker .picker-left{ order:1; min-width:0; width:auto !important; }
-  body[data-home-variant="student"] #picker .home-proto-panel{ display:none !important; }
+  body[data-home-variant] #picker .picker-right{ display:contents !important; }
+  body[data-home-variant] #picker .picker-left{ order:1; min-width:0; width:auto !important; }
+  body[data-home-variant] #picker .home-proto-panel{ display:none !important; }
 
   /* контент не должен прятаться под фиксированной нижней панелью */
-  body[data-home-variant="student"] #picker{ padding-bottom:96px !important; }
+  body[data-home-variant] #picker{ padding-bottom:96px !important; }
 
   /* кнопки «Выбрать все / Сбросить / Перемешать» — посередине между прогнозом и аккордеоном
      (равный зазор сверху и снизу; раньше прилипали к прогнозу, а под ними был большой отступ) */
-  body[data-home-variant="student"] #picker .sub-controls{ margin-top:16px !important; }
-  body[data-home-variant="student"] #picker .accordion{ margin-top:16px !important; }
+  body[data-home-variant] #picker .sub-controls{ margin-top:16px !important; }
+  body[data-home-variant] #picker .accordion{ margin-top:16px !important; }
 
   /* ── 2. Прогноз — компактный strip СВЕРХУ (вертикальный градусник скрыт) ── */
-  body[data-home-variant="student"] #picker .score-forecast{ display:none !important; }
-  body[data-home-variant="student"] #picker #mForecast{
+  body[data-home-variant] #picker .score-forecast{ display:none !important; }
+  body[data-home-variant] #picker #mForecast{
     display:block !important; order:-1 !important; width:auto !important; margin:6px 0 0 !important;
     border:1px solid var(--border); border-radius:16px; background:var(--panel);
     box-shadow:0 6px 20px rgba(15,23,42,.07); padding:14px 16px;
   }
-  body[data-home-variant="student"] #mForecast .mf-row1{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
-  body[data-home-variant="student"] #mForecast .mf-eyebrow{
+  body[data-home-variant] #mForecast .mf-row1{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; }
+  body[data-home-variant] #mForecast .mf-eyebrow{
     font-size:11px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--accent);
   }
-  body[data-home-variant="student"] #mForecast .mf-primary{ font-size:12.5px; color:var(--text-dim); }
-  body[data-home-variant="student"] #mForecast .mf-primary b{ font-weight:700; color:var(--text); }
-  body[data-home-variant="student"] #mForecast .mf-row2{ display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin-top:6px; }
-  body[data-home-variant="student"] #mForecast .mf-big{ font-variant-numeric:tabular-nums; }
-  body[data-home-variant="student"] #mForecast .mf-big b{ font-size:34px; font-weight:800; letter-spacing:-0.04em; line-height:.9; color:var(--text); }
-  body[data-home-variant="student"] #mForecast .mf-max{ font-size:13px; color:var(--text-dim); }
-  body[data-home-variant="student"] #mForecast .mf-delta{ font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; }
-  body[data-home-variant="student"] #mForecast .mf-bar{
+  body[data-home-variant] #mForecast .mf-primary{ font-size:12.5px; color:var(--text-dim); }
+  body[data-home-variant] #mForecast .mf-primary b{ font-weight:700; color:var(--text); }
+  body[data-home-variant] #mForecast .mf-row2{ display:flex; align-items:flex-end; justify-content:space-between; gap:8px; margin-top:6px; }
+  body[data-home-variant] #mForecast .mf-big{ font-variant-numeric:tabular-nums; }
+  body[data-home-variant] #mForecast .mf-big b{ font-size:34px; font-weight:800; letter-spacing:-0.04em; line-height:.9; color:var(--text); }
+  body[data-home-variant] #mForecast .mf-max{ font-size:13px; color:var(--text-dim); }
+  body[data-home-variant] #mForecast .mf-delta{ font-size:13px; font-weight:700; color:var(--accent); white-space:nowrap; }
+  body[data-home-variant] #mForecast .mf-bar{
     position:relative; height:10px; border-radius:999px; background:rgba(15,23,42,.06); overflow:hidden; margin-top:12px;
   }
-  body[data-home-variant="student"] #mForecast .mf-fill{
+  body[data-home-variant] #mForecast .mf-fill{
     position:absolute; left:0; top:0; bottom:0; width:calc(var(--sec,0) * 1%);
     border-radius:999px; background:linear-gradient(90deg,#60a5fa,#1d4ed8);
   }
-  body[data-home-variant="student"] #mForecast .mf-goalline{
+  body[data-home-variant] #mForecast .mf-goalline{
     position:absolute; top:0; bottom:0; left:calc(70% - 1px); width:2px; background:var(--accent);
   }
-  body[data-home-variant="student"] #mForecast .mf-marks{
+  body[data-home-variant] #mForecast .mf-marks{
     display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-dim); font-variant-numeric:tabular-nums;
   }
-  body[data-home-variant="student"] #mForecast .mf-marks .mf-goal{ color:var(--accent); font-weight:700; }
+  body[data-home-variant] #mForecast .mf-marks .mf-goal{ color:var(--accent); font-weight:700; }
 
   /* ── 3. Липкая нижняя панель: «Предпросмотр» (слева) + крупная «Начать» (справа) ── */
-  body[data-home-variant="student"] #picker .start-card{
+  body[data-home-variant] #picker .start-card{
     position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important; z-index:60;
     width:auto !important; max-width:none !important; margin:0 !important;
     border:0 !important; border-top:1px solid var(--border) !important; border-radius:0 !important;
@@ -84,20 +84,20 @@
     padding:12px 12px calc(12px + env(safe-area-inset-bottom)) !important;
     display:flex !important; align-items:stretch; gap:8px;
   }
-  body[data-home-variant="student"] #picker .start-card .sc-head,
-  body[data-home-variant="student"] #picker .start-card .sc-empty{ display:none !important; }
-  body[data-home-variant="student"] #picker .start-card .sc-preview{
+  body[data-home-variant] #picker .start-card .sc-head,
+  body[data-home-variant] #picker .start-card .sc-empty{ display:none !important; }
+  body[data-home-variant] #picker .start-card .sc-preview{
     flex:0 0 auto !important; margin:0 !important; height:50px; padding:0 14px !important; border-radius:12px !important;
   }
   /* «Начать» сжимается, чтобы панель влезала когда появляется вертикальный скроллбар
      (контент загрузился → страница длинная → ширина ужимается). «Начать N» короткая — не обрежется. */
-  body[data-home-variant="student"] #picker .start-card .sc-start{
+  body[data-home-variant] #picker .start-card .sc-start{
     flex:1 1 auto !important; min-width:0 !important; margin:0 !important; height:50px; border-radius:12px !important; font-size:16px !important;
     display:inline-flex !important; align-items:center !important; justify-content:center !important; gap:8px;
   }
   /* «Начать тренировку» → «Начать N»: слово прячем, показываем бейдж-счётчик */
-  body[data-home-variant="student"] #picker .start-card .sc-start-word{ display:none; }
-  body[data-home-variant="student"] #picker .start-card .sc-start-count{
+  body[data-home-variant] #picker .start-card .sc-start-word{ display:none; }
+  body[data-home-variant] #picker .start-card .sc-start-count{
     display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:24px;
     padding:0 8px; border-radius:999px; background:rgba(255,255,255,.22);
     font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; color:#fff;
@@ -105,61 +105,61 @@
 
   /* ── 4. Аккордеон-строки: степпер на верхнюю строку, бар+%+покрытие — снизу ── */
   /* шапку-таблицу «ТЕМА И ТОЧНОСТЬ / ПОКРЫТИЕ / ЗАДАЧИ» на мобайле прячем */
-  body[data-home-variant="student"] #accordion .home-badges-head{ display:none !important; }
-  body[data-home-variant="student"] #accordion .node.section > .row,
-  body[data-home-variant="student"] #accordion .node.topic > .row{
+  body[data-home-variant] #accordion .home-badges-head{ display:none !important; }
+  body[data-home-variant] #accordion .node.section > .row,
+  body[data-home-variant] #accordion .node.topic > .row{
     display:grid !important;
     grid-template-columns: minmax(0,1fr) auto !important; /* minmax(0,…): колонка реально сжимается → 📊 не лезет в степпер */
     grid-template-rows: auto auto !important;
     column-gap:10px !important; row-gap:4px !important;
     align-items:center !important; padding:6px 4px !important; /* #2: компрессия (было 11px 4px / row-gap 8) */
   }
-  body[data-home-variant="student"] #accordion .node.topic > .row{ padding-left:22px !important; }
+  body[data-home-variant] #accordion .node.topic > .row{ padding-left:22px !important; }
   /* строка названия (.row-title) — верх, колонка 1 */
-  body[data-home-variant="student"] #accordion .node.section > .row > .row-title,
-  body[data-home-variant="student"] #accordion .node.topic > .row > .row-title{
+  body[data-home-variant] #accordion .node.section > .row > .row-title,
+  body[data-home-variant] #accordion .node.topic > .row > .row-title{
     grid-column:1 !important; grid-row:1 !important; align-items:flex-start !important;
   }
   /* название ДОЛЖНО сжиматься (flex-shrink) и переноситься в 2 строки — иначе (flex:0 0 auto из
      home-student.css:191) 📊 переполняет колонку и наезжает на «−». Высокая специфичность + !important. */
-  body[data-home-variant="student"] #accordion .node.section > .row > .row-title > .section-title,
-  body[data-home-variant="student"] #accordion .node.topic > .row > .row-title > .title{
+  body[data-home-variant] #accordion .node.section > .row > .row-title > .section-title,
+  body[data-home-variant] #accordion .node.topic > .row > .row-title > .title{
     flex:0 1 auto !important; min-width:0 !important; width:auto !important; max-width:100% !important;
     white-space:normal !important; overflow:hidden !important;
     display:-webkit-box !important; -webkit-box-orient:vertical !important; -webkit-line-clamp:2 !important;
   }
   /* 📊 «уникальные прототипы»: на мобайле скрыт у свёрнутого раздела (не захламляет),
      появляется при раскрытии — выровнен ВПРАВО (к счётчику), не «скачет» за названием. */
-  body[data-home-variant="student"] #accordion .row-title .unique-btn{ display:none !important; }
-  body[data-home-variant="student"] #accordion .node.section.show-uniq > .row > .row-title > .unique-btn{
+  body[data-home-variant] #accordion .row-title .unique-btn{ display:none !important; }
+  body[data-home-variant] #accordion .node.section.show-uniq > .row > .row-title > .unique-btn{
     display:inline-flex !important; flex:0 0 auto !important; margin-left:auto !important; align-self:center !important;
   }
   /* степпер — верх, колонка 2 (рядом с названием) */
-  body[data-home-variant="student"] #accordion .node.section > .row > .countbox,
-  body[data-home-variant="student"] #accordion .node.topic > .row > .countbox{
+  body[data-home-variant] #accordion .node.section > .row > .countbox,
+  body[data-home-variant] #accordion .node.topic > .row > .countbox{
     grid-column:2 !important; grid-row:1 !important; justify-self:end !important; align-self:center !important;
   }
   /* iOS Safari зумит при фокусе на input с font-size < 16px и не возвращает масштаб →
      ставим ровно 16px, чтобы мобильная версия не «приближалась». */
-  body[data-home-variant="student"] #accordion .countbox input[type="number"],
-  body[data-home-variant="student"] #accordion .countbox .count{
+  body[data-home-variant] #accordion .countbox input[type="number"],
+  body[data-home-variant] #accordion .countbox .count{
     font-size:16px !important;
   }
   /* бейджи раздела (display:contents в десктопе) — pct(бар) + cov: вторая строка, обе колонки */
-  body[data-home-variant="student"] #accordion .node.section > .row .home-section-pct,
-  body[data-home-variant="student"] #accordion .node.topic > .row > .home-topic-badge{
+  body[data-home-variant] #accordion .node.section > .row .home-section-pct,
+  body[data-home-variant] #accordion .node.topic > .row > .home-topic-badge{
     grid-column:1 !important; grid-row:2 !important;
   }
-  body[data-home-variant="student"] #accordion .node.section > .row .home-section-cov{
+  body[data-home-variant] #accordion .node.section > .row .home-section-cov{
     grid-column:2 !important; grid-row:2 !important; justify-self:end !important; align-self:center !important;
   }
 
   /* ── 5. Шапка компактнее ── */
-  body[data-home-variant="student"] .home-h1{ font-size:22px !important; }
-  body[data-home-variant="student"] #picker .page-head{ align-items:flex-start !important; }
+  body[data-home-variant] .home-h1{ font-size:22px !important; }
+  body[data-home-variant] #picker .page-head{ align-items:flex-start !important; }
   /* пилюля пользователя: имя скрываем, показываем аватар-кружок с инициалом + колокольчик */
-  body[data-home-variant="student"] #userMenuBtn .user-menu-btn-label{ display:none !important; }
-  body[data-home-variant="student"] #userMenuBtn .user-menu-avatar{
+  body[data-home-variant] #userMenuBtn .user-menu-btn-label{ display:none !important; }
+  body[data-home-variant] #userMenuBtn .user-menu-avatar{
     display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
     width:28px; height:28px; border-radius:999px;
     background:var(--accent-light,#dbeafe); color:var(--accent);
@@ -167,8 +167,8 @@
   }
   /* «А» по центру своей левой половины (как колокольчик в правой):
      зазор слева от кружка (padding-left) = зазору справа до разделителя (gap 6 + bell margin 3). */
-  body[data-home-variant="student"] #userMenuBtn{ padding:4px 9px 4px 9px !important; gap:9px !important; }
-  body[data-home-variant="student"] #userMenuBtn .hw-bell--top{ margin-left:0 !important; }
+  body[data-home-variant] #userMenuBtn{ padding:4px 9px 4px 9px !important; gap:9px !important; }
+  body[data-home-variant] #userMenuBtn .hw-bell--top{ margin-left:0 !important; }
 
   /* ── 6. Модалки (#addedTasksModal/#protoPickerModal) — нижний-лист 95% + грабер + 1-колонка ──
      WD.2.7: перенесено в base.css @media (универсально для ученика и учителя), здесь не дублируем. */
