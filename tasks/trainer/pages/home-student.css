@@ -1293,7 +1293,7 @@ body[data-home-variant] .ht-sidebar.open .ht-sidebar-title {
    вордмарк + капс-подпись «Меню». Лого/вордмарк/подпись скрыты на свёрнутом
    рельсе (как title); показываются в .open и при пре-раскрытии html.ht-rail-open.
    ══════════════════════════════════════════════════════════════ */
-body[data-home-variant] .ht-sidebar-head { padding: 14px 16px 12px; gap: 10px; }
+body[data-home-variant] .ht-sidebar-head { padding: 14px 16px 12px; gap: 10px; transition: padding 220ms cubic-bezier(.4, 0, .2, 1); }
 
 /* Лого-марка = КНОПКА-тоггл меню (id=htSidebarClose переиспользует существующий
    обработчик клика). Видна всегда, в т.ч. на свёрнутом рельсе — по ней разворачивают
@@ -1514,6 +1514,17 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   /* user-btn — position:relative (как у .ht-sidebar-item), иначе ::after не привяжется к кнопке */
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn { position: relative; }
 
+  /* WD3·в1: на свёрнутом рельсе лого и аватар — ПО ЦЕНТРУ по горизонтали (как
+     иконки пунктов меню, ось 56/2=28). Лого 34px → отступ 11px (центр 28);
+     аватар 30px → отступ 13px (центр 28). В раскрытом виде отступы прежние
+     (16/20) → иконки плавно уезжают влево к вордмарку/имени. */
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-head {
+    padding-left: 11px; padding-right: 11px;
+  }
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn {
+    padding-left: 13px; padding-right: 13px;
+  }
+
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after,
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn[data-railtip]::after {
     content: attr(data-railtip);
@@ -1591,7 +1602,7 @@ body[data-home-variant] .ht-sidebar-user-btn {
   color: var(--text);
   text-align: left;
   box-shadow: none;
-  transition: background 180ms ease;
+  transition: background 180ms ease, padding 220ms cubic-bezier(.4, 0, .2, 1);
 }
 body[data-home-variant] .ht-sidebar-user-btn:hover {
   background: var(--panel-2);
