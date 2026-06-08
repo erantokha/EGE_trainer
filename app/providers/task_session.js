@@ -10,7 +10,7 @@
 // Не бросает: caller (tasks/picker.js, §5.1.8) должен иметь предсказуемый shape
 // для fallback-логики по §5.1.8.4.
 
-import { supaRest } from './supabase-rest.js?v=2026-06-08-23';
+import { supaRest } from './supabase-rest.js?v=2026-06-08-24';
 
 export async function createSessionLink({ mode, shuffle, spec, frozenQuestions } = {}) {
   let payload;
