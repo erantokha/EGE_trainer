@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-08-16';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-16';
-import { CONFIG } from '../app/config.js?v=2026-06-08-16';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-16';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-16';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-16';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-16';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-16';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-16';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-16';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-16';
+import { withBuild } from '../app/build.js?v=2026-06-08-18';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-18';
+import { CONFIG } from '../app/config.js?v=2026-06-08-18';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-18';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-18';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-18';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-18';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-18';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-18';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-18';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-18';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-16';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-18';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-08-16';
+} from './picker_common.js?v=2026-06-08-18';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-08-16';
+} from './picker_stats.js?v=2026-06-08-18';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -745,54 +745,52 @@ async function warmTeacherModalStatsForStudent(studentId, opts = {}) {
 
   const topics = listVisibleTeacherTopicsForPreload();
   const run = (async () => {
+    // PERF (2026-06-08): БАТЧ. Раньше — по 2 RPC на КАЖДУЮ тему (~50+ запросов при выборе ученика,
+    // стена 2–3с). Теперь: грузим пулы тем параллельно (только чтобы собрать proto-id), затем ОДИН
+    // question_stats_for_teacher_v2 (обёртка сама чанкует по 500) + ОДИН proto_last3_for_teacher_v1.
+    // v2-RPC topic_id не требует; модалка читает remember-кэш / _TEACHER_PROTO_LAST3_CACHE (их и наполняем).
     let cursor = 0;
-    const worker = async () => {
+    const allIds = new Set();
+    const poolWorker = async () => {
       while (true) {
         if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
         if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
-
         const topic = topics[cursor++];
         if (!topic) return;
-
         try {
           const pool = await loadTopicPoolForPreview(topic);
-          if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
-          if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
-          const ids = Array.from(new Set(
-            (pool || [])
-              .map((entry) => String(entry?.proto?.id || '').trim())
-              .filter(Boolean),
-          ));
-          if (!ids.length) continue;
-
-          const res = await questionStatsForTeacherV1({
-            student_id: sid,
-            question_ids: ids,
-            topic_id: String(topic?.id || '').trim(),
-            timeoutMs: 8000,
-          });
-          if (res?.ok && res.map instanceof Map) {
-            rememberTeacherModalStats(sid, normalizeTeacherModalStatsMap(ids, res.map));
-          }
-
-          // WFX1 (3b): прогреть и per-unic last-3 (источник X/3 бейджа карточки),
-          // чтобы открытие модалки было мгновенным, без сетевого ожидания. unic =
-          // baseIdFromProtoId(question_id); loadProtoLast3ForModal кладёт в
-          // _TEACHER_PROTO_LAST3_CACHE (включая нули). Тот же worker/seq/TTL.
-          if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
-          if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
-          const unicIds = Array.from(new Set(ids.map((qid) => baseIdFromProtoId(qid)).filter(Boolean)));
-          if (unicIds.length) {
-            await loadProtoLast3ForModal(sid, unicIds, { timeoutMs: 8000 });
+          for (const entry of (pool || [])) {
+            const id = String(entry?.proto?.id || '').trim();
+            if (id) allIds.add(id);
           }
         } catch (e) {
-          console.warn('teacher modal stats warmup failed', { sid, topicId: String(topic?.id || '').trim(), error: e });
+          console.warn('teacher modal stats warmup: pool failed', { sid, topicId: String(topic?.id || '').trim(), error: e });
         }
       }
     };
-
     const workerCount = Math.max(1, Math.min(TEACHER_MODAL_PRELOAD_CONCURRENCY, topics.length || 1));
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+    await Promise.all(Array.from({ length: workerCount }, () => poolWorker()));
+
+    if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
+    if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
+
+    const ids = Array.from(allIds);
+    if (ids.length) {
+      // chunkSize большой → ОДИН question_stats-вызов (обёртка иначе чанкует по 500 ПОСЛЕДОВАТЕЛЬНО);
+      // stats и last3 независимы → гоним ПАРАЛЛЕЛЬНО.
+      const unicIds = Array.from(new Set(ids.map((qid) => baseIdFromProtoId(qid)).filter(Boolean)));
+      const statsP = questionStatsForTeacherV1({ student_id: sid, question_ids: ids, chunkSize: 100000, timeoutMs: 15000 })
+        .then((res) => {
+          if (res?.ok && res.map instanceof Map) rememberTeacherModalStats(sid, normalizeTeacherModalStatsMap(ids, res.map));
+        })
+        .catch((e) => console.warn('teacher modal stats warmup: stats batch failed', { sid, error: e }));
+      const last3P = unicIds.length
+        ? loadProtoLast3ForModal(sid, unicIds, { timeoutMs: 15000 }).catch((e) => console.warn('teacher modal stats warmup: last3 batch failed', { sid, error: e }))
+        : Promise.resolve();
+      await Promise.all([statsP, last3P]);
+      if (seq !== _TEACHER_MODAL_PRELOAD_SEQ) return;
+      if (String(TEACHER_VIEW_STUDENT_ID || '').trim() !== sid) return;
+    }
 
     if (seq === _TEACHER_MODAL_PRELOAD_SEQ && String(TEACHER_VIEW_STUDENT_ID || '').trim() === sid) {
       _TEACHER_MODAL_PRELOAD_WARM_AT.set(sid, Date.now());

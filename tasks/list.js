@@ -5,21 +5,21 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-08-16';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-16';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-08-18';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-18';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-16';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-18';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-08-16';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-08-16';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-08-16';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-08-18';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-08-18';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-08-18';
 
-import { withBuild } from '../app/build.js?v=2026-06-08-16';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-08-16';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-16';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-08-16';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-08-16';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-16';
+import { withBuild } from '../app/build.js?v=2026-06-08-18';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-08-18';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-18';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-08-18';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-08-18';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-18';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
