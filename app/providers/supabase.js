@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-06-08-22';
+import { CONFIG } from '../config.js?v=2026-06-08-23';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // --- Сетевые ретраи (resilience к интермиттентным дропам RF→VPS, инцидент 2026-06-06) ---
