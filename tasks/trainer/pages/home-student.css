@@ -1295,22 +1295,28 @@ body[data-home-variant] .ht-sidebar.open .ht-sidebar-title {
    ══════════════════════════════════════════════════════════════ */
 body[data-home-variant] .ht-sidebar-head { padding: 14px 16px 12px; gap: 10px; }
 
-/* Лого-марка: синий градиентный квадрат с белой галочкой */
+/* Лого-марка = КНОПКА-тоггл меню (id=htSidebarClose переиспользует существующий
+   обработчик клика). Видна всегда, в т.ч. на свёрнутом рельсе — по ней разворачивают
+   меню. На :hover галочка плавно сменяется бургером — подсказка кликабельности. */
 body[data-home-variant] .ht-sidebar-logo {
   flex: 0 0 auto;
+  position: relative;
   width: 34px; height: 34px;
   border-radius: 10px;
-  display: inline-flex; align-items: center; justify-content: center;
+  border: none; padding: 0;
+  cursor: pointer;
   background: linear-gradient(150deg, #3b82f6 0%, #1a3fa8 100%);
   box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
-  opacity: 0;                 /* на свёрнутом рельсе видим бургер-тоггл */
-  transition: opacity 120ms ease;
-  pointer-events: none;
 }
-body[data-home-variant] .ht-sidebar.open .ht-sidebar-logo,
-html.ht-rail-open body[data-home-variant] .ht-sidebar-logo {
-  opacity: 1; pointer-events: auto;
+body[data-home-variant] .ht-logo-icon {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 180ms ease, transform 180ms ease;
 }
+body[data-home-variant] .ht-logo-check  { opacity: 1; transform: scale(1); }
+body[data-home-variant] .ht-logo-burger { opacity: 0; transform: scale(.7); }
+body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; transform: scale(.7); }
+body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; transform: scale(1); }
 
 /* Вордмарк: «ЕГЭ-тренажёр» + «профильная математика» (две строки) */
 body[data-home-variant] .ht-sidebar-brand {
