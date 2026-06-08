@@ -1386,12 +1386,16 @@ body[data-home-variant] .ht-sidebar-item.active::before {
 @media (min-width: 1025px) {
   /* разрешаем подсказке выйти за пределы 56px (лейблы при свёрнутом opacity:0 → невидимы).
      ВАЖНО: сам .ht-sidebar-item тоже overflow:hidden (1295) и обрезал бы свой ::after-тултип —
-     поэтому visible нужен и на нём, и на nav/panel (вся цепочка предков ::after). */
+     поэтому visible нужен и на нём, и на nav/panel/user-btn (вся цепочка предков ::after). */
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-panel,
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-nav,
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item { overflow: visible; }
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn { overflow: visible; }
+  /* user-btn — position:relative (как у .ht-sidebar-item), иначе ::after не привяжется к кнопке */
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn { position: relative; }
 
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after {
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn[data-railtip]::after {
     content: attr(data-railtip);
     position: absolute;
     top: 50%;
@@ -1413,9 +1417,29 @@ body[data-home-variant] .ht-sidebar-item.active::before {
     pointer-events: none;
     z-index: 9999;
   }
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]:hover::after {
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]:hover::after,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn[data-railtip]:hover::after {
     opacity: 1;
   }
+}
+
+/* Аватар-инициал кнопки пользователя: кружок с первой буквой имени (в свёрнутом рельсе —
+   единственное видимое; в раскрытом — слева от «Имя Фамилия»). Текст ставит header.js. */
+body[data-home-variant] .ht-sidebar-user-btn .ht-sidebar-avatar {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  border-radius: 50%;
+  background: var(--accent, #2563eb);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+  flex-shrink: 0;
 }
 
 /* Профиль — общая для обеих ролей страница: меню содержит ОБА набора пунктов

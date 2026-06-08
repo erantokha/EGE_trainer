@@ -688,6 +688,19 @@ export async function initHeader(opts = {}) {
     if (ui.userBtnLabel) ui.userBtnLabel.textContent = nm || 'Аккаунт';
     else ui.userBtn.textContent = nm || 'Аккаунт';
     if (ui.userAvatar) ui.userAvatar.textContent = (nm || '?').charAt(0).toUpperCase();
+    // Сайдбар-кнопка пользователя: аватар-инициал + полное имя (имя фамилия) + подсказка рельса.
+    // Полное имя из user_metadata.full_name (fallback — отображаемое nm). header.js — общий для всех
+    // страниц → одна точка; инлайн-зеркало имени в сайдбаре отключено, чтобы не перетирать на first_name.
+    try {
+      const md = (currentSession && currentSession.user && currentSession.user.user_metadata) || {};
+      const full = String(md.full_name || md.name || '').trim() || nm;
+      const sbAvatar = document.getElementById('htSidebarAvatar');
+      const sbName = document.getElementById('htSidebarUserName');
+      const sbBtn = document.getElementById('htSidebarUserBtn');
+      if (sbAvatar) sbAvatar.textContent = (full || nm || '?').charAt(0).toUpperCase();
+      if (sbName) sbName.textContent = full || 'Аккаунт';
+      if (sbBtn) sbBtn.setAttribute('data-railtip', full || 'Аккаунт');
+    } catch (_) {}
   };
 
   const applySessionToUI = (session) => {
