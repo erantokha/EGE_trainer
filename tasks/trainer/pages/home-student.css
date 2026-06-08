@@ -239,6 +239,46 @@ body[data-home-variant="student"] #shuffleToggle::after {
 body[data-home-variant="student"] #shuffleToggle:checked { background: var(--accent); }
 body[data-home-variant="student"] #shuffleToggle:checked::after { left: 18px; }
 
+/* ════════════════════════════════════════════════════════════════════════
+   WD3·в3 — аккордеон как премиум-карта (студенческая главная, десктоп).
+   Ряд-лейаут (степпер справа, синяя полоска под названием, %, покрытие, зебра)
+   уже премиум из WD2.4 — здесь только обёртка в карту + пилюля «слабая тема».
+   ════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) {
+  body[data-home-variant="student"] .picker-left {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+  }
+  /* тулбар = шапка карты */
+  body[data-home-variant="student"] .picker-left .sub-controls {
+    margin: 0;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  /* колонки-шапка + строки — внутренние горизонтальные отступы карты */
+  body[data-home-variant="student"] .picker-left #accordion {
+    margin: 0;
+    padding: 6px 20px 14px;
+  }
+}
+
+/* Пилюля «слабая тема» (pct < 25) — после названия. .weak ставит picker_stats. */
+body[data-home-variant="student"] #accordion .node.weak > .row .section-title::after,
+body[data-home-variant="student"] #accordion .node.topic.weak > .row .title::after {
+  content: "слабая тема";
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 10.5px; font-weight: 600; letter-spacing: .01em;
+  color: var(--text-dim);
+  background: var(--surface2);
+  padding: 1px 7px; border-radius: 999px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 
 /* главная ученика: заголовок раздела по ширине текста + УП рядом с названием */
 body[data-home-variant] #accordion .section-title{
