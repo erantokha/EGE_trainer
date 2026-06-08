@@ -1317,7 +1317,10 @@ body[data-home-variant] .ht-logo-icon {
   transform: translate(-50%, -50%);
   transition: opacity 160ms ease;
 }
-body[data-home-variant] .ht-logo-check  { width: 22px; height: 22px; opacity: 1; }
+body[data-home-variant] .ht-logo-check  {
+  color: #fff; font-family: var(--font-sans); font-weight: 800;
+  font-size: 24px; line-height: 1; opacity: 1;   /* заглавная «Е» вместо галочки, соразмерно квадрату */
+}
 body[data-home-variant] .ht-logo-burger {
   width: 28px; height: 28px;            /* в размер синей иконки (крупнее галочки) */
   opacity: 0;
@@ -1329,6 +1332,9 @@ body[data-home-variant] .ht-sidebar-logo:hover {
 }
 body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; }
 body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; }
+
+/* WD3·в1: иконки пунктов меню крупнее — до размера синего квадрата лого (30px). */
+body[data-home-variant] .ht-sidebar-item .ht-sidebar-icon svg { width: 30px; height: 30px; }
 
 /* Вордмарк: «ЕГЭ-тренажёр» + «профильная математика» (две строки) */
 body[data-home-variant] .ht-sidebar-brand {
@@ -1429,7 +1435,7 @@ body[data-home-variant] .ht-sidebar-item {
   box-shadow: none;
   overflow: hidden;
   /* Плавный переход цвета и фона */
-  transition: color 200ms ease, background 200ms ease;
+  transition: color 200ms ease, background 200ms ease, padding 220ms cubic-bezier(.4, 0, .2, 1);
 }
 
 /* Левая акцентная полоска (скрыта по умолчанию) */
@@ -1526,6 +1532,10 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   }
   html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn {
     padding-left: 13px; padding-right: 13px;
+  }
+  /* пункты меню с увеличенной иконкой (30px) — центрируем на рельсе (центр 28). */
+  html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item {
+    padding-left: 13px;
   }
 
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after,
