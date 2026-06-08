@@ -1308,15 +1308,25 @@ body[data-home-variant] .ht-sidebar-logo {
   background: linear-gradient(150deg, #3b82f6 0%, #1a3fa8 100%);
   box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
 }
-/* Морфинг — ТОТ ЖЕ размер: галочка пропадает, на её месте появляется бургер
-   (чистый opacity-кроссфейд, без масштабирования — обе иконки 18px, центр). */
+/* Иконка-морф. Покой: синий квадрат с белой галочкой (как в дизайне).
+   :hover — вся синяя иконка пропадает (нет фона, нет галочки), а на её месте,
+   В РАЗМЕР иконки, появляется синий бургер (фон ушёл → белый был бы не виден). */
 body[data-home-variant] .ht-logo-icon {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
   transition: opacity 160ms ease;
 }
-body[data-home-variant] .ht-logo-check  { opacity: 1; }
-body[data-home-variant] .ht-logo-burger { opacity: 0; }
+body[data-home-variant] .ht-logo-check  { width: 22px; height: 22px; opacity: 1; }
+body[data-home-variant] .ht-logo-burger {
+  width: 28px; height: 28px;            /* в размер синей иконки (крупнее галочки) */
+  opacity: 0;
+  stroke: var(--accent, #2563eb);       /* синий бургер */
+}
+body[data-home-variant] .ht-sidebar-logo:hover {
+  background: transparent;              /* синий фон уходит */
+  box-shadow: none;
+}
 body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; }
 body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; }
 
@@ -1382,7 +1392,7 @@ body[data-home-variant] .ht-exam-bar {
   overflow: hidden; margin-top: 10px;
 }
 body[data-home-variant] .ht-exam-bar i {
-  display: block; height: 100%; border-radius: 999px;
+  display: block; width: 0; height: 100%; border-radius: 999px;   /* дефолт ПУСТАЯ (не full) — до скрипта */
   background: linear-gradient(90deg, #60a5fa, #2563eb);
 }
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-08-32">
+  <meta name="app-build" content="2026-06-08-33">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,13 +45,13 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-08-32"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-08-33"></script>
 
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-32">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-32">
-  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-08-32">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-32">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-32">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-33">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-33">
+  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-08-33">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-33">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-33">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -159,6 +159,13 @@
           <div class="ht-exam-num"><b id="htExamDays">—</b> <span id="htExamDaysWord">дней</span></div>
           <div class="ht-exam-bar" aria-hidden="true"><i id="htExamFill"></i></div>
         </div>
+        <script>/* exam-countdown */(function(){
+          var exam=new Date(2027,5,1),n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+          var days=Math.max(0,Math.round((exam-today)/86400000));
+          var d=document.getElementById('htExamDays');if(d)d.textContent=days;
+          var w=document.getElementById('htExamDaysWord');if(w){var a=days%10,b=days%100;w.textContent=(a===1&&b!==11)?'день':((a>=2&&a<=4&&(b<10||b>=20))?'дня':'дней');}
+          var f=document.getElementById('htExamFill');if(f){var s=new Date(2026,8,1),sp=exam-s,p=sp>0?((today-s)/sp)*100:0;f.style.width=Math.max(0,Math.min(100,p)).toFixed(1)+'%';}
+        })();</script>
       </div>
       <div class="ht-sidebar-foot">
         <button type="button" class="ht-sidebar-user-btn" id="htSidebarUserBtn">
@@ -184,8 +191,8 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-08-32" defer></script>
-  <script type="module" src="./my_homeworks.js?v=2026-06-08-32"></script>
+  <script src="./theme.js?v=2026-06-08-33" defer></script>
+  <script type="module" src="./my_homeworks.js?v=2026-06-08-33"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html / stats.html.
@@ -378,34 +385,6 @@
       try { new MutationObserver(function () { if (document.getElementById('menuStats')) fix(); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
       try { window.addEventListener('app-auth-changed', fix); } catch (e) {}
       setTimeout(fix, 1200); setTimeout(fix, 2600);
-    }
-  })();
-  </script>
-  <!-- WD3: отсчёт «До ЕГЭ». EXAM_DATE = 1 июня 2027 (временная константа —
-       оператор подправит, когда выйдет расписание). Полоска = доля учебного года
-       (1 сен 2026 → дата ЕГЭ), клампится 0..100. -->
-  <script>
-  (function () {
-    var EXAM_Y = 2027, EXAM_M = 5, EXAM_D = 1;   // 1 июня 2027 (месяц 0-индексный: 5=июнь)
-    var MS = 86400000;
-    var exam = new Date(EXAM_Y, EXAM_M, EXAM_D);
-    var now = new Date();
-    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    var days = Math.max(0, Math.round((exam - today) / MS));
-    var elDays = document.getElementById('htExamDays');
-    if (elDays) elDays.textContent = days;
-    var elWord = document.getElementById('htExamDaysWord');
-    if (elWord) {
-      var a = days % 10, b = days % 100;
-      elWord.textContent = (a === 1 && b !== 11) ? 'день'
-        : (a >= 2 && a <= 4 && (b < 10 || b >= 20)) ? 'дня' : 'дней';
-    }
-    var fill = document.getElementById('htExamFill');
-    if (fill) {
-      var start = new Date(2026, 8, 1);   // 1 сентября 2026 — старт учебного года
-      var span = exam - start;
-      var pct = span > 0 ? ((today - start) / span) * 100 : 0;
-      fill.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%';
     }
   })();
   </script>
