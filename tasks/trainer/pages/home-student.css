@@ -1527,13 +1527,13 @@ body[data-home-variant] .ht-sidebar-item.active::before {
 
 /* Аватар-инициал кнопки пользователя: кружок с первой буквой имени (в свёрнутом рельсе —
    единственное видимое; в раскрытом — слева от «Имя Фамилия»). Текст ставит header.js. */
-body[data-home-variant] .ht-sidebar-user-btn .ht-sidebar-avatar {
+body[data-home-variant] .ht-sidebar-user-btn .ht-sidebar-icon.ht-sidebar-avatar {
   width: 30px;
   height: 30px;
   min-width: 30px;
   border-radius: 50%;
   background: linear-gradient(150deg, #3b82f6, #1a3fa8);   /* WD3·в1: премиум-аватар */
-  color: #fff;
+  color: #fff;   /* специфичнее .ht-sidebar-icon{color:text-dim} → буква белая */
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,6 +1,6 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-06-08-29';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-29';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-08-29';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-08-30';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-30';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-08-30';
 
 const PRIMARY_RPC = 'teacher_picking_screen_v2';
 const VALID_FILTER_IDS = new Set(['unseen_low', 'stale', 'unstable']);
