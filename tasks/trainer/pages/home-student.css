@@ -1517,11 +1517,14 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   /* WD3·в1: на свёрнутом рельсе лого и аватар — ПО ЦЕНТРУ по горизонтали (как
      иконки пунктов меню, ось 56/2=28). Лого 34px → отступ 11px (центр 28);
      аватар 30px → отступ 13px (центр 28). В раскрытом виде отступы прежние
-     (16/20) → иконки плавно уезжают влево к вордмарку/имени. */
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-head {
+     (16/20) → иконки плавно уезжают влево к вордмарку/имени.
+     ВАЖНО: исключаем html.ht-rail-open (пре-раскрытие до кадра) — иначе на
+     раскрытой странице первый кадр стартует с рельсовым отступом, а контроллер
+     добавляет .open → padding 11→16 анимируется → дрожание лого при навигации. */
+  html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-head {
     padding-left: 11px; padding-right: 11px;
   }
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn {
+  html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn {
     padding-left: 13px; padding-right: 13px;
   }
 
