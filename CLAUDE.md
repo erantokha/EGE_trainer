@@ -42,6 +42,7 @@ EGE-тренажёр по математике. Статический MPA (HTML
 - **Каталог задач** → `docs/navigation/catalog_*_spec.md`, `app/providers/catalog.js`.
 - **Homework (создание/выполнение/просмотр)** → `app/providers/homework.js`, `tasks/hw*.js`, `docs/supabase/*homework*.sql`.
 - **Teacher picking** → `docs/navigation/teacher_picking_screen_v2_spec.md`, `docs/supabase/teacher_picking_screen_v2.sql`.
+- **Производительность подбора (resolve) / диагностика SQL-планов** → `docs/navigation/perf_picking_postmortem.md` (корень = пере-выполнение ранжирующих CTE, фикс `MATERIALIZED`; reusable EXPLAIN-инструментарий в `reports/perf/*.sql`).
 - **Student analytics** → `docs/navigation/student_analytics_screen_v1_spec.md`.
 - **Print / screen layout** → `docs/navigation/print_layout_contract.md`, `docs/navigation/print_layout_inventory.md`, `app/ui/print_lifecycle.js`, `app/ui/print_btn.js`, `tasks/trainer.css`.
 - **Отчёты по текущей волне** → `w2_*_report.md`, `W2_PLAN.md`, `W2_6_PLAN.md` (последние фактические артефакты W2).
