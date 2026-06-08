@@ -1379,6 +1379,42 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   transform: translateY(-50%) scaleY(1);
 }
 
+/* ── Свёрнутый рельс: мгновенные подсказки справа от иконки (стиль как у сайтовых [data-tip]).
+   Отдельный атрибут data-railtip + ::after (свободен), чтобы НЕ конфликтовать с ::before
+   (акцентная полоска) и базовым [data-tip]. Только десктоп-рельс; на мобайле hover нет,
+   а [data-tip] там и так выключен. ── */
+@media (min-width: 1025px) {
+  /* разрешаем подсказке выйти за пределы 56px (лейблы при свёрнутом opacity:0 → невидимы) */
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-panel,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-nav { overflow: visible; }
+
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after {
+    content: attr(data-railtip);
+    position: absolute;
+    top: 50%;
+    left: calc(100% + 10px);
+    transform: translateY(-50%);
+    background: #3f4a5a;
+    color: #fff;
+    font-size: 12px;
+    font-family: "Segoe UI", Arial, sans-serif;
+    font-weight: 500;
+    white-space: nowrap;
+    padding: 5px 10px;
+    border-radius: 7px;
+    line-height: 1.4;
+    letter-spacing: .01em;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .25);
+    opacity: 0;
+    transition: opacity .08s ease;
+    pointer-events: none;
+    z-index: 9999;
+  }
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]:hover::after {
+    opacity: 1;
+  }
+}
+
 /* Профиль — общая для обеих ролей страница: меню содержит ОБА набора пунктов
    (data-role="student"/"teacher"), CSS показывает только набор текущей роли. Роль ставит
    синхронный inline-контроллер (body[data-home-variant]) до первой отрисовки → без мигания.

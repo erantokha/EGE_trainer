@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-06-08-24">
+    <meta name="app-build" content="2026-06-08-25">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,7 +45,7 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')==='1'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-08-24"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-08-25"></script>
 
 
   <script id="sentry-loader"
@@ -124,13 +124,13 @@
 
 
   
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-24">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-24">
-  <link rel="stylesheet" href="./trainer/pages/trainer.css?v=2026-06-08-24">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-24">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-24">
-  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-08-24">
-  <script src="./theme.js?v=2026-06-08-24" defer></script>
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-25">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-25">
+  <link rel="stylesheet" href="./trainer/pages/trainer.css?v=2026-06-08-25">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-25">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-25">
+  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-08-25">
+  <script src="./theme.js?v=2026-06-08-25" defer></script>
 
   <script>
     window.MathJax = {
@@ -270,25 +270,25 @@
         <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
       </div>
       <div class="ht-sidebar-nav">
-        <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_student.html" data-match="home_student">
+        <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_student.html" data-match="home_student" data-railtip="Главная">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
           </span>
           <span class="ht-sidebar-label">Главная</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavStats" data-href="tasks/stats.html" data-match="stats">
+        <button type="button" class="ht-sidebar-item" id="htNavStats" data-href="tasks/stats.html" data-match="stats" data-railtip="Статистика">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           </span>
           <span class="ht-sidebar-label">Статистика</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavWorks" data-href="tasks/my_homeworks.html" data-match="my_homeworks">
+        <button type="button" class="ht-sidebar-item" id="htNavWorks" data-href="tasks/my_homeworks.html" data-match="my_homeworks" data-railtip="Мои ДЗ">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
           </span>
           <span class="ht-sidebar-label">Мои ДЗ</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavProfile" data-href="tasks/profile.html" data-match="profile">
+        <button type="button" class="ht-sidebar-item" id="htNavProfile" data-href="tasks/profile.html" data-match="profile" data-railtip="Профиль">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </span>
@@ -309,7 +309,7 @@
           </svg>
         </button>
         <div class="ht-sidebar-logout-wrap" id="htSidebarLogoutWrap" hidden>
-          <button type="button" class="ht-sidebar-item ht-sidebar-logout-btn" id="htSidebarLogout">
+          <button type="button" class="ht-sidebar-item ht-sidebar-logout-btn" id="htSidebarLogout" data-railtip="Выйти">
             <span class="ht-sidebar-icon" aria-hidden="true">
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -324,7 +324,7 @@
     </nav>
   </div>
 
-  <script type="module" src="./trainer.js?v=2026-06-08-24"></script>
+  <script type="module" src="./trainer.js?v=2026-06-08-25"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html.
