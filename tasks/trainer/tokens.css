@@ -48,6 +48,14 @@
   --shadow:0 8px 20px rgba(15,23,42,.12);
   --radius:12px;
   --figure-h:300px;
+
+  /* WD3 (премиум-редизайн главной, вариант A · светлый) — additive surface-токены.
+     Эти переменные уже использовались в home-student.css через var(--surface,#f8fafc)
+     с фолбэком; теперь зафиксированы как настоящие токены (значения совпадают). */
+  --surface:#f8fafc;        /* slate-50  — фон контент-области (воздух) */
+  --surface2:#f1f5f9;       /* slate-100 — светлый сайдбар / hover-подложки */
+  --accent-light:#dbeafe;   /* blue-100  — активный пункт меню / eyebrow / аватар */
+  --shadow-md:0 4px 16px rgba(15,23,42,.08);  /* мягкая тень карточек премиум-каркаса */
 }
 
 
@@ -66,6 +74,12 @@ body[data-theme="dark"]{
   --danger:#ef4444;
   --muted:#1b1d24;
   --shadow:0 8px 24px rgba(0,0,0,.25);
+
+  /* WD3 surface-токены — dark-аналоги (тема пока скрыта в проде, держим для корректности) */
+  --surface:#0b1320;
+  --surface2:#0f1623;
+  --accent-light:rgba(59,130,246,.16);
+  --shadow-md:0 4px 16px rgba(0,0,0,.35);
 }
 
 
@@ -84,6 +98,12 @@ body[data-theme="light"]{
   --danger:#dc2626;
   --muted:#ffffff;
   --shadow:0 8px 20px rgba(15,23,42,.12);
+
+  /* WD3 surface-токены (явный light-блок — паритет с :root) */
+  --surface:#f8fafc;
+  --surface2:#f1f5f9;
+  --accent-light:#dbeafe;
+  --shadow-md:0 4px 16px rgba(15,23,42,.08);
 }
 
 /* --- W1.1' proposed design tokens (additive; Claude Design source). --- */
