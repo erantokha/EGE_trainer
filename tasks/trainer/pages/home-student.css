@@ -196,6 +196,49 @@ body[data-home-variant] #picker .score-forecast{
   }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+   WD3·в2 — премиум-шапка/тулбар (студенческая главная).
+   ════════════════════════════════════════════════════════════════════════ */
+/* Убираем с экрана режимы (Ручное/Умная) и тумблер темы — входа пока нет.
+   Разметка/JS остаются в DOM (picker.js не падает), просто скрыты.
+   #picker в селекторе — чтобы перебить базовое #picker .controls{display:flex}. */
+body[data-home-variant="student"] #picker .controls { display: none; }
+
+/* Тулбар подбора: фильтр → булк-кнопки → (вправо) тумблер «Перемешать». */
+/* на десктопе тулбар во всю ширину колонки → margin-left:auto уводит тумблер вправо */
+@media (min-width: 901px) {
+  body[data-home-variant="student"] .bulk-controls { width: 100%; }
+}
+body[data-home-variant="student"] .bulk-controls button {
+  padding: 8px 14px; font-size: 13.5px; font-weight: 500;
+}
+body[data-home-variant="student"] .bulk-controls button:hover {
+  background: var(--surface, #f8fafc);
+}
+body[data-home-variant="student"] #studentFilterDropdown {
+  padding: 8px 26px 8px 12px; font-size: 13.5px;
+}
+/* «Перемешать задачи» → премиум-тумблер, прижат вправо */
+body[data-home-variant="student"] .bulk-controls .shuffle {
+  display: inline-flex; align-items: center; gap: 9px;
+  margin-left: auto;
+  font-size: 13.5px; color: var(--text-dim); cursor: pointer; white-space: nowrap;
+}
+body[data-home-variant="student"] #shuffleToggle {
+  appearance: none; -webkit-appearance: none;
+  flex: 0 0 auto; margin: 0; padding: 0; border: none;
+  width: 38px; height: 22px; border-radius: 999px;
+  background: var(--panel-2); position: relative; cursor: pointer;
+  transition: background .15s;
+}
+body[data-home-variant="student"] #shuffleToggle::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 18px; height: 18px; border-radius: 999px; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .25); transition: left .15s;
+}
+body[data-home-variant="student"] #shuffleToggle:checked { background: var(--accent); }
+body[data-home-variant="student"] #shuffleToggle:checked::after { left: 18px; }
+
 
 /* главная ученика: заголовок раздела по ширине текста + УП рядом с названием */
 body[data-home-variant] #accordion .section-title{

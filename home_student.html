@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-08-36">
+  <meta name="app-build" content="2026-06-08-38">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -112,10 +112,10 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-08-36">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-08-36">
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-08-36">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-08-36">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-08-38">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-08-38">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-08-38">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-08-38">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -125,6 +125,7 @@
           <div class="home-head-text">
             <div class="home-eyebrow">Подготовка к ЕГЭ по профильной математике</div>
             <h1 class="home-h1">Выберите темы для тренировки</h1>
+            <p class="home-sub">Полоска показывает вашу точность по теме, число рядом — покрытие задач банка. Начните со слабых тем — это быстрее всего поднимает балл.</p>
           </div>
           <!-- WSF-student: гамбургер в правом верхнем углу (мобилка) — открывает сайдбар.
                На десктопе скрыт (сайдбар — левый рельс, см. home-student.css). Лежит в
@@ -206,8 +207,6 @@
                выравнивается по их уровню (см. референс Варианта 2). -->
           <div class="sub-controls">
             <div class="bulk-controls" id="bulkControls">
-              <button id="bulkPickAll" type="button">Выбрать все</button>
-              <button id="bulkResetAll" type="button">Сбросить все</button>
               <select id="studentFilterDropdown" class="ht-filter-dropdown" aria-label="Фильтр подбора задач" data-tip="Подбор задач по фильтру">
                 <option value="">Без фильтра</option>
                 <option value="unseen_low">Не решал / мало решал</option>
@@ -215,6 +214,8 @@
                 <option value="unstable">Нестабильно решает</option>
                 <option value="weak_spots">Слабые места</option>
               </select>
+              <button id="bulkPickAll" type="button">Выбрать все</button>
+              <button id="bulkResetAll" type="button">Сбросить все</button>
               <label class="shuffle shuffle-inline">
                 <input type="checkbox" id="shuffleToggle">
                 Перемешать задачи
@@ -434,9 +435,9 @@
     </nav>
   </div>
 
-  <script src="./tasks/theme.js?v=2026-06-08-36" defer></script>
-  <script type="module" src="./tasks/home_guard.js?v=2026-06-08-36"></script>
-  <script type="module" src="./tasks/picker.js?v=2026-06-08-36"></script>
+  <script src="./tasks/theme.js?v=2026-06-08-38" defer></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-06-08-38"></script>
+  <script type="module" src="./tasks/picker.js?v=2026-06-08-38"></script>
   <script>
   /* WSF-student: открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через
      скрытый #menuLogout + навигация. Механика 1-в-1 с home_teacher.html.
