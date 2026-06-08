@@ -19,18 +19,18 @@ body[data-home-variant] #picker .picker-grid{
 
 body[data-home-variant] #picker .picker-left{flex:1 1 auto; min-width:0}
 
-body[data-home-variant] #picker .picker-right{flex:0 0 280px; width:280px}
+body[data-home-variant] #picker .picker-right{flex:0 0 312px; width:312px}  /* WD3·в4: ширина рельса как в макете */
 
 /* WD.2.2 — карточка «Подборка → Начать» (Claude Design, Вариант 2).
    #sum/#start ведёт picker.js (счётчик + disabled); пустую подсказку
    гасим по body.ht-has-selection (его ставит picker.js при total>0). */
 .start-card{
   border:1px solid var(--border);
-  border-radius:16px;
+  border-radius:18px;                       /* WD3·в4: как PSelectionCard */
   background:var(--panel);
-  box-shadow:0 10px 30px rgba(15,23,42,.10);
-  padding:16px 18px;
-  margin-bottom:16px;
+  box-shadow:var(--shadow-md);              /* единая мягкая тень премиум-карт */
+  padding:18px 20px;
+  margin-bottom:18px;
 }
 .start-card .sc-head{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; }
 .start-card .sc-eyebrow{
@@ -90,10 +90,10 @@ body[data-home-variant] #userMenuBtn .hw-bell--top{
    на #sfGauge; цель/макс фиксированы в CSS (--goal:70, шкала 0..100). */
 body[data-home-variant] #picker .score-forecast{
   border:1px solid var(--border);
-  border-radius:16px;
-  padding:20px;
+  border-radius:18px;                       /* WD3·в4: как PGauge */
+  padding:20px 20px 22px;
   background:var(--panel);
-  box-shadow:0 10px 30px rgba(15,23,42,.10);
+  box-shadow:var(--shadow-md);              /* единая мягкая тень премиум-карт */
 }
 .score-forecast .sf-eyebrow{
   font-size:11px; font-weight:700; letter-spacing:.09em; text-transform:uppercase;
