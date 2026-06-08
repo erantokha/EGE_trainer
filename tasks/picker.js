@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-08-19';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-19';
-import { CONFIG } from '../app/config.js?v=2026-06-08-19';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-19';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-19';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-19';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-19';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-19';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-19';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-19';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-19';
+import { withBuild } from '../app/build.js?v=2026-06-08-20';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-20';
+import { CONFIG } from '../app/config.js?v=2026-06-08-20';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-20';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-20';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-20';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-20';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-20';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-20';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-20';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-20';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-19';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-20';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-08-19';
+} from './picker_common.js?v=2026-06-08-20';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-08-19';
+} from './picker_stats.js?v=2026-06-08-20';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -540,6 +540,9 @@ async function refreshTeacherStudentSelect(opts = {}){
 }
 
 let _STATS_SEQ = 0;
+// single-flight self-dashboard RPC: prewarm (∥ каталогу) + boot + INITIAL_SESSION делят ОДИН
+// student_analytics_screen_v1 (иначе дубли + поздняя отрисовка статистики из-за _STATS_SEQ).
+let _LAST10_RPC_INFLIGHT = null;
 
 let _HOME_STATS_LOADING = false;
 
@@ -1206,6 +1209,39 @@ function isFallbackSessionUsable(session, minTtlSec) {
 }
 
 
+// Выдаёт (или переиспользует in-flight) RPC self-dashboard. Дедупит boot/INITIAL_SESSION/prewarm.
+function _issueStudentDashRpc(uidKey) {
+  if (_LAST10_RPC_INFLIGHT && _LAST10_RPC_INFLIGHT.uid === uidKey && _LAST10_RPC_INFLIGHT.promise) {
+    return _LAST10_RPC_INFLIGHT.promise;
+  }
+  const pr = supaRest.rpc(
+    'student_analytics_screen_v1',
+    { p_viewer_scope: 'self', p_days: 30, p_source: 'all', p_mode: 'init' },
+    { timeoutMs: LAST10_RPC_TIMEOUT_MS }
+  );
+  _LAST10_RPC_INFLIGHT = { uid: uidKey, promise: pr };
+  // на ошибке — освобождаем сразу (чтобы boot-retry мог выдать свежий); на успехе держим ~5с для reuse.
+  Promise.resolve(pr).then(() => {}, () => { if (_LAST10_RPC_INFLIGHT && _LAST10_RPC_INFLIGHT.promise === pr) _LAST10_RPC_INFLIGHT = null; });
+  setTimeout(() => { if (_LAST10_RPC_INFLIGHT && _LAST10_RPC_INFLIGHT.promise === pr) _LAST10_RPC_INFLIGHT = null; }, 5000);
+  return pr;
+}
+
+// PERF (2026-06-08): прогрев self-dashboard ПАРАЛЛЕЛЬНО загрузке каталога — RPC аналитики больше не
+// ждёт `await loadCatalog()` (раньше статистика появлялась ~catalog+rpc, ~1.5с). Результат
+// переиспользуется в refreshStudentLast10 (single-flight) и применяется после построения аккордеона.
+async function prewarmStudentDashRpc() {
+  if (!IS_STUDENT_PAGE || _LAST10_RPC_INFLIGHT) return;
+  try {
+    let session = null;
+    try { session = await getSession({ timeoutMs: 1500, skewSec: 30 }); } catch (_) { session = null; }
+    const fb = readSessionFallback();
+    if (!session && isFallbackSessionUsable(fb, LAST10_TOKEN_MIN_TTL_SEC)) session = fb;
+    const uid = session?.user?.id || '';
+    const token = String(session?.access_token || '').trim();
+    if (uid && token && !_LAST10_RPC_INFLIGHT) _issueStudentDashRpc(String(uid));
+  } catch (_) {}
+}
+
 async function refreshStudentLast10(opts = {}) {
   if (!IS_STUDENT_PAGE) return;
 
@@ -1326,11 +1362,7 @@ async function refreshStudentLast10(opts = {}) {
   _LAST10_KNOWN_UID = uid;
 
   try {
-    const raw = await supaRest.rpc(
-      'student_analytics_screen_v1',
-      { p_viewer_scope: 'self', p_days: 30, p_source: 'all', p_mode: 'init' },
-      { timeoutMs: LAST10_RPC_TIMEOUT_MS }
-    );
+    const raw = await _issueStudentDashRpc(String(uid || ''));
     const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
     if (seq !== _STATS_SEQ) return;
     if (!dash || typeof dash !== 'object') throw new Error('dashboard payload invalid');
@@ -1925,6 +1957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initCreateHomeworkButton();
 
   try {
+    prewarmStudentDashRpc(); // PERF: RPC аналитики ученика стартует ПАРАЛЛЕЛЬНО каталогу
     await loadCatalog();
     renderAccordion();
     initProtoPickerModal();
