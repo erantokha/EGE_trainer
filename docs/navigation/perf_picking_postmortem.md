@@ -167,10 +167,24 @@ SELECT set_config('request.jwt.claims',
   json_build_object('sub','<student_uuid>','role','authenticated')::text, false);
 ```
 
-## Что осталось (опционально)
+## Что сделано дополнительно (после resolve-фикса)
 
-- `teacher_picking_screen_v2` — `MATERIALIZED` на `candidate_base/selected_proto_rows/
-  question_candidates` (на тест-ученике 0.8с, на «тяжёлых» может быть 2–3с — та же
-  болезнь). Делать через temp→parity→cut-over.
+- **Загрузка home_student ~1.5с → ~0.7с** (build 2026-06-08-20): `student_analytics_screen_v1`
+  шёл ПОСЛЕ `await loadCatalog()` (последовательно) и вызывался 2× (boot + INITIAL_SESSION).
+  Фикс: `prewarmStudentDashRpc()` стартует RPC аналитики ПАРАЛЛЕЛЬНО каталогу +
+  single-flight `_issueStudentDashRpc/_LAST10_RPC_INFLIGHT` (boot/INITIAL_SESSION/prewarm
+  делят один RPC). 5→3 RPC, analytics 2→1. (home_student использует
+  `student_analytics_screen_v1`+`catalog_index_like_v1`+`student_my_homeworks_summary`, НЕ screen_v2.)
+- **Прогрев бейджей учителя 51→2 RPC** (см. выше, `warmTeacherModalStatsForStudent`).
+
+## Что проверено и НЕ требует фикса
+
+- **`teacher_picking_screen_v2`** — замер на тяжёлом ученике (`reports/perf/phase0i_screen_v2_timing.sql`):
+  init **399 мс**, init+filter **246 мс**. НЕ страдает re-execution-болезнью resolve, т.к. в
+  `init`-режиме считает счётчики-агрегаты (а не разворачивает per-question ранжирование
+  `question_candidates × visible_questions`). Фикс НЕ нужен.
+
+## Что осталось (опционально, низкий приоритет)
+
 - Прогрев бейджей учителя можно сделать **ленивым** (по раскрытию секции/открытию
-  модалки), если захочется убрать даже 1.6с-фон.
+  модалки), если захочется убрать даже ~1.6с-фон при выборе ученика.
