@@ -8,19 +8,19 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-08-11';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-11';
-import { CONFIG } from '../app/config.js?v=2026-06-08-11';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-11';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-11';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-11';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-11';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-11';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-11';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-11';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-11';
+import { withBuild } from '../app/build.js?v=2026-06-08-16';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-08-16';
+import { CONFIG } from '../app/config.js?v=2026-06-08-16';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-08-16';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-08-16';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-08-16';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-08-16';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-08-16';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-08-16';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-08-16';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-08-16';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-11';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-08-16';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +28,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-08-11';
+} from './picker_common.js?v=2026-06-08-16';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-08-11';
+} from './picker_stats.js?v=2026-06-08-16';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -634,6 +634,8 @@ const _TEACHER_PROTO_LAST3_CACHE = new Map();
 // Без sid-ключа (RPC proto_last3_for_self_v1 скоупится по auth.uid()):
 // unic_id -> { last3_total, last3_correct }.
 const _SELF_PROTO_LAST3_CACHE = new Map();
+// in-flight дедуп self-last3: фоновый префетч и открытие модалки не дублируют RPC на тот же набор unic.
+const _SELF_LAST3_INFLIGHT = new Map();
 // WFX1 (3b): фоновый прогрев self per-unic last-3 по раскрытию раздела, чтобы открытие
 // подтем раздела было мгновенным из кеша. seq — отменяемость (смена/сворачивание раздела);
 // WARM_AT (sectionId -> ts) — TTL-дедуп; concurrency ограничена как у teacher-прогрева.
@@ -907,10 +909,14 @@ async function loadProtoLast3ForSelf(unicIds, opts = {}) {
   }
 
   if (missing.length) {
-    const res = await protoLast3ForSelfV1({
-      unic_ids: missing,
-      timeoutMs: Number(opts?.timeoutMs || 8000) || 8000,
-    });
+    const _k = missing.slice().sort().join('|');
+    let _pr = _SELF_LAST3_INFLIGHT.get(_k);
+    if (!_pr) {
+      _pr = protoLast3ForSelfV1({ unic_ids: missing, timeoutMs: Number(opts?.timeoutMs || 8000) || 8000 });
+      _SELF_LAST3_INFLIGHT.set(_k, _pr);
+      Promise.resolve(_pr).finally(() => { if (_SELF_LAST3_INFLIGHT.get(_k) === _pr) _SELF_LAST3_INFLIGHT.delete(_k); });
+    }
+    const res = await _pr;
     if (!res?.ok) return { ok: false, map: out, error: res?.error || null };
     const fetched = res.map instanceof Map ? res.map : new Map();
     // Записываем в кэш и нули по тем unic, у которых попыток нет (чтобы не дёргать RPC снова).
@@ -4060,35 +4066,36 @@ async function syncAddedTasksToSelection(opts = {}) {
     );
 
     if (useRpc) {
-      // WSF-fix (спред «вширь», как у ученика в batchFillStudentBuckets): по ОДНОМУ резолву на
-      // секцию ПАРАЛЛЕЛЬНО (runCapped cap=4), каждый с over-fetch (n = есть+delta+буфер), затем
-      // pickByProtoRotation — берём delta, ПРЕДПОЧИТАЯ прототипы НЕ в бакете. Так повторное «Выбрать
-      // всё» даёт ДРУГИЕ прототипы, а не тот же слабейший с другими числами (как делал global_all
-      // «вглубь»). usedIds стартует от текущего exclude → между раундами/секциями нет дублей.
+      // WSF-fix (спред «вширь», как у ученика в batchFillStudentBuckets): ОДИН section-батч с
+      // over-fetch (n = есть+delta+буфер), затем pickByProtoRotation — берём delta, ПРЕДПОЧИТАЯ
+      // прототипы НЕ в бакете. Так повторное «Выбрать всё» даёт ДРУГИЕ прототипы (спред), а не тот же
+      // слабейший. usedIds стартует от текущего exclude → между раундами/секциями нет дублей.
+      // PERF (2026-06-08): раньше дробили на 12 параллельных вызовов (runCapped cap=4) из-за таймаута
+      // 12-секц. батча; после фикса resolve (MATERIALIZED ранжирующих CTE) батч ~0.3с → один round-trip.
       const secEntries = Array.from(sectionNeedMap.entries());
       const usedIds = new Set(getExcludeSet());
       const protosOf = (arr) => new Set((arr || []).map((q) => baseIdFromProtoId(String(q?.question_id || '').trim())).filter(Boolean));
       const overN = (have, delta) => Math.min(40, (have || 0) + delta + 6);
-      const fetched = await runCapped(secEntries, 4, async ([sectionId, delta]) => {
-        const have = (ctx.buckets[`section:${sectionId}`]?.length) || 0;
-        let res = null;
-        try {
-          res = await pickQuestionsViaTeacherScreenResolveBatch({
-            requests: [{ scope_kind: 'section', scope_id: sectionId, n: overN(have, delta) }],
-            excludeTopicIds: Array.from(excludeTopics),
-            excludeQuestionIds: Array.from(usedIds),
-          });
-        } catch (e) { console.warn('teacher section(par) threw', e); return null; }
-        if (seq !== _ADDED_SYNC_SEQ) return null;
-        return res?.byBucket instanceof Map ? (res.byBucket.get(`section:${sectionId}`) || []) : null;
-      });
+      let secRes = null;
+      try {
+        secRes = await pickQuestionsViaTeacherScreenResolveBatch({
+          requests: secEntries.map(([sectionId, delta]) => ({
+            scope_kind: 'section',
+            scope_id: sectionId,
+            n: overN((ctx.buckets[`section:${sectionId}`]?.length) || 0, delta),
+          })),
+          excludeTopicIds: Array.from(excludeTopics),
+          excludeQuestionIds: Array.from(usedIds),
+        });
+      } catch (e) { console.warn('teacher section(batch) threw', e); }
       if (seq !== _ADDED_SYNC_SEQ) return;
+      const secByBucket = secRes?.byBucket instanceof Map ? secRes.byBucket : new Map();
       // ротация per-section ПОСЛЕДОВАТЕЛЬНО (usedIds без гонки; секции не пересекаются по задачам)
       for (let idx = 0; idx < secEntries.length; idx++) {
         const [sectionId, delta] = secEntries[idx];
-        const candidates = fetched[idx];
-        if (!candidates || !candidates.length) continue;
         const bk = `section:${String(sectionId)}`;
+        const candidates = secByBucket.get(bk) || [];
+        if (!candidates.length) continue;
         const cur = ctx.buckets[bk] || (ctx.buckets[bk] = []);
         appendPickedQuestionsToBucket(ctx, bk, pickByProtoRotation(candidates, delta, protosOf(cur), usedIds));
         if (ADDED_TASKS_MODAL_OPEN) {
@@ -4503,53 +4510,24 @@ async function batchFillStudentBuckets(buckets, desired, usedIds, filterId) {
     }
   }
 
-  // section:
-  //  - «Выбрать всё» (ВСЕ секции, одинаковая дельта K) → K× global_all (быстро ~4с). global_all идёт
-  //    «вглубь» (тот же слабейший прототип секции). Спред «вширь» тут недостижим без серверной правки:
-  //    12-секционный even-distribution section-батч упирается в statement_timeout (~24-28с + HTTP 500).
-  //  - отдельные секции (не все 12) → section-батч с over-fetch + ротацией «вширь» (спред, без таймаута).
+  // section: «Выбрать всё» и отдельные секции — ОДИН section-батч (even-distribution на сервере, спред «вширь»).
+  // PERF (2026-06-08): раньше 12-секц. батч упирался в statement_timeout (~20-28с + HTTP 500), поэтому
+  // «Выбрать всё» дробили на 12 параллельных per-section вызовов (cap 4). После фикса resolve
+  // (MATERIALIZED ранжирующих CTE — Append считается 1 раз, а не 3561×) батч на 12 секций ~0.33с →
+  // один round-trip вместо 12. Дробление uniformK снято.
   const secEntries = byKind.section;
   if (secEntries.length) {
-    const allSections = secEntries.length === (SECTIONS?.length || 0);
-    const uniformK = (allSections && new Set(secEntries.map(([, d]) => d)).size === 1) ? secEntries[0][1] : 0;
-
-    if (uniformK > 0) {
-      // «Выбрать всё»: по ОДНОМУ резолву на секцию (каждый лёгкий и спредит через even-distribution),
-      // ПАРАЛЛЕЛЬНО с лимитом конкурентности. Обходит и timeout 12-секционного батча, и concurrency-500.
-      const fetched = await runCapped(secEntries, 4, async ([key, delta]) => {
-        const secId = key.slice('section:'.length);
-        let res = null;
-        try {
-          res = await pickQuestionsViaTeacherScreenResolveBatch({
-            requests: [{ scope_kind: 'section', scope_id: secId, n: overN(key, delta) }],
-            excludeQuestionIds: Array.from(usedIds),
-            studentId: selfId,
-            filterId,
-          });
-        } catch (e) { console.warn('batchFillStudentBuckets: section(par) threw', e); return null; }
-        return res?.byBucket instanceof Map ? (res.byBucket.get(key) || []) : null;
+    let res = null;
+    try {
+      res = await pickQuestionsViaTeacherScreenResolveBatch({
+        requests: secEntries.map(([key, delta]) => ({ scope_kind: 'section', scope_id: key.slice('section:'.length), n: overN(key, delta) })),
+        excludeQuestionIds: Array.from(usedIds), studentId: selfId, filterId,
       });
-      // ротация per-section ПОСЛЕДОВАТЕЛЬНО (usedIds без гонки; секции не пересекаются по задачам)
-      for (let idx = 0; idx < secEntries.length; idx++) {
-        const [key, delta] = secEntries[idx];
-        const candidates = fetched[idx];
-        if (!candidates || !candidates.length) continue;
+    } catch (e) { console.warn('batchFillStudentBuckets: section threw', e); }
+    if (res?.byBucket instanceof Map) {
+      for (const [key, delta] of secEntries) {
         const cur = buckets[key] || (buckets[key] = []);
-        for (const q of pickByProtoRotation(candidates, delta, protosOf(cur), usedIds)) cur.push(q);
-      }
-    } else {
-      let res = null;
-      try {
-        res = await pickQuestionsViaTeacherScreenResolveBatch({
-          requests: secEntries.map(([key, delta]) => ({ scope_kind: 'section', scope_id: key.slice('section:'.length), n: overN(key, delta) })),
-          excludeQuestionIds: Array.from(usedIds), studentId: selfId, filterId,
-        });
-      } catch (e) { console.warn('batchFillStudentBuckets: section threw', e); }
-      if (res?.byBucket instanceof Map) {
-        for (const [key, delta] of secEntries) {
-          const cur = buckets[key] || (buckets[key] = []);
-          for (const q of pickByProtoRotation(res.byBucket.get(key) || [], delta, protosOf(cur), usedIds)) cur.push(q);
-        }
+        for (const q of pickByProtoRotation(res.byBucket.get(key) || [], delta, protosOf(cur), usedIds)) cur.push(q);
       }
     }
   }
@@ -4689,7 +4667,7 @@ function updatePreviewBtnState() {
 
 function schedulePreviewPrewarm() {
   if (_PREVIEW_PREWARM_TIMER) clearTimeout(_PREVIEW_PREWARM_TIMER);
-  _PREVIEW_PREWARM_TIMER = setTimeout(() => { _PREVIEW_PREWARM_TIMER = null; prewarmStudentPreview(); }, 500);
+  _PREVIEW_PREWARM_TIMER = setTimeout(() => { _PREVIEW_PREWARM_TIMER = null; prewarmStudentPreview(); }, 150);
 }
 
 // фоновый префетч: резолв + self-статистика для текущего выбора → по готовности включаем #previewBtn
@@ -4699,12 +4677,16 @@ async function prewarmStudentPreview() {
   if (STUDENT_PREVIEW_OPEN) return; // не дёргаем, пока модалка открыта (выбор не меняется)
   const sig = studentSelectionSignature();
   const seq = ++_PREVIEW_PREWARM_SEQ;
+  let questions;
   try {
-    const questions = await resolveStudentSelection();
-    await loadSelfStatsForQuestions(questions);
+    questions = await resolveStudentSelection();
   } catch (_) { return; }
   if (seq !== _PREVIEW_PREWARM_SEQ) return;            // запущен новый префетч
   if (sig !== studentSelectionSignature()) return;     // выбор сменился — не готово
+  // PERF (2026-06-08): бейджи «%/3» (proto_last3_for_self_v1) грузим в ФОНЕ и НЕ блокируем
+  // готовность предпросмотра — это вторичные данные (кэш _SELF_PROTO_LAST3_CACHE, к открытию
+  // модалки тёплые). Раньше last3 шёл ПОСЛЕДОВАТЕЛЬНО после resolve и добавлял ~0.8с к ожиданию.
+  loadSelfStatsForQuestions(questions).catch(() => {});
   _PREVIEW_READY_SIG = sig;
   updatePreviewBtnState();
 }

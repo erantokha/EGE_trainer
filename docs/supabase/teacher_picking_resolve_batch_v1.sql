@@ -2,6 +2,13 @@
 -- Stage 3.5 backend batch resolve for teacher manual picking.
 -- Designed to reduce N resolve RPCs on home_teacher to at most 3 calls
 -- (protos -> topics -> sections/global_all) per sync cycle.
+--
+-- PERF (2026-06-08): состояние посчитано инлайном одним сканом answer_events
+-- (без двойного вызова student_proto_state_v1/student_topic_state_v1 и без last3),
+-- а candidate_base/selected_proto_rows/question_candidates помечены AS MATERIALIZED.
+-- Корень тормозов: ранжирующий Append пере-выполнялся 1 раз НА КАЖДЫЙ вопрос каталога
+-- (rows=1 оценки → nested loop, loops=3561). Семантика идентична (PARITY 0/0 по всем
+-- scope×filter). Эффект: 1 секция 552→111мс, global_all 2507→94мс, 12 секций 20058→334мс.
 
 begin;
 
@@ -185,30 +192,116 @@ begin
     where coalesce(q.is_enabled, true) = true
       and coalesce(q.is_hidden, false) = false
   ),
+  -- ── S2/S3 РЕРАЙТ: состояние инлайном, ОДИН скан answer_events, без last3, без двойного
+  -- вызова student_proto_state_v1/student_topic_state_v1. Флаги скопированы дословно. ──
+  proto_events as (
+    select
+      vq.unic_id,
+      count(*)::int                                   as attempt_count_total,
+      count(*) filter (where ae.correct)::int         as correct_count_total,
+      count(distinct ae.question_id)::int             as unique_question_ids_seen,
+      max(coalesce(ae.occurred_at, ae.created_at))    as last_attempt_at
+    from params p
+    join public.answer_events ae
+      on ae.student_id = p.student_id
+     and (p.source = 'all' or ae.source = p.source)
+    join visible_questions vq
+      on vq.question_id = ae.question_id
+    group by vq.unic_id
+  ),
+  proto_metrics as (
+    select
+      p.student_id,
+      p.source,
+      vu.theme_id,
+      vu.subtopic_id,
+      vu.unic_id,
+      coalesce(pe.attempt_count_total, 0)::int        as attempt_count_total,
+      coalesce(pe.correct_count_total, 0)::int        as correct_count_total,
+      coalesce(pe.unique_question_ids_seen, 0)::int   as unique_question_ids_seen,
+      pe.last_attempt_at,
+      case when coalesce(pe.attempt_count_total, 0) > 0
+           then (coalesce(pe.correct_count_total,0)::numeric / pe.attempt_count_total::numeric)
+           else null::numeric end                     as accuracy
+    from params p
+    cross join visible_unics vu
+    left join proto_events pe on pe.unic_id = vu.unic_id
+  ),
   proto_state as (
     select
-      ps.*,
-      vu.sort_order as proto_sort_order,
-      vu.theme_sort_order,
-      vu.subtopic_sort_order
-    from params p
-    cross join lateral public.student_proto_state_v1(p.student_id, p.source) ps
-    join visible_unics vu
-      on vu.unic_id = ps.unic_id
-     and vu.subtopic_id = ps.subtopic_id
-     and vu.theme_id = ps.theme_id
+      m.student_id,
+      m.source,
+      m.theme_id,
+      m.subtopic_id,
+      m.unic_id,
+      m.attempt_count_total,
+      m.correct_count_total,
+      m.unique_question_ids_seen,
+      m.last_attempt_at,
+      (m.correct_count_total > 0)                     as has_correct,
+      (m.correct_count_total > 0)                     as has_independent_correct,
+      (m.attempt_count_total > 0)                     as covered,
+      (m.correct_count_total > 0)                     as solved,
+      m.accuracy,
+      (m.unique_question_ids_seen = 0)                as is_not_seen,
+      (m.unique_question_ids_seen = 1)                as is_low_seen,
+      (m.unique_question_ids_seen >= 2)               as is_enough_seen,
+      (m.attempt_count_total >= 2 and m.accuracy < 0.7) as is_weak,
+      (
+        m.correct_count_total > 0
+        and m.attempt_count_total >= 2
+        and not (m.attempt_count_total >= 2 and m.accuracy < 0.7)
+        and m.last_attempt_at is not null
+        and m.last_attempt_at < now() - interval '30 days'
+      )                                               as is_stale,
+      (
+        m.correct_count_total > 0
+        and m.attempt_count_total >= 2
+        and m.accuracy < 0.7
+      )                                               as is_unstable
+    from proto_metrics m
+  ),
+  topic_rollup as (
+    select
+      ps.student_id,
+      ps.source,
+      ps.theme_id,
+      ps.subtopic_id,
+      count(*) filter (where ps.covered)::int                                   as unique_proto_seen_count,
+      count(*) filter (where ps.has_independent_correct)::int                   as mastered_proto_count,
+      coalesce(sum(ps.attempt_count_total) filter (where ps.has_independent_correct), 0)::int as mastered_attempt_count_total,
+      coalesce(sum(ps.correct_count_total) filter (where ps.has_independent_correct), 0)::int as mastered_correct_count_total,
+      max(ps.last_attempt_at) filter (where ps.has_independent_correct)         as last_mastered_attempt_at,
+      count(*) filter (where ps.is_unstable)::int                              as unstable_proto_count
+    from proto_state ps
+    group by ps.student_id, ps.source, ps.theme_id, ps.subtopic_id
   ),
   topic_state as (
     select
-      ts.*,
-      vs.title as topic_title,
-      vs.sort_order as topic_sort_order,
-      vs.theme_sort_order
-    from params p
-    cross join lateral public.student_topic_state_v1(p.student_id, p.source) ts
-    join visible_subtopics vs
-      on vs.subtopic_id = ts.subtopic_id
-     and vs.theme_id = ts.theme_id
+      tr.student_id,
+      tr.source,
+      tr.theme_id,
+      tr.subtopic_id,
+      (tr.unique_proto_seen_count = 0)                                          as is_not_seen,
+      (tr.unique_proto_seen_count > 0 and tr.unique_proto_seen_count < 3)       as is_low_seen,
+      (
+        tr.mastered_proto_count > 0
+        and tr.mastered_attempt_count_total >= 2
+        and (case when tr.mastered_attempt_count_total > 0
+                  then (tr.mastered_correct_count_total::numeric / tr.mastered_attempt_count_total::numeric)
+                  else null::numeric end) >= 0.7
+        and tr.last_mastered_attempt_at is not null
+        and tr.last_mastered_attempt_at < now() - interval '30 days'
+      )                                                                         as is_stale,
+      (
+        tr.unstable_proto_count > 0
+        and tr.mastered_proto_count > 0
+        and tr.mastered_attempt_count_total >= 2
+        and (case when tr.mastered_attempt_count_total > 0
+                  then (tr.mastered_correct_count_total::numeric / tr.mastered_attempt_count_total::numeric)
+                  else null::numeric end) < 0.7
+      )                                                                         as is_unstable
+    from topic_rollup tr
   ),
   question_stats as (
     select
@@ -343,7 +436,7 @@ begin
       'exclude_topic_ids', (select j from normalized_excluded_topics_json)
     ) as j
   ),
-  candidate_base as (
+  candidate_base as materialized (
     select
       ps.student_id,
       ps.source,
@@ -742,7 +835,7 @@ begin
     from global_candidate_ranked gcr
     where gcr.pick_rank = 1
   ),
-  selected_proto_rows as (
+  selected_proto_rows as materialized (
     select * from proto_pick_rows
     union all
     select * from topic_pick_rows
@@ -751,7 +844,7 @@ begin
     union all
     select * from global_pick_rows
   ),
-  question_candidates as (
+  question_candidates as materialized (
     select
       spr.request_order,
       spr.proto_id,
