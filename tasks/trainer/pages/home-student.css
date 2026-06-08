@@ -1384,9 +1384,12 @@ body[data-home-variant] .ht-sidebar-item.active::before {
    (акцентная полоска) и базовым [data-tip]. Только десктоп-рельс; на мобайле hover нет,
    а [data-tip] там и так выключен. ── */
 @media (min-width: 1025px) {
-  /* разрешаем подсказке выйти за пределы 56px (лейблы при свёрнутом opacity:0 → невидимы) */
+  /* разрешаем подсказке выйти за пределы 56px (лейблы при свёрнутом opacity:0 → невидимы).
+     ВАЖНО: сам .ht-sidebar-item тоже overflow:hidden (1295) и обрезал бы свой ::after-тултип —
+     поэтому visible нужен и на нём, и на nav/panel (вся цепочка предков ::after). */
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-panel,
-  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-nav { overflow: visible; }
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-nav,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item { overflow: visible; }
 
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after {
     content: attr(data-railtip);
