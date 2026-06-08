@@ -1308,15 +1308,17 @@ body[data-home-variant] .ht-sidebar-logo {
   background: linear-gradient(150deg, #3b82f6 0%, #1a3fa8 100%);
   box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
 }
+/* Морфинг — ТОТ ЖЕ размер: галочка пропадает, на её месте появляется бургер
+   (чистый opacity-кроссфейд, без масштабирования — обе иконки 18px, центр). */
 body[data-home-variant] .ht-logo-icon {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition: opacity 160ms ease;
 }
-body[data-home-variant] .ht-logo-check  { opacity: 1; transform: scale(1); }
-body[data-home-variant] .ht-logo-burger { opacity: 0; transform: scale(.7); }
-body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; transform: scale(.7); }
-body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; transform: scale(1); }
+body[data-home-variant] .ht-logo-check  { opacity: 1; }
+body[data-home-variant] .ht-logo-burger { opacity: 0; }
+body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; }
+body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; }
 
 /* Вордмарк: «ЕГЭ-тренажёр» + «профильная математика» (две строки) */
 body[data-home-variant] .ht-sidebar-brand {
