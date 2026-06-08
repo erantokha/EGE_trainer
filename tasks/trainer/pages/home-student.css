@@ -1231,7 +1231,7 @@ body[data-home-variant] #homeBtn {
     transition: padding-left 220ms cubic-bezier(.4, 0, .2, 1);
   }
   body[data-home-variant="student"].ht-sidebar-open {
-    padding-left: 220px;
+    padding-left: 260px;
   }
 }
 
@@ -1252,7 +1252,7 @@ body[data-home-variant] .ht-sidebar-panel {
   bottom: 0;
   z-index: 40;
   width: 56px;          /* свёрнуто: только иконки */
-  background: var(--bg);
+  background: var(--surface2, #f1f5f9);   /* WD3·в1: премиум-светлый сайдбар (вариант A) */
   border-right: 1px solid var(--border);
   overflow: hidden;
   display: flex;
@@ -1261,8 +1261,8 @@ body[data-home-variant] .ht-sidebar-panel {
               background 220ms ease;
 }
 body[data-home-variant] .ht-sidebar.open .ht-sidebar-panel {
-  width: 220px;
-  background: #f9f9f9;
+  width: 260px;   /* WD3·в1: премиум-ширина (вариант A) */
+  background: var(--surface2, #f1f5f9);
 }
 
 /* Шапка сайдбара: бургер + заголовок */
@@ -1287,6 +1287,97 @@ body[data-home-variant] .ht-sidebar.open .ht-sidebar-title {
   transition: opacity 180ms ease 100ms;
   pointer-events: auto;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   WD3·в1 — премиум-шапка сайдбара (вариант A): лого-марка + двухстрочный
+   вордмарк + капс-подпись «Меню». Лого/вордмарк/подпись скрыты на свёрнутом
+   рельсе (как title); показываются в .open и при пре-раскрытии html.ht-rail-open.
+   ══════════════════════════════════════════════════════════════ */
+body[data-home-variant] .ht-sidebar-head { padding: 14px 16px 12px; gap: 10px; }
+
+/* Лого-марка: синий градиентный квадрат с белой галочкой */
+body[data-home-variant] .ht-sidebar-logo {
+  flex: 0 0 auto;
+  width: 34px; height: 34px;
+  border-radius: 10px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(150deg, #3b82f6 0%, #1a3fa8 100%);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, .35);
+  opacity: 0;                 /* на свёрнутом рельсе видим бургер-тоггл */
+  transition: opacity 120ms ease;
+  pointer-events: none;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-logo,
+html.ht-rail-open body[data-home-variant] .ht-sidebar-logo {
+  opacity: 1; pointer-events: auto;
+}
+
+/* Вордмарк: «ЕГЭ-тренажёр» + «профильная математика» (две строки) */
+body[data-home-variant] .ht-sidebar-brand {
+  display: flex; flex-direction: column; min-width: 0; line-height: 1.15;
+}
+body[data-home-variant] .ht-sidebar-subtitle {
+  font-size: 11px; color: var(--text-dim);
+  white-space: nowrap;
+  opacity: 0; transition: opacity 100ms ease; pointer-events: none;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-subtitle,
+html.ht-rail-open body[data-home-variant] .ht-sidebar-subtitle {
+  opacity: 1; pointer-events: auto;
+}
+
+/* Капс-подпись «Меню» над навигацией */
+body[data-home-variant] .ht-sidebar-caption {
+  padding: 8px 20px 4px;
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-dim);
+  white-space: nowrap;
+  opacity: 0; transition: opacity 100ms ease; pointer-events: none;
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-caption,
+html.ht-rail-open body[data-home-variant] .ht-sidebar-caption {
+  opacity: 1;
+}
+
+/* ── Карточка «До ЕГЭ» (студенческая; разметка только в home_student.html).
+   Скрыта на свёрнутом рельсе, показана в раскрытом / пре-раскрытом. ── */
+body[data-home-variant] .ht-sidebar-exam {
+  display: none;
+  margin: 8px 14px 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+body[data-home-variant] .ht-sidebar.open .ht-sidebar-exam,
+html.ht-rail-open body[data-home-variant] .ht-sidebar-exam {
+  display: block;
+}
+body[data-home-variant] .ht-exam-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+body[data-home-variant] .ht-exam-cap {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+body[data-home-variant] .ht-exam-date { font-size: 11px; color: var(--text-dim); }
+body[data-home-variant] .ht-exam-num {
+  margin-top: 5px; font-size: 13px; color: var(--text-dim);
+}
+body[data-home-variant] .ht-exam-num b {
+  font-size: 26px; font-weight: 800; letter-spacing: -.03em;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+body[data-home-variant] .ht-exam-bar {
+  height: 5px; border-radius: 999px; background: rgba(15, 23, 42, .08);
+  overflow: hidden; margin-top: 10px;
+}
+body[data-home-variant] .ht-exam-bar i {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #60a5fa, #2563eb);
+}
+
 /* Бургер внутри сайдбара — те же размеры, что в хедере */
 body[data-home-variant] .ht-sidebar-close {
   flex-shrink: 0;
@@ -1380,7 +1471,8 @@ body[data-home-variant] .ht-sidebar-item:hover .ht-sidebar-label {
    подсвечивается иконка + левая акцентная полоска; на раскрытом/мобилке — вся строка. ── */
 body[data-home-variant] .ht-sidebar-item.active {
   color: var(--accent, #2563eb);
-  background: rgba(37, 99, 235, 0.07);
+  background: var(--accent-light, #dbeafe);   /* WD3·в1: премиум активный пункт */
+  font-weight: 650;
 }
 body[data-home-variant] .ht-sidebar-item.active .ht-sidebar-icon {
   color: var(--accent, #2563eb);
@@ -1436,11 +1528,11 @@ body[data-home-variant] .ht-sidebar-item.active::before {
 /* Аватар-инициал кнопки пользователя: кружок с первой буквой имени (в свёрнутом рельсе —
    единственное видимое; в раскрытом — слева от «Имя Фамилия»). Текст ставит header.js. */
 body[data-home-variant] .ht-sidebar-user-btn .ht-sidebar-avatar {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
   border-radius: 50%;
-  background: var(--accent, #2563eb);
+  background: linear-gradient(150deg, #3b82f6, #1a3fa8);   /* WD3·в1: премиум-аватар */
   color: #fff;
   display: flex;
   align-items: center;
@@ -1555,14 +1647,14 @@ body.has-notif[data-home-variant] #htNavWorks .ht-sidebar-icon::after {
   height: 8px;
   border-radius: 50%;
   background: #ef4444;
-  border: 1.5px solid var(--bg);
+  border: 1.5px solid var(--surface2, #f1f5f9);   /* WD3·в1: ring под премиум-сайдбар */
   box-sizing: content-box;
   pointer-events: none;
 }
 /* Раскрытый рельс/мобилка: фон пункта меняется на светлый — обводку точки
    подгоняем под него, чтобы кружок не сливался с краем иконки. */
 body.has-notif[data-home-variant] .ht-sidebar.open #htNavWorks .ht-sidebar-icon::after {
-  border-color: #f9f9f9;
+  border-color: var(--surface2, #f1f5f9);
 }
 
 /* Бейдж на гамбургере — позиционируется относительно самой кнопки */
@@ -1673,8 +1765,8 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1025px) {
   html.ht-rail-open body[data-home-variant] .ht-sidebar-panel {
-    width: 220px;
-    background: #f9f9f9;
+    width: 260px;
+    background: var(--surface2, #f1f5f9);
   }
   html.ht-rail-open body[data-home-variant] .ht-sidebar-title,
   html.ht-rail-open body[data-home-variant] .ht-sidebar-label,
@@ -1685,6 +1777,6 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
   }
   /* клиренс контента под раскрытый рельс (ученик; профиль/teacher — в своих файлах) */
   html.ht-rail-open body[data-home-variant="student"] {
-    padding-left: 220px;
+    padding-left: 260px;
   }
 }

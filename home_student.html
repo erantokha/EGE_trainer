@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-08-28">
+  <meta name="app-build" content="2026-06-08-29">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -43,8 +43,9 @@
   <title>Тренажер по задачам из банка ФИПИ</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
-       с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
-  <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')==='1'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
+       с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации.
+       WD3·в1: дефолт теперь РАСКРЫТ (260px) — раскрываем, если ege_sidebar_open != '0'. -->
+  <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
   <!--
     Главная ученика (/home_student.html).
     Сейчас по дизайну совпадает с / (index.html), но файл отдельный,
@@ -111,10 +112,10 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-08-28">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-08-29">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-08-29">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-08-29">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-08-29">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -363,9 +364,16 @@
             <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
           </svg>
         </button>
-        <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
+        <span class="ht-sidebar-logo" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l4 5L20 5"/></svg>
+        </span>
+        <span class="ht-sidebar-brand">
+          <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
+          <span class="ht-sidebar-subtitle">профильная математика</span>
+        </span>
       </div>
       <div class="ht-sidebar-nav">
+        <div class="ht-sidebar-caption" aria-hidden="true">Меню</div>
         <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_student.html" data-match="home_student" data-railtip="Главная">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
@@ -391,6 +399,16 @@
           <span class="ht-sidebar-label">Профиль</span>
         </button>
       </div>
+      <!-- WD3·в1: карточка «До ЕГЭ» (студенческая). Дата ЕГЭ — временная константа
+           1 июня 2027 (см. инлайн-скрипт ниже). Скрыта на свёрнутом рельсе. -->
+      <div class="ht-sidebar-exam" id="htSidebarExam" aria-hidden="true">
+        <div class="ht-exam-head">
+          <span class="ht-exam-cap">До ЕГЭ</span>
+          <span class="ht-exam-date" id="htExamDate">1 июня</span>
+        </div>
+        <div class="ht-exam-num"><b id="htExamDays">—</b> <span id="htExamDaysWord">дней</span></div>
+        <div class="ht-exam-bar" aria-hidden="true"><i id="htExamFill"></i></div>
+      </div>
       <div class="ht-sidebar-foot">
         <button type="button" class="ht-sidebar-user-btn" id="htSidebarUserBtn">
           <span class="ht-sidebar-icon ht-sidebar-avatar" id="htSidebarAvatar" aria-hidden="true"></span>
@@ -415,9 +433,9 @@
     </nav>
   </div>
 
-  <script src="./tasks/theme.js?v=2026-06-08-28" defer></script>
-  <script type="module" src="./tasks/home_guard.js?v=2026-06-08-28"></script>
-  <script type="module" src="./tasks/picker.js?v=2026-06-08-28"></script>
+  <script src="./tasks/theme.js?v=2026-06-08-29" defer></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-06-08-29"></script>
+  <script type="module" src="./tasks/picker.js?v=2026-06-08-29"></script>
   <script>
   /* WSF-student: открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через
      скрытый #menuLogout + навигация. Механика 1-в-1 с home_teacher.html.
@@ -576,7 +594,7 @@
     //    (head-скрипт, до первой отрисовки) — здесь синхронизируем «настоящие» классы для логики
     //    тоггла/клиренса, без визуальных изменений (значения те же) → без transition.
     try {
-      if (isDesktop() && localStorage.getItem('ege_sidebar_open') === '1') {
+      if (isDesktop() && localStorage.getItem('ege_sidebar_open') !== '0') {  /* WD3·в1: дефолт раскрыт */
         sb.classList.add('open'); document.body.classList.add('ht-sidebar-open');
         docEl.classList.add('ht-rail-open');
       }
@@ -608,6 +626,37 @@
       try { new MutationObserver(function () { if (document.getElementById('menuStats')) fix(); }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
       try { window.addEventListener('app-auth-changed', fix); } catch (e) {}
       setTimeout(fix, 1200); setTimeout(fix, 2600);
+    }
+  })();
+  </script>
+  <!-- WD3·в1: отсчёт «До ЕГЭ». EXAM_DATE = 1 июня 2027 (временная константа —
+       оператор подправит, когда выйдет расписание). Прогресс-полоска = доля учебного
+       года (1 сен 2026 → дата ЕГЭ), клампится 0..100. -->
+  <script>
+  (function () {
+    var EXAM_Y = 2027, EXAM_M = 5, EXAM_D = 1;   // 1 июня 2027 (месяц 0-индексный: 5=июнь)
+    var MS = 86400000;
+    var exam = new Date(EXAM_Y, EXAM_M, EXAM_D);
+    var now = new Date();
+    var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var days = Math.max(0, Math.round((exam - today) / MS));
+
+    var elDays = document.getElementById('htExamDays');
+    if (elDays) elDays.textContent = days;
+
+    var elWord = document.getElementById('htExamDaysWord');
+    if (elWord) {
+      var a = days % 10, b = days % 100;
+      elWord.textContent = (a === 1 && b !== 11) ? 'день'
+        : (a >= 2 && a <= 4 && (b < 10 || b >= 20)) ? 'дня' : 'дней';
+    }
+
+    var fill = document.getElementById('htExamFill');
+    if (fill) {
+      var start = new Date(2026, 8, 1);   // 1 сентября 2026 — старт учебного года
+      var span = exam - start;
+      var pct = span > 0 ? ((today - start) / span) * 100 : 0;
+      fill.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%';
     }
   })();
   </script>
