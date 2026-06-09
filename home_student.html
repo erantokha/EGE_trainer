@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-09-7">
+  <meta name="app-build" content="2026-06-09-8">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -112,10 +112,10 @@
   })();
   </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-09-7">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-09-7">
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-09-7">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-09-8">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -435,9 +435,9 @@
     </nav>
   </div>
 
-  <script src="./tasks/theme.js?v=2026-06-09-7" defer></script>
-  <script type="module" src="./tasks/home_guard.js?v=2026-06-09-7"></script>
-  <script type="module" src="./tasks/picker.js?v=2026-06-09-7"></script>
+  <script src="./tasks/theme.js?v=2026-06-09-8" defer></script>
+  <script type="module" src="./tasks/home_guard.js?v=2026-06-09-8"></script>
+  <script type="module" src="./tasks/picker.js?v=2026-06-09-8"></script>
   <script>
   /* WSF-student: открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через
      скрытый #menuLogout + навигация. Механика 1-в-1 с home_teacher.html.
@@ -585,7 +585,7 @@
     function isDesktop() { try { return window.matchMedia('(min-width:1025px)').matches; } catch (e) { return false; } }
     function homeUrl() { try { return /\/tasks(\/|$)/.test(location.pathname) ? new URL('../', location.href).toString() : new URL('./', location.href).toString(); } catch (e) { return './'; } }
     function pageKey() { var p = location.pathname; if (/\/home_student\.html$/.test(p)) return 'home_student'; if (/\/home_teacher\.html$/.test(p)) return 'home_teacher'; if (p === '/' || p === '' || /\/index\.html$/.test(p)) return 'root'; var m = p.match(/\/tasks\/([a-z0-9_]+)\.html$/i); return m ? m[1].toLowerCase() : ''; }
-    function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } } catch (e) {} return null; }
+    function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } var lr = (localStorage.getItem('ege_role') || '').trim().toLowerCase(); if (lr) return lr === 'teacher' ? 'teacher' : 'student'; } catch (e) {} return null; }
     function menuStatsRole() { var el = document.getElementById('menuStats'); if (!el) return null; var t = (el.textContent || '').trim(); if (!t) return null; return /ученик/i.test(t) ? 'teacher' : 'student'; }
 
     // 1) Профиль (универсальная страница): роль -> body[data-home-variant] СИНХРОННО (до paint).
