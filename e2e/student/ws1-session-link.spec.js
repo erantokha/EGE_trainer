@@ -57,9 +57,6 @@ test.describe('WS.1 — session links', () => {
     });
     await expect(page.locator('#runner')).toBeVisible({ timeout: 30_000 });
 
-    // Кнопка «Скопировать ссылку» появилась (hidden=false после row-валидации).
-    await expect(page.locator('#copySessionLink')).toBeVisible({ timeout: 10_000 });
-
     // Считываем число вопросов после hydration. trainer.html инициализирует
     // <span id="total">1</span> по умолчанию, после bootSessionMode обновляется.
     // Ждём, пока появится корректное значение (>1 для нашего bulk-pick сценария).
@@ -131,14 +128,11 @@ test.describe('WS.1 — session links', () => {
     });
 
     // runner должен быть видим и содержать сообщение об ошибке (любое из
-    // вариантов showSessionBootError); кнопка #copySessionLink должна
-    // остаться скрытой.
+    // вариантов showSessionBootError).
     const runner = page.locator('#runner');
     await expect(runner).toBeVisible({ timeout: 15_000 });
 
     const errorRe = /(Ссылка недоступна|не предназначена|закрыта владельцем|каталог|Не удалось)/;
     await expect(runner).toContainText(errorRe, { timeout: 15_000 });
-
-    await expect(page.locator('#copySessionLink')).toBeHidden();
   });
 });

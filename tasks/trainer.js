@@ -1,28 +1,28 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-09-10';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-09-10';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-09-11';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-09-11';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-09-10';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-09-10';
+} from '../app/providers/catalog.js?v=2026-06-09-11';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-09-11';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-09-10';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-09-11';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-09-10';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-09-10';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-09-10';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-09-11';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-09-11';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-09-11';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-09-10';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-09-10';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-09-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-09-10';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-09-10';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-09-10';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-09-10';
+import { withBuild } from '../app/build.js?v=2026-06-09-11';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-09-11';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-09-11';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-09-11';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-09-11';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-09-11';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-09-11';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -905,24 +905,6 @@ async function buildQuestionsFromSmartRefs(refs) {
 }
 
 // ---------- WS.1: session-link mode ----------
-function setupCopySessionLinkButton() {
-  const btn = $('#copySessionLink');
-  if (!btn || btn.dataset.wired === '1') return;
-  btn.dataset.wired = '1';
-  btn.hidden = false;
-  const ORIG_LABEL = btn.textContent || 'Скопировать ссылку';
-  btn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(location.href);
-      btn.textContent = 'Скопировано';
-    } catch (e) {
-      console.warn('copy session link failed', e);
-      btn.textContent = 'Не удалось скопировать';
-    }
-    setTimeout(() => { btn.textContent = ORIG_LABEL; }, 1500);
-  });
-}
-
 function showSessionBootError(message) {
   $('#loadingOverlay')?.classList.add('hidden');
   const host = $('#runner') || document.body;
@@ -959,8 +941,6 @@ async function bootSessionMode(token, overlay) {
   if (!row) { showSessionBootError('Ссылка недоступна.'); return; }
   if (row.kind !== 'session') { showSessionBootError('Эта ссылка не предназначена для тренажёра.'); return; }
   if (row.is_active !== true) { showSessionBootError('Ссылка закрыта владельцем.'); return; }
-
-  setupCopySessionLinkButton();
 
   const frozen = Array.isArray(row.frozen_questions) ? row.frozen_questions : [];
   if (!frozen.length) { showSessionBootError('Ссылка пуста.'); return; }

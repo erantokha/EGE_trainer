@@ -5,6 +5,8 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
+import { navigate } from './nav.js?v=2026-06-09-11';
+
 function $(sel, root = document) {
   return root.querySelector(sel);
 }
@@ -383,9 +385,9 @@ function mountHomeButton(right, isHome, authEl, headerEl) {
 
     ensureContent(homeBtn);
 
-    // Клик по кнопке = переход на "дом" (../ или ./)
-    homeBtn.addEventListener('click', () => {
-      location.href = homeHref;
+    // Клик по кнопке = переход на "дом" (../ или ./); Ctrl/Cmd → новая вкладка.
+    homeBtn.addEventListener('click', (e) => {
+      navigate(homeHref, e);
     });
 
     if (container) {
@@ -408,8 +410,7 @@ function mountHomeButton(right, isHome, authEl, headerEl) {
     } else if (homeBtn.dataset.homeWired !== '1') {
       homeBtn.dataset.homeWired = '1';
       homeBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        location.href = homeHref;
+        navigate(homeHref, e);
       });
     }
 

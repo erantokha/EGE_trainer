@@ -1331,9 +1331,9 @@ body[data-home-variant] .ht-burger:hover {
    #userMenuBtn/#userMenu остаются в DOM (header.js: имя для сайдбара, скрытый
    #menuLogout для выхода) — только визуально прячем.
 
-   ВАЖНО: НЕ прячем всю .page-head-right. На страницах с печатью/копией/темой
+   ВАЖНО: НЕ прячем всю .page-head-right. На страницах с печатью/темой
    (trainer/list/hw/unique) там лежат data-header-extra-контролы
-   (#printBtn/#copySessionLink/.theme-toggle) — их надо сохранить. Прячем только
+   (#printBtn/.theme-toggle) — их надо сохранить. Прячем только
    избыточные элементы. !important — потому что на мобилке (≤1024px) base.css
    форсит `header#appHeader.page-head .page-head-right{display:flex}` с ID-специфичностью
    (1,2,1), а #homeBtn («На главную», header.js создаёт при isHome=false на всех

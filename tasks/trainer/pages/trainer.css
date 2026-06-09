@@ -160,8 +160,4 @@ body[data-home-variant] #appHeader .run-meta{
     justify-content: flex-start; align-items: center;
     margin-top: 10px;
   }
-  /* h-scroll fix: #copySessionLink не переполняет (корень 412px на 390px). */
-  body[data-home-variant] #copySessionLink {
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
 }

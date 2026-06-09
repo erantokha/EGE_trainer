@@ -8,19 +8,20 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-09-10';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-09-10';
-import { CONFIG } from '../app/config.js?v=2026-06-09-10';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-09-10';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-09-10';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-09-10';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-09-10';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-09-10';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-09-10';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-09-10';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-09-10';
+import { withBuild } from '../app/build.js?v=2026-06-09-11';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-09-11';
+import { CONFIG } from '../app/config.js?v=2026-06-09-11';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-09-11';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-09-11';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-09-11';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-09-11';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-09-11';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-09-11';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-09-11';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-09-11';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-09-11';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-09-10';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-09-11';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -28,13 +29,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-09-10';
+} from './picker_common.js?v=2026-06-09-11';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-09-10';
+} from './picker_stats.js?v=2026-06-09-11';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1881,17 +1882,14 @@ function initAuthHeader() {
     if (e.key === 'Escape') closeMenu();
   });
 
-  $('#menuProfile')?.addEventListener('click', () => {
+  $('#menuProfile')?.addEventListener('click', (e) => {
     closeMenu();
-    location.href = PAGES_BASE + 'profile.html';
+    navigate(PAGES_BASE + 'profile.html', e);
   });
-  $('#menuStats')?.addEventListener('click', () => {
+  $('#menuStats')?.addEventListener('click', (e) => {
     closeMenu();
-    if (String(CURRENT_ROLE || '').toLowerCase() === 'teacher') {
-      location.href = PAGES_BASE + 'my_students.html';
-    } else {
-      location.href = PAGES_BASE + 'stats.html';
-    }
+    const isTeacher = String(CURRENT_ROLE || '').toLowerCase() === 'teacher';
+    navigate(PAGES_BASE + (isTeacher ? 'my_students.html' : 'stats.html'), e);
   });
   $('#menuLogout')?.addEventListener('click', async () => {
     closeMenu();
@@ -1986,14 +1984,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  $('#start')?.addEventListener('click', async () => {
+  $('#start')?.addEventListener('click', async (e) => {
+    // Ctrl/Cmd → новая вкладка: резервируем её СИНХРОННО (в рамках жеста), т.к.
+    // навигация произойдёт после async-запроса (createSessionLink) и popup-блокировщик
+    // заблокировал бы window.open вне жеста. reservedTab=null → переход в текущей.
+    const reservedTab = reserveTab(e);
     if (IS_STUDENT_PAGE && PICK_MODE === 'smart') {
       if (getTotalSelected() <= 0) {
         const ok = await tryBuildSmartSelection(SMART_N);
-        if (!ok) return;
+        if (!ok) { if (reservedTab) { try { reservedTab.close(); } catch (_) {} } return; }
       }
     }
-    await saveSelectionAndGo();
+    await saveSelectionAndGo(reservedTab);
   });
 });
 
@@ -2597,13 +2599,17 @@ function renderSectionNode(sec) {
   });
 
   const uniqBtn = $('.unique-btn', node);
-  uniqBtn.addEventListener('click', () => {
+  // По умолчанию — в текущей вкладке; Ctrl/Cmd или средний клик — в новой.
+  // Роль для сайдбара берётся из localStorage('ege_role', пишет header.js) — cross-tab.
+  const uniqUrl = (e) => {
+    if (e && e.type === 'auxclick' && e.button !== 1) return null;
     const url = new URL(PAGES_BASE + 'unique.html', location.href);
     url.searchParams.set('section', sec.id);
-    // noopener ок: роль для сайдбара берётся из localStorage('ege_role', пишет header.js) —
-    // cross-tab, переживает noopener (sessionStorage в noopener-вкладку НЕ копируется).
-    window.open(url.toString(), '_blank', 'noopener');
-  });
+    if (e && e.type === 'auxclick') e.preventDefault();
+    return url.toString();
+  };
+  uniqBtn.addEventListener('click', (e) => { const u = uniqUrl(e); if (u) navigate(u, e); });
+  uniqBtn.addEventListener('auxclick', (e) => { const u = uniqUrl(e); if (u) navigate(u, e); });
 
   const num = $('.count', node);
 
@@ -5384,7 +5390,9 @@ function renderAddedTasksPreview(questions, opts = {}) {
 
 
 // ---------- передача выбора в тренажёр / список ----------
-async function saveSelectionAndGo() {
+// reservedTab: окно, заранее открытое в обработчике #start при Ctrl/Cmd (новая
+// вкладка). null → переход в текущей вкладке.
+async function saveSelectionAndGo(reservedTab = null) {
   const mode = IS_STUDENT_PAGE ? 'test' : (CURRENT_MODE || 'list');
 
   if (IS_TEACHER_HOME) {
@@ -5475,7 +5483,9 @@ async function saveSelectionAndGo() {
       if (res?.ok && res.token) {
         const target = new URL(PAGES_BASE + (mode === 'test' ? 'trainer.html' : 'list.html'), location.href);
         target.searchParams.set('session', res.token);
-        location.href = target.toString();
+        // session-link самодостаточен (не зависит от sessionStorage) → можно открыть
+        // в зарезервированной вкладке при Ctrl/Cmd; иначе — в текущей.
+        commitNavigation(target.toString(), reservedTab);
         return;
       }
       console.warn('saveSelectionAndGo: createSessionLink failed, fallback', res?.error);
@@ -5492,15 +5502,12 @@ async function saveSelectionAndGo() {
     console.error('Не удалось сохранить выбор в sessionStorage', e);
   }
 
-  if (mode === 'test') {
-    // режим "Тестирование" открываем в этой же вкладке
-    location.href = new URL(PAGES_BASE + 'trainer.html', location.href).toString();
-  } else {
-    // режим "Список задач" открываем в новой вкладке
-    // важно не указывать "noopener", чтобы новая вкладка получила копию sessionStorage
-    const url = new URL(PAGES_BASE + 'list.html', location.href);
-    window.open(url.toString(), '_blank');
-  }
+  // Legacy-флоу читает выбор из sessionStorage текущей вкладки → его НЕЛЬЗЯ открыть
+  // в новой вкладке (sessionStorage туда не переносится). Поэтому при Ctrl/Cmd
+  // деградируем до текущей вкладки: закрываем зарезервированную и навигируем здесь.
+  if (reservedTab) { try { reservedTab.close(); } catch (_) {} }
+  const target = new URL(PAGES_BASE + (mode === 'test' ? 'trainer.html' : 'list.html'), location.href);
+  location.assign(target.toString());
 }
 
 // ---------- утилиты ----------

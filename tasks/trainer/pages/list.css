@@ -30,7 +30,7 @@ body[data-home-variant] #runner > .panel{
   padding:0;
 }
 
-/* Print-контролы (#printBtn / #copySessionLink / .theme-toggle) живут в
+/* Print-контролы (#printBtn / .theme-toggle) живут в
    .page-head-right (туда их переносит header.js). Общий home-student.css прячет
    только пилюлю/#homeBtn, поэтому контролы видны. На мобилке раскладываем их
    в строку под H1, чтобы не было горизонтального скролла на узком экране. */
@@ -42,11 +42,5 @@ body[data-home-variant] #runner > .panel{
     justify-content: flex-start;
     align-items: center;
     margin-top: 10px;
-  }
-  body[data-home-variant] #copySessionLink {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }

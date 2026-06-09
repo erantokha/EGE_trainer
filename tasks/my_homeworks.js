@@ -6,6 +6,8 @@ const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURICom
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
+import { navigate } from '../app/ui/nav.js?v=2026-06-09-11';
+
 async function api(){
   // ВАЖНО: dynamic import резолвится относительно URL текущего модуля.
   // Поэтому используем абсолютный путь от корня.
@@ -63,21 +65,24 @@ function bindCardOpen(el, href){
   el.setAttribute('role', 'button');
   el.tabIndex = 0;
 
-  const open = () => {
-    try { location.href = href; } catch(_) {}
-  };
-
-  el.addEventListener('click', (e) => {
-    // на всякий случай, если внутри будут кнопки/ссылки
+  // Клик — в текущей вкладке; Ctrl/Cmd или средний клик — в новой (navigate).
+  // Клавиатура (Enter/Space) — всегда в текущей вкладке.
+  const onPointer = (e) => {
+    // не перехватываем клики по интерактивным элементам внутри карточки
     const a = e.target?.closest?.('a,button,input,textarea,select,label');
     if (a) return;
-    open();
-  });
+    if (e.type === 'auxclick' && e.button !== 1) return;
+    if (e.type === 'auxclick') e.preventDefault();
+    navigate(href, e);
+  };
+
+  el.addEventListener('click', onPointer);
+  el.addEventListener('auxclick', onPointer);
 
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      open();
+      navigate(href);
     }
   });
 }

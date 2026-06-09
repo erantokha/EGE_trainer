@@ -104,8 +104,7 @@ function renderItems(listEl, items){
       a.className = 'btn small';
       a.href = hwUrl(token);
       a.textContent = 'Открыть';
-      a.target = '_blank';
-      a.rel = 'noopener';
+      // Нативный анкор: в текущей вкладке по умолчанию, Ctrl/Cmd/средний клик — в новой.
       right.appendChild(a);
     }
 
@@ -219,8 +218,7 @@ function renderItemsAppend(listEl, items){
       a.className = 'btn small';
       a.href = hwUrl(token);
       a.textContent = 'Открыть';
-      a.target = '_blank';
-      a.rel = 'noopener';
+      // Нативный анкор: в текущей вкладке по умолчанию, Ctrl/Cmd/средний клик — в новой.
       right.appendChild(a);
     }
 
