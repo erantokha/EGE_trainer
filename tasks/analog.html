@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-09-3">
+  <meta name="app-build" content="2026-06-09-4">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,18 +45,18 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-09-3"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-09-4"></script>
 
   <script id="sentry-loader"
     src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
     crossorigin="anonymous"></script>
 
   <link rel="icon" href="../favicon.ico">
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-3">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-3">
-  <link rel="stylesheet" href="./trainer/pages/analog.css?v=2026-06-09-3">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-3">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-3">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-4">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-4">
+  <link rel="stylesheet" href="./trainer/pages/analog.css?v=2026-06-09-4">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-4">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-4">
 </head>
 
 <body data-home-variant="student">
@@ -99,7 +99,7 @@
        CSS — общий слой home-student.css (body[data-home-variant]).
        Пункты ученика: Статистика / Мои ДЗ / Профиль.
   ═══════════════════════════════════════════════ -->
-  <div id="htSidebar" class="ht-sidebar" aria-hidden="true" aria-label="Главное меню">
+  <div id="htSidebar" class="ht-sidebar" data-sidebar-role="auto" aria-hidden="true" aria-label="Главное меню">
     <div class="ht-sidebar-overlay" id="htSidebarOverlay"></div>
     <nav class="ht-sidebar-panel">
       <div class="ht-sidebar-head">
@@ -114,25 +114,49 @@
       </div>
       <div class="ht-sidebar-nav">
         <div class="ht-sidebar-caption" aria-hidden="true">Меню</div>
-        <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_student.html" data-match="home_student" data-railtip="Главная">
+        <button type="button" class="ht-sidebar-item" id="htNavHome" data-role="student" data-href="home_student.html" data-match="home_student" data-railtip="Главная">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
           </span>
           <span class="ht-sidebar-label">Главная</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavStats" data-href="tasks/stats.html" data-match="stats" data-railtip="Статистика">
+        <button type="button" class="ht-sidebar-item" id="htNavStats" data-role="student" data-href="tasks/stats.html" data-match="stats" data-railtip="Статистика">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
           </span>
           <span class="ht-sidebar-label">Статистика</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavWorks" data-href="tasks/my_homeworks.html" data-match="my_homeworks" data-railtip="Мои ДЗ">
+        <button type="button" class="ht-sidebar-item" id="htNavWorks" data-role="student" data-href="tasks/my_homeworks.html" data-match="my_homeworks" data-railtip="Мои ДЗ">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
           </span>
           <span class="ht-sidebar-label">Мои ДЗ</span>
         </button>
-        <button type="button" class="ht-sidebar-item" id="htNavProfile" data-href="tasks/profile.html" data-match="profile" data-railtip="Профиль">
+        <button type="button" class="ht-sidebar-item" id="htNavProfile" data-role="student" data-href="tasks/profile.html" data-match="profile" data-railtip="Профиль">
+          <span class="ht-sidebar-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span class="ht-sidebar-label">Профиль</span>
+        </button>
+        <button type="button" class="ht-sidebar-item" data-role="teacher" data-href="home_teacher.html" data-match="home_teacher" data-railtip="Главная">
+          <span class="ht-sidebar-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+          </span>
+          <span class="ht-sidebar-label">Главная</span>
+        </button>
+        <button type="button" class="ht-sidebar-item" data-role="teacher" data-href="tasks/my_students.html" data-match="my_students" data-railtip="Мои ученики">
+          <span class="ht-sidebar-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <span class="ht-sidebar-label">Мои ученики</span>
+        </button>
+        <button type="button" class="ht-sidebar-item" data-role="teacher" data-href="tasks/my_students.html" data-match="" data-railtip="Выданные работы">
+          <span class="ht-sidebar-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+          </span>
+          <span class="ht-sidebar-label">Выданные работы</span>
+        </button>
+        <button type="button" class="ht-sidebar-item" data-role="teacher" data-href="tasks/profile.html" data-match="profile" data-railtip="Профиль">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </span>
@@ -179,9 +203,9 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-09-3" defer></script>
+  <script src="./theme.js?v=2026-06-09-4" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
-  <script type="module" src="./analog.js?v=2026-06-09-3"></script>
+  <script type="module" src="./analog.js?v=2026-06-09-4"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html.
