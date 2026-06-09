@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-    <meta name="app-build" content="2026-06-09-5">
+    <meta name="app-build" content="2026-06-09-7">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,7 +45,7 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-09-5"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-09-7"></script>
 
 
   <script id="sentry-loader"
@@ -124,13 +124,13 @@
 
 
   
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-5">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-5">
-  <link rel="stylesheet" href="./trainer/pages/trainer.css?v=2026-06-09-5">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-5">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-5">
-  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-09-5">
-  <script src="./theme.js?v=2026-06-09-5" defer></script>
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./trainer/pages/trainer.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-7">
+  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-09-7">
+  <script src="./theme.js?v=2026-06-09-7" defer></script>
 
   <script>
     window.MathJax = {
@@ -143,7 +143,7 @@
 <body data-home-variant="student">
   <!-- WD4-фикс: роль из кэша ДО первой отрисовки контента (body уже открыт) → dual-nav сразу
        показывает нужный набор пунктов, без мигания student↔teacher (как в profile.html). -->
-  <script>(function(){try{for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('ege_profile_role:')===0){var v=(sessionStorage.getItem(k)||'').trim().toLowerCase();if(v==='teacher'){document.body.setAttribute('data-home-variant','teacher');}break;}}}catch(e){}})();</script>
+  <script>(function(){try{var r=(localStorage.getItem('ege_role')||'').trim().toLowerCase();if(!r){for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('ege_profile_role:')===0){r=(sessionStorage.getItem(k)||'').trim().toLowerCase();break;}}}if(r==='teacher'){document.body.setAttribute('data-home-variant','teacher');}}catch(e){}})();</script>
   <main class="container">
     <section id="runner">
       <div class="panel">
@@ -363,7 +363,7 @@
     </nav>
   </div>
 
-  <script type="module" src="./trainer.js?v=2026-06-09-5"></script>
+  <script type="module" src="./trainer.js?v=2026-06-09-7"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html.
