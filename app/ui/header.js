@@ -135,7 +135,7 @@ async function fetchProfileRole(supabase, userId) {
   const key = `ege_profile_role:${userId}`;
   try {
     const cached = sessionStorage.getItem(key);
-    if (cached) return cached;
+    if (cached) { try { localStorage.setItem('ege_role', cached); } catch (_) {} return cached; }
   } catch (_) {}
 
   try {
@@ -148,6 +148,10 @@ async function fetchProfileRole(supabase, userId) {
     if (!role) return '';
 
     try { sessionStorage.setItem(key, role); } catch (_) {}
+    // WD4-фикс: дублируем роль в localStorage (cross-tab, переживает noopener) —
+    // чтобы вкладки, открытые через window.open(noopener) (unique.html, hw.html),
+    // знали роль СИНХРОННО до отрисовки сайдбара и не мигали student→teacher.
+    try { localStorage.setItem('ege_role', role); } catch (_) {}
     return role;
   } catch (_) {
     return '';
@@ -165,6 +169,9 @@ function clearProfileCaches() {
       }
     }
   } catch (_) {}
+  // WD4-фикс: cross-tab роль тоже сбрасываем (смена аккаунта на общем компьютере),
+  // чтобы новый пользователь не увидел чужую роль из localStorage до резолва.
+  try { localStorage.removeItem('ege_role'); } catch (_) {}
 }
 
 function getLandingKind() {

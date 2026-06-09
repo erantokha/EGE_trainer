@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-08-28';
+} from './picker_common.js?v=2026-06-09-8';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
@@ -51,6 +51,11 @@ export function setHomeBadge(badgeEl, p, total, correct, title) {
   const hasPct = (p !== null && p !== undefined && Number.isFinite(pv));
   badgeEl.style.setProperty('--pct', hasPct ? String(Math.max(0, Math.min(100, pv))) : '0');
   badgeEl.classList.toggle('no-pct', !hasPct);
+
+  // WD3·в3: «слабая тема» (pct<25) — класс на .node; пилюлю ::after рисует CSS
+  // (только на студенческой главной; teacher получает класс, но без визуала).
+  const node = badgeEl.closest && badgeEl.closest('.node');
+  if (node) node.classList.toggle('weak', hasPct && pv < 25);
 
   const b = badgeEl.querySelector('b');
   if (b) b.textContent = fmtPct(p);

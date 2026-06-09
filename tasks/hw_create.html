@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-08-28">
+  <meta name="app-build" content="2026-06-09-8">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -44,8 +44,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
-  <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')==='1'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-08-28"></script>
+  <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-09-8"></script>
 
 
   <script id="sentry-loader"
@@ -124,16 +124,16 @@
 
 
   
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./trainer/pages/hw-create.css?v=2026-06-08-28">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./trainer/pages/hw-create.css?v=2026-06-09-8">
   <!-- WSF-restyle: учительский каркас (рельс/бургер/eyebrow) — слои как у home_teacher.html.
        Грузятся ПОСЛЕ pages/hw-create.css; print.css остаётся последним. -->
-  <link rel="stylesheet" href="./home_teacher.mobile.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./home_teacher.layout.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-08-28">
-  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-08-28">
+  <link rel="stylesheet" href="./home_teacher.mobile.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./home_teacher.layout.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-8">
+  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-09-8">
 </head>
 <body data-home-variant="teacher">
   <main class="container">
@@ -275,16 +275,17 @@
     <div class="ht-sidebar-overlay" id="htSidebarOverlay"></div>
     <nav class="ht-sidebar-panel">
       <div class="ht-sidebar-head">
-        <button type="button" class="ht-burger ht-sidebar-close" id="htSidebarClose" aria-label="Закрыть меню">
-          <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
-            <rect width="18" height="2" rx="1" fill="currentColor"/>
-            <rect y="6" width="18" height="2" rx="1" fill="currentColor"/>
-            <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
-          </svg>
+        <button type="button" id="htSidebarClose" class="ht-sidebar-logo" aria-label="Свернуть или развернуть меню">
+          <span class="ht-logo-icon ht-logo-check" aria-hidden="true">Е</span>
+          <svg class="ht-logo-icon ht-logo-burger" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
         </button>
-        <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
+        <span class="ht-sidebar-brand">
+          <span class="ht-sidebar-title">ЕГЭ-тренажёр</span>
+          <span class="ht-sidebar-subtitle">профильная математика</span>
+        </span>
       </div>
       <div class="ht-sidebar-nav">
+        <div class="ht-sidebar-caption" aria-hidden="true">Меню</div>
         <button type="button" class="ht-sidebar-item" id="htNavHome" data-href="home_teacher.html" data-match="home_teacher" data-railtip="Главная">
           <span class="ht-sidebar-icon" aria-hidden="true">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5 12 3l9 6.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
@@ -309,6 +310,22 @@
           </span>
           <span class="ht-sidebar-label">Профиль</span>
         </button>
+        <!-- WD3: карточка «До ЕГЭ» — отсчёт до экзамена (на всех страницах). -->
+        <div class="ht-sidebar-exam" id="htSidebarExam" aria-hidden="true">
+          <div class="ht-exam-head">
+            <span class="ht-exam-cap">До ЕГЭ</span>
+            <span class="ht-exam-date" id="htExamDate">1 июня</span>
+          </div>
+          <div class="ht-exam-num"><b id="htExamDays">—</b> <span id="htExamDaysWord">дней</span></div>
+          <div class="ht-exam-bar" aria-hidden="true"><i id="htExamFill"></i></div>
+        </div>
+        <script>/* exam-countdown */(function(){
+          var exam=new Date(2027,5,1),n=new Date(),today=new Date(n.getFullYear(),n.getMonth(),n.getDate());
+          var days=Math.max(0,Math.round((exam-today)/86400000));
+          var d=document.getElementById('htExamDays');if(d)d.textContent=days;
+          var w=document.getElementById('htExamDaysWord');if(w){var a=days%10,b=days%100;w.textContent=(a===1&&b!==11)?'день':((a>=2&&a<=4&&(b<10||b>=20))?'дня':'дней');}
+          var f=document.getElementById('htExamFill');if(f){var s=new Date(2026,8,1),sp=exam-s,p=sp>0?((today-s)/sp)*100:0;f.style.width=Math.max(0,Math.min(100,p)).toFixed(1)+'%';}
+        })();</script>
       </div>
       <div class="ht-sidebar-foot">
         <button type="button" class="ht-sidebar-user-btn" id="htSidebarUserBtn">
@@ -334,8 +351,8 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-08-28" defer></script>
-  <script type="module" src="./hw_create.js?v=2026-06-08-28"></script>
+  <script src="./theme.js?v=2026-06-09-8" defer></script>
+  <script type="module" src="./hw_create.js?v=2026-06-09-8"></script>
   <script>
   /* WSF-restyle: открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход
      через скрытый #menuLogout + навигация. 1-в-1 из home_teacher.html (учитель). */
@@ -444,7 +461,7 @@
     function isDesktop() { try { return window.matchMedia('(min-width:1025px)').matches; } catch (e) { return false; } }
     function homeUrl() { try { return /\/tasks(\/|$)/.test(location.pathname) ? new URL('../', location.href).toString() : new URL('./', location.href).toString(); } catch (e) { return './'; } }
     function pageKey() { var p = location.pathname; if (/\/home_student\.html$/.test(p)) return 'home_student'; if (/\/home_teacher\.html$/.test(p)) return 'home_teacher'; if (p === '/' || p === '' || /\/index\.html$/.test(p)) return 'root'; var m = p.match(/\/tasks\/([a-z0-9_]+)\.html$/i); return m ? m[1].toLowerCase() : ''; }
-    function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } } catch (e) {} return null; }
+    function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } var lr = (localStorage.getItem('ege_role') || '').trim().toLowerCase(); if (lr) return lr === 'teacher' ? 'teacher' : 'student'; } catch (e) {} return null; }
     function menuStatsRole() { var el = document.getElementById('menuStats'); if (!el) return null; var t = (el.textContent || '').trim(); if (!t) return null; return /ученик/i.test(t) ? 'teacher' : 'student'; }
 
     // 1) Профиль (универсальная страница): роль -> body[data-home-variant] СИНХРОННО (до paint).
@@ -455,7 +472,7 @@
     //    (head-скрипт, до первой отрисовки) — здесь синхронизируем «настоящие» классы для логики
     //    тоггла/клиренса, без визуальных изменений (значения те же) → без transition.
     try {
-      if (isDesktop() && localStorage.getItem('ege_sidebar_open') === '1') {
+      if (isDesktop() && localStorage.getItem('ege_sidebar_open') !== '0') {
         sb.classList.add('open'); document.body.classList.add('ht-sidebar-open');
         docEl.classList.add('ht-rail-open');
       }

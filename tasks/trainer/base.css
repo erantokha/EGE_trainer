@@ -1405,6 +1405,12 @@ input:focus:not(:focus-visible){
   .print-btn { padding:6px 8px; }
 }
 
+/* WD4-фикс: кнопку «Печать» показываем только на десктопе (≥1025px) —
+   на мобилке/планшете скрываем целиком (ученик и учитель, все task-страницы). */
+@media (max-width:1024px) {
+  .print-btn { display:none !important; }
+}
+
 
 /* ── Диалог настроек печати ─────────────────────────────────────────────── */
 .print-dialog-overlay {
