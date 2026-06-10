@@ -7,7 +7,7 @@
 // ДО первого auth-требующего чтения; genuine-anon → redirect на auth.html?next=<current_url> (WHF1/WS.1).
 //
 // ВАЖНО: auth-ядро (supabase.js/supabase-rest.js) НЕ меняем — только используем его публичный API.
-import { getSession, finalizeOAuthRedirect } from '../providers/supabase.js?v=2026-06-11-2-032307';
+import { getSession, finalizeOAuthRedirect } from '../providers/supabase.js?v=2026-06-11-3-035405';
 
 /**
  * Поднять сессию перед authenticated-чтениями. Возвращает session | null.
