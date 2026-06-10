@@ -146,12 +146,27 @@
     summary.id = 'ege-diag-summary';
     summary.style.cssText = 'opacity:.92;margin:0 0 12px 0;white-space:pre-wrap;';
 
+    // W-pre-prod: технический дамп (diag_id/build/UA/raw) спрятан под «Подробности» —
+    // на первом экране пользователь видит только человеческий текст.
     var pre = document.createElement('pre');
     pre.id = 'ege-diag-details';
     pre.style.cssText =
       'white-space:pre-wrap;word-break:break-word;' +
       'border:1px solid #eee;border-radius:12px;background:#fafafa;' +
-      'padding:12px;margin:0;line-height:1.35;font-size:12.5px;';
+      'padding:12px;margin:8px 0 0 0;line-height:1.35;font-size:12.5px;display:none;';
+
+    var detailsToggle = document.createElement('button');
+    detailsToggle.type = 'button';
+    detailsToggle.id = 'ege-diag-details-toggle';
+    detailsToggle.textContent = 'Подробности';
+    detailsToggle.style.cssText =
+      'background:none;border:none;padding:0;margin:0;color:#2563eb;cursor:pointer;' +
+      'font-size:13px;text-decoration:underline;';
+    detailsToggle.onclick = function () {
+      var open = pre.style.display !== 'none';
+      pre.style.display = open ? 'none' : 'block';
+      detailsToggle.textContent = open ? 'Подробности' : 'Скрыть подробности';
+    };
 
     var btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;';
@@ -207,6 +222,7 @@
 
     wrap.appendChild(title);
     wrap.appendChild(summary);
+    wrap.appendChild(detailsToggle);
     wrap.appendChild(pre);
     wrap.appendChild(btnRow);
     wrap.appendChild(hints);

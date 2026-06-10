@@ -7,7 +7,7 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-2-022917';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-2-032307';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -145,8 +145,10 @@ function parseDate(value) {
   return null;
 }
 
-function miniBadge(label, valueText, p) {
-  const b = el('div', { class: `stat-mini ${clsByPct(p)}` });
+function miniBadge(label, valueText, p, tooltip) {
+  const attrs = { class: `stat-mini ${clsByPct(p)}` };
+  if (tooltip) attrs.title = tooltip;
+  const b = el('div', attrs);
   b.appendChild(el('div', { class: 'stat-mini-label', text: label }));
   b.appendChild(el('div', { class: 'stat-mini-value', text: valueText }));
   return b;
@@ -322,6 +324,11 @@ function renderStudents(list, ctx = {}) {
   if (!wrap) return;
   wrap.innerHTML = '';
 
+  // Заголовок «Подтверждённые ученики» показываем, только когда есть accepted-ученики
+  // (W-pre-prod consent: визуальное разделение с блоком pending).
+  const head = $('#acceptedHead');
+  if (head) head.hidden = !(Array.isArray(__studentsRaw) && __studentsRaw.length > 0);
+
   if (!Array.isArray(list) || list.length === 0) {
     // Различаем «учеников реально нет» и «активный поиск/фильтр ничего не нашёл» —
     // иначе ввод email в поле поиска выглядит как пропажа всех учеников.
@@ -412,14 +419,16 @@ function renderStudents(list, ctx = {}) {
     const l10t = safeInt(sum?.last10_total, 0);
     const l10c = safeInt(sum?.last10_correct, 0);
     const pForm = pct(l10t, l10c);
-    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · ${l10c}/${l10t}` : '—';
-    metrics.appendChild(miniBadge('Форма (10)', formText, pForm));
+    const formText = (l10t > 0) ? `${pForm === null ? '—' : (pForm + '%')} · верно ${l10c} из ${l10t}` : '—';
+    metrics.appendChild(miniBadge('Результаты (10 попыток)', formText, pForm,
+      'Доля верных ответов за последние 10 попыток ученика'));
 
     const covered = safeInt(sum?.covered_topics_all_time, 0);
     const total = safeInt(__totalTopics, 0);
     const pCov = (total > 0) ? Math.round((covered / total) * 100) : null;
-    const covText = (total > 0) ? `${pCov}% · ${covered}/${total}` : (covered ? String(covered) : '—');
-    metrics.appendChild(miniBadge('Покрытие', covText, pCov));
+    const covText = (total > 0) ? `${pCov}% · ${covered} из ${total}` : (covered ? String(covered) : '—');
+    metrics.appendChild(miniBadge('Покрытие тем', covText, pCov,
+      'Сколько тем ученик уже затрагивал хотя бы раз'));
     card.appendChild(titlebar);
     card.appendChild(metaEl);
     card.appendChild(metrics);
@@ -540,29 +549,51 @@ function humanAddError(e) {
   const raw = [e?.details?.message, e?.details?.hint, e?.details?.details, e?.details, e?.message]
     .map((x) => (typeof x === 'string' ? x : JSON.stringify(x ?? '')))
     .join(' ');
+  if (/REQUEST_ALREADY_PENDING/i.test(raw)) {
+    return 'Запрос уже отправлен. Ученик должен подтвердить его в своём кабинете.';
+  }
+  if (/ALREADY_LINKED/i.test(raw)) return 'Этот ученик уже добавлен.';
   if (/STUDENT_NOT_FOUND/i.test(raw)) {
     return 'Ученик с таким email пока не зарегистрирован. Проверьте email или отправьте ученику ссылку на регистрацию.';
   }
   if (/INVALID_EMAIL|EMAIL_REQUIRED/i.test(raw)) return 'Введите корректный email ученика.';
-  if (/CANNOT_ADD_SELF/i.test(raw)) return 'Нельзя добавить самого себя.';
-  if (/TEACHER_NOT_ALLOWED/i.test(raw)) return 'Добавлять учеников может только преподаватель.';
-  if (/already|duplicate|exists|unique/i.test(raw)) return 'Этот ученик уже есть в вашем списке.';
+  if (/CANNOT_ADD_SELF/i.test(raw)) return 'Нельзя пригласить самого себя.';
+  if (/TEACHER_NOT_ALLOWED/i.test(raw)) return 'Приглашать учеников может только преподаватель.';
+  if (/already|duplicate|exists|unique/i.test(raw)) return 'Этот ученик уже добавлен.';
   if (e?.status === 0 || /NETWORK|Failed to fetch/i.test(raw)) {
     return 'Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.';
   }
-  return 'Не удалось отправить приглашение. Попробуйте ещё раз через несколько секунд.';
+  return 'Не удалось отправить запрос. Попробуйте ещё раз через несколько секунд.';
 }
 
-async function addStudent(supaRest, email) {
+function isMissingRpc(e) {
+  const m = (String(e?.message || '') + ' ' + JSON.stringify(e?.details ?? '')).toLowerCase();
+  return e?.status === 404 || m.includes('pgrst202') || m.includes('could not find the function') || m.includes('not found');
+}
+
+/* W-pre-prod consent: приглашение ученика = pending-запрос (teacher_invite_student),
+   а не мгновенная привязка. Фолбэк на legacy add_student_by_email, если новый RPC
+   ещё не задеплоен (на старом проде add_student_by_email уже сам создаёт pending). */
+async function inviteStudent(supaRest, email) {
   const addStatus = $('#addStatus');
-  setStatus(addStatus, 'Добавляем...', { sticky: true });
+  setStatus(addStatus, 'Отправляем запрос...', { sticky: true });
 
   try {
-    await supaRest.rpc('add_student_by_email', { p_email: email }, { timeoutMs: 15000 });
-    setStatus(addStatus, 'Готово');
+    try {
+      await supaRest.rpc('teacher_invite_student', { p_email: email }, { timeoutMs: 15000 });
+    } catch (e) {
+      if (isMissingRpc(e)) {
+        // сервер ещё без consent-RPC → legacy путь (создаёт pending в обновлённом
+        // add_student_by_email; на совсем старом проде — авто-привязка)
+        await supaRest.rpc('add_student_by_email', { p_email: email }, { timeoutMs: 15000 });
+      } else {
+        throw e;
+      }
+    }
+    setStatus(addStatus, 'Запрос отправлен. Ученик должен подтвердить связь в своём кабинете.', { sticky: true });
     return true;
   } catch (e) {
-    console.warn('add_student_by_email error', e);
+    console.warn('invite student error', e);
     if (isAuthRequired(e)) {
       setStatus(addStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
     } else if (isTimeout(e)) {
@@ -571,6 +602,47 @@ async function addStudent(supaRest, email) {
       setStatus(addStatus, humanAddError(e), { sticky: false });
     }
     return false;
+  }
+}
+
+/* Исходящие pending-заявки преподавателя. RPC отсутствует (старый прод) → блок скрыт. */
+async function loadPendingRequests(supaRest) {
+  const block = $('#pendingBlock');
+  const list = $('#pendingList');
+  if (!block || !list) return;
+  try {
+    const rows = await supaRest.rpc('list_my_student_requests', {}, { timeoutMs: 15000 });
+    const items = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+    if (!items.length) { block.hidden = true; list.innerHTML = ''; return; }
+
+    list.innerHTML = '';
+    for (const r of items) {
+      const card = el('div', { class: 'panel pending-card', style: 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin-top:8px;flex-wrap:wrap' });
+      const left = el('div', {});
+      left.appendChild(el('div', { style: 'font-weight:600', text: String(r.student_email || '') }));
+      left.appendChild(el('div', { class: 'muted', style: 'font-size:12.5px;margin-top:2px',
+        text: `Ожидает подтверждения · отправлено ${fmtDateTime(r.requested_at)}` }));
+      const cancel = el('button', { class: 'btn small', type: 'button', text: 'Отменить запрос' });
+      cancel.addEventListener('click', async () => {
+        cancel.disabled = true;
+        try {
+          await supaRest.rpc('cancel_student_request', { p_request_id: String(r.request_id || '') }, { timeoutMs: 15000 });
+          await loadPendingRequests(supaRest);
+        } catch (e) {
+          console.warn('cancel request error', e);
+          setStatus($('#addStatus'), 'Не удалось отменить запрос. Попробуйте ещё раз.');
+          cancel.disabled = false;
+        }
+      });
+      card.appendChild(left);
+      card.appendChild(cancel);
+      list.appendChild(card);
+    }
+    block.hidden = false;
+  } catch (e) {
+    // нет RPC (старый прод) или ошибка — просто не показываем блок
+    block.hidden = true;
+    list.innerHTML = '';
   }
 }
 
@@ -670,6 +742,8 @@ async function main() {
     __currentSource = source;
 
     await loadStudents(supaRest, { days, source });
+    // W-pre-prod consent: исходящие pending-заявки (блок «Ожидают подтверждения»)
+    await loadPendingRequests(supaRest);
 
     // Поиск (локальный фильтр) + проверка доступности "Добавить"
     searchInput?.addEventListener('input', () => {
@@ -719,11 +793,13 @@ async function main() {
           return;
         }
 
-        const ok = await addStudent(supaRest, email);
+        const ok = await inviteStudent(supaRest, email);
         if (ok) {
-          // Перезагрузить список и очистить поле
-          await loadStudents(supaRest, { days: __currentDays, source: __currentSource });
+          // приглашение отправлено → обновляем pending, очищаем поле.
+          // Список accepted-учеников НЕ должен пополниться (ученик ещё не подтвердил).
           if (searchInput) searchInput.value = '';
+          await loadPendingRequests(supaRest);
+          await loadStudents(supaRest, { days: __currentDays, source: __currentSource });
           applyFiltersAndRender();
         }
       } finally {

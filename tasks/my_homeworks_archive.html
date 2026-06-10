@@ -2,8 +2,8 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-11-2-022917">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
+  <meta name="app-build" content="2026-06-11-2-032307">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,27 +45,58 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-11-2-022917"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-11-2-032307"></script>
 
 
-  <script id="sentry-loader" src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js" crossorigin="anonymous"></script>
-  <script>
-    // Ensure Sentry is loaded before any other scripts
-    window.Sentry && window.Sentry.init({
-      dsn: "https://931c8cc8254b6dcb3de991c6c9844397@o4510787636137984.ingest.sentry.io/4510787640688640",
-      integrations: [
-        window.Sentry.browserTracingIntegration(),
-      ],
-      tracesSampleRate: 0.2,
-      release: document.querySelector('meta[name="app-build"]')?.content || 'dev'
-    });
-  </script>
+  <script id="sentry-loader"
+  src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
+  crossorigin="anonymous"></script>
+<script>
+// W-pre-prod: канонический onLoad-init (как на home_teacher.html). Старый синхронный
+// init не срабатывал (loader async → window.Sentry ещё нет) и падал на browserTracingIntegration.
+(function () {
+  if (window.__SENTRY_INITED__) return;
+  window.__SENTRY_INITED__ = true;
+  function getRelease() {
+    var m = document.querySelector('meta[name="app-build"]');
+    return (m && m.getAttribute('content')) ? m.getAttribute('content') : 'unknown';
+  }
+  function getEnv() { return (location.hostname === 'ege-trainer.ru') ? 'production' : 'staging'; }
+  function sanitizeEvent(event) {
+    try {
+      if (event && event.request && event.request.url) {
+        event.request.url = event.request.url.split('#')[0].split('?')[0];
+      }
+      if (event && event.request && event.request.headers) {
+        delete event.request.headers.Authorization;
+        delete event.request.headers.authorization;
+        delete event.request.headers.Cookie;
+        delete event.request.headers.cookie;
+      }
+    } catch (e) {}
+    return event;
+  }
+  function doInit() {
+    if (!window.Sentry || !window.Sentry.init) return;
+    var opts = {
+      release: getRelease(), environment: getEnv(),
+      initialScope: { tags: { page: location.pathname } },
+      beforeSend: sanitizeEvent
+    };
+    try {
+      if (window.Sentry.onLoad) { window.Sentry.onLoad(function () { window.Sentry.init(opts); }); return; }
+    } catch (e) {}
+    window.Sentry.init(opts);
+  }
+  doInit();
+})();
+</script>
 
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-11-2-022917">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-11-2-022917">
-  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-11-2-022917">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-11-2-022917">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-11-2-022917">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-11-2-032307">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-11-2-032307">
+  <link rel="stylesheet" href="./trainer/pages/my-homeworks.css?v=2026-06-11-2-032307">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-11-2-032307">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-11-2-032307">
 </head>
 <body data-home-variant="student">
   <main class="container">
@@ -189,8 +220,8 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-11-2-022917" defer></script>
-  <script type="module" src="./my_homeworks_archive.js?v=2026-06-11-2-022917"></script>
+  <script src="./theme.js?v=2026-06-11-2-032307" defer></script>
+  <script type="module" src="./my_homeworks_archive.js?v=2026-06-11-2-032307"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html / stats.html.

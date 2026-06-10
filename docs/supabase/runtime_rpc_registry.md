@@ -24,10 +24,16 @@
 
 ## Итог (актуально на 2026-05-13)
 
-- Всего активных runtime-RPC в реестре: `34`
-- `standalone_sql`: `34`
+- Всего активных runtime-RPC в реестре: `41`
+- `standalone_sql`: `41`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
+
+Pre-prod consent-волна (2026-06-11): добавлены 7 RPC consent-модели «учитель↔ученик»
+(`docs/supabase/teacher_student_consent_v1.sql`): `teacher_invite_student`,
+`list_my_student_requests`, `cancel_student_request`, `list_incoming_teacher_requests`,
+`respond_teacher_request`, `list_my_teachers`, `revoke_my_teacher`. `add_student_by_email`
+переопределён как тонкий wrapper (pending-запрос, без авто-привязки).
 
 Stage 8 cleanup (2026-04-01): удалены из runtime 4 deprecated RPC:
 - `teacher_picking_screen_v1` → superseded by `teacher_picking_screen_v2`
@@ -79,6 +85,13 @@ Teacher-picking `v2` rollout отражён в реестре:
 | `teacher_students_summary` | `-` | `tasks/my_students.js` | `docs/supabase/teacher_students_summary.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher list-level aggregate по связанным ученикам. |
 | `add_student_by_email` | `-` | `tasks/my_students.js` | `docs/supabase/add_student_by_email.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Проверяет teacher whitelist, ищет `auth.users` по email и идемпотентно создаёт link в `teacher_students`. |
 | `remove_student` | `-` | `tasks/my_students.js`, `tasks/student.js` | `docs/supabase/remove_student.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Удаляет связь teacher-student после проверки teacher whitelist. |
+| `teacher_invite_student` | `-` | `tasks/my_students.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Преподаватель отправляет pending-запрос ученику по email (без авто-привязки). Валидации teacher whitelist / email / self / already-linked / already-pending. |
+| `list_my_student_requests` | `-` | `tasks/my_students.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Исходящие pending-заявки преподавателя (email/статус/дата, без ФИО/статистики ученика). |
+| `cancel_student_request` | `-` | `tasks/my_students.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Преподаватель отменяет свою pending-заявку. |
+| `list_incoming_teacher_requests` | `-` | `tasks/profile.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Входящие pending-заявки ученика (по student_id или email из JWT). |
+| `respond_teacher_request` | `-` | `tasks/profile.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Ученик подтверждает (промоут в teacher_students) или отклоняет заявку. |
+| `list_my_teachers` | `-` | `tasks/profile.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Accepted-преподаватели ученика для блока «Мои преподаватели». |
+| `revoke_my_teacher` | `-` | `tasks/profile.js` via `app/providers/homework.js` | `docs/supabase/teacher_student_consent_v1.sql` | `teacher-directory` | `standalone_sql` | Pre-prod consent (2026-06-11). Ученик отключает доступ преподавателю (удаляет строку teacher_students → доступ исчезает во всех teacher-RPC). |
 | `list_student_attempts` | `-` | `tasks/student.js` | `docs/supabase/list_student_attempts.sql` | `teacher-directory` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает завершённые homework attempts только по привязанному ученику и homework owner текущего teacher. |
 
 ## Catalog Runtime

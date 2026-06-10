@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-06-11-2-022917';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-11-2-022917';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-11-2-022917';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-2-022917';
+import { CONFIG } from '../app/config.js?v=2026-06-11-2-032307';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-11-2-032307';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-11-2-032307';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-2-032307';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-11-2-022917';
+} from '../app/providers/catalog.js?v=2026-06-11-2-032307';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-06-11-2-022917';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-2-022917';
+} from '../app/core/pick.js?v=2026-06-11-2-032307';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-2-032307';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-11-2-022917';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-11-2-032307';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -1737,8 +1737,77 @@ function ensureMathJaxLoaded() {
 
 
 // ---------- init ----------
+/* W-pre-prod: role-gate. Конструктор ДЗ — только для преподавателя.
+   - аноним → редирект на вход (?next=сюда);
+   - ученик → «Доступно только преподавателю» + кнопка на свою главную, конструктор скрыт;
+   - учитель → доступ.
+   Это UX-слой; реальная защита данных — серверная (RLS/owner-check у RPC). */
+async function enforceTeacherGate() {
+  const main = document.querySelector('main.container');
+  let session = null;
+  try { session = await getSession({ timeoutMs: 1500 }); } catch (_) { session = null; }
+
+  if (!session?.user?.id) {
+    // аноним → на вход с возвратом
+    try { location.replace(buildAuthLoginUrl(location.href)); } catch (_) { location.href = buildAuthLoginUrl(location.href); }
+    return false;
+  }
+
+  let role = '';
+  try {
+    const rMod = await import('../app/providers/supabase-rest.js?v=2026-06-11-2-032307');
+    const rows = await rMod.supaRest.select('profiles', { select: 'role', id: `eq.${session.user.id}` }, { timeoutMs: 12000 });
+    role = String(rows?.[0]?.role || '').trim().toLowerCase();
+  } catch (_) {
+    // роль не удалось получить — НЕ дефолтим в ученика и НЕ открываем конструктор:
+    // показываем человеческий экран с «Повторить» и «Выйти».
+    if (main) {
+      main.innerHTML = '<section style="max-width:560px;margin:48px auto;padding:0 16px;text-align:center">'
+        + '<h1 style="font-size:20px">Не удалось загрузить профиль</h1>'
+        + '<p class="muted" style="margin-top:8px">Попробуйте ещё раз.</p>'
+        + '<div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">'
+        + '<button id="gateRetry" class="btn primary" type="button">Повторить</button>'
+        + '<button id="gateLogout" class="btn" type="button">Выйти</button>'
+        + '</div></section>';
+      document.getElementById('gateRetry')?.addEventListener('click', () => location.reload());
+      document.getElementById('gateLogout')?.addEventListener('click', () => {
+        Promise.resolve(signOut()).catch(() => {}).finally(() => {
+          try { location.href = buildAuthLoginUrl(computeHomeUrl()); } catch (_) { location.reload(); }
+        });
+      });
+    }
+    return false;
+  }
+
+  if (role !== 'teacher') {
+    // ученик/иная роль → отказ. Сайдбар (учительский) убираем целиком, чтобы не
+    // показывать чужое меню; контент центрируем без рельса.
+    const sb = document.getElementById('htSidebar');
+    if (sb) sb.remove();
+    const burger = document.getElementById('htSidebarOpen');
+    if (burger) burger.remove();
+    document.body.removeAttribute('data-home-variant');
+    if (main) {
+      const home = computeHomeUrl();
+      main.innerHTML = '<section style="max-width:560px;margin:48px auto;padding:0 16px;text-align:center">'
+        + '<h1 style="font-size:20px">Доступно только преподавателю</h1>'
+        + '<p class="muted" style="margin-top:8px">Эта страница — конструктор домашних заданий для преподавателей.</p>'
+        + `<a class="btn primary" href="${home}" style="margin-top:14px;display:inline-block">На главную</a>`
+        + '</section>';
+    }
+    return false;
+  }
+
+  return true;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // wireAuthControls(); // перенесено в общий хедер
+
+  // W-pre-prod: гейт роли до инициализации конструктора
+  const allowed = await enforceTeacherGate();
+  if (!allowed) return;
+
   initEditableFields();
   wireLinkControls();
 

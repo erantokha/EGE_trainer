@@ -3,13 +3,13 @@
 // WSA-1a: prototype-aware статусы (охват прототипов × качество × рекомендация)
 // вместо наивной окраски по проценту окна. См. WSA_PLAN.md.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-2-022917';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-2-032307';
 import {
   subtopicStatus,
   themeStatus,
   overallCoverage,
   rankTrainingTargets,
-} from './wsa_status.js?v=2026-06-11-2-022917';
+} from './wsa_status.js?v=2026-06-11-2-032307';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -134,11 +134,11 @@ function renderOverall(root, dash, opts = {}) {
 
   // Карточка покрытия — прото-охват по всему экрану (WSA-1a §5.5).
   const covAll = overallCoverage(dash);
-  const coverageCard = el('div', { class: 'stat-card' }, [
-    el('div', { class: 't', text: 'Покрытие' }),
+  const coverageCard = el('div', { class: 'stat-card', title: 'Сколько разных типов задач вы уже встречали' }, [
+    el('div', { class: 't', text: 'Покрытие тем' }),
     el('div', { class: 'v' }, [
       el('div', { class: 'pct', text: covAll.total > 0 ? `${covAll.opened}/${covAll.total}` : '—' }),
-      el('div', { class: 'cnt', text: 'Открыто прототипов' }),
+      el('div', { class: 'cnt', text: 'типов задач' }),
     ]),
   ]);
 

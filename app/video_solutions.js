@@ -169,7 +169,8 @@ function mkModalBtn(url, protoId) {
   b.textContent = 'Видео-решение';
   b.dataset.videoUrl = url;
   b.dataset.videoProto = normProtoId(protoId);
-  b.dataset.videoTitle = `Прототип ${normProtoId(protoId)}`;
+  // W-pre-prod: человеческий заголовок модалки вместо внутреннего id «Прототип 4.1.1.1.17».
+  b.dataset.videoTitle = 'Видео-разбор задачи';
   return b;
 }
 

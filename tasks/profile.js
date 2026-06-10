@@ -380,6 +380,113 @@ async function saveProfile(supabase, payload) {
   if (error) throw error;
 }
 
+/* ── W-pre-prod consent: входящие запросы преподавателей + «Мои преподаватели» ── */
+function ce(tag, attrs = {}, children = []) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') el.className = String(v);
+    else if (k === 'text') el.textContent = String(v);
+    else el.setAttribute(k, String(v));
+  }
+  for (const ch of children) el.appendChild(ch);
+  return el;
+}
+
+function teacherDisplay(name, email) {
+  const n = String(name || '').trim();
+  const e = String(email || '').trim();
+  return n ? `${n}${e ? ` (${e})` : ''}` : (e || 'Преподаватель');
+}
+
+async function renderConsentBlocks() {
+  const rMod = await import(withV('../app/providers/supabase-rest.js'));
+  const supaRest = rMod.supaRest;
+
+  await renderIncomingRequests(supaRest);
+  await renderMyTeachers(supaRest);
+}
+
+async function renderIncomingRequests(supaRest) {
+  const card = $('#teacherRequestsCard');
+  const list = $('#teacherRequestsList');
+  if (!card || !list) return;
+  let rows = [];
+  try {
+    const r = await supaRest.rpc('list_incoming_teacher_requests', {}, { timeoutMs: 15000 });
+    rows = Array.isArray(r) ? r : (r ? [r] : []);
+  } catch (_) { card.hidden = true; return; }
+
+  if (!rows.length) { card.hidden = true; list.innerHTML = ''; return; }
+
+  list.innerHTML = '';
+  for (const r of rows) {
+    const item = ce('div', { class: 'panel consent-card', style: 'padding:12px 14px;margin-top:8px' });
+    item.appendChild(ce('div', { style: 'font-weight:600', text: teacherDisplay(r.teacher_name, r.teacher_email) }));
+    item.appendChild(ce('div', { class: 'muted', style: 'font-size:13px;margin-top:4px',
+      text: 'После подтверждения преподаватель сможет видеть вашу статистику, выполненные задания, ответы, ошибки и прогресс по темам.' }));
+    const actions = ce('div', { style: 'display:flex;gap:8px;margin-top:10px;flex-wrap:wrap' });
+    const ok = ce('button', { class: 'btn primary small', type: 'button', text: 'Подтвердить' });
+    const no = ce('button', { class: 'btn small', type: 'button', text: 'Отклонить' });
+    ok.addEventListener('click', () => respondRequest(supaRest, r.request_id, true));
+    no.addEventListener('click', () => respondRequest(supaRest, r.request_id, false));
+    actions.appendChild(ok);
+    actions.appendChild(no);
+    item.appendChild(actions);
+    list.appendChild(item);
+  }
+  card.hidden = false;
+}
+
+async function respondRequest(supaRest, requestId, accept) {
+  try {
+    await supaRest.rpc('respond_teacher_request', { p_request_id: String(requestId || ''), p_accept: !!accept }, { timeoutMs: 15000 });
+    setStatus(accept
+      ? 'Преподаватель добавлен. Теперь он может видеть вашу статистику и домашние задания.'
+      : 'Запрос отклонён.');
+    await renderIncomingRequests(supaRest);
+    await renderMyTeachers(supaRest);
+  } catch (e) {
+    console.warn('respond request error', e);
+    setStatus('Не удалось обработать запрос. Попробуйте ещё раз.', true);
+  }
+}
+
+async function renderMyTeachers(supaRest) {
+  const card = $('#myTeachersCard');
+  const list = $('#myTeachersList');
+  if (!card || !list) return;
+  let rows = [];
+  try {
+    const r = await supaRest.rpc('list_my_teachers', {}, { timeoutMs: 15000 });
+    rows = Array.isArray(r) ? r : (r ? [r] : []);
+  } catch (_) { card.hidden = true; return; }
+
+  if (!rows.length) { card.hidden = true; list.innerHTML = ''; return; }
+
+  list.innerHTML = '';
+  for (const r of rows) {
+    const item = ce('div', { class: 'panel consent-card', style: 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin-top:8px;flex-wrap:wrap' });
+    item.appendChild(ce('div', { style: 'font-weight:600', text: teacherDisplay(r.teacher_name, r.teacher_email) }));
+    const off = ce('button', { class: 'btn small', type: 'button', text: 'Отключить доступ' });
+    off.addEventListener('click', async () => {
+      if (!confirm('Отключить доступ преподавателю? Он больше не сможет видеть вашу статистику и домашние задания.')) return;
+      off.disabled = true;
+      try {
+        await supaRest.rpc('revoke_my_teacher', { p_teacher_id: String(r.teacher_id || '') }, { timeoutMs: 15000 });
+        setStatus('Доступ преподавателю отключён.');
+        await renderMyTeachers(supaRest);
+      } catch (e) {
+        console.warn('revoke error', e);
+        setStatus('Не удалось отключить доступ. Попробуйте ещё раз.', true);
+        off.disabled = false;
+      }
+    });
+    item.appendChild(off);
+    list.appendChild(item);
+  }
+  card.hidden = false;
+}
+
 async function main() {
   const { supabase, getSession, signOut } = await import(withV('../app/providers/supabase.js'));
 
@@ -539,6 +646,11 @@ async function main() {
   setStatus('');
   showBox(true);
   render();
+
+  // W-pre-prod consent: блоки запросов и «Мои преподаватели» — только ученику.
+  if (String(profile?.role || '').trim() === 'student') {
+    renderConsentBlocks().catch((e) => console.warn('consent blocks error', e));
+  }
   diagMarkReady();
 }
 

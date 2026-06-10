@@ -139,3 +139,13 @@ body[data-home-variant="teacher"] .student-card:hover{
 .stat-mini-label{ font-size:11px; color: var(--text-dim); margin-bottom:2px; }
 
 .stat-mini-value{ font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+
+/* W-pre-prod consent: подзаголовки секций и блок ожидающих заявок. */
+.ms-subhead{
+  font-size:16px;
+  font-weight:700;
+  margin:18px 0 4px;
+}
+.pending-block{ margin-top:8px; }
+.pending-card{ border:1px dashed var(--border); }

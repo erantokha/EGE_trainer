@@ -437,8 +437,12 @@ if (statsFiltersToggle && statsControls) {
 
 
   // ----- smart homework (teacher): рекомендации -> план -> создание -----
+  // W-pre-prod: «Умное ДЗ» (вместе с вкладкой «Вариант 12») скрыто из production-UI
+  // продуктовым решением — основной сценарий идёт через главную учителя.
+  // Код блока сохранён; для возврата заменить false на true (или style.display = '').
+  const SMART_HW_UI_ENABLED = false;
   const smartBlock = $('#smartHwBlock');
-  if (smartBlock) smartBlock.style.display = '';
+  if (smartBlock && SMART_HW_UI_ENABLED) smartBlock.style.display = '';
 
   const smartPanel = $('#smartHwPanel');
   const smartClose = $('#smartHwClose');

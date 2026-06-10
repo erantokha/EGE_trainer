@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-06-11-2-022917';
-import { requireSession } from './supabase.js?v=2026-06-11-2-022917';
-import { supaRest } from './supabase-rest.js?v=2026-06-11-2-022917';
+import { CONFIG } from '../config.js?v=2026-06-11-2-032307';
+import { requireSession } from './supabase.js?v=2026-06-11-2-032307';
+import { supaRest } from './supabase-rest.js?v=2026-06-11-2-032307';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -440,6 +440,69 @@ export async function listMyStudents(){
   } catch(e){
     return { ok: false, data: null, error: e };
   }
+}
+
+/* ── Consent-модель «учитель ↔ ученик» (teacher_student_consent_v1.sql) ──
+   Все обёртки возвращают единый формат {ok, data, error}. isMissing=true в ошибке,
+   если RPC ещё не задеплоен (фронт-фолбэк на старое поведение). ── */
+
+export async function teacherInviteStudent(email){
+  try{
+    const { user, error: aerr } = await getAuth();
+    if (aerr) return { ok: false, data: null, error: aerr };
+    if (!user) return { ok: false, data: null, error: new Error('NOT_AUTHORIZED') };
+    const r = await rpcTry(['teacher_invite_student'], { p_email: String(email || '').trim() });
+    if (!r.ok) return { ok: false, data: null, error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, data: Array.isArray(r.data) ? r.data[0] : r.data, error: null };
+  } catch(e){ return { ok: false, data: null, error: e }; }
+}
+
+export async function listMyStudentRequests(){
+  try{
+    const r = await rpcTry(['list_my_student_requests'], {});
+    if (!r.ok) return { ok: false, data: [], error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, data: Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []), error: null };
+  } catch(e){ return { ok: false, data: [], error: e }; }
+}
+
+export async function cancelStudentRequest(request_id){
+  try{
+    const r = await rpcTry(['cancel_student_request'], { p_request_id: String(request_id || '').trim() });
+    if (!r.ok) return { ok: false, error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, error: null };
+  } catch(e){ return { ok: false, error: e }; }
+}
+
+export async function listIncomingTeacherRequests(){
+  try{
+    const r = await rpcTry(['list_incoming_teacher_requests'], {});
+    if (!r.ok) return { ok: false, data: [], error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, data: Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []), error: null };
+  } catch(e){ return { ok: false, data: [], error: e }; }
+}
+
+export async function respondTeacherRequest(request_id, accept){
+  try{
+    const r = await rpcTry(['respond_teacher_request'], { p_request_id: String(request_id || '').trim(), p_accept: !!accept });
+    if (!r.ok) return { ok: false, error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, error: null };
+  } catch(e){ return { ok: false, error: e }; }
+}
+
+export async function listMyTeachers(){
+  try{
+    const r = await rpcTry(['list_my_teachers'], {});
+    if (!r.ok) return { ok: false, data: [], error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, data: Array.isArray(r.data) ? r.data : (r.data ? [r.data] : []), error: null };
+  } catch(e){ return { ok: false, data: [], error: e }; }
+}
+
+export async function revokeMyTeacher(teacher_id){
+  try{
+    const r = await rpcTry(['revoke_my_teacher'], { p_teacher_id: String(teacher_id || '').trim() });
+    if (!r.ok) return { ok: false, error: r.error, isMissing: isMissingRpcFunction(r.error) };
+    return { ok: true, error: null };
+  } catch(e){ return { ok: false, error: e }; }
 }
 
 export async function assignHomeworkToStudent({ homework_id, student_id, token } = {}){

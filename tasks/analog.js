@@ -2,15 +2,15 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-06-11-2-022917';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-2-022917';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-2-022917';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-11-2-022917';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-2-022917';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-2-022917';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-2-022917';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-11-2-022917';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-2-022917';
+import { withBuild } from '../app/build.js?v=2026-06-11-2-032307';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-2-032307';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-2-032307';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-11-2-032307';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-2-032307';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-2-032307';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-2-032307';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-11-2-032307';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-2-032307';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -1044,10 +1044,12 @@ async function startAnalogSolve() {
   showMsg('');
 
   // meta (подтема)
+  // W-pre-prod: показываем только человеческое название темы, без внутреннего кода
+  // «4.1.1.» и без технического префикса «Подтема:».
   const meta = $('#analogMeta');
   if (meta) {
-    const title = (picked.type_id || picked.type_title) ? `${picked.type_id}. ${picked.type_title || ''}` : '';
-    meta.textContent = title ? `Подтема: ${title}` : '';
+    const human = String(picked.type_title || '').trim();
+    meta.textContent = human || '';
   }
 
   renderTaskList();

@@ -6,7 +6,7 @@ const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURICom
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-import { navigate } from '../app/ui/nav.js?v=2026-06-11-2-022917';
+import { navigate } from '../app/ui/nav.js?v=2026-06-11-2-032307';
 
 async function api(){
   // ВАЖНО: dynamic import резолвится относительно URL текущего модуля.
@@ -48,7 +48,8 @@ function scoreTextOf(it){
   const tt = Number(t);
   if (!Number.isFinite(cc) || !Number.isFinite(tt)) return '';
   if (tt <= 0) return '';
-  return `${cc}/${tt}`;
+  // W-pre-prod: «0/2» → «верно 0 из 2» (понятнее ученику).
+  return `верно ${cc} из ${tt}`;
 }
 
 function hwUrl(token){
