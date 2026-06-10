@@ -1,0 +1,134 @@
+/* app/ui/draw_overlay.css — стили рисовалки-overlay (Zoom-style тулбар).
+   Все классы скоупятся в .draw-overlay-root (dro-*), чтобы не задеть страницу.
+   z-index: корень 9000 (ниже сайдбара 9999, выше модалок ≤3200). */
+
+.draw-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+}
+.draw-overlay-root.active { display: block; }
+
+/* холст */
+.dro-stage { position: fixed; inset: 0; z-index: 1; }
+.dro-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+.draw-overlay-root.paused .dro-stage { pointer-events: none; }   /* «пауза» — скролл страницы */
+.draw-overlay-root.dro-bg-dark .dro-stage { background: #11151c; }
+.draw-overlay-root.dro-bg-paper .dro-stage { background: #fbfbf7; }
+
+/* Картинки рисуются НА канвасе как объекты в общем списке (истинные слои: вставленная
+   позже — поверх нарисованного раньше). Отдельного DOM-слоя картинок больше нет;
+   выделение/ручки картинки рисуются на preview-канвасе (см. draw_overlay.js). */
+.dro-paste.dro-hint { background: #d9362b; color: #fff; }
+
+/* тулбар */
+.dro-bar {
+  position: fixed; z-index: 20; left: 50%; transform: translateX(-50%); top: 16px;
+  display: flex; align-items: center; gap: 2px; flex-wrap: wrap;
+  max-width: calc(100vw - 12px);
+  background: #26292e; border: 1px solid #3a3f47; border-radius: 13px;
+  padding: 5px 7px; box-shadow: 0 10px 34px rgba(0,0,0,.45);
+}
+.dro-btn {
+  width: 38px; height: 38px; border: 0; background: transparent; border-radius: 9px; color: #e8eaed;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; flex: 0 0 auto;
+}
+.dro-btn:hover { background: #34383f; }
+.dro-btn.active { background: #2d7cf6; color: #fff; }
+.dro-btn svg { width: 20px; height: 20px; display: block; }
+.dro-btn:disabled { opacity: .35; cursor: default; }
+.dro-btn:disabled:hover { background: transparent; }
+.dro-btn.dro-drag { cursor: grab; touch-action: none; color: #9aa0a6; }
+.dro-bar.dragging .dro-btn.dro-drag { cursor: grabbing; }
+.dro-sep { width: 1px; height: 24px; background: #3a3f47; margin: 0 4px; flex: 0 0 auto; }
+.dro-btn.dro-close { background: #d9362b; color: #fff; }
+.dro-btn.dro-close:hover { background: #e8483d; }
+.dro-color .dro-cdot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #3a3f47; }
+
+/* флайауты */
+.dro-pop {
+  position: fixed; z-index: 30; background: #26292e; border: 1px solid #3a3f47; border-radius: 12px;
+  padding: 8px; box-shadow: 0 10px 34px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 7px;
+}
+.dro-pop[hidden] { display: none; }
+.dro-row { display: flex; gap: 5px; align-items: center; }
+.dro-lbl { font-size: 11px; color: #9aa0a6; width: 46px; flex: 0 0 auto; }
+.dro-tools, .dro-thick, .dro-style { display: flex; gap: 5px; }
+.dro-tbtn {
+  min-width: 36px; height: 34px; padding: 0 9px; border: 1px solid #3a3f47; background: #2f333a; color: #e8eaed;
+  border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font: 14px/1 -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.dro-tbtn.dro-tbtn-style { font-size: 12px; }
+.dro-tbtn:hover { background: #3a3f47; }
+.dro-tbtn.on { background: #2d7cf6; border-color: #2d7cf6; color: #fff; }
+.dro-tbtn .dro-dot { background: currentColor; border-radius: 50%; display: block; }
+.dro-grid { display: grid; grid-template-columns: repeat(5, 28px); gap: 9px; }
+.dro-cell { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+.dro-cell.dro-light { box-shadow: inset 0 0 0 1px #3a3f47; }
+.dro-cell.on { border-color: #fff; box-shadow: 0 0 0 2px #2d7cf6; }
+
+/* кнопка-кисть в шапке (активное состояние) */
+#drawBtn.active { background: #2d7cf6; border-color: #2d7cf6; color: #fff; }
+
+/* кнопка «скопировать окно» — правый верх, в режиме рисовалки */
+.dro-copy {
+  position: fixed; top: 14px; right: 14px; z-index: 25;
+  width: 42px; height: 42px; border-radius: 11px; padding: 0;
+  border: 1px solid #3a3f47; background: #26292e; color: #e8eaed;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 24px rgba(0,0,0,.4);
+}
+.dro-copy:hover { background: #34383f; }
+.dro-copy svg { width: 20px; height: 20px; display: block; }
+.dro-copy.dro-ok { background: #15a043; border-color: #15a043; color: #fff; }
+.dro-copy.dro-err { background: #d9362b; border-color: #d9362b; color: #fff; }
+.dro-copy.dro-busy { opacity: .55; cursor: default; }
+/* при захвате прячем UI-хром (но НЕ рисунок: .dro-stage остаётся) */
+body.dro-capturing .dro-bar, body.dro-capturing .dro-copy, body.dro-capturing .dro-pop,
+body.dro-capturing .dro-focus-bar, body.dro-capturing .brush-fab, body.dro-capturing .dro-card-focus-btn { display: none !important; }
+
+/* печать: рисовалка не участвует (плюс print_lifecycle прячет fixed, print.css — body>div) */
+@media print {
+  #drawBtn, .draw-overlay-root, .dro-copy { display: none !important; }
+}
+
+/* ===== «Решать на белом листе» (фокус-режим карточки) ===== */
+/* кнопка на карточке (обычный режим). .task-card — trainer/list/hw, .ws-item — unique */
+.task-card, .ws-item { position: relative; }
+.dro-card-focus-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  width: 30px; height: 30px; border-radius: 8px; padding: 0;
+  border: 1px solid var(--border, #d7dbe0); background: var(--panel, #fff); color: var(--ink, #1f2430);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  opacity: .5; transition: opacity .15s ease;
+}
+.dro-card-focus-btn:hover { opacity: 1; }
+.dro-card-focus-btn svg { width: 17px; height: 17px; display: block; }
+
+/* белая маска: фикс на весь экран, ниже рисовалки (z 9000). flex → центрирование условия */
+.dro-focus-mask { position: fixed; inset: 0; background: #fff; z-index: 8000; display: none; overflow: auto; }
+body.dro-card-focus { overflow: hidden; }
+body.dro-card-focus .dro-focus-mask { display: flex; }
+body.dro-card-focus .dro-card-focus-btn { display: none; }
+
+/* клон условия — по ЦЕНТРУ экрана (margin:auto в flex); zoom масштабирует текст И картинку */
+.dro-focus-content { margin: auto; max-width: 900px; padding: 40px 32px; color: #111; zoom: var(--focus-zoom, 1); }
+.dro-focus-content .task-stem, .dro-focus-content .ws-stem { font-size: 18px; line-height: 1.55; color: #111; }
+.dro-focus-content .task-fig, .dro-focus-content .ws-fig { margin-top: 18px; max-width: 100%; }
+/* фигура заполняет зафиксированную (в card_focus.js) ширину клона; svg — тоже */
+.dro-focus-content .task-fig img, .dro-focus-content .ws-fig img,
+.dro-focus-content .task-fig svg, .dro-focus-content .ws-fig svg { display: block; width: 100%; height: auto; max-width: 100%; }
+
+/* фокус-бар (зум условия) — поверх всего, выше рисовалки. Выход — красный ✕ в тулбаре рисовалки */
+.dro-focus-bar { position: fixed; top: 14px; left: 14px; z-index: 9700; display: none; align-items: center; gap: 10px; }
+body.dro-card-focus .dro-focus-bar { display: inline-flex; }
+.dro-focus-zoom { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: #fff; border: 1px solid #d7dbe0; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+.dro-focus-zoom button { width: 30px; height: 30px; border: 0; background: transparent; border-radius: 7px; font-size: 18px; line-height: 1; cursor: pointer; color: #1f2430; }
+.dro-focus-zoom button:hover { background: #eef0f3; }
+.dro-focus-zoom-val { min-width: 46px; text-align: center; font: 12px/1 -apple-system, Segoe UI, Roboto, sans-serif; color: #5a6472; }
+
+@media print {
+  .dro-card-focus-btn, .dro-focus-mask, .dro-focus-bar { display: none !important; }
+}

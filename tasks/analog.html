@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-09-11">
+  <meta name="app-build" content="2026-06-10-14">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,18 +45,19 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-09-11"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-10-14"></script>
 
   <script id="sentry-loader"
     src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
     crossorigin="anonymous"></script>
 
   <link rel="icon" href="../favicon.ico">
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-09-11">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-09-11">
-  <link rel="stylesheet" href="./trainer/pages/analog.css?v=2026-06-09-11">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-09-11">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-09-11">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-10-14">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-10-14">
+  <link rel="stylesheet" href="./trainer/pages/analog.css?v=2026-06-10-14">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-10-14">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-10-14">
+  <link rel="stylesheet" href="../app/ui/draw_overlay.css?v=2026-06-10-14">
 </head>
 
 <body data-home-variant="student">
@@ -81,6 +82,12 @@
               <rect y="12" width="18" height="2" rx="1" fill="currentColor"/>
             </svg>
           </button>
+          <button id="drawBtn" type="button" class="btn small" data-header-extra="1" data-tip="Рисовать" aria-pressed="false" aria-label="Рисовать">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>
+          </button>
 
           <script type="module">
   const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim();
@@ -88,6 +95,8 @@
   const inTasks = /\/tasks(\/|$)/.test(location.pathname);
   const rel = inTasks ? '../' : './';
   import(withV(rel + 'app/ui/header.js')).then((m) => m.initHeader({ isHome: !inTasks }));
+  import(withV(rel + 'app/ui/draw_overlay.js')).then((m) => m.initDrawOverlay());
+  import(withV(rel + 'app/ui/card_focus.js')).then((m) => m.initCardFocus());
 </script>
         </header>
 
@@ -206,9 +215,9 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-09-11" defer></script>
+  <script src="./theme.js?v=2026-06-10-14" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
-  <script type="module" src="./analog.js?v=2026-06-09-11"></script>
+  <script type="module" src="./analog.js?v=2026-06-10-14"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html.
