@@ -27,6 +27,14 @@ function todayStampLocal() {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
 
+// Метка времени бампа HHMMSS — уникальный суффикс build-id. Без неё два независимых бампа от
+// одной базы (ручной + авто-бамп бота) дают ОДИН номер `ДАТА-N` для разного контента → один
+// `?v=` на два разных CSS → CDN-edge раздаёт устаревшее (cache-busting не срабатывает).
+function timeSuffix() {
+  const d = new Date();
+  return `${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
+}
+
 async function* walk(dir) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const e of entries) {
@@ -97,11 +105,12 @@ function computeNextBuildId(existingBuildIds) {
   let maxN = 0;
 
   for (const b of existingBuildIds) {
-    const m = b.match(new RegExp(`^${base}-(\\d+)$`));
+    // без якоря $: номер N читается и из старого `ДАТА-N`, и из нового `ДАТА-N-HHMMSS`.
+    const m = b.match(new RegExp(`^${base}-(\\d+)`));
     if (!m) continue;
     maxN = Math.max(maxN, Number(m[1]));
   }
-  return `${base}-${maxN + 1}`;
+  return `${base}-${maxN + 1}-${timeSuffix()}`;
 }
 
 function replaceAllVersions(text, newBuild) {
