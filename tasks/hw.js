@@ -10,20 +10,21 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-10-23-210902';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-10-23-210902';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-11-1-021255';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-1-021255';
 
-import { CONFIG } from '../app/config.js?v=2026-06-10-23-210902';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-10-23-210902';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-10-23-210902';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-10-23-210902';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-10-23-210902';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-10-23-210902';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-10-23-210902';
+import { CONFIG } from '../app/config.js?v=2026-06-11-1-021255';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-11-1-021255';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-11-1-021255';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-11-1-021255';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-1-021255';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-1-021255';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-1-021255';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-1-021255';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-10-23-210902';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-10-23-210902';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-1-021255';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-1-021255';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -229,17 +230,38 @@ function showSummaryAfterSave({ total, correct, duration_ms, avg_ms } = {}) {
   resetWrongFilter();
   renderReviewCards();
 
+  // Заметный итог сдачи: статус + счёт + следующие действия (вместо тихой серой строки)
   const summaryPanel = $('#summary .panel') || $('#summary');
   if (summaryPanel) {
-    let statusEl = $('#hwSaveStatus', summaryPanel);
-    if (!statusEl) {
-      statusEl = document.createElement('div');
-      statusEl.id = 'hwSaveStatus';
-      statusEl.className = 'muted';
-      statusEl.style.marginTop = '10px';
-      summaryPanel.appendChild(statusEl);
+    let hero = $('#hwDoneHero', summaryPanel);
+    if (!hero) {
+      hero = document.createElement('div');
+      hero.id = 'hwDoneHero';
+      hero.setAttribute('role', 'status');
+      summaryPanel.prepend(hero);
     }
-    statusEl.textContent = 'Результат сохранён.';
+    const t = Number(total) || 0;
+    const c = Number(correct) || 0;
+    const acc = t ? Math.round((c / t) * 100) : 0;
+
+    hero.style.cssText = 'border:1px solid rgba(22,163,74,.45);border-radius:12px;padding:14px;margin-bottom:14px;';
+    hero.innerHTML = `
+      <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px">
+        <span style="color:#16a34a" aria-hidden="true">✓</span><span>ДЗ сдано!</span>
+      </div>
+      <div style="margin-top:6px;font-size:14px">Верно: <b>${c} из ${t}</b> · Точность: <b>${acc}%</b></div>
+      <div class="muted" style="margin-top:2px;font-size:12.5px">Результат сохранён.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button id="hwHeroReview" type="button">Смотреть разбор</button>
+        <button id="hwHeroMyHw" type="button">Вернуться к моим ДЗ</button>
+      </div>`;
+
+    $('#hwHeroReview', hero)?.addEventListener('click', () => {
+      $('#reviewList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    $('#hwHeroMyHw', hero)?.addEventListener('click', () => {
+      location.href = new URL('./my_homeworks.html', location.href).href;
+    });
   }
 }
 
@@ -1583,9 +1605,30 @@ async function startHomeworkSession({ questions, studentName, studentKey, token,
 }
 
 function wireRunner() {
-  $('#finishHomework').onclick = finishSession;
+  $('#finishHomework').onclick = onFinishClick;
   const restartBtn = $('#restart');
   if (restartBtn) restartBtn.onclick = () => { location.href = HOME_URL; };
+}
+
+// Перед сдачей: если есть пустые ответы — подтверждение (случайный клик не сдаёт работу).
+async function onFinishClick() {
+  if (SESSION?.meta?.finishing) return;
+
+  // вычитываем актуальные значения полей (как делает finishSession)
+  document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
+    const i = Number(el.dataset.idx);
+    const q = SESSION.questions[i];
+    if (!q) return;
+    q.chosen_text = String(el.value ?? '');
+  });
+
+  const total = SESSION.questions.length;
+  const empty = SESSION.questions.filter(q => !String(q.chosen_text ?? '').trim()).length;
+  if (empty > 0) {
+    const ok = await confirmFinish({ empty, total, kind: 'homework' });
+    if (!ok) return; // «Продолжить решение»
+  }
+  await finishSession();
 }
 
 

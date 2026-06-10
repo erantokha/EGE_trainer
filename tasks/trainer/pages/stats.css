@@ -121,3 +121,32 @@ body[data-home-variant] .badge.red    { background: rgba(239, 68, 68, .14);   bo
     font-size: 10px;
   }
 }
+
+/* ===== WSA-1a: prototype-aware статусы под эталон home_student ===== */
+
+/* Блок «Что тренировать сейчас» — карточка эталона. */
+body[data-home-variant] .wsa-train {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, .10);
+  padding: 16px 18px;
+}
+body[data-home-variant] .wsa-train-card {
+  border-radius: 12px;
+  background: var(--surface2, rgba(148, 163, 184, .06));
+  border: 1px solid var(--border);
+}
+body[data-home-variant] .wsa-train-btn,
+body[data-home-variant] .wsa-train-all {
+  border-radius: 12px;
+}
+
+/* Палитра статус-чипов выровнена с эталонным аккордеоном (home-student.css). */
+body[data-home-variant] .wsa-chip.tone-good    { background: rgba(16, 185, 129, .12); border-color: rgba(16, 185, 129, .35); }
+body[data-home-variant] .wsa-chip.tone-neutral { background: rgba(59, 130, 246, .10);  border-color: rgba(59, 130, 246, .32); }
+/* tone-warn — янтарный: «нужно подтянуть» / «точечные ошибки». */
+body[data-home-variant] .wsa-chip.tone-warn    { background: rgba(245, 158, 11, .16);  border-color: rgba(245, 158, 11, .40); }
+/* tone-weak — мягкий красный: реальная «слабая зона». */
+body[data-home-variant] .wsa-chip.tone-weak    { background: rgba(239, 68, 68, .14);   border-color: rgba(239, 68, 68, .40); }
+body[data-home-variant] .wsa-chip.tone-gray    { background: rgba(148, 163, 184, .12); border-color: var(--border); }

@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-06-10-23-210902';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-10-23-210902';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-10-23-210902';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-10-23-210902';
+import { CONFIG } from '../app/config.js?v=2026-06-11-1-021255';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-11-1-021255';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-11-1-021255';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-1-021255';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-10-23-210902';
+} from '../app/providers/catalog.js?v=2026-06-11-1-021255';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-06-10-23-210902';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-10-23-210902';
+} from '../app/core/pick.js?v=2026-06-11-1-021255';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-1-021255';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-10-23-210902';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-11-1-021255';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -625,6 +625,56 @@ function wireLinkControls() {
 
     window.open(url, '_blank', 'noopener,noreferrer');
   });
+
+  // Явная кнопка «Скопировать ссылку» + индикатор «Скопировано ✓»
+  const copyBtn = $('#copyLinkBtn');
+  copyBtn?.addEventListener('click', async () => {
+    const url = String(a?.dataset?.url || '').trim();
+    if (!url) return;
+    const ok = await copyToClipboard(url);
+    flashStatus(ok ? 'Ссылка скопирована.' : 'Не удалось скопировать ссылку.');
+    if (ok) {
+      const prev = copyBtn.textContent;
+      copyBtn.textContent = 'Скопировано ✓';
+      copyBtn.disabled = true;
+      setTimeout(() => { copyBtn.textContent = prev; copyBtn.disabled = false; }, 1600);
+    }
+  });
+
+  // «Открыть ДЗ» — то же, что иконка ↗
+  $('#openHwBtn')?.addEventListener('click', () => {
+    const url = String(openBtn?.dataset?.url || a?.dataset?.url || '').trim();
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+
+  // «Создать новое ДЗ» — сброс финального состояния: форма остаётся, кнопка снова активна
+  $('#newHwBtn')?.addEventListener('click', () => {
+    resetCreateState();
+    $('#titleBtn')?.focus();
+  });
+
+  // «Вернуться на главную» — корень разрулит роль (root-router)
+  $('#goHomeBtn')?.addEventListener('click', () => {
+    location.href = new URL('../', location.href).href;
+  });
+}
+
+/* ── Состояние создания ДЗ: idle → busy → created.
+   Guard от двойного клика (busy) и от молчаливых дублей повторным кликом (created):
+   после успеха «Создать ссылку» остаётся заблокированной, новое ДЗ — только через
+   явную кнопку «Создать новое ДЗ». ── */
+let CREATE_STATE = 'idle';
+
+function resetCreateState() {
+  CREATE_STATE = 'idle';
+  hideStudentLink();
+  setStatus('');
+  const btn = $('#createBtn');
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Создать ссылку';
+  }
 }
 
 
@@ -729,9 +779,17 @@ function getDescriptionValue() {
   return v ? v : null;
 }
 
-function showStudentLink(link, metaText = '') {
+function showStudentLink(link, metaText = '', opts = {}) {
   const box = $('#linkBox');
-  if (box) box.classList.remove('hidden');
+  if (box) {
+    box.classList.remove('hidden');
+    box.classList.toggle('warn', opts.kind === 'warn');
+  }
+
+  const title = $('#successTitle');
+  if (title) title.textContent = opts.title || 'ДЗ создано';
+  const icon = $('#successIcon');
+  if (icon) icon.textContent = opts.kind === 'warn' ? '!' : '✓';
 
   const a = $('#hwLink');
   if (a) {
@@ -747,13 +805,21 @@ function showStudentLink(link, metaText = '') {
   if (meta) meta.textContent = metaText || '';
 }
 
+/* Прячем финальный блок (старт нового создания / ошибка):
+   старая ссылка не должна выглядеть результатом новой операции. */
+function hideStudentLink() {
+  const box = $('#linkBox');
+  if (box) box.classList.add('hidden');
+}
+
 async function refreshAuthUI() {
   // Вся авторизация и меню пользователя теперь живут в общем хедере (app/ui/header.js).
   // Здесь держим только минимальную реакцию: включить/выключить доступ к созданию ДЗ.
   const session = await getSession().catch(() => null);
 
   const createBtn = $('#createBtn');
-  if (createBtn) createBtn.disabled = !session;
+  // не трогаем кнопку, пока идёт создание или ДЗ уже создано (см. CREATE_STATE)
+  if (createBtn && CREATE_STATE === 'idle') createBtn.disabled = !session;
 
   return session;
 }
@@ -1708,6 +1774,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // создание
   $('#createBtn')?.addEventListener('click', async () => {
+    // idle → busy → created: повторные клики во время запроса и после успеха игнорируются
+    if (CREATE_STATE !== 'idle') return;
+
     setStatus('');
 
     // защита: без входа не даём создавать
@@ -1748,7 +1817,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       deadline: null,
     };
 
+    CREATE_STATE = 'busy';
+    // старт нового создания: прежний success-блок прячем, чтобы старая ссылка
+    // не выглядела результатом этой операции
+    hideStudentLink();
     $('#createBtn').disabled = true;
+    $('#createBtn').textContent = 'Создаём…';
     try {
       // 1) фиксируем список задач (иначе добивка будет меняться при каждом открытии)
       setStatus('Фиксируем список задач...');
@@ -1837,11 +1911,32 @@ if (!hwRes.ok) {
         }
       }
 
-      showStudentLink(link, linkMeta);
-
-      if (okAll) flashStatus('Готово.');
+      // финальное состояние: заголовок зависит от того, назначено ли ДЗ ученику
+      if (okAll) {
+        showStudentLink(link, linkMeta, {
+          title: studentId && studentName
+            ? `ДЗ создано и назначено ученику ${studentName}`
+            : 'Ссылка на ДЗ создана. Отправьте её ученику вручную.',
+        });
+        setStatus('');
+      } else {
+        // ссылка существует (дубль создавать нельзя), но назначение не прошло — предупреждение
+        showStudentLink(link, 'Ученику не назначено — отправьте ссылку вручную.', {
+          kind: 'warn',
+          title: 'Ссылка создана, ученик не назначен',
+        });
+      }
+      CREATE_STATE = 'created';
     } finally {
-      $('#createBtn').disabled = false;
+      const btn = $('#createBtn');
+      if (CREATE_STATE === 'created') {
+        // успех: кнопка остаётся заблокированной, новое ДЗ — через «Создать новое ДЗ»
+        if (btn) { btn.disabled = true; btn.textContent = 'ДЗ создано ✓'; }
+      } else {
+        // ошибка/ранний выход: возвращаем возможность попробовать снова
+        CREATE_STATE = 'idle';
+        if (btn) { btn.disabled = false; btn.textContent = 'Создать ссылку'; }
+      }
     }
   });
 

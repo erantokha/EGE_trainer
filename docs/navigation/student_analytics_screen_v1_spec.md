@@ -362,6 +362,15 @@ returns jsonb
   "last10": { "total": 8, "correct": 4 },
   "period": { "total": 5, "correct": 2 },
   "all_time": { "total": 18, "correct": 11 },
+  "subtopic_last3_avg_pct": 58,
+  "weak_proto_count": 2,
+  "unstable_proto_count": 1,
+  "stale_proto_count": 0,
+  "solved_proto_count": 5,
+  "mastered_proto_count": 4,
+  "accuracy": 0.61,
+  "attempt_count_total": 18,
+  "correct_count_total": 11,
   "coverage": {
     "unics_attempted": 2,
     "unics_total": 7,
@@ -377,6 +386,7 @@ returns jsonb
 ```
 
 Правила:
+- `weak_proto_count` / `unstable_proto_count` / `stale_proto_count` / `solved_proto_count` / `mastered_proto_count` (= `independent_correct_proto_count` layer-3) / `accuracy` / `attempt_count_total` / `correct_count_total` — добавлены в `WSA-1b` как **аддитивная проекция** уже посчитанных в `student_topic_state_v1` агрегатов (без новой логики в screen-RPC). `weak_proto_count` — lifetime-сигнал (`is_weak`: attempts≥2 & accuracy<0.7 на прототипе), не last-3;
 - `topic_id` и `section_id` допускаются только как compat aliases;
 - `coverage_state`, `sample_state`, `performance_state`, `freshness_state` обязаны быть projections поверх canonical metrics, а не отдельными UI heuristics;
 - если точная derived vocabulary временно не нужна consumer-у, она всё равно должна жить в payload как canonical screen state для future recommendations reuse.

@@ -2,14 +2,15 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-06-10-23-210902';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-10-23-210902';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-10-23-210902';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-10-23-210902';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-10-23-210902';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-10-23-210902';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-10-23-210902';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-10-23-210902';
+import { withBuild } from '../app/build.js?v=2026-06-11-1-021255';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-1-021255';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-1-021255';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-11-1-021255';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-1-021255';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-1-021255';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-1-021255';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-11-1-021255';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-1-021255';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -896,6 +897,18 @@ function withTimeout(promise, ms) {
   });
 }
 
+// Перед завершением: пустой ответ — подтверждение (одна задача, total=1).
+async function onFinishAnalogClick() {
+  if (SESSION?.meta?.finishing) return;
+  const el = document.querySelector('#taskList input[type="text"][data-idx]');
+  const raw = String(el?.value ?? SESSION.questions?.[0]?.chosen_text ?? '');
+  if (!raw.trim()) {
+    const ok = await confirmFinish({ empty: 1, total: 1, kind: 'analog' });
+    if (!ok) return;
+  }
+  await finishAnalog();
+}
+
 async function finishAnalog() {
   SESSION.meta = SESSION.meta || {};
   if (SESSION.meta.finishing) return;
@@ -1042,7 +1055,7 @@ async function startAnalogSolve() {
   const btn = $('#finishAnalog');
   if (btn) {
     btn.disabled = false;
-    btn.onclick = () => finishAnalog();
+    btn.onclick = () => onFinishAnalogClick();
   }
 
   diagReady();

@@ -11,7 +11,7 @@
 // - кнопка "Тренировать слабые места" (создаёт выбор topics и открывает trainer.html)
 
 let buildStatsUI, renderDashboard, loadCatalog;
-let buildSmartPlan, saveSmartMode, clearSmartMode;
+let rankTrainingTargets, buildPlanFromTopicIds, saveSmartMode, clearSmartMode;
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -122,8 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    const mod = await import(withV('./smart_select.js'));
-    buildSmartPlan = mod.buildSmartPlan;
+    const mod = await import(withV('./wsa_status.js'));
+    rankTrainingTargets = mod.rankTrainingTargets;
+    buildPlanFromTopicIds = mod.buildPlanFromTopicIds;
   } catch (e) {
     console.error(e);
     const root = document.getElementById('statsRoot');
@@ -146,6 +147,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   ui.daysSel.value = '30';
   ui.sourceSel.value = 'all';
+
+  function periodLabel(days) {
+    return `${days} дней`;
+  }
+
+  // Единая точка запуска тренировки: и блок «Что тренировать сейчас», и кнопка
+  // «Тренировать слабые места» приходят сюда с уже отобранными topic_id
+  // (prototype-aware ранжирование из wsa_status.js).
+  function launchTraining(topicIds) {
+    const ids = Array.isArray(topicIds) ? topicIds : [];
+    const plan = buildPlanFromTopicIds(ids, { targetTotal: 10, perTopicCap: 4 });
+    if (!plan.topic_ids.length) {
+      setStatus(ui.statusEl, 'Не удалось подобрать темы для тренировки.', 'err');
+      return;
+    }
+    plan.metric = 'prototype';
+    plan.min_total = 0;
+    openTrainerSmartPlan(plan, { days: ui._lastDays, source: ui._lastSource });
+  }
 
   let catalog = null;
 
@@ -171,6 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setStatus(ui.statusEl, 'Войдите, чтобы открыть статистику.', 'err');
       ui.hintEl.textContent = '';
       ui.overallEl.innerHTML = '';
+      ui.trainingEl.innerHTML = '';
       ui.sectionsEl.innerHTML = '';
       return;
     }
@@ -204,7 +225,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       ui.hintEl.textContent = totalTopics ? `Покрытие: ${covered}/${totalTopics} подтем` : (covered ? `Покрытие: ${covered} подтем` : '');
 
       setStatus(ui.statusEl, '');
-      renderDashboard(ui, dash, catalog || { sections:new Map(), topicTitle:new Map() });
+      renderDashboard(ui, dash, catalog || { sections:new Map(), topicTitle:new Map() }, {
+        periodLabel: periodLabel(days),
+        onTrain: launchTraining,
+      });
 
       // сохраняем последний dашборд для кнопки "тренировать"
       ui._lastDash = dash;
@@ -220,6 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       ui.hintEl.textContent = '';
       ui.overallEl.innerHTML = '';
+      ui.trainingEl.innerHTML = '';
       ui.sectionsEl.innerHTML = '';
     }
   }
@@ -235,33 +260,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Список всех доступных topic_id (для fallback на «непокрытые»)
-    const allTopicIds = (() => {
-      const m = catalog?.topicsBySection;
-      if (!m || typeof m.forEach !== 'function') return [];
-      const out = [];
-      m.forEach(arr => {
-        for (const x of (arr || [])) out.push(String(x?.id || '').trim());
-      });
-      return out.filter(Boolean);
-    })();
-
-    const plan = buildSmartPlan(dash, {
-      metric: 'period',
-      minTotal: 3,
-      maxTopics: 5,
-      targetTotal: 10,
-      perTopicCap: 4,
-      preferUncoveredIfEmpty: true,
-      allTopicIds,
-    });
-
-    if (!plan || !plan.topic_ids || !plan.topic_ids.length) {
-      setStatus(ui.statusEl, 'Не удалось подобрать темы для тренировки (мало данных).', 'err');
+    // Prototype-aware отбор по типу проблемы (та же логика, что и в блоке
+    // «Что тренировать сейчас»), а не по проценту окна.
+    const targets = rankTrainingTargets(dash, { limit: 5 });
+    if (!targets.length) {
+      setStatus(ui.statusEl, 'Сейчас явных слабых мест нет — можно закреплять открытые темы или открыть новые прототипы.', 'ok');
       return;
     }
 
-    openTrainerSmartPlan(plan, { days: ui._lastDays, source: ui._lastSource });
+    launchTraining(targets.map(t => t.topic_id));
   });
 
   // стартовая загрузка

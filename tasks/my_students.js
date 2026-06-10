@@ -7,7 +7,7 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-10-23-210902';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-1-021255';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -233,7 +233,7 @@ function applyFiltersAndRender() {
       const bt = (bd && isFinite(bd.getTime())) ? bd.getTime() : -1;
       return bt - at;
     });
-    renderStudents(list);
+    renderStudents(list, { term, onlyProblems });
     return;
   }
 
@@ -279,7 +279,7 @@ function applyFiltersAndRender() {
     return studentLabel(a).localeCompare(studentLabel(b), 'ru');
   });
 
-  renderStudents(list);
+  renderStudents(list, { term, onlyProblems });
 }
 
 
@@ -317,13 +317,36 @@ function closeStudentMenu() {
   __openStudentMenu = null;
 }
 
-function renderStudents(list) {
+function renderStudents(list, ctx = {}) {
   const wrap = $('#studentsList');
   if (!wrap) return;
   wrap.innerHTML = '';
 
   if (!Array.isArray(list) || list.length === 0) {
-    wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников.' }));
+    // Различаем «учеников реально нет» и «активный поиск/фильтр ничего не нашёл» —
+    // иначе ввод email в поле поиска выглядит как пропажа всех учеников.
+    const hasAny = Array.isArray(__studentsRaw) && __studentsRaw.length > 0;
+    if (hasAny && (ctx.term || ctx.onlyProblems)) {
+      const box = el('div', { class: 'muted' });
+      box.appendChild(el('div', {
+        text: ctx.term
+          ? `Никого не найдено по запросу «${ctx.term}».`
+          : 'Нет учеников по выбранному фильтру.',
+      }));
+      const btn = el('button', { class: 'btn small', type: 'button', style: 'margin-top:8px', text: 'Показать всех' });
+      btn.addEventListener('click', () => {
+        const inp = $('#searchStudents');
+        if (inp) inp.value = '';
+        const fp = $('#filterProblems');
+        if (fp) fp.checked = false;
+        updateAddButtonState();
+        applyFiltersAndRender();
+      });
+      box.appendChild(btn);
+      wrap.appendChild(box);
+    } else {
+      wrap.appendChild(el('div', { class: 'muted', text: 'Пока нет учеников.' }));
+    }
     return;
   }
 
@@ -472,18 +495,62 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
     applyFiltersAndRender();
   } catch (e) {
     console.warn('loadStudents error', e);
-    if (isAuthRequired(e)) {
-      setStatus(status, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
-    } else if (isTimeout(e)) {
-      setStatus(status, 'Сервер отвечает слишком долго. Попробуйте обновить страницу.', { sticky: false });
+    const human = isAuthRequired(e)
+      ? 'Сессия истекла. Перезайдите в аккаунт.'
+      : isTimeout(e)
+        ? 'Сервер отвечает слишком долго.'
+        : 'Не удалось загрузить список учеников.';
+
+    if (Array.isArray(__studentsRaw) && __studentsRaw.length) {
+      // Список уже на экране — НЕ затираем его ошибкой обновления
+      // (иначе выглядит как «все ученики пропали»).
+      setStatus(status, `${human} Показан предыдущий список.`, { sticky: false });
+      applyFiltersAndRender();
     } else {
-      setStatus(status, 'Не удалось загрузить список учеников.', { sticky: false });
+      // Первая загрузка не удалась: явный error-state с кнопкой «Повторить»
+      // вместо ложного пустого состояния «Пока нет учеников».
+      setStatus(status, '');
+      renderLoadError(human, () => loadStudents(supaRest, { days: __currentDays, source: __currentSource }));
     }
-    __studentsRaw = [];
     rebuildKnownEmails();
     updateAddButtonState();
-    applyFiltersAndRender();
   }
+}
+
+function renderLoadError(message, retryFn) {
+  const wrap = $('#studentsList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+
+  const box = el('div', { class: 'panel', style: 'padding:14px' });
+  box.appendChild(el('div', { style: 'font-weight:600', text: message }));
+
+  const btn = el('button', { class: 'btn', type: 'button', style: 'margin-top:10px', text: 'Повторить' });
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    Promise.resolve(retryFn()).finally(() => { btn.disabled = false; });
+  });
+  box.appendChild(btn);
+  wrap.appendChild(box);
+}
+
+/* Человеческий текст ошибки добавления: внутренние коды (STUDENT_NOT_FOUND и т.п.)
+   и сырые RPC_ERROR/JSON пользователю не показываем. */
+function humanAddError(e) {
+  const raw = [e?.details?.message, e?.details?.hint, e?.details?.details, e?.details, e?.message]
+    .map((x) => (typeof x === 'string' ? x : JSON.stringify(x ?? '')))
+    .join(' ');
+  if (/STUDENT_NOT_FOUND/i.test(raw)) {
+    return 'Ученик с таким email пока не зарегистрирован. Проверьте email или отправьте ученику ссылку на регистрацию.';
+  }
+  if (/INVALID_EMAIL|EMAIL_REQUIRED/i.test(raw)) return 'Введите корректный email ученика.';
+  if (/CANNOT_ADD_SELF/i.test(raw)) return 'Нельзя добавить самого себя.';
+  if (/TEACHER_NOT_ALLOWED/i.test(raw)) return 'Добавлять учеников может только преподаватель.';
+  if (/already|duplicate|exists|unique/i.test(raw)) return 'Этот ученик уже есть в вашем списке.';
+  if (e?.status === 0 || /NETWORK|Failed to fetch/i.test(raw)) {
+    return 'Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.';
+  }
+  return 'Не удалось отправить приглашение. Попробуйте ещё раз через несколько секунд.';
 }
 
 async function addStudent(supaRest, email) {
@@ -501,8 +568,7 @@ async function addStudent(supaRest, email) {
     } else if (isTimeout(e)) {
       setStatus(addStatus, 'Сервер отвечает слишком долго. Попробуйте позже.', { sticky: false });
     } else {
-      const msg = String(e?.message || 'Не удалось добавить ученика.');
-      setStatus(addStatus, msg, { sticky: false });
+      setStatus(addStatus, humanAddError(e), { sticky: false });
     }
     return false;
   }

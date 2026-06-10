@@ -103,6 +103,40 @@
 
 .link-box .link-meta { opacity:.75; font-size:12px; }
 
+/* Финальный блок успеха создания ДЗ: заголовок + строка ссылки + следующие действия.
+   Цвета через переменные темы; зелёный/оранжевый — только акцент рамки и иконки. */
+.link-box.link-box-final {
+  display:block;
+  padding:14px;
+  border-color: rgba(22,163,74,.45);
+}
+.link-box.link-box-final.warn { border-color: rgba(217,119,6,.55); }
+.link-success-title {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+  font-size:15px;
+}
+.link-success-title .ok-ico { color:#16a34a; font-weight:700; }
+.link-box-final.warn .ok-ico { color:#d97706; }
+.link-box-final .link-meta { font-size:13px; margin-top:2px; }
+.link-box-final .link-row {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+.link-box-final .link-actions {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:12px;
+  padding-top:10px;
+  border-top:1px dashed var(--border);
+}
+
 
 .tiny-btn { padding:4px 8px; font-size:12px; border-radius:10px; }
 
