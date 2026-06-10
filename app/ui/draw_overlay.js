@@ -21,8 +21,10 @@ const COLORS = [
 ];
 const THICKS = [2, 4, 7, 12, 20];
 const THICK_NAMES = ['супертонкий', 'тонкий', 'средний', 'толще', 'супертолстый'];
-const STYLES = [['pf', 'perfect-freehand'], ['smooth', 'сглаженная'], ['naive', 'naive']];
-const TOOLS = [['pen', '✎'], ['line', '／'], ['rect', '▭'], ['rectF', '▬'], ['ellipse', '◯'], ['ellipseF', '⬤']];
+// Движок пера всегда perfect-freehand (state.engine='pf'); выбор стиля линии убран из UI.
+const RECT_ICON = '<svg width="20" height="13" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="1.6" y="1.6" width="18.8" height="10.8" rx="2"/></svg>';
+const RECTF_ICON = '<svg width="20" height="13" viewBox="0 0 22 14" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="20" height="12" rx="2"/></svg>';
+const TOOLS = [['pen', '✎'], ['line', '／'], ['rect', RECT_ICON], ['rectF', RECTF_ICON], ['ellipse', '◯'], ['ellipseF', '⬤']];
 
 const ICON = {
   drag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>',
@@ -72,7 +74,6 @@ function build(btn) {
     <div class="dro-pop dro-pop-pen" hidden>
       <div class="dro-row"><span class="dro-lbl">инстр.:</span><span class="dro-tools"></span></div>
       <div class="dro-row"><span class="dro-lbl">толщина:</span><span class="dro-thick"></span></div>
-      <div class="dro-row"><span class="dro-lbl">линия:</span><span class="dro-style"></span></div>
     </div>
     <div class="dro-pop dro-pop-color" hidden><div class="dro-grid"></div></div>
     <div class="dro-pop dro-pop-more" hidden><div class="dro-row dro-more-row"></div></div>
@@ -84,7 +85,7 @@ function build(btn) {
   const mctx = cMain.getContext('2d'), pctx = cPrev.getContext('2d');
   const bar = $('.dro-bar'), cdot = $('.dro-cdot');
 
-  const state = { engine: 'pf', tool: 'pen', color: '#111111', size: THICKS[2], pressure: false, bg: 'transparent', drawing: false };
+  const state = { engine: 'pf', tool: 'pen', color: '#111111', size: THICKS[1], pressure: false, bg: 'transparent', drawing: false };
 
   // ----- retained-mode: единый список объектов (слои) + история -----
   // objects = [{kind:'stroke'|'rect'|'ellipse'|'line'|'image', ...}] в порядке наложения.
@@ -284,10 +285,9 @@ function build(btn) {
   });
 
   // ====================== UI ======================
-  const toolsBox = $('.dro-tools'), thickBox = $('.dro-thick'), styleBox = $('.dro-style'), grid = $('.dro-grid'), moreRow = $('.dro-more-row');
-  TOOLS.forEach(([t, g]) => { const b = document.createElement('button'); b.className = 'dro-tbtn'; b.dataset.tool = t; b.textContent = g; b.title = t; toolsBox.appendChild(b); });
+  const toolsBox = $('.dro-tools'), thickBox = $('.dro-thick'), grid = $('.dro-grid'), moreRow = $('.dro-more-row');
+  TOOLS.forEach(([t, g]) => { const b = document.createElement('button'); b.className = 'dro-tbtn'; b.dataset.tool = t; b.innerHTML = g; b.title = t; toolsBox.appendChild(b); });
   THICKS.forEach((t, i) => { const b = document.createElement('button'); b.className = 'dro-tbtn'; b.dataset.thick = String(t); b.title = THICK_NAMES[i]; const d = Math.min(18, Math.max(3, t)); b.innerHTML = `<span class="dro-dot" style="width:${d}px;height:${d}px"></span>`; thickBox.appendChild(b); });
-  STYLES.forEach(([k, name]) => { const b = document.createElement('button'); b.className = 'dro-tbtn dro-tbtn-style'; b.dataset.style = k; b.textContent = name; styleBox.appendChild(b); });
   COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'dro-cell' + (c === '#ffffff' ? ' dro-light' : ''); b.dataset.color = c; b.style.background = c; b.title = c; grid.appendChild(b); });
   moreRow.innerHTML = '<button class="dro-tbtn dro-tbtn-style" data-more="pressure">нажим: выкл</button>'
     + '<button class="dro-tbtn dro-tbtn-style" data-more="pause">пауза (скролл)</button>'
@@ -312,7 +312,6 @@ function build(btn) {
     cdot.style.background = state.color;
     toolsBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === state.tool));
     thickBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', Number(b.dataset.thick) === state.size));
-    styleBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', b.dataset.style === state.engine));
     grid.querySelectorAll('.dro-cell').forEach(b => b.classList.toggle('on', b.dataset.color === state.color));
   }
 
@@ -339,7 +338,6 @@ function build(btn) {
   });
   toolsBox.addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; setTool(b.dataset.tool); });
   thickBox.addEventListener('click', (e) => { const b = e.target.closest('[data-thick]'); if (!b) return; state.size = Number(b.dataset.thick); updateActive(); });
-  styleBox.addEventListener('click', (e) => { const b = e.target.closest('[data-style]'); if (!b) return; state.engine = b.dataset.style; updateActive(); });
   grid.addEventListener('click', (e) => { const b = e.target.closest('[data-color]'); if (!b) return; state.color = b.dataset.color; updateActive(); closePops(); });
   moreRow.addEventListener('click', (e) => {
     const b = e.target.closest('[data-more]'); if (!b) return;
