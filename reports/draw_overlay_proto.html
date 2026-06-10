@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-10-15">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="
+default-src 'self';
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+style-src 'self' 'unsafe-inline';
+img-src 'self' data:;
+connect-src 'self' https://cdn.jsdelivr.net;
+">
+<title>Прототип рисовалки v3 — Zoom-style toolbar</title>
+<style>
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body { font-family:-apple-system,Segoe UI,Roboto,sans-serif; color:#1f2430; background:#f4f5f7; }
+
+  .work { max-width:760px; margin:0 auto; padding:64px 20px 220px; }
+  .work h1 { font-size:22px; }
+  .task { background:#fff; border:1px solid #e3e6ea; border-radius:12px; padding:18px 20px; margin:16px 0; box-shadow:0 1px 3px rgba(0,0,0,.05); }
+  .task b { color:#2b6; }
+  .muted { color:#7a8290; }
+
+  .stage { position:fixed; inset:0; z-index:50; }
+  .stage canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+  body:not(.draw-on) .stage { pointer-events:none; }
+  body.bg-dark .stage { background:#11151c; }
+  body.bg-paper .stage { background:#fbfbf7; }
+
+  /* ---- Zoom-style toolbar ---- */
+  .zbar {
+    position:fixed; z-index:100; left:50%; transform:translateX(-50%); top:16px;
+    display:none; align-items:center; gap:2px;
+    background:#26292e; border:1px solid #3a3f47; border-radius:13px;
+    padding:5px 7px; box-shadow:0 10px 34px rgba(0,0,0,.45);
+  }
+  .zbar.open { display:flex; }
+  .zbtn { width:38px; height:38px; border:0; background:transparent; border-radius:9px; color:#e8eaed;
+          cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; }
+  .zbtn:hover { background:#34383f; }
+  .zbtn.active { background:#2d7cf6; color:#fff; }
+  .zbtn svg { width:20px; height:20px; display:block; }
+  .zbtn:disabled { opacity:.35; cursor:default; }
+  .zbtn:disabled:hover { background:transparent; }
+  .zbtn.drag { cursor:grab; touch-action:none; color:#9aa0a6; }
+  .zbar.dragging .zbtn.drag { cursor:grabbing; }
+  .zsep { width:1px; height:24px; background:#3a3f47; margin:0 4px; flex:0 0 auto; }
+  .zbtn.zclose { background:#d9362b; color:#fff; }
+  .zbtn.zclose:hover { background:#e8483d; }
+  .zcolor .cdot { width:18px; height:18px; border-radius:50%; border:2px solid #fff; box-shadow:0 0 0 1px #3a3f47; }
+
+  /* ---- flyouts ---- */
+  .zpop { position:fixed; z-index:110; background:#26292e; border:1px solid #3a3f47; border-radius:12px;
+          padding:8px; box-shadow:0 10px 34px rgba(0,0,0,.45); display:flex; flex-direction:column; gap:7px; }
+  .zpop[hidden] { display:none; }
+  .zrow { display:flex; gap:5px; align-items:center; }
+  .zrow .lbl { font-size:11px; color:#9aa0a6; width:42px; flex:0 0 auto; }
+  .tbtn { min-width:36px; height:34px; padding:0 9px; border:1px solid #3a3f47; background:#2f333a; color:#e8eaed;
+          border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; font:14px/1 inherit; }
+  .tbtn:hover { background:#3a3f47; }
+  .tbtn.on { background:#2d7cf6; border-color:#2d7cf6; color:#fff; }
+  .tbtn .dot { background:currentColor; border-radius:50%; display:block; }
+  .zgrid { display:grid; grid-template-columns:repeat(5,28px); gap:9px; }
+  .cell { width:28px; height:28px; border-radius:50%; cursor:pointer; border:2px solid transparent; }
+  .cell.light { box-shadow:inset 0 0 0 1px #3a3f47; }
+  .cell.on { border-color:#fff; box-shadow:0 0 0 2px #2d7cf6; }
+
+  .brush-fab { position:fixed; top:14px; right:14px; z-index:120; width:50px; height:50px; border-radius:50%;
+    border:1px solid #cfd4da; background:#fff; box-shadow:0 4px 16px rgba(0,0,0,.18);
+    font-size:22px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .brush-fab.on { background:#26292e; }
+</style>
+</head>
+<body>
+
+  <div class="work">
+    <h1>Образец «работы» (фон под холстом)</h1>
+    <p class="muted">🖌️ справа сверху — открыть панель. Перо/толщина/фигуры — в одном флайауте (клик по перу). Цвета — клик по кружку цвета.</p>
+    <div class="task"><b>Задача 1.</b> Найдите корень уравнения √(x+7)=x+1. Запишите ход решения и проверку посторонних корней.</div>
+    <div class="task"><b>Задача 2.</b> Прямая y=kx+b проходит через точки (1;3) и (4;-3). Постройте чертёж и найдите k, b.</div>
+    <div class="task"><b>Задача 3.</b> В треугольнике ABC угол C=90°, sinA=0.6, AB=10. Найдите площадь. Нарисуйте схему.</div>
+    <div class="task"><b>Задача 4.</b> Решите неравенство log₂(x-1) ≤ 3 и отметьте решение на числовой прямой.</div>
+    <div class="task"><b>Задача 5.</b> Производная f(x)=x³-3x. Найдите экстремумы; набросайте график.</div>
+    <div class="task"><b>Задача 6.</b> Окружность вписана в квадрат со стороной 8. Найдите площадь между ними.</div>
+  </div>
+
+  <button class="brush-fab" id="brushFab" title="Панель рисовалки" aria-label="Рисовалка">🖌️</button>
+
+  <div class="stage" id="stage">
+    <canvas id="cMain"></canvas>
+    <canvas id="cPreview"></canvas>
+  </div>
+
+  <div class="zbar" id="bar">
+    <button class="zbtn drag" id="barDrag" title="Переместить панель">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+    </button>
+    <button class="zbtn" id="tPen" title="Перо · толщина · фигуры">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+    </button>
+    <button class="zbtn" id="tEraser" title="Ластик (удаляет элемент целиком)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3 21 8 10 19H5l-2-2L16 3Z"/><path d="M5 19h14"/></svg>
+    </button>
+    <button class="zbtn zcolor" id="tColor" title="Цвет"><span class="cdot" id="colorDot"></span></button>
+    <span class="zsep"></span>
+    <button class="zbtn" id="undo" title="Назад">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-4"/></svg>
+    </button>
+    <button class="zbtn" id="redo" title="Вперёд">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h4"/></svg>
+    </button>
+    <button class="zbtn" id="clear" title="Очистить (отменяется через ↶)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m6 6 1 15h10l1-15"/></svg>
+    </button>
+    <button class="zbtn" id="more" title="Ещё">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+    </button>
+    <button class="zbtn zclose" id="closeBar" title="Закрыть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6 18 18M18 6 6 18"/></svg>
+    </button>
+  </div>
+
+  <!-- флайаут пера: фигуры + толщина + тип линии -->
+  <div class="zpop" id="popPen" hidden>
+    <div class="zrow"><span class="lbl">инстр.:</span><span id="penTools" style="display:flex;gap:5px"></span></div>
+    <div class="zrow"><span class="lbl">толщина:</span><span id="penThick" style="display:flex;gap:5px"></span></div>
+    <div class="zrow"><span class="lbl">линия:</span><span id="penStyle" style="display:flex;gap:5px"></span></div>
+  </div>
+
+  <!-- флайаут цвета: палитра Zoom -->
+  <div class="zpop" id="popColor" hidden><div class="zgrid" id="colorGrid"></div></div>
+
+  <!-- флайаут "ещё" -->
+  <div class="zpop" id="popMore" hidden><div class="zrow" id="moreRow" style="gap:5px"></div></div>
+
+<script type="module">
+import { getStroke } from 'https://cdn.jsdelivr.net/npm/perfect-freehand@1.2.2/dist/esm/index.mjs';
+
+const cMain = document.getElementById('cMain');
+const cPrev = document.getElementById('cPreview');
+const mctx = cMain.getContext('2d');
+const pctx = cPrev.getContext('2d');
+
+// палитра «как в Zoom» (приблизительно — точные hex легко поправить)
+const COLORS = [
+  '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',
+  '#8e5cd9', '#e95ba6', '#f7d046', '#18b5a7', '#4ec3f7',
+  '#111111', '#8d2b2b', '#a85b2b', '#1c7a3e', '#1f4fa3',
+];
+const THICKS = [2, 4, 7, 12, 20];
+const STYLES = [['pf', 'perfect-freehand'], ['smooth', 'сглаженная'], ['naive', 'naive']];
+const TOOLS = [['pen', '✎'], ['line', '／'], ['rect', '▭'], ['rectF', '▬'], ['ellipse', '◯'], ['ellipseF', '⬤']];
+
+const state = { engine: 'pf', tool: 'pen', color: '#111111', size: THICKS[2], pressure: false, bg: 'transparent', drawing: false };
+
+// ---------- retained-mode объекты + история ----------
+let objects = [], current = null, history = [[]], hi = 0, erasedThisDrag = false, activePointerType = null;
+let dpr = Math.max(1, window.devicePixelRatio || 1);
+const clone = (o) => JSON.parse(JSON.stringify(o));
+function commit() { history = history.slice(0, hi + 1); history.push(clone(objects)); hi = history.length - 1; syncHist(); }
+function undo() { if (hi > 0) { hi--; objects = clone(history[hi]); renderAll(); syncHist(); } }
+function redo() { if (hi < history.length - 1) { hi++; objects = clone(history[hi]); renderAll(); syncHist(); } }
+function syncHist() { document.getElementById('undo').disabled = hi <= 0; document.getElementById('redo').disabled = hi >= history.length - 1; }
+
+// ---------- размеры / DPR ----------
+function sizeCanvas(c, ctx) { const w = innerWidth, h = innerHeight; c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+function resizeAll() { dpr = Math.max(1, devicePixelRatio || 1); sizeCanvas(cMain, mctx); sizeCanvas(cPrev, pctx); renderAll(); }
+addEventListener('resize', resizeAll);
+
+// ---------- рендер ----------
+function fillOutline(ctx, o, color) { if (!o || o.length < 2) return; ctx.beginPath(); ctx.moveTo(o[0][0], o[0][1]); for (let i = 1; i < o.length; i++) ctx.lineTo(o[i][0], o[i][1]); ctx.closePath(); ctx.fillStyle = color; ctx.fill(); }
+function pfStroke(points, size, pointerType) { const p = state.pressure; return getStroke(points, { size, thinning: p ? 0.6 : 0, smoothing: 0.55, streamline: 0.5, simulatePressure: p && pointerType === 'mouse', last: true }); }
+function renderStroke(ctx, o) {
+  const pts = o.points;
+  if (o.style === 'pf') { fillOutline(ctx, pfStroke(pts, o.size, o.pointerType), o.color); return; }
+  ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineWidth = o.size; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (pts.length < 2) { ctx.beginPath(); ctx.arc(pts[0][0], pts[0][1], o.size / 2, 0, 7); ctx.fill(); return; }
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  if (o.style === 'smooth') { for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); } ctx.lineTo(pts.at(-1)[0], pts.at(-1)[1]); }
+  else { for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); }
+  ctx.stroke();
+}
+function drawShape(ctx, o) {
+  ctx.lineWidth = o.size; ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+  if (o.kind === 'line') { ctx.beginPath(); ctx.moveTo(o.x0, o.y0); ctx.lineTo(o.x1, o.y1); ctx.stroke(); return; }
+  const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
+  ctx.beginPath();
+  if (o.kind === 'rect') ctx.rect(x, y, w, h); else ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, 7);
+  o.filled ? ctx.fill() : ctx.stroke();
+}
+function drawObject(ctx, o) { o.kind === 'stroke' ? renderStroke(ctx, o) : drawShape(ctx, o); }
+function renderAll() { mctx.clearRect(0, 0, cMain.width, cMain.height); for (const o of objects) drawObject(mctx, o); }
+function clearPreview() { pctx.clearRect(0, 0, cPrev.width, cPrev.height); }
+
+// ---------- координаты / hit-test ----------
+function pos(e) { const r = cMain.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function pressureOf(e) { return (e.pressure > 0 && e.pointerType !== 'mouse') ? e.pressure : 0.5; }
+function d2seg(px, py, x0, y0, x1, y1) { const dx = x1 - x0, dy = y1 - y0, l2 = dx * dx + dy * dy; let t = l2 ? ((px - x0) * dx + (py - y0) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(px - (x0 + t * dx), py - (y0 + t * dy)); }
+function hit(o, x, y, r) {
+  const pad = r + o.size / 2;
+  if (o.kind === 'stroke') { for (let i = 0; i < o.points.length; i++) { if (Math.hypot(o.points[i][0] - x, o.points[i][1] - y) <= pad) return true; if (i > 0 && d2seg(x, y, o.points[i - 1][0], o.points[i - 1][1], o.points[i][0], o.points[i][1]) <= pad) return true; } return false; }
+  if (o.kind === 'line') return d2seg(x, y, o.x0, o.y0, o.x1, o.y1) <= pad;
+  const x0 = Math.min(o.x0, o.x1) - r, x1 = Math.max(o.x0, o.x1) + r, y0 = Math.min(o.y0, o.y1) - r, y1 = Math.max(o.y0, o.y1) + r;
+  return x >= x0 && x <= x1 && y >= y0 && y <= y1;
+}
+function eraseAt(x, y) { const r = Math.max(8, state.size / 2 + 6); for (let i = objects.length - 1; i >= 0; i--) if (hit(objects[i], x, y, r)) { objects.splice(i, 1); return true; } return false; }
+
+// ---------- pointer ----------
+function shapeKind(t) { return t === 'line' ? 'line' : t.startsWith('rect') ? 'rect' : 'ellipse'; }
+function onDown(e) {
+  if (!document.body.classList.contains('draw-on')) return;
+  if (activePointerType === 'pen' && e.pointerType === 'touch') return;
+  activePointerType = e.pointerType; state.drawing = true; cPrev.setPointerCapture?.(e.pointerId);
+  const [x, y] = pos(e);
+  if (state.tool === 'eraser') { erasedThisDrag = false; if (eraseAt(x, y)) { erasedThisDrag = true; renderAll(); } return; }
+  if (state.tool === 'pen') current = { kind: 'stroke', style: state.engine, points: [[x, y, pressureOf(e)]], color: state.color, size: state.size, pointerType: e.pointerType };
+  else current = { kind: shapeKind(state.tool), x0: x, y0: y, x1: x, y1: y, color: state.color, size: state.size, filled: state.tool.endsWith('F') };
+}
+function onMove(e) {
+  if (!state.drawing) return;
+  if (activePointerType === 'pen' && e.pointerType === 'touch') return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  if (state.tool === 'eraser') { for (const ev of evs) { const [x, y] = pos(ev); if (eraseAt(x, y)) { erasedThisDrag = true; renderAll(); } } return; }
+  if (state.tool === 'pen') { for (const ev of evs) { const [x, y] = pos(ev); current.points.push([x, y, pressureOf(ev)]); } clearPreview(); renderStroke(pctx, current); }
+  else { const [x, y] = pos(e); current.x1 = x; current.y1 = y; clearPreview(); drawShape(pctx, current); }
+}
+function onUp(e) {
+  if (!state.drawing) return; state.drawing = false;
+  if (state.tool === 'eraser') { if (erasedThisDrag) commit(); }
+  else if (current) { objects.push(current); current = null; renderAll(); clearPreview(); commit(); }
+  if (e.pointerType === activePointerType) activePointerType = null;
+}
+for (const [t, f] of [['pointerdown', onDown], ['pointermove', onMove], ['pointerup', onUp], ['pointercancel', onUp]]) cPrev.addEventListener(t, f);
+
+// ====================== UI (Zoom-style) ======================
+const bar = document.getElementById('bar');
+const brush = document.getElementById('brushFab');
+const colorDot = document.getElementById('colorDot');
+
+// --- наполняем флайауты ---
+const penToolsBox = document.getElementById('penTools');
+TOOLS.forEach(([t, g]) => { const b = document.createElement('button'); b.className = 'tbtn'; b.dataset.tool = t; b.textContent = g; b.title = t; penToolsBox.appendChild(b); });
+const penThickBox = document.getElementById('penThick');
+THICKS.forEach((t, i) => { const b = document.createElement('button'); b.className = 'tbtn'; b.dataset.thick = String(t); b.title = ['супертонкий', 'тонкий', 'средний', 'толще', 'супертолстый'][i]; const d = Math.min(18, Math.max(3, t)); b.innerHTML = `<span class="dot" style="width:${d}px;height:${d}px"></span>`; penThickBox.appendChild(b); });
+const penStyleBox = document.getElementById('penStyle');
+STYLES.forEach(([k, name]) => { const b = document.createElement('button'); b.className = 'tbtn'; b.dataset.style = k; b.textContent = name; b.style.fontSize = '12px'; penStyleBox.appendChild(b); });
+const colorGrid = document.getElementById('colorGrid');
+COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'cell' + (c === '#ffffff' ? ' light' : ''); b.dataset.color = c; b.style.background = c; b.title = c; colorGrid.appendChild(b); });
+const moreRow = document.getElementById('moreRow');
+moreRow.innerHTML = '<button class="tbtn" id="mPressure" style="font-size:12px">нажим: выкл</button>'
+  + '<button class="tbtn" id="mPause" style="font-size:12px">пауза (скролл)</button>'
+  + '<button class="tbtn" id="mBg" style="font-size:12px">фон</button>';
+
+// --- popup-система ---
+const POPS = { pen: 'popPen', color: 'popColor', more: 'popMore' };
+function closePops() { for (const id of Object.values(POPS)) document.getElementById(id).hidden = true; }
+function openPop(name, btn) {
+  const pop = document.getElementById(POPS[name]); const wasOpen = !pop.hidden; closePops(); if (wasOpen) return;
+  pop.hidden = false;
+  const br = btn.getBoundingClientRect(), pr = pop.getBoundingClientRect();
+  let left = br.left + br.width / 2 - pr.width / 2;
+  left = Math.max(6, Math.min(innerWidth - pr.width - 6, left));
+  pop.style.left = left + 'px'; pop.style.top = (bar.getBoundingClientRect().bottom + 8) + 'px';
+}
+document.addEventListener('pointerdown', (e) => { if (e.target.closest('.zpop') || e.target.closest('#tPen,#tColor,#more')) return; closePops(); });
+
+// --- отрисовка активных состояний ---
+function updateActive() {
+  document.getElementById('tPen').classList.toggle('active', state.tool !== 'eraser');
+  document.getElementById('tEraser').classList.toggle('active', state.tool === 'eraser');
+  colorDot.style.background = state.color;
+  penToolsBox.querySelectorAll('.tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === state.tool));
+  penThickBox.querySelectorAll('.tbtn').forEach(b => b.classList.toggle('on', Number(b.dataset.thick) === state.size));
+  penStyleBox.querySelectorAll('.tbtn').forEach(b => b.classList.toggle('on', b.dataset.style === state.engine));
+  colorGrid.querySelectorAll('.cell').forEach(b => b.classList.toggle('on', b.dataset.color === state.color));
+}
+
+// --- открытие/закрытие панели ---
+function setDraw(on) { document.body.classList.toggle('draw-on', on); }
+function setBarOpen(open) { bar.classList.toggle('open', open); brush.classList.toggle('on', open); setDraw(open); if (!open) closePops(); }
+brush.addEventListener('click', () => setBarOpen(!bar.classList.contains('open')));
+document.getElementById('closeBar').addEventListener('click', () => setBarOpen(false));
+
+// --- главная панель ---
+document.getElementById('tPen').addEventListener('click', () => { if (state.tool === 'eraser') state.tool = 'pen'; updateActive(); openPop('pen', document.getElementById('tPen')); });
+document.getElementById('tEraser').addEventListener('click', () => { state.tool = 'eraser'; closePops(); updateActive(); });
+document.getElementById('tColor').addEventListener('click', () => openPop('color', document.getElementById('tColor')));
+document.getElementById('more').addEventListener('click', () => openPop('more', document.getElementById('more')));
+document.getElementById('undo').addEventListener('click', undo);
+document.getElementById('redo').addEventListener('click', redo);
+document.getElementById('clear').addEventListener('click', () => { if (objects.length) { objects = []; renderAll(); commit(); } });
+
+// --- флайаут пера ---
+penToolsBox.addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; state.tool = b.dataset.tool; updateActive(); });
+penThickBox.addEventListener('click', (e) => { const b = e.target.closest('[data-thick]'); if (!b) return; state.size = Number(b.dataset.thick); updateActive(); });
+penStyleBox.addEventListener('click', (e) => { const b = e.target.closest('[data-style]'); if (!b) return; state.engine = b.dataset.style; updateActive(); });
+colorGrid.addEventListener('click', (e) => { const b = e.target.closest('[data-color]'); if (!b) return; state.color = b.dataset.color; updateActive(); closePops(); });
+
+// --- "ещё" ---
+document.getElementById('mPressure').addEventListener('click', (e) => { state.pressure = !state.pressure; e.target.textContent = 'нажим: ' + (state.pressure ? 'вкл' : 'выкл'); e.target.classList.toggle('on', state.pressure); renderAll(); });
+document.getElementById('mPause').addEventListener('click', (e) => { const on = document.body.classList.toggle('draw-on'); e.target.classList.toggle('on', !on); e.target.textContent = on ? 'пауза (скролл)' : '▶ продолжить'; });
+document.getElementById('mBg').addEventListener('click', () => { state.bg = state.bg === 'transparent' ? 'dark' : state.bg === 'dark' ? 'paper' : 'transparent'; document.body.classList.toggle('bg-dark', state.bg === 'dark'); document.body.classList.toggle('bg-paper', state.bg === 'paper'); });
+
+// --- перетаскивание панели за ручку ---
+const barDrag = document.getElementById('barDrag');
+let drag = null;
+barDrag.addEventListener('pointerdown', (e) => { closePops(); const r = bar.getBoundingClientRect(); drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; bar.style.left = r.left + 'px'; bar.style.top = r.top + 'px'; bar.style.right = 'auto'; bar.style.bottom = 'auto'; bar.style.transform = 'none'; bar.classList.add('dragging'); barDrag.setPointerCapture(e.pointerId); e.preventDefault(); });
+barDrag.addEventListener('pointermove', (e) => { if (!drag) return; const w = bar.offsetWidth, h = bar.offsetHeight; bar.style.left = Math.max(4, Math.min(innerWidth - w - 4, e.clientX - drag.dx)) + 'px'; bar.style.top = Math.max(4, Math.min(innerHeight - h - 4, e.clientY - drag.dy)) + 'px'; });
+function endDrag() { drag = null; bar.classList.remove('dragging'); }
+barDrag.addEventListener('pointerup', endDrag); barDrag.addEventListener('pointercancel', endDrag);
+
+resizeAll(); updateActive(); syncHist();
+</script>
+</body>
+</html>

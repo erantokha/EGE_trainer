@@ -1,0 +1,24 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-10-15">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+<style>
+  html,body{margin:0;height:100%}
+  .mask{position:fixed;inset:0;background:#fff;display:flex;overflow:auto}
+  .content{margin:auto;max-width:900px;padding:24px;zoom:var(--z,1)}
+  .stem{font-size:18px;line-height:1.5;color:#111}
+  .fig{margin-top:16px}
+  .ctrl{position:fixed;top:10px;right:10px;z-index:10;display:flex;gap:6px}
+  .ctrl button{width:36px;height:36px;font-size:18px}
+</style></head><body>
+<div class="mask"><div class="content" id="content">
+  <p class="stem" id="stem">В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен 115°. Найдите угол C. Это длинное условие для проверки центрирования и масштабирования текста при увеличении зума.</p>
+  <div class="fig"><svg id="svg" width="300" height="160" viewBox="0 0 300 160"><polygon points="20,140 280,140 150,30" fill="none" stroke="#111" stroke-width="2"/></svg></div>
+</div></div>
+<div class="ctrl"><button id="zout">−</button><button id="zin">+</button></div>
+<script>
+let z=1; const c=document.getElementById('content');
+function set(){c.style.setProperty('--z',z);}
+document.getElementById('zin').onclick=()=>{z=Math.min(3,Math.round((z+0.25)*100)/100);set();};
+document.getElementById('zout').onclick=()=>{z=Math.max(0.5,Math.round((z-0.25)*100)/100);set();};
+window.__z=()=>z; window.__setZ=(v)=>{z=v;set();};
+</script></body></html>

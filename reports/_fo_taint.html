@@ -1,0 +1,16 @@
+<!doctype html><html><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-10-15"></head><body>
+<canvas id="c"></canvas>
+<script>
+const html = '<div xmlns="http://www.w3.org/1999/xhtml" style="font:20px -apple-system,sans-serif;color:#111;width:280px">В треугольнике ABC стороны AC и BC равны. Внешний угол при вершине B равен 155°. Найдите угол C.</div>';
+const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="160"><foreignObject x="0" y="0" width="300" height="160">'+html+'</foreignObject></svg>';
+const img = new Image();
+img.onload = () => {
+  const c = document.getElementById('c'); c.width=300; c.height=160;
+  const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,300,160); ctx.drawImage(img,0,0);
+  let taint='?'; try { ctx.getImageData(0,0,1,1); taint='clean'; } catch(e){ taint='TAINTED:'+e.name; }
+  c.toBlob(b=>{ window.__res = JSON.stringify({taint, blob: b?('OK '+b.size+'b'):'null'}); }, 'image/png');
+};
+img.onerror = (e) => { window.__res = JSON.stringify({err:'img onerror'}); };
+img.src = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+</script></body></html>
