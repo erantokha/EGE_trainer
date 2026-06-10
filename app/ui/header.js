@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-10-21-193832';
+import { navigate } from './nav.js?v=2026-06-10-22-210633';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -840,6 +840,35 @@ export async function initHeader(opts = {}) {
         clearProfileCaches();
         maybeRedirectLanding();
       }
+    });
+  } catch (_) {}
+
+  wireSidebarRailExpand();
+}
+
+// Рельс-сайдбар (десктоп): клик по СВОБОДНОМУ месту рельса раскрывает меню тем же путём, что
+// и клик по лого (#htSidebarClose — его тоггл вешает синхронный инлайн-контроллер страницы).
+// Клики по самим пунктам/кнопкам/ссылкам не трогаем (там своя навигация); закрытие — кликом по
+// лого-бургеру. На мобайле рельса нет (сайдбар — полноэкранный оверлей) → не вмешиваемся.
+// header.js общий для всех страниц с сайдбаром → одна точка вместо дубля в 13 инлайн-контроллерах.
+function wireSidebarRailExpand() {
+  try {
+    const sidebarEl = document.getElementById('htSidebar');
+    const panelEl = sidebarEl && sidebarEl.querySelector('.ht-sidebar-panel');
+    if (!panelEl || panelEl.dataset.railExpandWired === '1') return;
+    panelEl.dataset.railExpandWired = '1';
+
+    panelEl.addEventListener('click', (e) => {
+      try {
+        if (!window.matchMedia('(min-width:1025px)').matches) return;
+        if (sidebarEl.classList.contains('open')) return;
+
+        const t = e.target;
+        if (t && t.closest && t.closest('button, a, input, label')) return;
+
+        const logo = document.getElementById('htSidebarClose');
+        if (logo) logo.click();
+      } catch (_) {}
     });
   } catch (_) {}
 }

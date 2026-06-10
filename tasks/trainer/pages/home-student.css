@@ -1392,6 +1392,18 @@ body[data-home-variant] .ht-sidebar.open .ht-sidebar-panel {
   background: var(--surface2, #f1f5f9);
 }
 
+/* ── Курсор-стрелка вправо на свёрнутом рельсе: подсказывает, что клик по свободному месту
+   раскроет меню (обработчик — header.js). Только десктоп и только в свёрнутом состоянии (в
+   раскрытом клик по фону не раскрывает). cursor наследуется → одно правило на панель красит
+   всё свободное место; кнопки/ссылки сохраняют свой pointer (их собственные правила сильнее
+   наследования). Маленькая стрелка 22px ≈ размер курсора, остриё (hotspot 16 11) совпадает с
+   точкой. SVG data-URI (Chrome/FF/Edge); Safari игнорирует SVG-курсор → аккуратный фолбэк pointer. ── */
+@media (min-width: 1025px) {
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-panel {
+    cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMiIgaGVpZ2h0PSIyMiIgdmlld0JveD0iMCAwIDIyIDIyIj48ZyBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik00IDExaDEyTTExIDZsNSA1LTUgNSIgc3Ryb2tlPSIjZmZmZmZmIiBzdHJva2Utd2lkdGg9IjMuNiIvPjxwYXRoIGQ9Ik00IDExaDEyTTExIDZsNSA1LTUgNSIgc3Ryb2tlPSIjMWYyOTM3IiBzdHJva2Utd2lkdGg9IjEuOSIvPjwvZz48L3N2Zz4=") 16 11, pointer;
+  }
+}
+
 /* Шапка сайдбара: бургер + заголовок */
 body[data-home-variant] .ht-sidebar-head {
   display: flex;
@@ -1453,15 +1465,22 @@ body[data-home-variant] .ht-logo-burger {
   opacity: 0;
   stroke: var(--accent, #2563eb);       /* синий бургер */
 }
-body[data-home-variant] .ht-sidebar-logo:hover {
+/* Морф «Е/галочка → бургер» срабатывает при наведении на ВЕСЬ рельс (.ht-sidebar-panel),
+   а не только на сам квадрат лого — наведение на любое место бокового меню сразу подсказывает,
+   что меню кликабельно/раскрываемо (раскрытие — кликом по свободному месту, обработчик в header.js).
+   :focus-visible на самом лого сохраняем для доступа с клавиатуры. */
+body[data-home-variant] .ht-sidebar-panel:hover .ht-sidebar-logo,
+body[data-home-variant] .ht-sidebar-logo:focus-visible {
   background: transparent;              /* синий фон уходит */
   box-shadow: none;
 }
-body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-check  { opacity: 0; }
-body[data-home-variant] .ht-sidebar-logo:hover .ht-logo-burger { opacity: 1; }
+body[data-home-variant] .ht-sidebar-panel:hover .ht-logo-check,
+body[data-home-variant] .ht-sidebar-logo:focus-visible .ht-logo-check  { opacity: 0; }
+body[data-home-variant] .ht-sidebar-panel:hover .ht-logo-burger,
+body[data-home-variant] .ht-sidebar-logo:focus-visible .ht-logo-burger { opacity: 1; }
 
-/* WD3·в1: иконки пунктов меню крупнее — до размера синего квадрата лого (30px). */
-body[data-home-variant] .ht-sidebar-item .ht-sidebar-icon svg { width: 30px; height: 30px; }
+/* Иконки пунктов меню (домик/статистика/ДЗ/профиль/выход) — на 20% меньше: 30px → 24px. */
+body[data-home-variant] .ht-sidebar-item .ht-sidebar-icon svg { width: 24px; height: 24px; }
 
 /* Вордмарк: «ЕГЭ-тренажёр» + «профильная математика» (две строки) */
 body[data-home-variant] .ht-sidebar-brand {
@@ -1660,9 +1679,9 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn {
     padding-left: 13px; padding-right: 13px;
   }
-  /* пункты меню с увеличенной иконкой (30px) — центрируем на рельсе (центр 28). */
+  /* пункты меню с иконкой 24px — центрируем на рельсе (центр оси 28 = padding 16 + 24/2). */
   html:not(.ht-rail-open) body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item {
-    padding-left: 13px;
+    padding-left: 16px;
   }
 
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-item[data-railtip]::after,
