@@ -1692,6 +1692,15 @@ body[data-home-variant] .ht-sidebar-item.active::before {
   body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-btn[data-railtip]:hover::after {
     opacity: 1;
   }
+
+  /* В свёрнутом рельсе имя/шеврон (opacity:0 + overflow:visible на кнопке) ВЫЛЕЗАЮТ вправо и
+     остаются кликабельной частью кнопки → клик по «подсказке» (::after, pointer-events:none)
+     проходил сквозь неё в прозрачное имя и открывал меню. Делаем имя/шеврон неинтерактивными —
+     кликается только сама иконка-аватар (как у остальных пунктов: подсказка некликабельна). */
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-user-name,
+  body[data-home-variant] .ht-sidebar:not(.open) .ht-sidebar-chevron {
+    pointer-events: none;
+  }
 }
 
 /* Аватар-инициал кнопки пользователя: кружок с первой буквой имени (в свёрнутом рельсе —

@@ -61,7 +61,9 @@ body[data-home-variant="teacher"] #appHeader {
   margin: 0 auto;
   padding: 10px 40px;
   box-sizing: border-box;
-  background: var(--bg);
+  /* WSF: sticky убран → непрозрачный фон больше не нужен. Белый var(--bg) выделялся блоком
+     на slate-фоне страницы (--surface); прозрачный сливается с остальным фоном (как у ученика). */
+  background: transparent;
 }
 
 /* D4 (десктоп): eyebrow сверху, СТРОКОЙ НИЖЕ — заголовок «Ученик» и поле поиска В ОДНУ
