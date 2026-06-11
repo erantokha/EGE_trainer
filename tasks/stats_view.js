@@ -3,13 +3,14 @@
 // WSA-1a: prototype-aware статусы (охват прототипов × качество × рекомендация)
 // вместо наивной окраски по проценту окна. См. WSA_PLAN.md.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-3-035405';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-3-042734';
 import {
   subtopicStatus,
   themeStatus,
   overallCoverage,
   rankTrainingTargets,
-} from './wsa_status.js?v=2026-06-11-3-035405';
+} from './wsa_status.js?v=2026-06-11-3-042734';
+import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-11-3-042734';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -134,8 +135,8 @@ function renderOverall(root, dash, opts = {}) {
 
   // Карточка покрытия — прото-охват по всему экрану (WSA-1a §5.5).
   const covAll = overallCoverage(dash);
-  const coverageCard = el('div', { class: 'stat-card', title: 'Сколько разных типов задач вы уже встречали' }, [
-    el('div', { class: 't', text: 'Покрытие тем' }),
+  const coverageCard = el('div', { class: 'stat-card' }, [
+    el('div', { class: 't', 'data-help': 'coverage', text: 'Покрытие тем' }),
     el('div', { class: 'v' }, [
       el('div', { class: 'pct', text: covAll.total > 0 ? `${covAll.opened}/${covAll.total}` : '—' }),
       el('div', { class: 'cnt', text: 'типов задач' }),
@@ -159,6 +160,12 @@ function renderOverall(root, dash, opts = {}) {
   if (opts?.showLastSeen !== false) {
     root.appendChild(el('div', { class: 'small', text: `Последняя активность: ${lastSeenTxt}` }));
   }
+
+  // F5: «?»-иконки к метрикам + раскрывающаяся легенда «Что означают показатели?».
+  try {
+    applyMetricHelp(root);
+    root.appendChild(buildLegend(['accuracy', 'coverage', 'prototype', 'weak', 'stale', 'unstable', 'forecast', 'primary', 'secondary']));
+  } catch (_) {}
 }
 
 // ---------- «Что тренировать сейчас» ----------

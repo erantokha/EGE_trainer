@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-11-3-035405';
+import { navigate } from './nav.js?v=2026-06-11-3-042734';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -144,7 +144,8 @@ async function fetchProfileRole(supabase, userId) {
     let q = supabase.from('profiles').select('role').eq('id', userId);
     const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
     const { data, error } = res || {};
-    if (error) return '';
+    // F3: различаем СБОЙ загрузки (undefined) и подтверждённое отсутствие роли ('').
+    if (error) return undefined;
 
     const role = String(data?.role || '').trim();
     if (!role) return '';
@@ -156,7 +157,7 @@ async function fetchProfileRole(supabase, userId) {
     try { localStorage.setItem('ege_role', role); } catch (_) {}
     return role;
   } catch (_) {
-    return '';
+    return undefined; // сетевой сбой → не подтверждённое отсутствие роли
   }
 }
 
@@ -531,7 +532,11 @@ export async function initHeader(opts = {}) {
   const { close: closeMenu } = setupMenuInteractions(ui.userBtn, ui.menu);
 
   // Текущая роль пользователя (из profiles.role) для ветвления меню.
-  let currentRole = 'student';
+  // F3: НЕ дефолтим в 'student' — пока роль не резолвнута, считаем её неизвестной,
+  // чтобы случайно не показать учителю ученический интерфейс и не бросить его
+  // редиректом на чужую главную. roleResolved=false блокирует maybeRedirectLanding.
+  let currentRole = '';
+  let roleResolved = false;
   let currentSession = null;
 
   let myHwBellSeq = 0;
@@ -578,7 +583,17 @@ export async function initHeader(opts = {}) {
 
   const applyRoleToMenu = (roleRaw) => {
     const r = String(roleRaw || '').trim().toLowerCase();
+    // F3: пустая/неизвестная роль НЕ трактуется как student. roleResolved остаётся false,
+    // меню — нейтральное (роле-специфичные пункты скрыты), редирект landing не запускается.
+    if (r !== 'teacher' && r !== 'student') {
+      currentRole = '';
+      roleResolved = false;
+      if (ui.menuMyHw) ui.menuMyHw.classList.add('hidden');
+      setMyHwBells(0);
+      return;
+    }
     currentRole = (r === 'teacher') ? 'teacher' : 'student';
+    roleResolved = true;
     if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
     if (ui.menuMyHw) ui.menuMyHw.classList.toggle('hidden', currentRole !== 'student');
     if (currentRole !== 'student') setMyHwBells(0);
@@ -586,6 +601,36 @@ export async function initHeader(opts = {}) {
 
     // После того как роль стала известна — можно корректно "прибить" пользователя к нужной главной.
     maybeRedirectLanding();
+  };
+
+  // F3: безопасный экран при сбое загрузки роли на ролевых лендингах (home_student/home_teacher).
+  // Не показываем ученический интерфейс по умолчанию: перекрываем страницу error-state с
+  // «Повторить» (перезагрузка) и «Выйти» (signOut → вход).
+  let roleErrorShown = false;
+  const maybeShowRoleError = (uid) => {
+    if (roleErrorShown) return;
+    const kind = getLandingKind();
+    if (kind !== 'student' && kind !== 'teacher') return; // только ролевые лендинги
+    roleErrorShown = true;
+    const ov = document.createElement('div');
+    ov.id = 'ege-role-error';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:999998;background:var(--bg,#fff);'
+      + 'display:flex;align-items:center;justify-content:center;padding:24px;'
+      + 'font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;';
+    ov.innerHTML = '<div style="max-width:460px;text-align:center">'
+      + '<div style="font-size:19px;font-weight:700;margin-bottom:8px">Не удалось загрузить профиль</div>'
+      + '<div style="font-size:14px;opacity:.85;margin-bottom:6px">Попробуйте ещё раз.</div>'
+      + '<div style="font-size:12.5px;opacity:.7;margin-bottom:16px">Если ошибка повторяется, напишите в поддержку.</div>'
+      + '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">'
+      + '<button id="roleErrRetry" style="padding:9px 16px;border-radius:10px;border:1px solid #2563eb;background:#2563eb;color:#fff;cursor:pointer;font-size:14px">Повторить</button>'
+      + '<button id="roleErrLogout" style="padding:9px 16px;border-radius:10px;border:1px solid #cbd5e1;background:#fff;cursor:pointer;font-size:14px">Выйти</button>'
+      + '</div></div>';
+    document.documentElement.appendChild(ov);
+    ov.querySelector('#roleErrRetry')?.addEventListener('click', () => { try { location.reload(); } catch (_) {} });
+    ov.querySelector('#roleErrLogout')?.addEventListener('click', async () => {
+      try { if (signOut) await signOut(); } catch (_) {}
+      try { location.href = computeHomeUrl(); } catch (_) { location.reload(); }
+    });
   };
 
   const maybeRedirectLanding = () => {
@@ -621,9 +666,13 @@ export async function initHeader(opts = {}) {
       return;
     }
 
-    // На чужой домашней странице — тоже перекидываем.
+    // F3: пока роль не резолвнута — НЕ перекидываем (иначе учителя со сбоем роли
+    // выбросит на home_student → он увидит ученический интерфейс).
+    if (!roleResolved) return;
+
+    // На чужой домашней странице — тоже перекидываем (только при известной роли).
     if (kind === 'student' && currentRole === 'teacher') { toTeacher(); return; }
-    if (kind === 'teacher' && currentRole !== 'teacher') { toStudent(); return; }
+    if (kind === 'teacher' && currentRole === 'student') { toStudent(); return; }
   };
 
   ui.menuMyHw?.addEventListener('click', () => {
@@ -726,12 +775,12 @@ export async function initHeader(opts = {}) {
       setUserName(inferFirstName(session.user || null));
 
       // Роль (учитель/ученик) — из profiles.role (кэшируем).
+      // F3: на cache-miss НЕ дефолтим в student — роль неизвестна до резолва.
       try {
         const cachedRole = sessionStorage.getItem(`ege_profile_role:${uid}`);
-        if (cachedRole) applyRoleToMenu(cachedRole);
-        else applyRoleToMenu('student');
+        applyRoleToMenu(cachedRole || '');
       } catch (_) {
-        applyRoleToMenu('student');
+        applyRoleToMenu('');
       }
 
       const seq = ++nameFetchSeq;
@@ -744,7 +793,14 @@ export async function initHeader(opts = {}) {
 
         fetchProfileRole(supabase, uid).then((r) => {
           if (seq !== nameFetchSeq) return;
-          if (r) applyRoleToMenu(r);
+          if (r === 'teacher' || r === 'student') {
+            applyRoleToMenu(r);
+          } else if (r === undefined && !roleResolved) {
+            // F3: роль не загрузилась (сетевой сбой) и не была в кэше → на ролевых
+            // лендингах показываем безопасный error-state вместо ученического интерфейса.
+            maybeShowRoleError(uid);
+          }
+          // r === '' (подтверждённое отсутствие роли) — оставляем нейтральное меню
         });
       }
     } else {

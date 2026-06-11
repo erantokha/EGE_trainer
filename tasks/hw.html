@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-11-3-035405">
+  <meta name="app-build" content="2026-06-11-3-042734">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,7 +45,7 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="../app/diag_bootstrap.js?v=2026-06-11-3-035405"></script>
+  <script src="../app/diag_bootstrap.js?v=2026-06-11-3-042734"></script>
 
   <meta name="referrer" content="no-referrer">
 
@@ -125,13 +125,13 @@
 
 
   
-  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="./trainer/pages/hw.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-11-3-035405">
-  <link rel="stylesheet" href="../app/ui/draw_overlay.css?v=2026-06-11-3-035405">
+  <link rel="stylesheet" href="./trainer/tokens.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="./trainer/base.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="./trainer/pages/hw.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="./trainer/pages/home-student.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="./home_student.mobile.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="./trainer/print.css?v=2026-06-11-3-042734">
+  <link rel="stylesheet" href="../app/ui/draw_overlay.css?v=2026-06-11-3-042734">
   <script>
     window.MathJax = {
       tex: { inlineMath: [['\\(','\\)'], ['$', '$']] },
@@ -140,10 +140,10 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
 </head>
-<body data-home-variant="student">
+<body data-sidebar-pending="1">
   <!-- WD4-фикс: роль из кэша ДО первой отрисовки контента (body уже открыт) → dual-nav сразу
        показывает нужный набор пунктов, без мигания student↔teacher (как в profile.html). -->
-  <script>(function(){try{var r=(localStorage.getItem('ege_role')||'').trim().toLowerCase();if(!r){for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('ege_profile_role:')===0){r=(sessionStorage.getItem(k)||'').trim().toLowerCase();break;}}}if(r==='teacher'){document.body.setAttribute('data-home-variant','teacher');}}catch(e){}})();</script>
+  <script>(function(){try{var r=(localStorage.getItem('ege_role')||'').trim().toLowerCase();if(!r){for(var i=0;i<sessionStorage.length;i++){var k=sessionStorage.key(i);if(k&&k.indexOf('ege_profile_role:')===0){r=(sessionStorage.getItem(k)||'').trim().toLowerCase();break;}}}if(r==='teacher'||r==='student'){document.body.setAttribute('data-home-variant',r);}}catch(e){}})();</script>
   <main class="container">
     <section id="hw">
       <div class="panel">
@@ -319,8 +319,8 @@
     </nav>
   </div>
 
-  <script src="./theme.js?v=2026-06-11-3-035405" defer></script>
-  <script type="module" src="./hw.js?v=2026-06-11-3-035405"></script>
+  <script src="./theme.js?v=2026-06-11-3-042734" defer></script>
+  <script type="module" src="./hw.js?v=2026-06-11-3-042734"></script>
   <script>
   /* Открытие/закрытие сайдбара + синк имени из #userMenuBtn + выход через скрытый
      #menuLogout + навигация. Механика 1-в-1 с home_student.html / trainer.html.
@@ -462,7 +462,7 @@
     function homeUrl() { try { return /\/tasks(\/|$)/.test(location.pathname) ? new URL('../', location.href).toString() : new URL('./', location.href).toString(); } catch (e) { return './'; } }
     function pageKey() { var p = location.pathname; if (/\/home_student\.html$/.test(p)) return 'home_student'; if (/\/home_teacher\.html$/.test(p)) return 'home_teacher'; if (p === '/' || p === '' || /\/index\.html$/.test(p)) return 'root'; var m = p.match(/\/tasks\/([a-z0-9_]+)\.html$/i); return m ? m[1].toLowerCase() : ''; }
     function cachedRole() { try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); if (k && k.indexOf('ege_profile_role:') === 0) { var v = (sessionStorage.getItem(k) || '').trim().toLowerCase(); if (v) return v === 'teacher' ? 'teacher' : 'student'; } } var lr = (localStorage.getItem('ege_role') || '').trim().toLowerCase(); if (lr) return lr === 'teacher' ? 'teacher' : 'student'; } catch (e) {} return null; }
-    function menuStatsRole() { var el = document.getElementById('menuStats'); if (!el) return null; var t = (el.textContent || '').trim(); if (!t) return null; return /ученик/i.test(t) ? 'teacher' : 'student'; }
+    function menuStatsRole() { var el = document.getElementById('menuStats'); if (!el) return null; var t = (el.textContent || '').trim(); if (!t) return null; return /ученик/i.test(t) ? 'teacher' : null; /* F3: не дефолтить в student при неопределённой роли */ }
 
     // 1) Профиль (универсальная страница): роль -> body[data-home-variant] СИНХРОННО (до paint).
     var auto = sb.getAttribute('data-sidebar-role') === 'auto';

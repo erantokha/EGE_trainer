@@ -222,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const covered = Array.isArray(dash?.topics)
         ? new Set(dash.topics.filter(t => (t?.all_time?.total ?? 0) > 0).map(t => String(t?.topic_id || '').trim()).filter(Boolean)).size
         : 0;
-      ui.hintEl.textContent = totalTopics ? `Покрытие: ${covered}/${totalTopics} подтем` : (covered ? `Покрытие: ${covered} подтем` : '');
+      ui.hintEl.textContent = totalTopics ? `Изучено подтем: ${covered} из ${totalTopics}` : (covered ? `Изучено подтем: ${covered}` : '');
 
       setStatus(ui.statusEl, '');
       renderDashboard(ui, dash, catalog || { sections:new Map(), topicTitle:new Map() }, {
@@ -235,17 +235,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       ui._lastDays = days;
       ui._lastSource = source;
     } catch (e) {
+      // F2: единый error-state. Сессия истекла — отдельный кейс (re-login).
       if (isAuthRequired(e)) {
         setStatus(ui.statusEl, 'Сессия истекла. Перезайдите в аккаунт.', 'err');
-      } else if (isTimeout(e)) {
-        setStatus(ui.statusEl, 'Сервер отвечает слишком долго. Попробуйте ещё раз.', 'err');
-      } else {
-        setStatus(ui.statusEl, `Ошибка загрузки статистики: ${formatErr(e)}`, 'err');
+        ui.hintEl.textContent = '';
+        ui.overallEl.innerHTML = '';
+        ui.trainingEl.innerHTML = '';
+        ui.sectionsEl.innerHTML = '';
+        return;
       }
+      setStatus(ui.statusEl, '');
       ui.hintEl.textContent = '';
-      ui.overallEl.innerHTML = '';
       ui.trainingEl.innerHTML = '';
       ui.sectionsEl.innerHTML = '';
+      try {
+        const { renderErrorState } = await import(withV('../app/ui/error_state.js'));
+        renderErrorState(ui.overallEl, { kind: 'stats', err: e, onRetry: () => loadAll() });
+      } catch (_) {
+        setStatus(ui.statusEl, 'Не удалось загрузить статистику. Попробуйте ещё раз.', 'err');
+      }
     }
   }
 

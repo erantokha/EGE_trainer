@@ -10,21 +10,21 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-11-3-035405';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-3-035405';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-11-3-042734';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-3-042734';
 
-import { CONFIG } from '../app/config.js?v=2026-06-11-3-035405';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-11-3-035405';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-11-3-035405';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-11-3-035405';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-3-035405';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-3-035405';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-3-035405';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-3-035405';
+import { CONFIG } from '../app/config.js?v=2026-06-11-3-042734';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-11-3-042734';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-11-3-042734';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-11-3-042734';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-11-3-042734';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-11-3-042734';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-3-042734';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-11-3-042734';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-3-035405';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-3-035405';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-11-3-042734';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-3-042734';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -483,6 +483,21 @@ function normalizeAttemptRowFromRpc(data, attemptId) {
   return out;
 }
 
+// F2: единый error-state для просмотра результата/ДЗ. Хост — #hwGateMsg; Повторить перезапускает загрузку.
+async function showReportError(err, onRetry) {
+  rmCls('#hwGate', 'hidden');
+  addCls('#runner', 'hidden');
+  addCls('#summary', 'hidden');
+  const host = $('#hwGateMsg');
+  if (!host) return;
+  try {
+    const { renderErrorState } = await import(withV('../app/ui/error_state.js'));
+    renderErrorState(host, { kind: 'homework', err, onRetry });
+  } catch (_) {
+    host.textContent = 'Не удалось загрузить отчёт. Попробуйте обновить страницу.';
+  }
+}
+
 async function showTeacherReport(attemptId) {
   const msgEl = $('#hwGateMsg');
 
@@ -499,7 +514,7 @@ async function showTeacherReport(attemptId) {
     CATALOG_READY = true;
   } catch (e) {
     console.warn('loadCatalog failed', e);
-    if (msgEl) msgEl.textContent = 'Не удалось загрузить runtime-каталог задач.';
+    await showReportError(e, () => showTeacherReport(attemptId));
     return;
   }
 
@@ -509,15 +524,12 @@ async function showTeacherReport(attemptId) {
     data = await supaRest.rpc('get_homework_attempt_for_teacher', { p_attempt_id: attemptId }, { timeoutMs: 15000 });
   } catch (e) {
     console.warn('get_homework_attempt_for_teacher error', e);
-    if (e?.code === 'TIMEOUT') {
-      if (msgEl) msgEl.textContent = 'Сервер отвечает слишком долго. Попробуйте обновить страницу.';
-    } else if (isMissingRpcFunction(e)) {
-      if (msgEl) msgEl.textContent = 'На стороне Supabase ещё не настроена функция get_homework_attempt_for_teacher(p_attempt_id).';
-    } else if (e?.code === 'AUTH_REQUIRED' || e?.status === 401) {
-      if (msgEl) msgEl.textContent = 'Войдите, чтобы открыть отчёт.';
-    } else {
-      if (msgEl) msgEl.textContent = 'Не удалось загрузить отчёт.';
+    // Сессия истекла — отдельный кейс (re-login), остальное — единый error-state.
+    if (e?.code === 'AUTH_REQUIRED' || e?.status === 401) {
+      if (msgEl) msgEl.textContent = 'Сессия истекла. Перезайдите в аккаунт.';
+      return;
     }
+    await showReportError(e, () => showTeacherReport(attemptId));
     return;
   }
 

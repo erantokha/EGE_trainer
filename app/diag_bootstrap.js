@@ -181,9 +181,21 @@
       return b;
     }
 
-    var bReload = mkBtn('Обновить');
+    var bReload = mkBtn('Повторить');
     bReload.id = 'ege-diag-reload';
     bReload.onclick = function () { try { location.reload(); } catch (_) {} };
+
+    // F2: «На главную» — безопасный выход с проблемного экрана.
+    var bHome = mkBtn('На главную');
+    bHome.id = 'ege-diag-home';
+    bHome.onclick = function () {
+      try {
+        var home = /\/tasks(\/|$)/.test(location.pathname)
+          ? new URL('../', location.href).toString()
+          : new URL('./', location.href).toString();
+        location.href = home;
+      } catch (_) { try { location.href = '/'; } catch (e) {} }
+    };
 
     var bCopy = mkBtn('Скопировать детали');
     bCopy.id = 'ege-diag-copy';
@@ -207,6 +219,7 @@
     };
 
     btnRow.appendChild(bReload);
+    btnRow.appendChild(bHome);
     btnRow.appendChild(bCopy);
     btnRow.appendChild(bClose);
 
@@ -278,6 +291,14 @@
     return lines.join('\n');
   }
 
+  // F2: человеческий текст по коду ошибки (без раскрытия внутреннего кода на первом экране).
+  function humanSummary(code) {
+    var c = String(code || '');
+    if (/CDN|SCRIPT|IMPORT/i.test(c)) return 'Не удалось загрузить часть интерфейса. Проверьте интернет и обновите страницу.';
+    if (/NET|SUPABASE|FETCH|TIMEOUT|OFFLINE/i.test(c)) return 'Не удалось связаться с сервером. Проверьте интернет и попробуйте снова.';
+    return 'Не удалось загрузить данные. Проверьте интернет и попробуйте ещё раз.';
+  }
+
   function show(code, message, extra) {
     if (state.overlayShown) return;
     state.overlayShown = true;
@@ -288,8 +309,9 @@
       el.style.display = 'block';
       var summary = document.getElementById('ege-diag-summary');
       if (summary) {
-        var first = (state.lastCode ? (state.lastCode + ': ') : '') + (state.lastMessage || 'Не удалось загрузить страницу.');
-        summary.textContent = first;
+        // F2: на первом экране — человеческий текст, БЕЗ технического кода (E_SUPABASE_NET и т.п.).
+        // Код/сообщение/diag_id остаются в блоке «Подробности» (formatDetails).
+        summary.textContent = humanSummary(state.lastCode);
       }
       var pre = document.getElementById('ege-diag-details');
       if (pre) pre.textContent = formatDetails(extra);

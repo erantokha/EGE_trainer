@@ -6,7 +6,7 @@ const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURICom
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-import { navigate } from '../app/ui/nav.js?v=2026-06-11-3-035405';
+import { navigate } from '../app/ui/nav.js?v=2026-06-11-3-042734';
 
 async function api(){
   // ВАЖНО: dynamic import резолвится относительно URL текущего модуля.
@@ -191,6 +191,22 @@ async function mapLimit(arr, limit, fn){
   return out;
 }
 
+// F2: единый error-state для «Мои ДЗ». Хост — список; Повторить перезапускает load().
+async function showHwError(err, kind){
+  setStatus('');
+  setCounters('', '');
+  const host = $('#myHwList');
+  const empty = $('#myHwEmpty');
+  if (empty) empty.textContent = '';
+  if (!host) return;
+  try {
+    const { renderErrorState } = await import(withV('/app/ui/error_state.js'));
+    renderErrorState(host, { kind: kind || 'homework', err, onRetry: () => load() });
+  } catch (_) {
+    setStatus('Не удалось загрузить домашние задания. Попробуйте обновить страницу.');
+  }
+}
+
 async function load(){
   setStatus('Загрузка…');
   setCounters('', '');
@@ -200,20 +216,19 @@ async function load(){
     mod = await api();
   } catch(e){
     console.warn('MyHW: cannot import provider', e);
-    setStatus('Не удалось загрузить модуль ДЗ (обнови страницу).');
+    await showHwError(e, 'module');
     return;
   }
 
   const { getStudentMyHomeworksSummary, getHomeworkAttempt } = mod;
   if (typeof getStudentMyHomeworksSummary !== 'function'){
-    setStatus('Сервер ещё не обновлён под "Мои ДЗ".');
+    await showHwError(new Error('provider not ready'), 'homework');
     return;
   }
 
   const res = await getStudentMyHomeworksSummary({ limit: 10 });
   if (!res?.ok){
-    const msg = (res?.error && (res.error.message || String(res.error))) || 'Ошибка загрузки ДЗ';
-    setStatus('Не удалось загрузить ДЗ: ' + msg);
+    await showHwError(res?.error || new Error('load failed'), 'homework');
     return;
   }
 

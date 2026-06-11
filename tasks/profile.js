@@ -509,10 +509,18 @@ async function main() {
     row = await loadProfileRow(supabase, userId);
   } catch (e) {
     console.warn('Profile load error', e);
-    setStatus('Не удалось загрузить профиль. Откройте Console/Network.', true);
+    // F2: единый error-state вместо «Откройте Console/Network».
+    setStatus('');
     showBox(false);
-  diagMarkReady();
-  return;
+    const host = $('#profileStatus');
+    try {
+      const { renderErrorState } = await import(withV('../app/ui/error_state.js'));
+      renderErrorState(host, { kind: 'profile', err: e, onRetry: () => main() });
+    } catch (_) {
+      setStatus('Не удалось загрузить профиль. Попробуйте ещё раз.', true);
+    }
+    diagMarkReady();
+    return;
   }
 
   const grid = $('#profileGrid');

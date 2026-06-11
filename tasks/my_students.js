@@ -7,7 +7,8 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-3-035405';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-11-3-042734';
+import { buildLegend } from '../app/ui/metric_help.js?v=2026-06-11-3-042734';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -440,6 +441,11 @@ function renderStudents(list, ctx = {}) {
   }
 
   wrap.appendChild(grid);
+
+  // F5: легенда «Что означают показатели?» (метрики карточек: активность/форма/покрытие).
+  try {
+    wrap.appendChild(buildLegend(['form', 'coverage', 'accuracy', 'weak', 'stale', 'prototype']));
+  } catch (_) {}
 }
 
 
@@ -516,31 +522,34 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
       setStatus(status, `${human} Показан предыдущий список.`, { sticky: false });
       applyFiltersAndRender();
     } else {
-      // Первая загрузка не удалась: явный error-state с кнопкой «Повторить»
+      // F2: первая загрузка не удалась — единый error-state (Повторить/На главную/Подробности)
       // вместо ложного пустого состояния «Пока нет учеников».
       setStatus(status, '');
-      renderLoadError(human, () => loadStudents(supaRest, { days: __currentDays, source: __currentSource }));
+      const head = $('#acceptedHead');
+      if (head) head.hidden = true;
+      await renderLoadError(e, isAuthRequired(e), () => loadStudents(supaRest, { days: __currentDays, source: __currentSource }));
     }
     rebuildKnownEmails();
     updateAddButtonState();
   }
 }
 
-function renderLoadError(message, retryFn) {
+async function renderLoadError(err, authRequired, retryFn) {
   const wrap = $('#studentsList');
   if (!wrap) return;
   wrap.innerHTML = '';
-
-  const box = el('div', { class: 'panel', style: 'padding:14px' });
-  box.appendChild(el('div', { style: 'font-weight:600', text: message }));
-
-  const btn = el('button', { class: 'btn', type: 'button', style: 'margin-top:10px', text: 'Повторить' });
-  btn.addEventListener('click', () => {
-    btn.disabled = true;
-    Promise.resolve(retryFn()).finally(() => { btn.disabled = false; });
-  });
-  box.appendChild(btn);
-  wrap.appendChild(box);
+  try {
+    const { renderErrorState } = await import(withV('../app/ui/error_state.js'));
+    renderErrorState(wrap, {
+      kind: 'students',
+      err,
+      // сессия истекла — это не сетевой кейс; даём подсказку re-login через текст
+      ...(authRequired ? { title: 'Сессия истекла', message: 'Перезайдите в аккаунт.' } : {}),
+      onRetry: () => retryFn(),
+    });
+  } catch (_) {
+    wrap.appendChild(el('div', { class: 'muted', text: 'Не удалось загрузить список учеников. Обновите страницу.' }));
+  }
 }
 
 /* Человеческий текст ошибки добавления: внутренние коды (STUDENT_NOT_FOUND и т.п.)
