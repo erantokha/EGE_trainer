@@ -44,6 +44,10 @@ object DevSupport {
 
     fun authTab(intent: Intent?): String? =
         if (BuildConfig.DEBUG) intent?.getStringExtra("E2E_AUTH_TAB") else null
+
+    /** Авторазворот первой секции главной (скриптовая приёмка, порт E2E_EXPAND iOS). */
+    fun expandFirst(intent: Intent?): Boolean =
+        BuildConfig.DEBUG && intent?.getStringExtra("E2E_EXPAND") == "1"
 }
 
 /** Demo-галерея «math»: формулы, картинка, бейджи, тултип — приёмка П-У2. */

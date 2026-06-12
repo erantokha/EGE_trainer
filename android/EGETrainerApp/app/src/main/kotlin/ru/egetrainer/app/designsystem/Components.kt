@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -236,8 +237,9 @@ fun SecondaryButton(
         Text(
             text = text,
             color = if (enabled) colors.text else colors.textDim,
-            fontSize = EgeDims.fsMd,
+            fontSize = EgeDims.fsSm,
             fontWeight = FontWeight.Medium,
+            maxLines = 1, // P3-3 iOS: ряд контролов без переноса на 2 строки
         )
     }
 }
@@ -308,6 +310,40 @@ fun EmptyStateView(title: String, subtitle: String? = null) {
                     fontSize = EgeDims.fsSm,
                     textAlign = TextAlign.Center,
                 )
+            }
+        }
+    }
+}
+
+// MARK: Метрика-карточка статистики («ПОСЛЕДНИЕ 10 / 30% / Верно/всего: 3/10»)
+
+@Composable
+fun MetricCard(title: String, bigValue: String, caption: String?, valueOk: Boolean) {
+    val colors = EgeTheme.colors
+    EgeCard {
+        Text(
+            title.uppercase(),
+            color = colors.textDim,
+            fontSize = EgeDims.fsXs,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Row(
+            modifier = Modifier.padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                bigValue,
+                color = colors.text,
+                fontSize = 30.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(EgeDims.radiusSm))
+                    .background(if (valueOk) colors.successBg else colors.dangerBg)
+                    .padding(horizontal = 10.dp, vertical = 2.dp),
+            )
+            if (caption != null) {
+                Text(caption, color = colors.textDim, fontSize = EgeDims.fsSm)
             }
         }
     }

@@ -123,6 +123,9 @@ class AppState(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Явно выставить счётчик несданных (после загрузки списка ДЗ). */
+    fun setPendingHomeworks(n: Int) { _pendingHomeworksCount.value = n }
+
     /** Обновить счётчик несданных ДЗ (как syncNotif на вебе). */
     fun refreshHomeworkBadge() {
         viewModelScope.launch {

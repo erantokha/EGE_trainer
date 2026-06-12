@@ -45,7 +45,7 @@ import ru.egetrainer.app.screens.shared.ProfileScreen
  * порт RootView.swift (зеркало tasks/home_router.js).
  */
 @Composable
-fun RootNavigation(app: AppState, autologin: Pair<String, String>?, initialAuthTab: String?) {
+fun RootNavigation(app: AppState, autologin: Pair<String, String>?, initialAuthTab: String?, expandFirst: Boolean = false) {
     val phase by app.phase.collectAsState()
 
     LaunchedEffect(Unit) {
@@ -73,7 +73,7 @@ fun RootNavigation(app: AppState, autologin: Pair<String, String>?, initialAuthT
             } else if (p.profile.isTeacher) {
                 TeacherTabScaffold(app)
             } else {
-                StudentTabScaffold(app)
+                StudentTabScaffold(app, expandFirst)
             }
     }
 }
@@ -119,9 +119,20 @@ private data class TabItem(
     val icon: androidx.compose.ui.graphics.vector.ImageVector,
 )
 
-/** Табы ученика: Главная, Мои ДЗ, Статистика, Профиль (контент — WAND.2). */
+/** Табы ученика: Главная, Мои ДЗ, Статистика, Профиль. */
 @Composable
-fun StudentTabScaffold(app: AppState) {
+fun StudentTabScaffold(app: AppState, expandFirst: Boolean = false) {
+    // Тренировка — full-screen поверх табов (аналог fullScreenCover iOS)
+    var activeRun by remember {
+        androidx.compose.runtime.mutableStateOf<ru.egetrainer.app.screens.student.RunPayload?>(null)
+    }
+    activeRun?.let { payload ->
+        ru.egetrainer.app.screens.student.TrainingRunScreen(app, payload) {
+            activeRun = null
+            app.refreshHomeworkBadge()
+        }
+        return
+    }
     val tabs = listOf(
         TabItem("Главная", Icons.Filled.Home),
         TabItem("Мои ДЗ", Icons.Filled.DateRange),
@@ -141,9 +152,10 @@ fun StudentTabScaffold(app: AppState) {
         badgeCount = pending,
     ) {
         when (selected) {
-            0 -> StubScreen("Главная ученика", "Подбор задач появится в WAND.2")
-            1 -> StubScreen("Мои ДЗ", "Список и выполнение ДЗ появятся в WAND.2")
-            2 -> StubScreen("Статистика", "Аналитика появится в WAND.2")
+            0 -> ru.egetrainer.app.screens.student.StudentHomeScreen(
+                app, onRun = { activeRun = it }, expandFirst = expandFirst)
+            1 -> ru.egetrainer.app.screens.homework.MyHomeworksScreen(app)
+            2 -> ru.egetrainer.app.screens.stats.StatsScreen(app)
             else -> ProfileScreen(app)
         }
     }
