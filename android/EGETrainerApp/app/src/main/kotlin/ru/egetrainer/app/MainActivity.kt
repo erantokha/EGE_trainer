@@ -1,37 +1,51 @@
 package ru.egetrainer.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import ru.egetrainer.app.designsystem.EgeAppTheme
+import ru.egetrainer.app.screens.auth.GoogleSignIn
 
 /**
- * Каркас WAND.0: пустая заглушка «приложение запускается».
- * Экраны, тема из tokens.css, навигация — WAND.1+.
+ * Точка входа: тема EgeAppTheme + корневой роутер (порт EGETrainerApp.swift
+ * + RootView.swift). Deep link `egetrainer://auth-callback` (Google OAuth)
+ * перехватывается onCreate/onNewIntent (launchMode singleTask).
  */
 class MainActivity : ComponentActivity() {
+    private val app: AppState by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        handleOAuthIntent(intent)
+
+        val demo = DevSupport.demo(intent)
+        val autologin = DevSupport.autologin(intent)
+        val authTab = DevSupport.authTab(intent)
+
         setContent {
-            MaterialTheme {
+            EgeAppTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(text = "EGE Trainer", style = MaterialTheme.typography.headlineMedium)
-                        Text(text = "WAND.0 — каркас", style = MaterialTheme.typography.bodyMedium)
+                    when (demo) {
+                        "math" -> MathDemoScreen()
+                        else -> RootNavigation(app, autologin = autologin, initialAuthTab = authTab)
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleOAuthIntent(intent)
+    }
+
+    private fun handleOAuthIntent(intent: Intent?) {
+        val code = GoogleSignIn.codeFromCallback(intent?.data) ?: return
+        app.handleOAuthCallback(code)
     }
 }
