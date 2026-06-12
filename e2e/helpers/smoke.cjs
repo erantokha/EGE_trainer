@@ -5,19 +5,20 @@ async function runBrowserSmoke(page, smokePath) {
   await expect(page.locator('#runBtn')).toBeVisible();
   await page.locator('#runBtn').click();
 
-  await expect(page.locator('#summary')).toContainText(/OK|WARN|FAIL/i, {
+  await expect(page.locator('#summary')).toHaveClass(/status-(?:ok|warn|fail)/, {
     timeout: 30_000,
   });
 
   const summaryText = String(await page.locator('#summary').textContent() || '').trim();
   const resultsText = await page.locator('#resultsBody').textContent();
+  const summaryRowText = String(await page.locator('#resultsBody tr').last().textContent() || '').trim();
   const statuses = await page.locator('#resultsBody .status-pill').allTextContents();
   const hasFailStatus = statuses.some((status) => String(status || '').trim().toUpperCase() === 'FAIL');
   if (hasFailStatus) {
     throw new Error(`Smoke page reported FAIL: ${smokePath}`);
   }
 
-  const failCountMatch = summaryText.match(/\bfail\s*=\s*(\d+)\b/i);
+  const failCountMatch = summaryRowText.match(/\bfail\s*=\s*(\d+)\b/i);
   if (!failCountMatch) {
     throw new Error(`Smoke page summary did not expose fail count: ${smokePath}`);
   }

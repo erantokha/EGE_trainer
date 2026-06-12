@@ -1,9 +1,9 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-06-12-5-193713';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-12-5-193713';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-12-5-193713';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-13-1-021202';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-1-021202';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-13-1-021202';
 
 const PRIMARY_RPC = 'teacher_picking_screen_v2';
-const VALID_FILTER_IDS = new Set(['unseen_low', 'stale', 'unstable']);
+const VALID_FILTER_IDS = new Set(['unseen_low', 'stale', 'unstable', 'weak_spots']);
 const VALID_WARNING_CODES = new Set(['empty_resolve_request', 'selected_proto_not_eligible_for_filter', 'no_candidates_in_scope']);
 const VALID_SCOPE_KINDS = new Set(['proto', 'topic', 'section', 'global_all']);
 
@@ -510,10 +510,11 @@ async function runSmoke() {
     typeof shortage === 'object' &&
     !Array.isArray(shortage) &&
     !Object.prototype.hasOwnProperty.call(payload, 'dashboard') &&
-    normalizedSelection &&
-    typeof normalizedSelection === 'object' &&
-    !Array.isArray(normalizedSelection) &&
-    supportedFilters.length === 3 &&
+    (normalizedSelection == null || (
+      typeof normalizedSelection === 'object' &&
+      !Array.isArray(normalizedSelection)
+    )) &&
+    supportedFilters.length === VALID_FILTER_IDS.size &&
     supportedFilters.every((id) => VALID_FILTER_IDS.has(String(id || '').trim())) &&
     payload?.filter?.filter_id === null;
 

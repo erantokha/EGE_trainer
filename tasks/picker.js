@@ -8,23 +8,23 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-12-5-193713';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-12-5-193713';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-12-5-193713';
-import { CONFIG } from '../app/config.js?v=2026-06-12-5-193713';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-12-5-193713';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-12-5-193713';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-12-5-193713';
+import { withBuild } from '../app/build.js?v=2026-06-13-1-021202';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-13-1-021202';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-1-021202';
+import { CONFIG } from '../app/config.js?v=2026-06-13-1-021202';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-1-021202';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-13-1-021202';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-13-1-021202';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-12-5-193713';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-12-5-193713';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-12-5-193713';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-12-5-193713';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-12-5-193713';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-12-5-193713';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-12-5-193713';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-13-1-021202';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-1-021202';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-1-021202';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-13-1-021202';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-1-021202';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-13-1-021202';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-13-1-021202';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-12-5-193713';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-13-1-021202';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -32,13 +32,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-12-5-193713';
+} from './picker_common.js?v=2026-06-13-1-021202';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-12-5-193713';
+} from './picker_stats.js?v=2026-06-13-1-021202';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -177,6 +177,108 @@ const TEACHER_STUDENTS_HARD_TIMEOUT_MS = 20000;
 const TEACHER_STUDENTS_SOFT_TIMEOUT_MS = 12000;
 const TEACHER_STUDENTS_STATUS_DELAY_MS = 500;
 
+// WTP.1: screen-payload первых учеников прогревается сразу после list_my_students.
+// Это именно источник аккордеона/бейджей/прогноза; snapshot и modal-stats сюда не входят.
+const TEACHER_SCREEN_PREWARM_LIMIT = 10;
+const TEACHER_SCREEN_PREWARM_CONCURRENCY = 2;
+const TEACHER_SCREEN_CACHE_TTL_MS = 60 * 1000;
+const TEACHER_SCREEN_CACHE_LIMIT = 24;
+const _TEACHER_SCREEN_CACHE = new Map();    // key → { payload, at }
+const _TEACHER_SCREEN_INFLIGHT = new Map(); // key → Promise<payload>
+
+function teacherScreenCacheKey(studentId, filterId) {
+  const sid = String(studentId || '').trim();
+  if (!sid) return '';
+  return `${sid}|${normalizeTeacherFilterId(filterId) || ''}`;
+}
+
+function rememberTeacherScreenPayload(key, payload) {
+  if (!key || !payload || !Array.isArray(payload?.sections)) return;
+  _TEACHER_SCREEN_CACHE.delete(key);
+  _TEACHER_SCREEN_CACHE.set(key, { payload, at: Date.now() });
+  while (_TEACHER_SCREEN_CACHE.size > TEACHER_SCREEN_CACHE_LIMIT) {
+    const oldest = _TEACHER_SCREEN_CACHE.keys().next().value;
+    if (!oldest) break;
+    _TEACHER_SCREEN_CACHE.delete(oldest);
+  }
+}
+
+function readTeacherScreenCache(studentId, filterId) {
+  const key = teacherScreenCacheKey(studentId, filterId);
+  const entry = key ? _TEACHER_SCREEN_CACHE.get(key) : null;
+  if (!entry?.payload) return null;
+  return {
+    payload: entry.payload,
+    fresh: (Date.now() - Number(entry.at || 0)) < TEACHER_SCREEN_CACHE_TTL_MS,
+  };
+}
+
+function startTeacherScreenFetch(studentId, filterId, opts = {}) {
+  const sid = String(studentId || '').trim();
+  const normalizedFilter = normalizeTeacherFilterId(filterId);
+  const key = teacherScreenCacheKey(sid, normalizedFilter);
+  if (!key) return Promise.reject(new Error('student_id is empty'));
+
+  const existing = _TEACHER_SCREEN_INFLIGHT.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const screenRes = await loadTeacherPickingScreenV2({
+      student_id: sid,
+      mode: 'init',
+      days: 30,
+      source: 'all',
+      filter_id: normalizedFilter,
+      seed: opts?.seed == null ? null : String(opts.seed || '').trim() || null,
+      timeoutMs: Number(opts?.timeoutMs || TEACHER_DASH_TIMEOUT_MS) || TEACHER_DASH_TIMEOUT_MS,
+    });
+    if (!screenRes?.ok) throw (screenRes?.error || new Error('teacher_picking_screen_v2 failed'));
+
+    const payload = screenRes?.payload || null;
+    if (!payload || !Array.isArray(payload?.sections)) {
+      throw new Error('teacher_picking_screen_v2 returned invalid init payload');
+    }
+    rememberTeacherScreenPayload(key, payload);
+    return payload;
+  })().finally(() => {
+    if (_TEACHER_SCREEN_INFLIGHT.get(key) === promise) _TEACHER_SCREEN_INFLIGHT.delete(key);
+  });
+
+  // Prewarm запускает promise без await: обработанный rejection не должен становиться unhandled.
+  promise.catch(() => {});
+  _TEACHER_SCREEN_INFLIGHT.set(key, promise);
+  return promise;
+}
+
+async function prewarmFirstTeacherScreens(rows) {
+  if (!IS_TEACHER_HOME) return;
+  const ids = Array.from(new Set((Array.isArray(rows) ? rows : [])
+    .map((st) => String(st?.student_id || st?.id || '').trim())
+    .filter(Boolean)))
+    .slice(0, TEACHER_SCREEN_PREWARM_LIMIT);
+  if (!ids.length) return;
+
+  let cursor = 0;
+  const filterId = normalizeTeacherFilterId(TEACHER_PICK_FILTER_ID);
+  const worker = async () => {
+    while (cursor < ids.length) {
+      const sid = ids[cursor++];
+      const cached = readTeacherScreenCache(sid, filterId);
+      if (cached?.fresh) continue;
+      try {
+        await startTeacherScreenFetch(sid, filterId, { timeoutMs: TEACHER_DASH_TIMEOUT_MS });
+      } catch (e) {
+        console.warn('teacher screen prewarm failed', { sid, error: e });
+      }
+    }
+  };
+
+  await Promise.all(Array.from(
+    { length: Math.min(TEACHER_SCREEN_PREWARM_CONCURRENCY, ids.length) },
+    () => worker(),
+  ));
+}
+
 function isStudentLikeHome(){
   return IS_STUDENT_PAGE || (IS_TEACHER_HOME && !!TEACHER_VIEW_STUDENT_ID);
 }
@@ -256,43 +358,45 @@ function setTeacherStudentViewUI(studentId){
 let _TEACHER_STATS_SEQ = 0;
 const TEACHER_DASH_TIMEOUT_MS = 5000;
 
+function applyTeacherScreenPayload(payload) {
+  if (payload?.screen?.session_seed) {
+    setCurrentTeacherPickSessionSeed(String(payload.screen.session_seed || '').trim());
+  }
+  applyTeacherPickingHomeStats(payload);
+}
+
 async function loadTeacherStudentStats(studentId, opts = {}) {
   if (!IS_TEACHER_HOME) return;
   const sid = String(studentId || '').trim();
   if (!sid) return;
 
   const seq = ++_TEACHER_STATS_SEQ;
-  setHomeStatsLoading(true);
+  const filterId = getActiveTeacherFilterId(sid);
+  const cached = readTeacherScreenCache(sid, filterId);
+
+  if (cached?.payload) {
+    applyTeacherScreenPayload(cached.payload);
+    if (cached.fresh) return;
+  } else {
+    setHomeStatsLoading(true);
+  }
 
   try {
-    const screenRes = await loadTeacherPickingScreenV2({
-      student_id: sid,
-      mode: 'init',
-      days: 30,
-      source: 'all',
-      filter_id: getActiveTeacherFilterId(sid),
+    const payload = await startTeacherScreenFetch(sid, filterId, {
       seed: getCurrentTeacherPickSessionSeed(sid),
       timeoutMs: TEACHER_DASH_TIMEOUT_MS,
     });
-    if (!screenRes?.ok) throw (screenRes?.error || new Error('teacher_picking_screen_v2 failed'));
 
     if (seq !== _TEACHER_STATS_SEQ) return;
 
-    const payload = screenRes?.payload || null;
-    if (payload?.screen?.session_seed) {
-      setCurrentTeacherPickSessionSeed(String(payload.screen.session_seed || '').trim());
-    }
-
-    if (payload && Array.isArray(payload?.sections)) {
-      applyTeacherPickingHomeStats(payload);
-      return;
-    }
-    throw new Error('teacher_picking_screen_v2 returned invalid init payload');
+    applyTeacherScreenPayload(payload);
   } catch (e) {
     if (seq !== _TEACHER_STATS_SEQ) return;
     console.warn('loadTeacherStudentStats failed', e);
-    setHomeStatsLoading(false);
-    clearStudentLast10UI();
+    if (!cached?.payload) {
+      setHomeStatsLoading(false);
+      clearStudentLast10UI();
+    }
   }
 }
 
@@ -529,6 +633,10 @@ async function refreshTeacherStudentSelect(opts = {}){
 
       _TEACHER_SELECT_LAST_OK_AT = Date.now();
       _TEACHER_SELECT_LAST_UID = uid;
+
+      // WTP.1: первые min(10, N) screen-payload греются в фоне с concurrency=2.
+      // Ошибки не блокируют список; ручной выбор переиспользует тот же single-flight.
+      prewarmFirstTeacherScreens(rows).catch(() => {});
 
       // Применить режим «как у ученика» только если реально изменилось.
       const nextValue = String(sel.value || '').trim();
@@ -2061,8 +2169,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   initAuthHeader();
 
   // Главная учителя: селект ученика (для автоподстановки на hw_create)
-  refreshTeacherStudentSelect({ reason: 'boot', soft: false });
   initTeacherPickFiltersUI();
+  refreshTeacherStudentSelect({ reason: 'boot', soft: false });
   try {
     if (IS_TEACHER_HOME) {
       supabase.auth.onAuthStateChange((event, session) => {
