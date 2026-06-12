@@ -5,21 +5,21 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-13-3-034013';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-3-034013';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-13-4-034811';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-4-034811';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-3-034013';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-4-034811';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-13-3-034013';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-13-3-034013';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-13-3-034013';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-13-4-034811';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-13-4-034811';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-13-4-034811';
 
-import { withBuild } from '../app/build.js?v=2026-06-13-3-034013';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-13-3-034013';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-3-034013';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-13-3-034013';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-13-3-034013';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-3-034013';
+import { withBuild } from '../app/build.js?v=2026-06-13-4-034811';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-13-4-034811';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-4-034811';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-13-4-034811';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-13-4-034811';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-4-034811';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
