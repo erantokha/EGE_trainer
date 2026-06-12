@@ -1,9 +1,9 @@
 // app/providers/homework.js
 // ДЗ: создание/линки/получение по token.
 
-import { CONFIG } from '../config.js?v=2026-06-11-4-043350';
-import { requireSession } from './supabase.js?v=2026-06-11-4-043350';
-import { supaRest } from './supabase-rest.js?v=2026-06-11-4-043350';
+import { CONFIG } from '../config.js?v=2026-06-12-3-192809';
+import { requireSession } from './supabase.js?v=2026-06-12-3-192809';
+import { supaRest } from './supabase-rest.js?v=2026-06-12-3-192809';
 
 // Не используем supabase.auth.getUser(): иногда зависает из-за storage locks.
 // Берём пользователя из сессии (requireSession) с таймаутом и предсказуемой ошибкой.
@@ -158,6 +158,31 @@ export async function loadTeacherPickingResolveBatchV1({
         // WTC4: p_complete шлём ТОЛЬКО когда true (обратная совместимость до деплоя миграции).
         ...(complete ? { p_complete: true } : {}),
       },
+      { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
+    );
+
+    if (!r.ok) return { ok: false, payload: null, fn: r.fn, error: r.error };
+    return {
+      ok: true,
+      payload: normalizeRpcJsonPayload(r.data),
+      fn: r.fn,
+      error: null,
+    };
+  } catch (e) {
+    return { ok: false, payload: null, fn: null, error: e };
+  }
+}
+
+// WPS.1: «витрина» состояния ученика для локального фильтр-подбора
+// (app/core/pick_filtered.js). Гейт self-or-teacher на сервере.
+export async function loadStudentPickingSnapshotV1({ student_id, source = 'all', timeoutMs = 15000 } = {}) {
+  try {
+    const sid = String(student_id || '').trim();
+    if (!sid) return { ok: false, payload: null, fn: null, error: new Error('student_id is empty') };
+
+    const r = await rpcWithFallback(
+      ['student_picking_snapshot_v1'],
+      { p_student_id: sid, p_source: String(source || 'all') },
       { timeoutMs: Number(timeoutMs || 15000) || 15000, authMode: 'auto' },
     );
 

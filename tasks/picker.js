@@ -8,21 +8,23 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-11-4-043350';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-11-4-043350';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-11-4-043350';
-import { CONFIG } from '../app/config.js?v=2026-06-11-4-043350';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-11-4-043350';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-11-4-043350';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1 } from '../app/providers/homework.js?v=2026-06-11-4-043350';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-11-4-043350';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-11-4-043350';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-11-4-043350';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-11-4-043350';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-11-4-043350';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-11-4-043350';
+import { withBuild } from '../app/build.js?v=2026-06-12-3-192809';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-12-3-192809';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-12-3-192809';
+import { CONFIG } from '../app/config.js?v=2026-06-12-3-192809';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-12-3-192809';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-12-3-192809';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-12-3-192809';
+// WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-12-3-192809';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-12-3-192809';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-12-3-192809';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-12-3-192809';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-12-3-192809';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-12-3-192809';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-12-3-192809';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-11-4-043350';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-12-3-192809';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -30,13 +32,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-11-4-043350';
+} from './picker_common.js?v=2026-06-12-3-192809';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-11-4-043350';
+} from './picker_stats.js?v=2026-06-12-3-192809';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -246,6 +248,8 @@ function setTeacherStudentViewUI(studentId){
   document.body.classList.toggle('teacher-student-view', !!TEACHER_VIEW_STUDENT_ID);
 
   setTeacherPickFiltersEnabled(!!TEACHER_VIEW_STUDENT_ID);
+  // WPS.2: прогрев витрины выбранного ученика — первый локальный подбор без ожидания fetch.
+  if (TEACHER_VIEW_STUDENT_ID) prewarmPickingSnapshot(TEACHER_VIEW_STUDENT_ID);
   try { onTeacherContextChanged({ reason: 'student-view-change' }); } catch (_) {}
 }
 
@@ -1263,6 +1267,114 @@ function _issueStudentDashRpc(uidKey) {
   return pr;
 }
 
+// ── WPS.1: «витрина» состояния ученика для ЛОКАЛЬНОГО фильтр-подбора ────────────────────
+// Снимок (student_picking_snapshot_v1) тянется один раз ПАРАЛЛЕЛЬНО каталогу при boot
+// ученика, кешируется in-memory (single-flight) и обновляется в фоне по возврату фокуса
+// вкладки, если старше TTL (состояние меняется на других страницах — trainer/list, или на
+// другом устройстве). При любом сбое (RPC ещё не задеплоен / сеть / исключение движка) —
+// прозрачный fallback на серверный resolve; после сбоя ДВИЖКА локальный путь в этой
+// сессии страницы больше не используется (предохранитель от зацикливания).
+const WPS_LOCAL_PICK_ENABLED = true; // выключатель отката (false → всегда серверный RPC)
+const WPS_SNAPSHOT_TTL_MS = 60000;
+const WPS_SNAPSHOT_FAIL_TTL_MS = 300000; // негативный кеш сбоев fetch (RPC не задеплоен / сеть)
+const _WPS_SNAPSHOTS = new Map();         // WPS.2: sid → { payload, at } (self И ученики учителя)
+const _WPS_SNAPSHOT_INFLIGHT = new Map(); // sid → single-flight промис
+const _WPS_SNAPSHOT_FAIL_AT = new Map();  // sid → Date.now() последнего сбоя
+let _WPS_LOCAL_BROKEN = false;            // предохранитель: движок упал → RPC до конца сессии
+let _WPS_VIS_WIRED = false;
+// WPS.1-fix (smoke 2026-06-12): на home_student teacher-seed-контекста нет
+// (getCurrentTeacherPickSessionSeed → '' при IS_TEACHER_HOME=false), исторически seed
+// выводил СЕРВЕР из параметров запроса. Локальному движку нужен явный seed — держим
+// page-session seed ученика (шлётся и в движок, и в RPC-fallback для консистентности).
+let _WPS_STUDENT_SEED = '';
+
+function _wpsSelfId() {
+  return String(readSessionFallback()?.user?.id || '').trim();
+}
+
+// WPS.2: посев self-кеша бейджей (last3/all-time/дата) из снимка — предпросмотр и
+// прото-модалка ученика рендерятся без proto_last3_for_self_v1 RPC. Старый снимок
+// без last3-полей (до деплоя WPS.2-версии SQL) кеш НЕ сеет — бейджи идут прежним RPC.
+function _wpsSeedSelfStatsFromSnapshot(snap) {
+  try {
+    if (!IS_STUDENT_PAGE) return;
+    if (String(snap?.meta?.student_id || '') !== _wpsSelfId()) return;
+    const rows = Array.isArray(snap?.protos) ? snap.protos : [];
+    if (!rows.length || !('last3_total' in rows[0])) return;
+    for (const p of rows) {
+      _SELF_PROTO_LAST3_CACHE.set(String(p.unic_id), {
+        last3_total: Number(p.last3_total || 0) || 0,
+        last3_correct: Number(p.last3_correct || 0) || 0,
+        total: Number(p.attempt_count_total || 0) || 0,
+        correct: Number(p.correct_count_total || 0) || 0,
+        last_attempt_at: p.last_attempt_at ?? null,
+      });
+    }
+  } catch (_) {}
+}
+
+function _wpsStartSnapshotFetch(sid) {
+  let pr = _WPS_SNAPSHOT_INFLIGHT.get(sid);
+  if (pr) return pr;
+  pr = (async () => {
+    try {
+      const res = await loadStudentPickingSnapshotV1({ student_id: sid, source: 'all', timeoutMs: 15000 });
+      const snap = (res?.ok && res?.payload?.meta) ? res.payload : null;
+      if (snap) {
+        _WPS_SNAPSHOTS.set(sid, { payload: snap, at: Date.now() });
+        _WPS_SNAPSHOT_FAIL_AT.delete(sid);
+        _wpsSeedSelfStatsFromSnapshot(snap);
+      } else {
+        _WPS_SNAPSHOT_FAIL_AT.set(sid, Date.now());
+      }
+      return snap;
+    } finally { _WPS_SNAPSHOT_INFLIGHT.delete(sid); }
+  })();
+  pr.catch(() => {});
+  _WPS_SNAPSHOT_INFLIGHT.set(sid, pr);
+  return pr;
+}
+
+// Кешированный снимок для sid (self ученика ИЛИ выбранный ученик учителя — гейт
+// self-or-teacher на сервере): stale-while-revalidate (протухший отдаётся сразу,
+// обновление в фоне); первый вызов ждёт fetch; негативный кеш сбоев не даёт
+// молотить RPC, пока функция не задеплоена или сеть лежит.
+async function ensurePickingSnapshot(sid) {
+  if (!WPS_LOCAL_PICK_ENABLED || _WPS_LOCAL_BROKEN || !sid) return null;
+  const cached = _WPS_SNAPSHOTS.get(sid);
+  if (cached) {
+    if (Date.now() - cached.at > WPS_SNAPSHOT_TTL_MS) _wpsStartSnapshotFetch(sid);
+    return cached.payload;
+  }
+  const failAt = _WPS_SNAPSHOT_FAIL_AT.get(sid) || 0;
+  if (failAt && Date.now() - failAt < WPS_SNAPSHOT_FAIL_TTL_MS) return null;
+  try { return await _wpsStartSnapshotFetch(sid); } catch (_) { return null; }
+}
+
+function _wpsWireVisibilityRefetch() {
+  if (_WPS_VIS_WIRED) return;
+  _WPS_VIS_WIRED = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || _WPS_LOCAL_BROKEN) return;
+    for (const [sid, rec] of _WPS_SNAPSHOTS) {
+      if (Date.now() - rec.at > WPS_SNAPSHOT_TTL_MS) _wpsStartSnapshotFetch(sid);
+    }
+  });
+}
+
+function prewarmPickingSnapshot(sid) {
+  if (!WPS_LOCAL_PICK_ENABLED || _WPS_LOCAL_BROKEN) return;
+  const id = String(sid || '').trim();
+  if (!id) return;
+  _wpsWireVisibilityRefetch();
+  ensurePickingSnapshot(id).catch(() => {});
+}
+
+function prewarmStudentPickingSnapshot() {
+  if (!IS_STUDENT_PAGE) return;
+  prewarmPickingSnapshot(_wpsSelfId());
+}
+
 // PERF (2026-06-08): прогрев self-dashboard ПАРАЛЛЕЛЬНО загрузке каталога — RPC аналитики больше не
 // ждёт `await loadCatalog()` (раньше статистика появлялась ~catalog+rpc, ~1.5с). Результат
 // переиспользуется в refreshStudentLast10 (single-flight) и применяется после построения аккордеона.
@@ -1992,6 +2104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     prewarmStudentDashRpc(); // PERF: RPC аналитики ученика стартует ПАРАЛЛЕЛЬНО каталогу
+    prewarmStudentPickingSnapshot(); // WPS.1: витрина для локального фильтр-подбора — тоже параллельно
     await loadCatalog();
     renderAccordion();
     initProtoPickerModal();
@@ -3766,21 +3879,61 @@ async function pickQuestionsViaTeacherScreenResolveBatch({
     if (bucketKey && want > 0) wantsByBucket.set(bucketKey, want);
   }
 
-  const res = await loadTeacherPickingResolveBatchV1({
-    student_id: sid,
-    source: 'all',
-    filter_id: filterId !== undefined ? filterId : getActiveTeacherFilterId(sid),
-    selection: buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds }),
-    requests: normalizedRequests,
-    seed: getCurrentTeacherPickSessionSeed(sid),
-    exclude_question_ids: normalizedExcludeQuestionIds,
-    complete: true, // WTC4: полная подборка (filter→gradient + even-distribution)
-    timeoutMs: 15000,
-  });
+  const resolvedFilterId = filterId !== undefined ? filterId : getActiveTeacherFilterId(sid);
+  let resolveSeed = getCurrentTeacherPickSessionSeed(sid);
+  if (!resolveSeed && sid === _wpsSelfId()) {
+    if (!_WPS_STUDENT_SEED) _WPS_STUDENT_SEED = createTeacherPickSeed();
+    resolveSeed = _WPS_STUDENT_SEED; // WPS.1-fix: студенческий page-session seed
+  }
+  const resolveSelection = buildTeacherResolveSelection({ excludeTopicIds: normalizedExcludeTopicIds });
 
-  if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return null; } // WTC2 #2: пометить сбой resolve
+  // WPS.1: self-путь (home_student) считается ЛОКАЛЬНО от витрины — 0 round-trip'ов.
+  // WPS.2: + выбранный ученик учителя (гейт снимка self-or-teacher на сервере).
+  // Отсутствие снимка или сбой движка → прежний серверный RPC (parity-гейт wps_1).
+  let payload = null;
+  const wpsLocalOk = sid && (
+    sid === _wpsSelfId()
+    || (IS_TEACHER_HOME && sid === String(TEACHER_VIEW_STUDENT_ID || '').trim())
+  );
+  if (wpsLocalOk) {
+    const snap = await ensurePickingSnapshot(sid);
+    if (snap) {
+      try {
+        payload = resolveBatchLocal({
+          snapshot: snap,
+          source: 'all',
+          filterId: resolvedFilterId,
+          selection: resolveSelection,
+          requests: normalizedRequests,
+          seed: resolveSeed,
+          excludeQuestionIds: normalizedExcludeQuestionIds,
+          complete: true,
+        });
+      } catch (e) {
+        console.warn('WPS.1: локальный resolve упал, fallback на серверный RPC', e);
+        _WPS_LOCAL_BROKEN = true;
+        payload = null;
+      }
+    }
+  }
 
-  const payload = res?.payload;
+  if (!payload) {
+    const res = await loadTeacherPickingResolveBatchV1({
+      student_id: sid,
+      source: 'all',
+      filter_id: resolvedFilterId,
+      selection: resolveSelection,
+      requests: normalizedRequests,
+      seed: resolveSeed,
+      exclude_question_ids: normalizedExcludeQuestionIds,
+      complete: true, // WTC4: полная подборка (filter→gradient + even-distribution)
+      timeoutMs: 15000,
+    });
+
+    if (!res?.ok) { _ADDED_RESOLVE_NET_ERROR = true; return null; } // WTC2 #2: пометить сбой resolve
+
+    payload = res?.payload;
+  }
   const mode = String(payload?.screen?.mode || '').trim().toLowerCase();
   const rows = Array.isArray(payload?.picked_questions) ? payload.picked_questions : null;
   if (mode !== 'resolve_batch' || !Array.isArray(rows)) return null;
