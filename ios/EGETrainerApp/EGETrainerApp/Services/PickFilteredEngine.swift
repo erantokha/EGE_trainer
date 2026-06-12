@@ -13,6 +13,10 @@ import CryptoKit
 enum PickFilteredEngine {
     static let allowedFilters: Set<String> = ["unseen_low", "stale", "unstable", "weak_spots"]
     private static let dayMs: Double = 86_400_000
+    private static let indexLock = NSLock()
+    private static var cachedIndexes: [String: SnapshotIndex] = [:]
+    private static var cachedIndexOrder: [String] = []
+    private static let cachedIndexLimit = 8
 
     enum EngineError: Error {
         case badSnapshot
@@ -48,7 +52,7 @@ enum PickFilteredEngine {
         let filter: String? = (filterId?.isEmpty ?? true) ? nil : filterId
         if let f = filter, !allowedFilters.contains(f) { throw EngineError.badFilter }
 
-        let idx = SnapshotIndex(snapshot: snapshot)
+        let idx = snapshotIndex(snapshot)
         let reqs = parseRequests(rawRequests)
 
         var rows: [Row] = []
@@ -165,6 +169,30 @@ enum PickFilteredEngine {
             }
             for t in snapshot.topics { topicFlags[t.subtopicId] = t }
         }
+    }
+
+    /// Snapshot неизменяем в рамках generated_at. Как и JS-порт, повторно
+    /// используем его индекс между resolve, включая filter top-up.
+    private static func snapshotIndex(_ snapshot: PickSnapshot) -> SnapshotIndex {
+        let key = "\(snapshot.meta.studentId)|\(snapshot.meta.source)|\(snapshot.meta.generatedAt)|\(snapshot.meta.catalogVersion ?? "")"
+        indexLock.lock()
+        if let cached = cachedIndexes[key] {
+            indexLock.unlock()
+            return cached
+        }
+        indexLock.unlock()
+
+        let built = SnapshotIndex(snapshot: snapshot)
+        indexLock.lock()
+        if cachedIndexes[key] == nil {
+            cachedIndexOrder.append(key)
+            if cachedIndexOrder.count > cachedIndexLimit {
+                cachedIndexes[cachedIndexOrder.removeFirst()] = nil
+            }
+        }
+        cachedIndexes[key] = built
+        indexLock.unlock()
+        return built
     }
 
     /// ISO-времена Postgres ('2026-06-08T03:21:45.123456+00:00'): дробную часть

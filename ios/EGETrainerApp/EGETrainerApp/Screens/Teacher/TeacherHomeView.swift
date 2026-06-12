@@ -159,10 +159,18 @@ struct TeacherHomeView: View {
                         .toggleStyle(SwitchToggleStyle(tint: Theme.accent))
                     }
 
-                    if isLoadingScreen {
-                        LoadingStateView(text: "Загружаем статистику ученика...")
-                    } else if let picking {
+                    if let picking {
                         accordion(picking)
+                    } else if selectedStudent != nil {
+                        if isLoadingScreen {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("Обновляем статистику ученика...")
+                                    .font(.caption)
+                                    .foregroundStyle(Theme.textDim)
+                            }
+                        }
+                        catalogAccordion
                     } else if selectedStudent == nil {
                         // P6-5: без ученика — каталожный аккордеон (составить и
                         // распечатать работу можно без статистики)
@@ -285,7 +293,9 @@ struct TeacherHomeView: View {
                     Button {
                         selectedStudent = nil
                         picking = nil
+                        analytics = nil
                         forecast = nil
+                        isLoadingScreen = false
                         counts = [:]
                         protoCounts = [:]
                     } label: {
@@ -733,7 +743,7 @@ struct TeacherHomeView: View {
                 }
             }
             .buttonStyle(.plain)
-            .disabled(assembled?.isEmpty != false)
+            .disabled(isAssembling || assembled?.isEmpty != false)
             // P5-3: «Начать» — полноэкранный лист задач (push, свайп вправо),
             // широкая выделенная кнопка как на мобильном вебе
             Button {
@@ -747,7 +757,7 @@ struct TeacherHomeView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(SecondaryButtonStyle())
-            .disabled(assembled?.isEmpty != false)
+            .disabled(isAssembling || assembled?.isEmpty != false)
             Button("Создать ДЗ") {
                 // P4-1: используем уже собранную подборку (refs без пере-resolve);
                 // P6-5: без ученика — ДЗ «Не назначать»
@@ -760,8 +770,8 @@ struct TeacherHomeView: View {
                 )
             }
             .buttonStyle(PrimaryButtonStyle(fullWidth: false))
-            .disabled(assembled?.isEmpty != false)
-            .opacity(assembled?.isEmpty != false ? 0.5 : 1)
+            .disabled(isAssembling || assembled?.isEmpty != false)
+            .opacity(isAssembling || assembled?.isEmpty != false ? 0.5 : 1)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -786,27 +796,73 @@ struct TeacherHomeView: View {
         sectionCounts = [:]
         protoCounts = [:]
         picking = nil
+        analytics = nil
         forecast = nil
-        Task { await reloadScreen() }
+        isLoadingScreen = true
+        Task {
+            await PickSnapshotCache.shared.prewarm(for: s.studentId, client: app.teacher.client)
+        }
+        let expectedFilter = filterId
+        Task { await reloadScreen(studentId: s.studentId, filterId: expectedFilter) }
     }
 
     private func reloadScreen() async {
         guard let s = selectedStudent else { return }
-        isLoadingScreen = true
+        await reloadScreen(studentId: s.studentId, filterId: filterId)
+    }
+
+    private func reloadScreen(studentId: String, filterId expectedFilter: String?) async {
+        guard isCurrent(studentId: studentId, filterId: expectedFilter) else { return }
         errorMessage = nil
+
+        if let cached = await AccordionScreenCache.shared.cachedPicking(
+            studentId: studentId, filterId: expectedFilter
+        ), isCurrent(studentId: studentId, filterId: expectedFilter) {
+            picking = cached
+            isLoadingScreen = false
+        } else {
+            isLoadingScreen = true
+        }
+        if let cached = await AccordionScreenCache.shared.cachedAnalytics(studentId: studentId),
+           isCurrent(studentId: studentId, filterId: expectedFilter) {
+            applyAnalytics(cached)
+        }
+
+        async let analyticsResult = try? await AccordionScreenCache.shared.analytics(
+            studentId: studentId
+        ) {
+            try await app.student.analytics(scope: "teacher", studentId: studentId)
+        }
         do {
-            picking = try await app.teacher.pickingScreen(studentId: s.studentId, filterId: filterId)
+            let fresh = try await AccordionScreenCache.shared.picking(
+                studentId: studentId, filterId: expectedFilter
+            ) {
+                try await app.teacher.pickingScreen(
+                    studentId: studentId, filterId: expectedFilter
+                )
+            }
+            guard isCurrent(studentId: studentId, filterId: expectedFilter) else { return }
+            picking = fresh
+            isLoadingScreen = false
         } catch {
+            guard isCurrent(studentId: studentId, filterId: expectedFilter) else { return }
             errorMessage = error.localizedDescription
             isLoadingScreen = false
-            return
         }
-        // Прогноз — из той же аналитики, что у ученика (teacher scope)
-        if let a = try? await app.student.analytics(scope: "teacher", studentId: s.studentId) {
-            analytics = a
-            forecast = ScoreForecast.compute(topics: a.topics ?? [])
+
+        if let freshAnalytics = await analyticsResult,
+           isCurrent(studentId: studentId, filterId: expectedFilter) {
+            applyAnalytics(freshAnalytics)
         }
-        isLoadingScreen = false
+    }
+
+    private func isCurrent(studentId: String, filterId expectedFilter: String?) -> Bool {
+        selectedStudent?.studentId == studentId && filterId == expectedFilter
+    }
+
+    private func applyAnalytics(_ value: AnalyticsScreen) {
+        analytics = value
+        forecast = ScoreForecast.compute(topics: value.topics ?? [])
     }
 
     /// P4-1: фоновая сборка подборки. Кнопки предпросмотра/«Начать»
@@ -822,11 +878,11 @@ struct TeacherHomeView: View {
     }
 
     private func scheduleAssemble() {
-        assembledBase = nil
-        assembled = nil
         assembleSeq += 1
         let seq = assembleSeq
         guard totalSelected > 0 else {
+            assembledBase = nil
+            assembled = nil
             isAssembling = false
             return
         }
@@ -839,7 +895,7 @@ struct TeacherHomeView: View {
         )
         let catalog = catalogSections
         Task {
-            try? await Task.sleep(nanoseconds: 700_000_000)   // дебаунс степперов
+            try? await Task.sleep(nanoseconds: 150_000_000)
             guard seq == assembleSeq else { return }
             let qs: [RunQuestion]
             if let s = student {
@@ -870,8 +926,17 @@ struct TeacherHomeView: View {
     private func refreshScreenQuiet() async {
         guard let s = selectedStudent else { return }
         let expected = filterId
-        if let fresh = try? await app.teacher.pickingScreen(studentId: s.studentId, filterId: expected),
-           filterId == expected {   // защита от гонки при быстрой смене фильтра
+        if let cached = await AccordionScreenCache.shared.cachedPicking(
+            studentId: s.studentId, filterId: expected
+        ), isCurrent(studentId: s.studentId, filterId: expected) {
+            picking = cached
+        }
+        let fresh = try? await AccordionScreenCache.shared.picking(
+            studentId: s.studentId, filterId: expected
+        ) {
+            try await app.teacher.pickingScreen(studentId: s.studentId, filterId: expected)
+        }
+        if let fresh, isCurrent(studentId: s.studentId, filterId: expected) {
             picking = fresh
         }
     }

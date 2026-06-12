@@ -8,6 +8,7 @@ actor ContentService {
     private var catalog: [CatalogEntry]?
     private var topicById: [String: CatalogEntry] = [:]
     private var manifestCache: [String: TopicManifest] = [:]
+    private var manifestInflight: [String: Task<TopicManifest?, Error>] = [:]
     private var videoMap: [String: String]?
 
     private let urlSession: URLSession
@@ -66,12 +67,24 @@ actor ContentService {
     func manifest(for topic: CatalogEntry) async throws -> TopicManifest? {
         guard let path = topic.path else { return nil }
         if let cached = manifestCache[path] { return cached }
+        if let task = manifestInflight[path] { return try await task.value }
         let url = SupabaseConfig.contentBaseURL.appendingPathComponent(path)
-        let (data, resp) = try await urlSession.data(from: url)
-        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        let man = try JSONDecoder().decode(TopicManifest.self, from: data)
-        manifestCache[path] = man
-        return man
+        let session = urlSession
+        let task = Task<TopicManifest?, Error> {
+            let (data, resp) = try await session.data(from: url)
+            guard (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+            return try JSONDecoder().decode(TopicManifest.self, from: data)
+        }
+        manifestInflight[path] = task
+        do {
+            let man = try await task.value
+            manifestInflight[path] = nil
+            if let man { manifestCache[path] = man }
+            return man
+        } catch {
+            manifestInflight[path] = nil
+            throw error
+        }
     }
 
     /// Поиск темы: точный id, затем по убывающим префиксам question_id
@@ -165,9 +178,20 @@ actor ContentService {
     /// прототипов всех подтем секции + та же двухпроходная ротация по базам.
     func randomQuestionsInSection(topics: [CatalogEntry], count: Int,
                                   excluding: Set<String> = []) async throws -> [RunQuestion] {
+        var manifests: [TopicManifest] = []
+        await withTaskGroup(of: TopicManifest?.self) { group in
+            for topic in topics {
+                group.addTask { [weak self] in
+                    try? await self?.manifest(for: topic)
+                }
+            }
+            for await man in group {
+                if let man { manifests.append(man) }
+            }
+        }
+
         var pool: [(TopicManifest, TaskType, Prototype)] = []
-        for topic in topics {
-            guard let man = try await manifest(for: topic) else { continue }
+        for man in manifests {
             for type in man.types ?? [] {
                 for proto in type.prototypes ?? [] where proto.id != nil && !excluding.contains(proto.id!) {
                     pool.append((man, type, proto))

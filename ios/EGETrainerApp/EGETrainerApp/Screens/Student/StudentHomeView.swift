@@ -195,11 +195,11 @@ struct StudentHomeView: View {
     }
 
     private func scheduleAssemble() {
-        assembledBase = nil
-        assembled = nil
         assembleSeq += 1
         let seq = assembleSeq
         guard totalSelected > 0 else {
+            assembledBase = nil
+            assembled = nil
             isAssembling = false
             return
         }
@@ -209,7 +209,7 @@ struct StudentHomeView: View {
         )
         let flt = filterId
         Task {
-            try? await Task.sleep(nanoseconds: 700_000_000)   // дебаунс степперов
+            try? await Task.sleep(nanoseconds: 150_000_000)
             guard seq == assembleSeq else { return }
             let qs = (try? await StudentPickEngine.pick(
                 selection: selection,
@@ -600,7 +600,7 @@ struct StudentHomeView: View {
                 }
             }
             .buttonStyle(SecondaryButtonStyle())
-            .disabled(assembled?.isEmpty != false)
+            .disabled(isAssembling || assembled?.isEmpty != false)
             .opacity(totalSelected == 0 ? 0.5 : 1)
 
             Button {
@@ -612,7 +612,7 @@ struct StudentHomeView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(PrimaryButtonStyle())
-            .disabled(assembled?.isEmpty != false)
+            .disabled(isAssembling || assembled?.isEmpty != false)
             .opacity(totalSelected == 0 ? 0.5 : 1)
         }
         .padding(.horizontal, 16)
@@ -631,6 +631,11 @@ struct StudentHomeView: View {
     private func load() async {
         isLoading = true
         errorMessage = nil
+        Task {
+            if let sid = await app.student.selfUserId() {
+                await PickSnapshotCache.shared.prewarm(for: sid, client: app.student.client)
+            }
+        }
         do {
             sections = try await app.content.sectionsWithTopics()
         } catch {
@@ -638,7 +643,12 @@ struct StudentHomeView: View {
             isLoading = false
             return
         }
-        // Статистика не блокирует каталог (как на вебе — асинхронная подгрузка)
+        // Каталог уже готов: статистика обогащает видимый аккордеон асинхронно.
+        isLoading = false
+        Task { await loadAnalytics() }
+    }
+
+    private func loadAnalytics() async {
         do {
             let a = try await app.student.analytics(scope: "self", days: 30, source: "all")
             analytics = a
@@ -658,7 +668,6 @@ struct StudentHomeView: View {
         } catch {
             // Прогноз недоступен — каталог всё равно показываем
         }
-        isLoading = false
     }
 
 }

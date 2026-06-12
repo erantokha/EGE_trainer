@@ -77,7 +77,8 @@ ios/EGETrainerApp/
 
 ```bash
 cd ios/EGETrainerApp/EGETrainerApp
-swiftc -O -o /tmp/ege_harness Models/*.swift Services/*.swift ../DevHarness/main.swift
+swiftc -O -o /tmp/ege_harness Models/*.swift Services/*.swift \
+  ../DevHarness/ProtoPick.swift ../DevHarness/main.swift
 EGE_STUDENT_EMAIL=... EGE_STUDENT_PASSWORD=... \
 EGE_TEACHER_EMAIL=... EGE_TEACHER_PASSWORD=... /tmp/ege_harness
 ```

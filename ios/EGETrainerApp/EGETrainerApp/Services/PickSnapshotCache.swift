@@ -31,6 +31,18 @@ actor PickSnapshotCache {
         return await fetchTask(sid, client: client).value
     }
 
+    /// Запустить загрузку заранее, не блокируя вызывающий экран ожиданием сети.
+    func prewarm(for studentId: String, client: SupabaseClient = .shared) {
+        let sid = studentId.trimmingCharacters(in: .whitespaces)
+        guard !sid.isEmpty else { return }
+        if let e = entries[sid] {
+            if Date().timeIntervalSince(e.at) > ttl { _ = fetchTask(sid, client: client) }
+            return
+        }
+        if let f = failAt[sid], Date().timeIntervalSince(f) < failTtl { return }
+        _ = fetchTask(sid, client: client)
+    }
+
     /// Сбросить кеш (после записи попытки/сдачи ДЗ состояние ученика изменилось).
     func invalidateAll() {
         entries.removeAll()
@@ -45,7 +57,7 @@ actor PickSnapshotCache {
                 params: ["p_student_id": .string(sid), "p_source": .string("all")],
                 as: PickSnapshot.self
             )
-            await self.store(sid: sid, snap: snap)
+            self.store(sid: sid, snap: snap)
             return snap
         }
         inflight[sid] = t

@@ -126,6 +126,7 @@ struct StudentService {
         ])
         // WIOS.2: состояние ученика изменилось → витрина локального подбора устарела.
         await PickSnapshotCache.shared.invalidateAll()
+        await AccordionScreenCache.shared.invalidateAll()
     }
 
     // MARK: - Consent (ученик)
