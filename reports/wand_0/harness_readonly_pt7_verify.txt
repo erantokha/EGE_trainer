@@ -1,0 +1,62 @@
+== unit ==
+OK unit.checker.ege_exact
+OK unit.checker.ege_wrong
+OK unit.checker.unicode_minus
+OK unit.checker.fraction
+OK unit.checker.comma_decimal
+OK unit.checker.wrong_number
+OK unit.checker.integer
+OK unit.checker.tolerance_abs
+OK unit.checker.text_exact
+OK unit.checker.text_regex_i
+OK unit.forecast.p12_70
+OK unit.forecast.p0_0
+OK unit.forecast.interp_2_5_14
+OK unit.forecast.p1_6
+OK unit.forecast.clamp_hi
+== auth ==
+OK auth.bad_password — Неверный email или пароль.
+OK auth.student.signin — 69a60e96-0aa2-4df8-99d3-4b6dcb961b38
+OK auth.refresh — refresh-токен работает (сценарий C)
+OK auth.profile — Антон Ермолаев
+OK auth.teacher.signin — a08f94bf-6bed-4477-9104-b945a27101b7
+== content ==
+OK content.index — 108 записей, секций: 12
+OK content.sections_12 — 12
+OK content.manifest — тема 1.1: типов 2, прототипов 42
+OK content.build — 1.1.2.14: Две стороны треугольника равны 8 и 9. Высота, опущ...
+OK content.figure_url — https://ege-trainer.ru/content/tasks/1/img/1.1_1.svg
+OK content.video — ключей: 407; 1.1.1.1 -> https://rutube.ru/play/embed/0bc56e6541345116d96a09d3b70dbe37
+== student ==
+OK hw.summary — всего 28, несданных 8
+OK hw.by_token — ДЗ 11.06
+OK hw.refs — 2 шт. из frozen_questions
+OK content.build.hw — Стороны параллелограмма равны 9 и 10. Высота, опущенная на б...
+OK content.answer_spec — type=number format=-
+OK hw.attempt_by_token — верно 2 из 2
+OK hw.attempt_payload
+OK hw.archive — архив: 10 строк (offset=0, limit=10)
+OK analytics.self — 84 подтем, 12 секций
+OK forecast.computed — первичные 2,86, вторичные 16
+OK picking.self_gate — self-гейт teacher_picking_screen_v2: 12 секций
+OK consent.my_teachers — Антон Ермолаев
+OK consent.incoming_readable
+== pick ==
+OK pick.spread — want=2 при 2 базах -> базы [1.1.1, 1.1.2]
+OK pick.resolve.batch — ОДИН RPC-вызов, бакетов=3 (proto:1.1.1, topic:1.1, section:1), вернулось 7, scope_kinds в ответе: [proto, topic, section]
+OK pick.filtered — фильтр unseen_low дал 0, с добором без фильтра 3 из 4 (остаток — исчерпание кандидатов сервера: честный shortage)
+== teacher ==
+OK teacher.profile — Антон Ермолаев
+OK teacher.students — 8 учеников
+OK teacher.summary — 8
+OK consent.outgoing_readable
+OK teacher.picking_screen — 12 секций, seed=d8689736
+OK analytics.teacher
+OK teacher.proto_last3 — запрошено 2 unic, строк 2
+OK student.proto_last3_self — self-строк 2 (RPC отвечает под токеном ученика)
+OK teacher.attempts — 28 работ
+OK teacher.attempt_report — ДЗ 11.06
+OK teacher.resolve_batch — 2 задач: 1.1.1.10, 1.1.2.14
+== access ==
+OK access.denied_foreign_student — STUDENT_NOT_LINKED
+TOTAL ok=54 fail=0

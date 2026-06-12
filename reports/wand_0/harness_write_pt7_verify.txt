@@ -1,0 +1,26 @@
+== auth ==
+OK auth.bad_password — Неверный email или пароль.
+OK auth.student.signin — 69a60e96-0aa2-4df8-99d3-4b6dcb961b38
+OK auth.refresh — refresh-токен работает (сценарий C)
+OK auth.profile — Антон Ермолаев
+OK auth.teacher.signin — a08f94bf-6bed-4477-9104-b945a27101b7
+== teacher ==
+OK teacher.profile — Антон Ермолаев
+OK teacher.students — 8 учеников
+OK teacher.summary — 8
+OK consent.outgoing_readable
+OK teacher.picking_screen — 12 секций, seed=d8689736
+OK analytics.teacher
+OK teacher.proto_last3 — запрошено 2 unic, строк 2
+OK student.proto_last3_self — self-строк 2 (RPC отвечает под токеном ученика)
+OK teacher.attempts — 28 работ
+OK teacher.attempt_report — ДЗ 11.06
+OK teacher.resolve_batch — 2 задач: 1.1.1.10, 1.1.2.14
+== write.submit ==
+OK write.start_attempt — attempt=573fafbc-cecc-4052-bbae-33444ec30fbb already=true
+OK write.submit — верно 2 из 2
+== write.create ==
+OK write.create_pick — 2 задач
+OK write.create — https://ege-trainer.ru/tasks/hw.html?token=6a43189f388207c9d0b45152471b40d5
+OK write.create_visible
+TOTAL ok=21 fail=0
