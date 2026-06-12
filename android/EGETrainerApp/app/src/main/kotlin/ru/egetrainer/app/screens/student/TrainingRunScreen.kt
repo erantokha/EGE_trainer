@@ -36,6 +36,8 @@ import ru.egetrainer.app.designsystem.SecondaryButton
 import ru.egetrainer.app.screens.shared.AttemptSummaryHeader
 import ru.egetrainer.app.screens.shared.QuestionReviewCard
 import ru.egetrainer.app.screens.shared.QuestionRunCard
+import ru.egetrainer.app.designsystem.DrawOverlayHost
+import ru.egetrainer.app.pdf.PdfExportButton
 import ru.egetrainer.core.models.AttemptQuestion
 import ru.egetrainer.core.models.QuestionRef
 import ru.egetrainer.core.models.RunQuestion
@@ -141,6 +143,7 @@ fun TrainingRunScreen(app: AppState, payload: RunPayload, onClose: () -> Unit) {
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(Modifier.weight(1f))
+            if (results == null) PdfExportButton(questions, defaultTitle = "Тренировка")
         }
 
         val res = results
@@ -154,6 +157,7 @@ fun TrainingRunScreen(app: AppState, payload: RunPayload, onClose: () -> Unit) {
                 onNewSession = onClose,
             )
         } else {
+            DrawOverlayHost {
             LazyColumn(
                 Modifier.fillMaxSize(),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -185,6 +189,7 @@ fun TrainingRunScreen(app: AppState, payload: RunPayload, onClose: () -> Unit) {
                             .testTag("trainingFinish"),
                     )
                 }
+            }
             }
         }
     }

@@ -52,6 +52,8 @@ import ru.egetrainer.app.screens.shared.AttemptSummaryHeader
 import ru.egetrainer.app.screens.shared.QuestionReviewCard
 import ru.egetrainer.app.screens.shared.QuestionRunCard
 import ru.egetrainer.app.screens.student.AnalogRunSheet
+import ru.egetrainer.app.designsystem.DrawOverlayHost
+import ru.egetrainer.app.pdf.PdfExportButton
 import ru.egetrainer.core.models.AttemptPayload
 import ru.egetrainer.core.models.AttemptQuestion
 import ru.egetrainer.core.models.HomeworkArchiveItem
@@ -413,23 +415,31 @@ private fun HomeworkRunScreen(app: AppState, token: String, onBack: () -> Unit) 
             is HwRunPhase.Error -> Column(Modifier.padding(16.dp)) {
                 ErrorStateView(p.message) { scope.launch { load() } }
             }
-            is HwRunPhase.Run -> LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item { Text("Всего задач: ${p.questions.size}", color = colors.textDim, fontSize = EgeDims.fsMd) }
-                itemsIndexed(p.questions, key = { _, q -> q.questionId }) { idx, q ->
-                    QuestionRunCard(idx, q, answers[q.questionId] ?: "") { answers[q.questionId] = it }
-                }
-                item {
-                    val empty = p.questions.count { (answers[it.questionId] ?: "").trim().isEmpty() }
-                    PrimaryButton(
-                        text = "Завершить",
-                        onClick = { if (empty > 0) showConfirm = true else submit() },
-                        enabled = !isSubmitting, loading = isSubmitting,
-                        modifier = Modifier.padding(top = 8.dp).testTag("hwFinish"),
-                    )
+            is HwRunPhase.Run -> DrawOverlayHost {
+                LazyColumn(
+                    Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Всего задач: ${p.questions.size}", color = colors.textDim, fontSize = EgeDims.fsMd)
+                            Spacer(Modifier.weight(1f))
+                            PdfExportButton(p.questions, defaultTitle = p.title)
+                        }
+                    }
+                    itemsIndexed(p.questions, key = { _, q -> q.questionId }) { idx, q ->
+                        QuestionRunCard(idx, q, answers[q.questionId] ?: "") { answers[q.questionId] = it }
+                    }
+                    item {
+                        val empty = p.questions.count { (answers[it.questionId] ?: "").trim().isEmpty() }
+                        PrimaryButton(
+                            text = "Завершить",
+                            onClick = { if (empty > 0) showConfirm = true else submit() },
+                            enabled = !isSubmitting, loading = isSubmitting,
+                            modifier = Modifier.padding(top = 8.dp).testTag("hwFinish"),
+                        )
+                    }
                 }
             }
             is HwRunPhase.Result -> HwResultContent(app, p)

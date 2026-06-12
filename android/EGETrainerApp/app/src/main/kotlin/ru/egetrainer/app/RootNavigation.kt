@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -128,9 +131,13 @@ fun StudentTabScaffold(app: AppState, expandFirst: Boolean = false) {
         androidx.compose.runtime.mutableStateOf<ru.egetrainer.app.screens.student.RunPayload?>(null)
     }
     activeRun?.let { payload ->
-        ru.egetrainer.app.screens.student.TrainingRunScreen(app, payload) {
-            activeRun = null
-            app.refreshHomeworkBadge()
+        // Оверлей рендерится вне Scaffold → сам отступает от system bars (на
+        // Android 15 edge-to-edge принудительный, иначе шапка под статус-баром).
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+            ru.egetrainer.app.screens.student.TrainingRunScreen(app, payload) {
+                activeRun = null
+                app.refreshHomeworkBadge()
+            }
         }
         return
     }
@@ -184,16 +191,19 @@ fun TeacherTabScaffold(app: AppState) {
 
     val o = overlay
     if (o != null) {
-        when (o) {
-            is TeacherOverlay.Preview -> ru.egetrainer.app.screens.teacher.TeacherPreviewScreen(
-                app, o.nav.student, o.nav.requests, o.nav.filterId, o.nav.shuffle, o.nav.preAssembled,
-                onBack = { overlay = null },
-                onCreateHW = { refs -> overlay = TeacherOverlay.Create(o.nav.student, refs) },
-            )
-            is TeacherOverlay.Start -> ru.egetrainer.app.screens.teacher.TeacherListScreen(o.questions) { overlay = null }
-            is TeacherOverlay.Create -> ru.egetrainer.app.screens.teacher.CreateHomeworkScreen(
-                app, o.student, o.prePicked) { overlay = null }
-            is TeacherOverlay.Card -> ru.egetrainer.app.screens.teacher.StudentCardScreen(app, o.student) { overlay = null }
+        // Оверлеи учителя вне Scaffold → отступ от system bars (edge-to-edge).
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
+            when (o) {
+                is TeacherOverlay.Preview -> ru.egetrainer.app.screens.teacher.TeacherPreviewScreen(
+                    app, o.nav.student, o.nav.requests, o.nav.filterId, o.nav.shuffle, o.nav.preAssembled,
+                    onBack = { overlay = null },
+                    onCreateHW = { refs -> overlay = TeacherOverlay.Create(o.nav.student, refs) },
+                )
+                is TeacherOverlay.Start -> ru.egetrainer.app.screens.teacher.TeacherListScreen(o.questions) { overlay = null }
+                is TeacherOverlay.Create -> ru.egetrainer.app.screens.teacher.CreateHomeworkScreen(
+                    app, o.student, o.prePicked) { overlay = null }
+                is TeacherOverlay.Card -> ru.egetrainer.app.screens.teacher.StudentCardScreen(app, o.student) { overlay = null }
+            }
         }
         return
     }

@@ -42,6 +42,8 @@ import ru.egetrainer.app.designsystem.LoadingStateView
 import ru.egetrainer.app.designsystem.PrimaryButton
 import ru.egetrainer.app.designsystem.SecondaryButton
 import ru.egetrainer.app.screens.shared.PreviewQuestionCard
+import ru.egetrainer.app.designsystem.DrawOverlayHost
+import ru.egetrainer.app.pdf.PdfExportButton
 import ru.egetrainer.core.models.QuestionRef
 import ru.egetrainer.core.models.RunQuestion
 import ru.egetrainer.core.models.StudentListItem
@@ -99,7 +101,7 @@ fun TeacherPreviewScreen(
     else null
 
     Column(Modifier.fillMaxSize().background(colors.bg)) {
-        FlowHeader("Добавленные задачи", onBack)
+        FlowHeaderWithPdf("Добавленные задачи", questions, onBack)
         LazyColumn(
             Modifier.fillMaxSize(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -165,17 +167,36 @@ fun TeacherPreviewScreen(
 fun TeacherListScreen(questions: List<RunQuestion>, onBack: () -> Unit) {
     val colors = EgeTheme.colors
     Column(Modifier.fillMaxSize().background(colors.bg)) {
-        FlowHeader("Подборка", onBack)
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item { Text("Всего задач: ${questions.size}", color = colors.textDim, fontSize = EgeDims.fsMd) }
-            itemsIndexed(questions, key = { _, q -> q.questionId }) { idx, q ->
-                PreviewQuestionCard(idx, q, answerStyle = false) // ответы раскрываются тапом, без записи
+        FlowHeaderWithPdf("Подборка", questions, onBack)
+        DrawOverlayHost {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                item { Text("Всего задач: ${questions.size}", color = colors.textDim, fontSize = EgeDims.fsMd) }
+                itemsIndexed(questions, key = { _, q -> q.questionId }) { idx, q ->
+                    PreviewQuestionCard(idx, q, answerStyle = false) // ответы раскрываются тапом, без записи
+                }
             }
         }
+    }
+}
+
+/** Шапка с PDF-кнопкой (с ответами по умолчанию — для учителя). */
+@Composable
+private fun FlowHeaderWithPdf(title: String, questions: List<RunQuestion>, onBack: () -> Unit) {
+    val colors = EgeTheme.colors
+    Row(
+        Modifier.fillMaxWidth().background(colors.panel).padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text("‹ Назад", color = colors.accent, fontSize = EgeDims.fsMd,
+            modifier = Modifier.clickable(onClick = onBack).testTag("flowBack"))
+        Spacer(Modifier.weight(1f))
+        Text(title, color = colors.text, fontSize = EgeDims.fsLg, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.weight(1f))
+        PdfExportButton(questions, defaultTitle = "Подборка задач", answersDefault = true)
     }
 }
 
