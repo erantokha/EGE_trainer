@@ -11,3 +11,6 @@ test-results/
 reports/_diag_vectors*.cjs
 
 node_modules
+
+# Xcode личное состояние (не код)
+xcuserdata/
