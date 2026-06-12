@@ -19,7 +19,7 @@
 //   3: зелёный (>=90%)
 //   4: серый   (нет данных)
 
-import { baseIdFromProtoId, sampleKByBase, shuffleInPlace } from '../app/core/pick.js?v=2026-06-13-1-021202';
+import { baseIdFromProtoId, sampleKByBase, shuffleInPlace } from '../app/core/pick.js?v=2026-06-13-2-021816';
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
