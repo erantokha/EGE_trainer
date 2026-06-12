@@ -6,7 +6,7 @@ const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURICom
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-import { navigate } from '../app/ui/nav.js?v=2026-06-13-2-021816';
+import { navigate } from '../app/ui/nav.js?v=2026-06-13-3-034013';
 
 async function api(){
   // ВАЖНО: dynamic import резолвится относительно URL текущего модуля.
@@ -235,28 +235,6 @@ async function load(){
   const data = res.data || {};
   const items = Array.isArray(data?.items) ? data.items : (Array.isArray(data?.latest) ? data.latest : (Array.isArray(data) ? data : []));
 
-  // Для выполненных ДЗ подтягиваем correct/total из последней завершённой попытки.
-  // Это те же метрики, что отображаются в блоке "Выполненные работы".
-  if (typeof getHomeworkAttempt === 'function'){
-    const need = items
-      .filter((it) => isSubmitted(it))
-      .filter((it) => !scoreTextOf(it))
-      .filter((it) => (it?.token || it?.hw_token || it?.homework_token));
-
-    if (need.length){
-      await mapLimit(need, 4, async (it) => {
-        const token = it?.token || it?.hw_token || it?.homework_token;
-        const r = await getHomeworkAttempt({ token });
-        if (r?.ok && r.row){
-          if (it.correct === undefined) it.correct = r.row.correct;
-          if (it.total === undefined) it.total = r.row.total;
-          if (!it.submitted_at && r.row.finished_at) it.submitted_at = r.row.finished_at;
-        }
-        return null;
-      });
-    }
-  }
-
   renderList(items);
 
   const pending = Number(data?.pending_count ?? 0);
@@ -266,6 +244,28 @@ async function load(){
   setCounters(pending, total);
   setArchiveLabel(arch);
   setStatus('');
+
+  // Недостающие оценки не входят в критический путь: summary и карточки уже на
+  // экране, а correct/total мягко дорисуются после фоновых attempt-RPC.
+  if (typeof getHomeworkAttempt === 'function'){
+    const need = items
+      .filter((it) => isSubmitted(it))
+      .filter((it) => !scoreTextOf(it))
+      .filter((it) => (it?.token || it?.hw_token || it?.homework_token));
+
+    if (need.length){
+      mapLimit(need, 4, async (it) => {
+        const token = it?.token || it?.hw_token || it?.homework_token;
+        const r = await getHomeworkAttempt({ token });
+        if (r?.ok && r.row){
+          if (it.correct === undefined) it.correct = r.row.correct;
+          if (it.total === undefined) it.total = r.row.total;
+          if (!it.submitted_at && r.row.finished_at) it.submitted_at = r.row.finished_at;
+        }
+        return null;
+      }).then(() => renderList(items)).catch(() => {});
+    }
+  }
 }
 
 function initMenu(){

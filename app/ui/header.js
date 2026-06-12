@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-13-2-021816';
+import { navigate } from './nav.js?v=2026-06-13-3-034013';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -106,59 +106,51 @@ function inferFirstName(user) {
   return 'Аккаунт';
 }
 
-async function fetchProfileFirstName(supabase, userId) {
-  if (!supabase || !userId) return '';
+const __profileSummaryInflight = new Map();
 
-  const key = `ege_profile_first_name:${userId}`;
+async function fetchProfileSummary(supabase, userId) {
+  if (!supabase || !userId) return { firstName: '', role: '' };
+
+  const nameKey = `ege_profile_first_name:${userId}`;
+  const roleKey = `ege_profile_role:${userId}`;
+  let cachedName = '';
+  let cachedRole = '';
   try {
-    const cached = sessionStorage.getItem(key);
-    if (cached) return cached;
+    cachedName = sessionStorage.getItem(nameKey) || '';
+    cachedRole = sessionStorage.getItem(roleKey) || '';
   } catch (_) {}
+  if (cachedName && cachedRole) return { firstName: cachedName, role: cachedRole };
 
-  try {
-    let q = supabase.from('profiles').select('first_name').eq('id', userId);
-    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
-    const { data, error } = res || {};
-    if (error) return '';
+  if (__profileSummaryInflight.has(userId)) return __profileSummaryInflight.get(userId);
 
-    const name = String(data?.first_name || '').trim();
-    if (!name) return '';
+  const promise = (async () => {
+    try {
+      let q = supabase.from('profiles').select('first_name,role').eq('id', userId);
+      const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
+      const { data, error } = res || {};
+      // F3: различаем СБОЙ загрузки (undefined) и подтверждённое отсутствие роли ('').
+      if (error) return { firstName: cachedName, role: undefined };
 
-    try { sessionStorage.setItem(key, name); } catch (_) {}
-    return name;
-  } catch (_) {
-    return '';
-  }
-}
+      const firstName = String(data?.first_name || cachedName || '').trim();
+      const role = String(data?.role || cachedRole || '').trim();
+      try {
+        if (firstName) sessionStorage.setItem(nameKey, firstName);
+        if (role) sessionStorage.setItem(roleKey, role);
+      } catch (_) {}
+      // WD4-фикс: cross-tab роль для страниц, открытых через noopener.
+      if (role) {
+        try { localStorage.setItem('ege_role', role); } catch (_) {}
+      }
+      return { firstName, role };
+    } catch (_) {
+      return { firstName: cachedName, role: undefined };
+    } finally {
+      __profileSummaryInflight.delete(userId);
+    }
+  })();
 
-async function fetchProfileRole(supabase, userId) {
-  if (!supabase || !userId) return '';
-
-  const key = `ege_profile_role:${userId}`;
-  try {
-    const cached = sessionStorage.getItem(key);
-    if (cached) { try { localStorage.setItem('ege_role', cached); } catch (_) {} return cached; }
-  } catch (_) {}
-
-  try {
-    let q = supabase.from('profiles').select('role').eq('id', userId);
-    const res = (typeof q.maybeSingle === 'function') ? await q.maybeSingle() : await q.single();
-    const { data, error } = res || {};
-    // F3: различаем СБОЙ загрузки (undefined) и подтверждённое отсутствие роли ('').
-    if (error) return undefined;
-
-    const role = String(data?.role || '').trim();
-    if (!role) return '';
-
-    try { sessionStorage.setItem(key, role); } catch (_) {}
-    // WD4-фикс: дублируем роль в localStorage (cross-tab, переживает noopener) —
-    // чтобы вкладки, открытые через window.open(noopener) (unique.html, hw.html),
-    // знали роль СИНХРОННО до отрисовки сайдбара и не мигали student→teacher.
-    try { localStorage.setItem('ege_role', role); } catch (_) {}
-    return role;
-  } catch (_) {
-    return undefined; // сетевой сбой → не подтверждённое отсутствие роли
-  }
+  __profileSummaryInflight.set(userId, promise);
+  return promise;
 }
 
 function clearProfileCaches() {
@@ -552,6 +544,9 @@ export async function initHeader(opts = {}) {
       setMyHwBells(0);
       return;
     }
+    if (/\/tasks\/my_homeworks(?:_archive)?\.html$/.test(String(location.pathname || ''))) {
+      return;
+    }
     const seq = ++myHwBellSeq;
 
     let hwMod = null;
@@ -785,14 +780,11 @@ export async function initHeader(opts = {}) {
 
       const seq = ++nameFetchSeq;
       if (uid && supabase) {
-        fetchProfileFirstName(supabase, uid).then((nm) => {
+        fetchProfileSummary(supabase, uid).then((profile) => {
           if (seq !== nameFetchSeq) return;
-          const name = String(nm || '').trim();
+          const name = String(profile?.firstName || '').trim();
           if (name) setUserName(name);
-        });
-
-        fetchProfileRole(supabase, uid).then((r) => {
-          if (seq !== nameFetchSeq) return;
+          const r = profile?.role;
           if (r === 'teacher' || r === 'student') {
             applyRoleToMenu(r);
           } else if (r === undefined && !roleResolved) {

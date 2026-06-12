@@ -4,13 +4,30 @@
 // - falls back to layer-2 catalog tables while RPC is not deployed yet
 // - exposes a legacy-compatible adapter for current stats/student screens
 
-import { supaRest } from './supabase-rest.js?v=2026-06-13-2-021816';
+import { supaRest } from './supabase-rest.js?v=2026-06-13-3-034013';
+import { readRuntimeCache, removeRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-13-3-034013';
 
 let __treeCache = null;
 let __treePromise = null;
 let __legacyCache = null;
 let __indexLikeCache = null;
 let __indexLikePromise = null;
+
+const CATALOG_CACHE_NAMESPACE = 'catalog';
+const CATALOG_SESSION_TTL_MS = 10 * 60 * 1000;
+const CATALOG_LOCAL_TTL_MS = 60 * 60 * 1000;
+
+function readCatalogCache(id) {
+  return readRuntimeCache(CATALOG_CACHE_NAMESPACE, id, {
+    sessionTtlMs: CATALOG_SESSION_TTL_MS,
+    localTtlMs: CATALOG_LOCAL_TTL_MS,
+  })?.value || null;
+}
+
+function writeCatalogCache(id, value) {
+  if (!value) return;
+  writeRuntimeCache(CATALOG_CACHE_NAMESPACE, id, value);
+}
 
 function asText(value) {
   return String(value ?? '').trim();
@@ -280,6 +297,11 @@ export async function loadCatalogTree(opts = {}) {
   if (__treePromise) return __treePromise;
 
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 15000) || 15000);
+  const persisted = readCatalogCache('tree');
+  if (persisted) {
+    __treeCache = normalizeTreePayload(persisted);
+    return __treeCache;
+  }
 
   __treePromise = (async () => {
     try {
@@ -290,6 +312,7 @@ export async function loadCatalogTree(opts = {}) {
         __treeCache = await loadCatalogTreeViaTables(timeoutMs);
       }
       __legacyCache = null;
+      writeCatalogCache('tree', __treeCache);
       return __treeCache;
     } finally {
       __treePromise = null;
@@ -692,6 +715,11 @@ export async function loadCatalogIndexLike(opts = {}) {
   if (__indexLikePromise) return __indexLikePromise;
 
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 15000) || 15000);
+  const persisted = readCatalogCache('index-like');
+  if (persisted) {
+    __indexLikeCache = normalizeIndexLikePayload({ items: persisted });
+    return __indexLikeCache;
+  }
 
   __indexLikePromise = (async () => {
     try {
@@ -701,6 +729,7 @@ export async function loadCatalogIndexLike(opts = {}) {
         if (!isMissingCatalogIndexLikeRpc(err)) throw err;
         __indexLikeCache = await loadCatalogIndexLikeViaTables(timeoutMs);
       }
+      writeCatalogCache('index-like', __indexLikeCache);
       return __indexLikeCache;
     } finally {
       __indexLikePromise = null;
@@ -768,4 +797,6 @@ export function invalidateCatalogCache() {
   __legacyCache = null;
   __indexLikeCache = null;
   __indexLikePromise = null;
+  removeRuntimeCache(CATALOG_CACHE_NAMESPACE, 'tree');
+  removeRuntimeCache(CATALOG_CACHE_NAMESPACE, 'index-like');
 }

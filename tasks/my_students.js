@@ -7,8 +7,8 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-13-2-021816';
-import { buildLegend } from '../app/ui/metric_help.js?v=2026-06-13-2-021816';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-13-3-034013';
+import { buildLegend } from '../app/ui/metric_help.js?v=2026-06-13-3-034013';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
@@ -476,13 +476,17 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
   setStatus(status, 'Загружаем список...', { sticky: true });
 
   try {
-    const [students, summary] = await Promise.all([
+    const totalTopicsPromise = __totalTopics
+      ? Promise.resolve(__totalTopics)
+      : getTotalTopicsCount();
+    const [students, summary, totalTopics] = await Promise.all([
       supaRest.rpc('list_my_students', {}, { timeoutMs: 15000 }),
       supaRest.rpc('teacher_students_summary', { p_days: __currentDays, p_source: __currentSource }, { timeoutMs: 15000 })
         .catch((e) => {
           console.warn('teacher_students_summary error', e);
           return [];
         }),
+      totalTopicsPromise,
     ]);
 
     const sumMap = new Map();
@@ -499,9 +503,7 @@ async function loadStudents(supaRest, { days = 7, source = 'all' } = {}) {
       return { ...st, __summary: sid ? (sumMap.get(sid) || null) : null };
     });
 
-    if (!__totalTopics) {
-      __totalTopics = await getTotalTopicsCount();
-    }
+    if (!__totalTopics) __totalTopics = safeInt(totalTopics, 0);
 
     setStatus(status, '');
     rebuildKnownEmails();
@@ -725,18 +727,24 @@ async function main() {
     }
 
     let role = '';
-    try {
-      role = await getMyRole(supaRest, uid);
-    } catch (e) {
-      if (isAuthRequired(e)) {
-        setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
-      } else if (isTimeout(e)) {
-        setStatus(pageStatus, 'Сервер отвечает слишком долго. Попробуйте обновить страницу.', { sticky: false });
-      } else {
-        setStatus(pageStatus, 'Не удалось проверить права доступа.', { sticky: true });
+    try { role = String(sessionStorage.getItem(`ege_profile_role:${uid}`) || '').trim(); } catch (_) {}
+    if (!role) {
+      try {
+        role = await getMyRole(supaRest, uid);
+        if (role) {
+          try { sessionStorage.setItem(`ege_profile_role:${uid}`, role); } catch (_) {}
+        }
+      } catch (e) {
+        if (isAuthRequired(e)) {
+          setStatus(pageStatus, 'Сессия истекла. Перезайдите в аккаунт.', { sticky: true });
+        } else if (isTimeout(e)) {
+          setStatus(pageStatus, 'Сервер отвечает слишком долго. Попробуйте обновить страницу.', { sticky: false });
+        } else {
+          setStatus(pageStatus, 'Не удалось проверить права доступа.', { sticky: true });
+        }
+        if (addBtn) addBtn.disabled = true;
+        return;
       }
-      if (addBtn) addBtn.disabled = true;
-      return;
     }
 
     if (role !== 'teacher') {
@@ -752,7 +760,7 @@ async function main() {
 
     await loadStudents(supaRest, { days, source });
     // W-pre-prod consent: исходящие pending-заявки (блок «Ожидают подтверждения»)
-    await loadPendingRequests(supaRest);
+    loadPendingRequests(supaRest).catch(() => {});
 
     // Поиск (локальный фильтр) + проверка доступности "Добавить"
     searchInput?.addEventListener('input', () => {

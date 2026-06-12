@@ -7,7 +7,7 @@ test('student can open student home and stats self smoke', async ({ page }) => {
   await assertRoleHome(page, 'student');
 
   await expect(page.locator('#start')).toBeVisible();
-  await expect(page.locator('#pickManual')).toBeVisible();
+  await expect(page.locator('#pickManual')).toHaveAttribute('aria-selected', 'true');
 
   await runBrowserSmoke(page, '/tasks/stats_self_browser_smoke.html');
 });

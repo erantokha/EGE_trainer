@@ -171,11 +171,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let requireSession = null;
   let supaRest = null;
+  let readStudentAnalyticsCache = null;
+  let writeStudentAnalyticsCache = null;
   try {
     const sMod = await import(withV('../app/providers/supabase.js'));
     const rMod = await import(withV('../app/providers/supabase-rest.js'));
+    const cMod = await import(withV('../app/providers/student-analytics-cache.js'));
     requireSession = sMod.requireSession;
     supaRest = rMod.supaRest;
+    readStudentAnalyticsCache = cMod.readStudentAnalyticsCache;
+    writeStudentAnalyticsCache = cMod.writeStudentAnalyticsCache;
   } catch (e) {
     console.error(e);
     setStatus(ui.statusEl, 'Ошибка загрузки авторизации.', 'err');
@@ -185,8 +190,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadAll() {
     setStatus(ui.statusEl, 'Загрузка...', 'ok');
 
+    let session = null;
     try {
-      await requireSession({ timeoutMs: 900 });
+      session = await requireSession({ timeoutMs: 900 });
     } catch (e) {
       setStatus(ui.statusEl, 'Войдите, чтобы открыть статистику.', 'err');
       ui.hintEl.textContent = '';
@@ -196,28 +202,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // подгружаем каталог (для названий тем) один раз
-    if (!catalog) {
-      try {
-        catalog = await loadCatalog();
-      } catch (e) {
-        catalog = null;
-        // не блокируем дашборд, просто покажем topic_id без названий
-      }
-    }
-
     const days = Number(ui.daysSel.value) || 30;
     const source = String(ui.sourceSel.value || 'all');
+    const cacheParams = {
+      viewerScope: 'self',
+      viewerId: session?.user?.id,
+      studentId: session?.user?.id,
+      days,
+      source,
+    };
 
-    try {
-      const raw = await supaRest.rpc(
-        'student_analytics_screen_v1',
-        { p_viewer_scope: 'self', p_days: days, p_source: source, p_mode: 'init' },
-        { timeoutMs: 20000 }
-      );
-      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
-
-      // легкая подсказка — считаем только темы с хотя бы одной попыткой
+    const renderDash = (dash) => {
       const totalTopics = catalog?.totalTopics;
       const covered = Array.isArray(dash?.topics)
         ? new Set(dash.topics.filter(t => (t?.all_time?.total ?? 0) > 0).map(t => String(t?.topic_id || '').trim()).filter(Boolean)).size
@@ -230,11 +225,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         onTrain: launchTraining,
       });
 
-      // сохраняем последний dашборд для кнопки "тренировать"
       ui._lastDash = dash;
       ui._lastDays = days;
       ui._lastSource = source;
+    };
+
+    const cachedDash = readStudentAnalyticsCache?.(cacheParams);
+    if (cachedDash) renderDash(cachedDash);
+
+    try {
+      const catalogPromise = catalog
+        ? Promise.resolve(catalog)
+        : loadCatalog().catch(() => null);
+      const analyticsPromise = supaRest.rpc(
+          'student_analytics_screen_v1',
+          { p_viewer_scope: 'self', p_days: days, p_source: source, p_mode: 'init' },
+          { timeoutMs: 20000 }
+        );
+      const [loadedCatalog, raw] = await Promise.all([catalogPromise, analyticsPromise]);
+      catalog = loadedCatalog || catalog;
+      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
+      if (!dash) throw new Error('student_analytics_screen_v1 returned null');
+      writeStudentAnalyticsCache?.(cacheParams, dash);
+      renderDash(dash);
     } catch (e) {
+      if (cachedDash) {
+        setStatus(ui.statusEl, '');
+        return;
+      }
       // F2: единый error-state. Сессия истекла — отдельный кейс (re-login).
       if (isAuthRequired(e)) {
         setStatus(ui.statusEl, 'Сессия истекла. Перезайдите в аккаунт.', 'err');

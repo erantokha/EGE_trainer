@@ -342,8 +342,10 @@ async function main() {
   }
   const sMod = await import(withV('../app/providers/supabase.js'));
   const rMod = await import(withV('../app/providers/supabase-rest.js'));
+  const cacheMod = await import(withV('../app/providers/student-analytics-cache.js'));
   const { requireSession, getSession } = sMod;
   const { supaRest } = rMod;
+  const { readStudentAnalyticsCache, writeStudentAnalyticsCache } = cacheMod;
 
   initBackButton();
   diagMarkReady();
@@ -385,12 +387,18 @@ async function main() {
 
   // проверим роль
   let role = '';
-  try {
-    const rows = await supaRest.select('profiles', { select: 'role', id: `eq.${auth.user_id}` }, { timeoutMs: 12000 });
-    role = String(rows?.[0]?.role || '').trim();
-  } catch (e) {
-    console.warn('role select error', e);
-    role = '';
+  try { role = String(sessionStorage.getItem(`ege_profile_role:${auth.user_id}`) || '').trim(); } catch (_) {}
+  if (!role) {
+    try {
+      const rows = await supaRest.select('profiles', { select: 'role', id: `eq.${auth.user_id}` }, { timeoutMs: 12000 });
+      role = String(rows?.[0]?.role || '').trim();
+      if (role) {
+        try { sessionStorage.setItem(`ege_profile_role:${auth.user_id}`, role); } catch (_) {}
+      }
+    } catch (e) {
+      console.warn('role select error', e);
+      role = '';
+    }
   }
   if (role !== 'teacher') {
     setStatus('Доступно только для учителя.', 'err');
@@ -1318,19 +1326,16 @@ if (statsFiltersToggle && statsControls) {
     const days = Number(statsUi.daysSel.value) || 30;
     const periodLabel = (statsUi.daysSel?.selectedOptions?.[0]?.textContent || `${days} дней`).trim();
     const source = String(statsUi.sourceSel.value || 'all');
+    const normalizedSource = normSource(source);
+    const cacheParams = {
+      viewerScope: 'teacher',
+      viewerId: auth.user_id,
+      studentId,
+      days,
+      source: normalizedSource,
+    };
 
-    try {
-      if (!catalog) {
-        try { catalog = await loadCatalog(); } catch (_) { catalog = null; }
-      }
-
-      const raw = await supaRest.rpc(
-        'student_analytics_screen_v1',
-        { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: days, p_source: normSource(source), p_mode: 'init' },
-        { timeoutMs: 20000 }
-      );
-      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
-      if (!dash) throw new Error('student_analytics_screen_v1 returned null');
+    const renderDash = (dash) => {
       __lastPayload = dash;
 
       const coverageMap = new Map(
@@ -1344,7 +1349,28 @@ if (statsFiltersToggle && statsControls) {
       __lastSeenAt = dash.overall?.last_seen_at || null;
       if (__currentStudentMeta) applyHeader(__currentStudentMeta, __lastSeenAt);
       renderDashboard(statsUi, dash, catalog || { sections:new Map(), topicTitle:new Map() }, { showLastSeen:false, periodLabel, coverageMap });
+    };
+
+    const cachedDash = readStudentAnalyticsCache(cacheParams);
+    if (cachedDash) renderDash(cachedDash);
+
+    try {
+      const catalogPromise = catalog
+        ? Promise.resolve(catalog)
+        : loadCatalog().catch(() => null);
+      const analyticsPromise = supaRest.rpc(
+          'student_analytics_screen_v1',
+          { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: days, p_source: normalizedSource, p_mode: 'init' },
+          { timeoutMs: 20000 }
+        );
+      const [loadedCatalog, raw] = await Promise.all([catalogPromise, analyticsPromise]);
+      catalog = loadedCatalog || catalog;
+      const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
+      if (!dash) throw new Error('student_analytics_screen_v1 returned null');
+      writeStudentAnalyticsCache(cacheParams, dash);
+      renderDash(dash);
     } catch (e) {
+      if (cachedDash) return;
       if (isAccessDenied(e)) {
         statsUi.statusEl.innerHTML = '';
         statsUi.statusEl.appendChild(el('div', { class:'errbox', text:'Нет доступа к статистике этого ученика.' }));

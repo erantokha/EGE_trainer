@@ -1,6 +1,6 @@
 // tasks/student_analytics_screen_v1_browser_smoke.js
-import { getSession } from '../app/providers/supabase.js?v=2026-06-13-2-021816';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-2-021816';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-13-3-034013';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-3-034013';
 
 const PRIMARY_RPC = 'student_analytics_screen_v1';
 const REQUIRED_TOP_KEYS = ['student', 'catalog_version', 'screen', 'overall', 'sections', 'topics', 'variant12', 'recommendations', 'warnings', 'generated_at'];
