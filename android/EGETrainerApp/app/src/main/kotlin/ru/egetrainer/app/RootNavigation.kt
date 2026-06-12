@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -161,7 +162,15 @@ fun StudentTabScaffold(app: AppState, expandFirst: Boolean = false) {
     }
 }
 
-/** Табы учителя: Подбор, Ученики, Статистика, Профиль (контент — WAND.3). */
+/** Что открыто поверх учительских табов. */
+private sealed class TeacherOverlay {
+    data class Preview(val nav: ru.egetrainer.app.screens.teacher.TeacherHomeNav.Preview) : TeacherOverlay()
+    data class Start(val questions: List<ru.egetrainer.core.models.RunQuestion>) : TeacherOverlay()
+    data class Create(val student: ru.egetrainer.core.models.StudentListItem?, val prePicked: List<ru.egetrainer.core.models.QuestionRef>) : TeacherOverlay()
+    data class Card(val student: ru.egetrainer.core.models.StudentListItem) : TeacherOverlay()
+}
+
+/** Табы учителя: Подбор, Ученики, Статистика, Профиль. */
 @Composable
 fun TeacherTabScaffold(app: AppState) {
     val tabs = listOf(
@@ -171,12 +180,36 @@ fun TeacherTabScaffold(app: AppState) {
         TabItem("Профиль", Icons.Filled.Person),
     )
     var selected by remember { mutableIntStateOf(0) }
+    var overlay by remember { mutableStateOf<TeacherOverlay?>(null) }
+
+    val o = overlay
+    if (o != null) {
+        when (o) {
+            is TeacherOverlay.Preview -> ru.egetrainer.app.screens.teacher.TeacherPreviewScreen(
+                app, o.nav.student, o.nav.requests, o.nav.filterId, o.nav.shuffle, o.nav.preAssembled,
+                onBack = { overlay = null },
+                onCreateHW = { refs -> overlay = TeacherOverlay.Create(o.nav.student, refs) },
+            )
+            is TeacherOverlay.Start -> ru.egetrainer.app.screens.teacher.TeacherListScreen(o.questions) { overlay = null }
+            is TeacherOverlay.Create -> ru.egetrainer.app.screens.teacher.CreateHomeworkScreen(
+                app, o.student, o.prePicked) { overlay = null }
+            is TeacherOverlay.Card -> ru.egetrainer.app.screens.teacher.StudentCardScreen(app, o.student) { overlay = null }
+        }
+        return
+    }
 
     RoleTabScaffold(tabs = tabs, selected = selected, onSelect = { selected = it }) {
         when (selected) {
-            0 -> StubScreen("Подбор задач", "Главная учителя появится в WAND.3")
-            1 -> StubScreen("Мои ученики", "Кабинет появится в WAND.3")
-            2 -> StubScreen("Статистика", "Аналитика появится в WAND.3")
+            0 -> ru.egetrainer.app.screens.teacher.TeacherHomeScreen(app) { nav ->
+                overlay = when (nav) {
+                    is ru.egetrainer.app.screens.teacher.TeacherHomeNav.Preview -> TeacherOverlay.Preview(nav)
+                    is ru.egetrainer.app.screens.teacher.TeacherHomeNav.Start -> TeacherOverlay.Start(nav.questions)
+                    is ru.egetrainer.app.screens.teacher.TeacherHomeNav.Create -> TeacherOverlay.Create(nav.student, nav.prePicked)
+                    is ru.egetrainer.app.screens.teacher.TeacherHomeNav.Card -> TeacherOverlay.Card(nav.student)
+                }
+            }
+            1 -> ru.egetrainer.app.screens.teacher.MyStudentsScreen(app) { s -> overlay = TeacherOverlay.Card(s) }
+            2 -> ru.egetrainer.app.screens.stats.StatsScreen(app)
             else -> ProfileScreen(app)
         }
     }
