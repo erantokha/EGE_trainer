@@ -88,4 +88,80 @@ test.describe('WTP.1 — teacher screen prewarm', () => {
     expect(Date.now() - selectionStartedAt).toBeLessThan(1_000);
     expect(completedByStudent.get(firstId)).toBe(callsBeforeSelection);
   });
+
+  test('restores selected student screen from persistent cache while live refresh is stalled', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.addInitScript(() => {
+      if (sessionStorage.getItem('e2e_teacher_screen_cache_initialized') === '1') return;
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key?.includes(':teacher_picking_screen_v2:')) sessionStorage.removeItem(key);
+      }
+      sessionStorage.removeItem('teacher_selected_student_v1');
+      sessionStorage.setItem('teacher_pick_filter_id_v2', 'weak_spots');
+      sessionStorage.setItem('e2e_teacher_screen_cache_initialized', '1');
+    });
+
+    await page.goto('/home_teacher.html', { waitUntil: 'domcontentloaded' });
+    await assertRoleHome(page, 'teacher');
+    await page.waitForFunction(() => {
+      const select = document.getElementById('teacherStudentSelect');
+      return !!select && Array.from(select.options).some((option) => option.value);
+    }, null, { timeout: 25_000 });
+
+    const firstId = await page.locator('#teacherStudentSelect option[value]:not([value=""])')
+      .first()
+      .getAttribute('value');
+    expect(firstId, 'E2E teacher must have at least one student').toBeTruthy();
+
+    await page.evaluate((studentId) => {
+      const select = document.getElementById('teacherStudentSelect');
+      select.value = studentId;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }, firstId);
+    await page.waitForFunction(() => (
+      document.body.classList.contains('teacher-student-view')
+      && !document.body.classList.contains('home-stats-loading')
+    ), null, { timeout: 30_000 });
+    await expect.poll(() => page.evaluate(() => (
+      Array.from({ length: sessionStorage.length }, (_, i) => sessionStorage.key(i))
+        .some((key) => key?.includes(':teacher_picking_screen_v2:'))
+    )), { timeout: 10_000 }).toBe(true);
+
+    await page.goto(`/tasks/student.html?student_id=${firstId}`, { waitUntil: 'domcontentloaded' });
+
+    let blockedInitCalls = 0;
+    let releaseRefresh;
+    const refreshGate = new Promise((resolve) => { releaseRefresh = resolve; });
+    await page.route(`**${SCREEN_RPC}`, async (route) => {
+      const body = route.request().postDataJSON();
+      if (body?.p_mode !== 'init') {
+        await route.continue();
+        return;
+      }
+      blockedInitCalls += 1;
+      await refreshGate;
+      await route.continue();
+    });
+
+    const returnStartedAt = Date.now();
+    await page.goto('/home_teacher.html', { waitUntil: 'domcontentloaded' });
+    await page.waitForFunction((studentId) => {
+      const selected = document.getElementById('teacherStudentSelect')?.value;
+      const inView = document.body.classList.contains('teacher-student-view');
+      const loading = document.body.classList.contains('home-stats-loading');
+      const note = document.getElementById('sfNote');
+      const score = document.getElementById('studentComboScore');
+      return selected === studentId && inView && !loading && (
+        (!!note && note.hidden === false)
+        || (!!score && score.classList.contains('is-visible'))
+      );
+    }, firstId, { timeout: 2_000 });
+
+    expect(Date.now() - returnStartedAt).toBeLessThan(2_000);
+    await expect.poll(() => blockedInitCalls, { timeout: 10_000 }).toBeGreaterThan(0);
+    releaseRefresh();
+  });
 });

@@ -8,25 +8,26 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-13-7-200332';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-13-7-200332';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-7-200332';
-import { CONFIG } from '../app/config.js?v=2026-06-13-7-200332';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-7-200332';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-13-7-200332';
-import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-13-7-200332';
-import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-13-7-200332';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-13-7-200332';
+import { withBuild } from '../app/build.js?v=2026-06-13-7-220918';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-13-7-220918';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-7-220918';
+import { CONFIG } from '../app/config.js?v=2026-06-13-7-220918';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-7-220918';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-13-7-220918';
+import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-13-7-220918';
+import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-13-7-220918';
+import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-13-7-220918';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-13-7-220918';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-13-7-200332';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-7-200332';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-7-200332';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-13-7-200332';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-7-200332';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-13-7-200332';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-13-7-200332';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-13-7-220918';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-7-220918';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-7-220918';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-13-7-220918';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-7-220918';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-13-7-220918';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-13-7-220918';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-13-7-200332';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-13-7-220918';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -34,13 +35,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-13-7-200332';
+} from './picker_common.js?v=2026-06-13-7-220918';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-13-7-200332';
+} from './picker_stats.js?v=2026-06-13-7-220918';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -250,16 +251,30 @@ function prewarmTeacherStudentCard(studentId) {
   return promise;
 }
 
-function teacherScreenCacheKey(studentId, filterId) {
-  const sid = String(studentId || '').trim();
-  if (!sid) return '';
-  return `${sid}|${normalizeTeacherFilterId(filterId) || ''}`;
+function getTeacherScreenViewerId() {
+  return String(_TEACHER_SELECT_LAST_UID || readSessionFallback()?.user?.id || '').trim();
 }
 
-function rememberTeacherScreenPayload(key, payload) {
+function teacherScreenCacheParams(studentId, filterId, viewerId = getTeacherScreenViewerId()) {
+  return {
+    viewerId: String(viewerId || '').trim(),
+    studentId: String(studentId || '').trim(),
+    filterId: normalizeTeacherFilterId(filterId),
+    days: 30,
+    source: 'all',
+  };
+}
+
+function teacherScreenCacheKey(studentId, filterId, viewerId = getTeacherScreenViewerId()) {
+  const sid = String(studentId || '').trim();
+  if (!sid) return '';
+  return `${String(viewerId || '').trim()}|${sid}|${normalizeTeacherFilterId(filterId) || ''}`;
+}
+
+function rememberTeacherScreenPayload(key, payload, at = Date.now()) {
   if (!key || !payload || !Array.isArray(payload?.sections)) return;
   _TEACHER_SCREEN_CACHE.delete(key);
-  _TEACHER_SCREEN_CACHE.set(key, { payload, at: Date.now() });
+  _TEACHER_SCREEN_CACHE.set(key, { payload, at: Number(at || Date.now()) || Date.now() });
   while (_TEACHER_SCREEN_CACHE.size > TEACHER_SCREEN_CACHE_LIMIT) {
     const oldest = _TEACHER_SCREEN_CACHE.keys().next().value;
     if (!oldest) break;
@@ -268,19 +283,33 @@ function rememberTeacherScreenPayload(key, payload) {
 }
 
 function readTeacherScreenCache(studentId, filterId) {
-  const key = teacherScreenCacheKey(studentId, filterId);
+  const params = teacherScreenCacheParams(studentId, filterId);
+  const key = teacherScreenCacheKey(studentId, filterId, params.viewerId);
   const entry = key ? _TEACHER_SCREEN_CACHE.get(key) : null;
-  if (!entry?.payload) return null;
+  if (entry?.payload) {
+    return {
+      payload: entry.payload,
+      fresh: (Date.now() - Number(entry.at || 0)) < TEACHER_SCREEN_CACHE_TTL_MS,
+      source: 'memory',
+    };
+  }
+
+  const persisted = readTeacherPickingScreenCache(params);
+  if (!persisted?.payload) return null;
+  rememberTeacherScreenPayload(key, persisted.payload, persisted.at);
   return {
-    payload: entry.payload,
-    fresh: (Date.now() - Number(entry.at || 0)) < TEACHER_SCREEN_CACHE_TTL_MS,
+    payload: persisted.payload,
+    // После MPA-перехода показываем сохранённый экран сразу, но всегда обновляем его в фоне.
+    fresh: false,
+    source: persisted.source,
   };
 }
 
 function startTeacherScreenFetch(studentId, filterId, opts = {}) {
   const sid = String(studentId || '').trim();
   const normalizedFilter = normalizeTeacherFilterId(filterId);
-  const key = teacherScreenCacheKey(sid, normalizedFilter);
+  const params = teacherScreenCacheParams(sid, normalizedFilter);
+  const key = teacherScreenCacheKey(sid, normalizedFilter, params.viewerId);
   if (!key) return Promise.reject(new Error('student_id is empty'));
 
   const existing = _TEACHER_SCREEN_INFLIGHT.get(key);
@@ -303,6 +332,7 @@ function startTeacherScreenFetch(studentId, filterId, opts = {}) {
       throw new Error('teacher_picking_screen_v2 returned invalid init payload');
     }
     rememberTeacherScreenPayload(key, payload);
+    writeTeacherPickingScreenCache(params, payload);
     return payload;
   })().finally(() => {
     if (_TEACHER_SCREEN_INFLIGHT.get(key) === promise) _TEACHER_SCREEN_INFLIGHT.delete(key);
@@ -316,9 +346,11 @@ function startTeacherScreenFetch(studentId, filterId, opts = {}) {
 
 async function prewarmFirstTeacherScreens(rows) {
   if (!IS_TEACHER_HOME) return;
-  const ids = Array.from(new Set((Array.isArray(rows) ? rows : [])
+  const listedIds = Array.from(new Set((Array.isArray(rows) ? rows : [])
     .map((st) => String(st?.student_id || st?.id || '').trim())
-    .filter(Boolean)))
+    .filter(Boolean)));
+  const selectedId = readTeacherSelectedStudentId();
+  const ids = Array.from(new Set([selectedId, ...listedIds].filter(Boolean)))
     .slice(0, TEACHER_SCREEN_PREWARM_LIMIT);
   if (!ids.length) return;
 
