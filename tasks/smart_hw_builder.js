@@ -3,12 +3,12 @@
 // Важно: если в теме меньше доступных задач, чем запрошено, функция не «дублирует» задачи,
 // а возвращает меньше и сообщает о нехватке.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-6-193118';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-6-195819';
 import {
   loadCatalogSubtopicUnicsV1,
   loadCatalogTopicPathMap,
   lookupQuestionsByUnicsV1,
-} from '../app/providers/catalog.js?v=2026-06-13-6-193118';
+} from '../app/providers/catalog.js?v=2026-06-13-6-195819';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;

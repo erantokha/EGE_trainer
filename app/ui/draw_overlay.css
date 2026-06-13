@@ -88,6 +88,10 @@
 /* при захвате прячем UI-хром (но НЕ рисунок: .dro-stage остаётся) */
 body.dro-capturing .dro-bar, body.dro-capturing .dro-copy, body.dro-capturing .dro-pop,
 body.dro-capturing .dro-focus-bar, body.dro-capturing .brush-fab, body.dro-capturing .dro-card-focus-btn { display: none !important; }
+/* dom-to-image serializes the computed overflow box literally. The regular
+   MathJax overflow-x:auto therefore becomes a clipped box with both scrollbars
+   in the exported PNG. Keep screen scrolling, but flatten formulas for capture. */
+body.dro-capturing mjx-container { overflow: visible; }
 
 /* печать: рисовалка не участвует (плюс print_lifecycle прячет fixed, print.css — body>div) */
 @media print {
