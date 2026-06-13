@@ -343,9 +343,11 @@ async function main() {
   const sMod = await import(withV('../app/providers/supabase.js'));
   const rMod = await import(withV('../app/providers/supabase-rest.js'));
   const cacheMod = await import(withV('../app/providers/student-analytics-cache.js'));
+  const attemptsCacheMod = await import(withV('../app/providers/student-attempts-cache.js'));
   const { requireSession, getSession } = sMod;
   const { supaRest } = rMod;
   const { readStudentAnalyticsCache, writeStudentAnalyticsCache } = cacheMod;
+  const { readStudentAttemptsCache, writeStudentAttemptsCache } = attemptsCacheMod;
 
   initBackButton();
   diagMarkReady();
@@ -406,19 +408,6 @@ async function main() {
   }
 
   initStudentDeleteMenu({ supaRest, refreshAuthSnapshot, studentId });
-
-  // подтянем мету ученика через безопасный RPC списка
-  if (!cached) {
-    try {
-      const list = await supaRest.rpc('list_my_students', {}, { timeoutMs: 15000 });
-      const arr = Array.isArray(list) ? list : [];
-      const meta = arr.find((x) => String(x?.student_id || '').trim() === String(studentId)) || null;
-      if (meta) {
-        writeCachedStudent(studentId, meta);
-        applyHeader(meta, __lastSeenAt);
-      }
-    } catch (_) {}
-  }
 
   let catalog      = null;
   let __lastPayload = null;
@@ -1337,6 +1326,15 @@ if (statsFiltersToggle && statsControls) {
 
     const renderDash = (dash) => {
       __lastPayload = dash;
+      if (!__currentStudentMeta && dash?.student) {
+        const meta = {
+          student_id: studentId,
+          first_name: dash.student.display_name || '',
+          student_grade: dash.student.grade ?? '',
+        };
+        writeCachedStudent(studentId, meta);
+        applyHeader(meta, __lastSeenAt);
+      }
 
       const coverageMap = new Map(
         (dash.topics || []).map(t => [
@@ -1363,12 +1361,16 @@ if (statsFiltersToggle && statsControls) {
           { p_viewer_scope: 'teacher', p_student_id: studentId, p_days: days, p_source: normalizedSource, p_mode: 'init' },
           { timeoutMs: 20000 }
         );
-      const [loadedCatalog, raw] = await Promise.all([catalogPromise, analyticsPromise]);
-      catalog = loadedCatalog || catalog;
+      const raw = await analyticsPromise;
       const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
       if (!dash) throw new Error('student_analytics_screen_v1 returned null');
       writeStudentAnalyticsCache(cacheParams, dash);
       renderDash(dash);
+      catalogPromise.then((loadedCatalog) => {
+        if (!loadedCatalog) return;
+        catalog = loadedCatalog;
+        renderDash(dash);
+      }).catch(() => {});
     } catch (e) {
       if (cachedDash) return;
       if (isAccessDenied(e)) {
@@ -1387,7 +1389,52 @@ if (statsFiltersToggle && statsControls) {
   statsUi.sourceSel.addEventListener('change', loadDashboard);
 
   // ----- works -----
-    // handlers: раскрытие/сворачивание списка работ
+  const attemptsCacheParams = { viewerId: auth.user_id, studentId };
+  let worksPromise = null;
+
+  function renderWorks(rows) {
+    const works = $('#worksList');
+    if (!works) return;
+    if (!rows.length) {
+      works.replaceChildren(el('div', { class:'muted', text:'Пока нет выполненных работ.' }));
+      return;
+    }
+
+    const list = el('div');
+    for (const r of rows) {
+      const title = String(r.homework_title || r.title || 'Работа').trim();
+      const attemptId = r.attempt_id || r.id;
+      const doneAt = r.finished_at || r.submitted_at || r.created_at || '';
+      const score = (r.correct != null && r.total != null) ? `${r.correct}/${r.total}` : '';
+      const line = [title, score].filter(Boolean).join(' — ');
+      const item = el('div', {
+        class: 'card',
+        style: 'padding:12px; border:1px solid var(--border); border-radius:14px; margin-bottom:10px; cursor:pointer'
+      }, [
+        el('div', { text: line }),
+        el('div', { class: 'muted', style: 'margin-top:6px', text: doneAt ? fmtDateTime(doneAt) : '' }),
+      ]);
+      item.addEventListener('click', () => {
+        if (attemptId) location.href = buildHwReportUrl(attemptId);
+      });
+      list.appendChild(item);
+    }
+    works.replaceChildren(list);
+  }
+
+  function startWorksFetch() {
+    if (worksPromise) return worksPromise;
+    worksPromise = supaRest.rpc('list_student_attempts', { p_student_id: studentId }, { timeoutMs: 20000 })
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : [];
+        writeStudentAttemptsCache(attemptsCacheParams, rows);
+        return rows;
+      })
+      .finally(() => { worksPromise = null; });
+    worksPromise.catch(() => {});
+    return worksPromise;
+  }
+
   function toggleWorksPanel() {
     if (!worksPanel) return;
     const willOpen = worksPanel.classList.contains('hidden');
@@ -1400,45 +1447,16 @@ if (statsFiltersToggle && statsControls) {
   }
   if (worksHead) worksHead.addEventListener('click', () => toggleWorksPanel());
 
-async function loadWorks() {
+  async function loadWorks() {
     const works = $('#worksList');
-    works.replaceChildren(el('div', { class:'muted', text:'Загружаем выполненные работы...' }));
+    const cachedRows = readStudentAttemptsCache(attemptsCacheParams);
+    if (cachedRows) renderWorks(cachedRows);
+    else works.replaceChildren(el('div', { class:'muted', text:'Загружаем выполненные работы...' }));
 
     try {
-      const data = await supaRest.rpc('list_student_attempts', { p_student_id: studentId }, { timeoutMs: 20000 });
-      const rows = Array.isArray(data) ? data : [];
-
-      if (rows.length === 0) {
-        works.replaceChildren(el('div', { class:'muted', text:'Пока нет выполненных работ.' }));
-        return;
-      }
-
-      const list = el('div');
-      for (const r of rows) {
-        const title = String(r.homework_title || r.title || 'Работа').trim();
-        const attemptId = r.attempt_id || r.id;
-        const doneAt = r.finished_at || r.submitted_at || r.created_at || '';
-        const score = (r.correct != null && r.total != null) ? `${r.correct}/${r.total}` : '';
-        const line = [title, score].filter(Boolean).join(' — ');
-
-        const item = el('div', {
-          class: 'card',
-          style: 'padding:12px; border:1px solid var(--border); border-radius:14px; margin-bottom:10px; cursor:pointer'
-        }, [
-          el('div', { text: line }),
-          el('div', { class: 'muted', style: 'margin-top:6px', text: doneAt ? fmtDateTime(doneAt) : '' }),
-        ]);
-
-        item.addEventListener('click', () => {
-          if (!attemptId) return;
-          location.href = buildHwReportUrl(attemptId);
-        });
-
-        list.appendChild(item);
-      }
-
-      works.replaceChildren(list);
+      renderWorks(await startWorksFetch());
     } catch (e) {
+      if (cachedRows) return;
       if (isMissingRpc(e)) {
         works.replaceChildren(el('div', { class:'muted', text:'На Supabase пока не настроена функция list_student_attempts.' }));
         return;
@@ -1452,6 +1470,7 @@ async function loadWorks() {
   }
 
   await loadDashboard();
+  startWorksFetch();
 }
 
 main().catch((e) => {

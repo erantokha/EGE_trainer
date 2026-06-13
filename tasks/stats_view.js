@@ -3,14 +3,14 @@
 // WSA-1a: prototype-aware статусы (охват прототипов × качество × рекомендация)
 // вместо наивной окраски по проценту окна. См. WSA_PLAN.md.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-13-4-034811';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-13-5-190630';
 import {
   subtopicStatus,
   themeStatus,
   overallCoverage,
   rankTrainingTargets,
-} from './wsa_status.js?v=2026-06-13-4-034811';
-import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-13-4-034811';
+} from './wsa_status.js?v=2026-06-13-5-190630';
+import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-13-5-190630';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -69,16 +69,18 @@ export async function loadCatalog() {
   return await loadCatalogLegacy();
 }
 
-function sectionTitle(sectionId, catalog) {
+function sectionTitle(sectionId, catalog, fallbackTitle = '') {
   const sid = String(sectionId || '').trim();
   const t = catalog?.sections?.get?.(sid);
-  return t ? `${sid}. ${t}` : `${sid}`;
+  const fallback = String(fallbackTitle || '').trim();
+  return t ? `${sid}. ${t}` : (fallback ? `${sid}. ${fallback}` : `${sid}`);
 }
 
-function topicName(topicId, catalog) {
+function topicName(topicId, catalog, fallbackTitle = '') {
   const id = String(topicId || '').trim();
   const t = catalog?.topicTitle?.get?.(id);
-  return t ? `${id}. ${t}` : id;
+  const fallback = String(fallbackTitle || '').trim();
+  return t ? `${id}. ${t}` : (fallback ? `${id}. ${fallback}` : id);
 }
 
 function toggleAcc(item) {
@@ -239,7 +241,7 @@ function renderSections(root, dash, catalog, opts = {}) {
 
   for (const sid of order) {
     const sec = secMap.get(sid) || { section_id: sid, coverage: { unics_attempted: 0, unics_total: 0, pct: null } };
-    const title = sectionTitle(sid, catalog);
+    const title = sectionTitle(sid, catalog, sec?.title);
 
     const rows = (topicsBySec.get(sid) || [])
       .slice()
@@ -276,7 +278,7 @@ function renderSections(root, dash, catalog, opts = {}) {
           : `последняя: ${lastSeenTxt}`;
 
         const left = el('div', { class: 'acc-left acc-left-sub' }, [
-          el('div', { text: topicName(r?.topic_id, catalog) }),
+          el('div', { text: topicName(r?.topic_id, catalog, r?.title) }),
           el('div', { class: 'small', text: subInfo }),
         ]);
         const right = el('div', { class: 'acc-right' }, [statusChip(st)]);

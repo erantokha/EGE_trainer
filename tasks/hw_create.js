@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-06-13-4-034811';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-4-034811';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-13-4-034811';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-4-034811';
+import { CONFIG } from '../app/config.js?v=2026-06-13-5-190630';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-5-190630';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-13-5-190630';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-5-190630';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-13-4-034811';
+} from '../app/providers/catalog.js?v=2026-06-13-5-190630';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-06-13-4-034811';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-13-4-034811';
+} from '../app/core/pick.js?v=2026-06-13-5-190630';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-13-5-190630';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-4-034811';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-5-190630';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -1755,7 +1755,7 @@ async function enforceTeacherGate() {
 
   let role = '';
   try {
-    const rMod = await import('../app/providers/supabase-rest.js?v=2026-06-13-4-034811');
+    const rMod = await import('../app/providers/supabase-rest.js?v=2026-06-13-5-190630');
     const rows = await rMod.supaRest.select('profiles', { select: 'role', id: `eq.${session.user.id}` }, { timeoutMs: 12000 });
     role = String(rows?.[0]?.role || '').trim().toLowerCase();
   } catch (_) {

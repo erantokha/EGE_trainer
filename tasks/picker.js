@@ -8,23 +8,25 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-13-4-034811';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-13-4-034811';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-4-034811';
-import { CONFIG } from '../app/config.js?v=2026-06-13-4-034811';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-4-034811';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-13-4-034811';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-13-4-034811';
+import { withBuild } from '../app/build.js?v=2026-06-13-5-190630';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-13-5-190630';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-13-5-190630';
+import { CONFIG } from '../app/config.js?v=2026-06-13-5-190630';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-5-190630';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-13-5-190630';
+import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-13-5-190630';
+import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-13-5-190630';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-13-5-190630';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-13-4-034811';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-4-034811';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-4-034811';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-13-4-034811';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-4-034811';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-13-4-034811';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-13-4-034811';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-13-5-190630';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-5-190630';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-5-190630';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-13-5-190630';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-5-190630';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-13-5-190630';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-13-5-190630';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-13-4-034811';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-13-5-190630';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -32,13 +34,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-13-4-034811';
+} from './picker_common.js?v=2026-06-13-5-190630';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-13-4-034811';
+} from './picker_stats.js?v=2026-06-13-5-190630';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -185,6 +187,68 @@ const TEACHER_SCREEN_CACHE_TTL_MS = 60 * 1000;
 const TEACHER_SCREEN_CACHE_LIMIT = 24;
 const _TEACHER_SCREEN_CACHE = new Map();    // key → { payload, at }
 const _TEACHER_SCREEN_INFLIGHT = new Map(); // key → Promise<payload>
+const _TEACHER_CARD_PREWARM_INFLIGHT = new Map(); // student_id → Promise
+
+function rememberTeacherStudentMeta(student) {
+  const sid = String(student?.student_id || student?.id || '').trim();
+  if (!sid) return;
+  try {
+    sessionStorage.setItem(`teacher:last_student:${sid}`, JSON.stringify({
+      student_id: sid,
+      first_name: student?.first_name || '',
+      last_name: student?.last_name || '',
+      email: student?.email || student?.student_email || '',
+      student_grade: student?.student_grade ?? student?.grade ?? '',
+    }));
+  } catch (_) {}
+}
+
+function prewarmTeacherStudentCard(studentId) {
+  if (!IS_TEACHER_HOME) return Promise.resolve();
+  const sid = String(studentId || '').trim();
+  if (!sid) return Promise.resolve();
+  const existing = _TEACHER_CARD_PREWARM_INFLIGHT.get(sid);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    const session = await getSession({ timeoutMs: 1500 }).catch(() => null);
+    const viewerId = String(session?.user?.id || '').trim();
+    if (!viewerId) return;
+    const analyticsParams = {
+      viewerScope: 'teacher',
+      viewerId,
+      studentId: sid,
+      days: 30,
+      source: 'all',
+    };
+    const attemptsParams = { viewerId, studentId: sid };
+    if (readStudentAnalyticsCache(analyticsParams) && readStudentAttemptsCache(attemptsParams)) return;
+
+    await Promise.all([
+      supaRest.rpc(
+        'student_analytics_screen_v1',
+        { p_viewer_scope: 'teacher', p_student_id: sid, p_days: 30, p_source: 'all', p_mode: 'init' },
+        { timeoutMs: 20000 }
+      ).then((raw) => {
+        const dash = Array.isArray(raw) ? (raw[0] ?? null) : (raw ?? null);
+        if (dash) {
+          writeStudentAnalyticsCache(analyticsParams, dash);
+        }
+      }),
+      supaRest.rpc('list_student_attempts', { p_student_id: sid }, { timeoutMs: 20000 })
+        .then((rows) => writeStudentAttemptsCache(attemptsParams, Array.isArray(rows) ? rows : [])),
+    ]);
+  })().catch((e) => {
+    console.warn('teacher student card prewarm failed', { sid, error: e });
+  }).finally(() => {
+    if (_TEACHER_CARD_PREWARM_INFLIGHT.get(sid) === promise) {
+      _TEACHER_CARD_PREWARM_INFLIGHT.delete(sid);
+    }
+  });
+
+  _TEACHER_CARD_PREWARM_INFLIGHT.set(sid, promise);
+  return promise;
+}
 
 function teacherScreenCacheKey(studentId, filterId) {
   const sid = String(studentId || '').trim();
@@ -459,6 +523,7 @@ function applyTeacherStudentView(studentId, opts = {}){
   // вдвое дольше). Это prefetch для модалки/превью (они и так фетчат on-demand), на момент выбора
   // ученика не нужен → уводим в чистый фон.
   Promise.resolve(statsP).catch(() => {}).finally(() => {
+    prewarmTeacherStudentCard(sid);
     setTimeout(() => { try { warmTeacherModalStatsForStudent(sid, { reason: opts?.reason || '' }); } catch (_) {} }, 200);
   });
 }
@@ -610,6 +675,7 @@ async function refreshTeacherStudentSelect(opts = {}){
       for (const st of rows) {
         const sid = String(st?.student_id || st?.id || '').trim();
         if (!sid) continue;
+        rememberTeacherStudentMeta(st);
         const opt = document.createElement('option');
         opt.value = sid;
         opt.textContent = studentLabel(st);
