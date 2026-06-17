@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-25-192208';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-25-192208';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-26-200917';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-26-200917';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-25-192208';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-26-200917';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-25-192208';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-25-192208';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-25-192208';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-26-200917';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-26-200917';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-26-200917';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-25-192208';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-25-192208';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-25-192208';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-25-192208';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-25-192208';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-25-192208';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-25-192208';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-25-192208';
+import { withBuild } from '../app/build.js?v=2026-06-17-26-200917';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-26-200917';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-26-200917';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-26-200917';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-26-200917';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-26-200917';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-26-200917';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-26-200917';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1470,9 +1470,23 @@ function setLessonStatus(text, isErr) {
 // стопкой во всю ширину, как ляжет в PDF). Чистый HTML из снимков IndexedDB, БЕЗ сборки PDF →
 // мгновенно. В подвале — «Собрать и отправить ученику» (посмотрел → подтвердил).
 let PREVIEW_URLS = [];
+let DRAG_CARD = null;   // перетаскиваемая карточка превью (drag-reorder)
+// иконка «корзина» — как в предпросмотре подбора (picker.js)
+const TRASH_ICON_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 function revokePreviewUrls() {
   PREVIEW_URLS.forEach((u) => { try { URL.revokeObjectURL(u); } catch (_) {} });
   PREVIEW_URLS = [];
+}
+// для drag-reorder: карточка, перед которой вставлять (по середине под курсором)
+function dragAfterCard(page, y) {
+  const els = Array.from(page.querySelectorAll('.kons-preview-card:not(.dragging)'));
+  let best = { offset: -Infinity, el: null };
+  for (const el of els) {
+    const box = el.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > best.offset) best = { offset, el };
+  }
+  return best.el;
 }
 function ensurePreviewModal() {
   let m = document.getElementById('konsPreview');
@@ -1503,6 +1517,15 @@ function ensurePreviewModal() {
   m.querySelector('.kons-preview-close').addEventListener('click', close);
   m.querySelector('.kons-preview-collect').addEventListener('click', () => { close(); lessonCollect(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !m.hidden) close(); });
+  // drag-reorder: пока тащим карточку — переставляем её в DOM (порядок зафиксируем на dragend)
+  const page = m.querySelector('.kons-preview-page');
+  page.addEventListener('dragover', (e) => {
+    if (!DRAG_CARD) return;
+    e.preventDefault();
+    const after = dragAfterCard(page, e.clientY);
+    if (after == null) page.appendChild(DRAG_CARD);
+    else if (after !== DRAG_CARD) page.insertBefore(DRAG_CARD, after);
+  });
   return m;
 }
 
@@ -1547,31 +1570,43 @@ async function openLessonPreview() {
       n += 1;
       const url = URL.createObjectURL(s.blob);
       PREVIEW_URLS.push(url);
+      const ord = s.ordinal;
+
+      // карточка = [номер] [снимок] в ряд (как в рисовалке: num слева, условие справа)
       const cardEl = document.createElement('div');
       cardEl.className = 'kons-preview-card';
+      cardEl.draggable = true;
+      cardEl.dataset.ord = String(ord);
+      cardEl.addEventListener('dragstart', () => { DRAG_CARD = cardEl; cardEl.classList.add('dragging'); });
+      cardEl.addEventListener('dragend', async () => {
+        cardEl.classList.remove('dragging');
+        DRAG_CARD = null;
+        const ords = Array.from(page.querySelectorAll('.kons-preview-card')).map((c) => Number(c.dataset.ord));
+        await Konspekts.reorderSnapshots(LESSON.konspekt, ords);
+        openLessonPreview();   // перерисовать → перенумеровать
+      });
 
-      const top = document.createElement('div');
-      top.className = 'kons-preview-cardtop';
       const num = document.createElement('div');
       num.className = 'kons-preview-num';      // стиль .task-num; номер по позиции (авто-перенумерация)
       num.textContent = String(n);
-      const del = document.createElement('button');
-      del.type = 'button';
-      del.className = 'kons-preview-del';
-      del.title = 'Удалить карточку';
-      del.setAttribute('aria-label', 'Удалить карточку');
-      del.textContent = '✕';
-      const ord = s.ordinal;
-      del.addEventListener('click', () => deletePreviewCard(ord));
-      top.appendChild(num);
-      top.appendChild(del);
-      cardEl.appendChild(top);
+      cardEl.appendChild(num);
 
       const im = document.createElement('img');
       im.className = 'kons-preview-img';
       im.src = url;
       im.alt = '';
+      im.draggable = false;
       cardEl.appendChild(im);
+
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'kons-preview-del';
+      del.title = 'Удалить карточку';
+      del.setAttribute('aria-label', 'Удалить карточку');
+      del.innerHTML = TRASH_ICON_SVG;
+      del.addEventListener('click', (e) => { e.stopPropagation(); deletePreviewCard(ord); });
+      cardEl.appendChild(del);
+
       page.appendChild(cardEl);
     });
   }

@@ -1,0 +1,16 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-26-200917"><title>reorder</title></head><body>
+<script type="module">
+  import * as K from '/app/providers/konspekts.js';
+  const KID='REORDER_TEST_K';
+  function seed(){return new Promise((res)=>{const r=indexedDB.open('ege_konspekts',1);r.onupgradeneeded=()=>{const db=r.result;if(!db.objectStoreNames.contains('snapshots')){const os=db.createObjectStore('snapshots',{keyPath:'id'});os.createIndex('konspekt','konspektId',{unique:false});}};r.onsuccess=()=>{const db=r.result;const tx=db.transaction('snapshots','readwrite');const st=tx.objectStore('snapshots');[0,1,2].forEach(o=>st.put({id:KID+':'+o,konspektId:KID,ordinal:o,order:o,blob:new Blob(['x'])}));tx.oncomplete=()=>res();};});}
+  window.__run=async()=>{
+    await seed();
+    const before=(await K.getLocalSnapshots(KID)).map(s=>s.ordinal);
+    await K.reorderSnapshots({id:KID},[2,0,1]);
+    const after=(await K.getLocalSnapshots(KID)).map(s=>s.ordinal);
+    // cleanup
+    await new Promise(r=>{const q=indexedDB.open('ege_konspekts',1);q.onsuccess=()=>{const tx=q.result.transaction('snapshots','readwrite');const cur=tx.objectStore('snapshots').index('konspekt').openCursor(IDBKeyRange.only(KID));cur.onsuccess=()=>{const c=cur.result;if(c){c.delete();c.continue();}};tx.oncomplete=()=>r();};});
+    window.__R__={before,after,ok:JSON.stringify(before)==='[0,1,2]'&&JSON.stringify(after)==='[2,0,1]'};
+  };
+</script></body></html>

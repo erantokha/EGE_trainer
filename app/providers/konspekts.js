@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-25-192208';
-import { getSession } from './supabase.js?v=2026-06-17-25-192208';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-25-192208';
+import { CONFIG } from '../config.js?v=2026-06-17-26-200917';
+import { getSession } from './supabase.js?v=2026-06-17-26-200917';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-26-200917';
 
 const BUCKET = 'konspekts';
 
@@ -122,15 +122,17 @@ function idb() {
   });
   return __idbPromise;
 }
-async function idbPut(konspektId, ordinal, blob) {
+async function idbPut(konspektId, ordinal, blob, order) {
   const db = await idb();
+  const ord = (order != null) ? order : ordinal;   // order = позиция (для перестановки); по умолч. = ordinal
   return new Promise((res, rej) => {
     const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put({ id: `${konspektId}:${ordinal}`, konspektId, ordinal, blob });
+    tx.objectStore(IDB_STORE).put({ id: `${konspektId}:${ordinal}`, konspektId, ordinal, order: ord, blob });
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
 }
+function snapPos(s) { return (s.order != null) ? s.order : s.ordinal; }
 async function idbGetAll(konspektId) {
   const db = await idb();
   return new Promise((res, rej) => {
@@ -140,7 +142,7 @@ async function idbGetAll(konspektId) {
     cur.onsuccess = () => {
       const c = cur.result;
       if (c) { out.push(c.value); c.continue(); }
-      else { out.sort((a, b) => a.ordinal - b.ordinal); res(out); }
+      else { out.sort((a, b) => (snapPos(a) - snapPos(b)) || (a.ordinal - b.ordinal)); res(out); }
     };
     cur.onerror = () => rej(cur.error);
   });
@@ -173,6 +175,28 @@ async function idbDelete(konspektId, ordinal) {
   return new Promise((res) => {
     const tx = db.transaction(IDB_STORE, 'readwrite');
     tx.objectStore(IDB_STORE).delete(`${konspektId}:${ordinal}`);
+    tx.oncomplete = () => res();
+    tx.onerror = () => res();
+  });
+}
+// Перестановка карточек: orderedOrdinals — ordinal'ы в новом порядке; пишем order=индекс
+// (через cursor, без переписывания blob). Сортировка в idbGetAll подхватит новый порядок.
+export async function reorderSnapshots(konspekt, orderedOrdinals) {
+  const pos = new Map((orderedOrdinals || []).map((ord, i) => [String(ord), i]));
+  if (!pos.size) return;
+  const db = await idb();
+  return new Promise((res) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const cur = tx.objectStore(IDB_STORE).index('konspekt').openCursor(IDBKeyRange.only(konspekt.id));
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (c) {
+        const v = c.value;
+        const p = pos.get(String(v.ordinal));
+        if (p != null && v.order !== p) { v.order = p; c.update(v); }
+        c.continue();
+      }
+    };
     tx.oncomplete = () => res();
     tx.onerror = () => res();
   });
@@ -268,7 +292,7 @@ export async function konspektStart(studentId) {
 export async function addSnapshot(konspekt, { questionId, blob }) {
   const trimmed = await trimSnapshot(blob);          // обрезать по содержимому со всех сторон
   const ordinal = await idbNextOrdinal(konspekt.id); // монотонный ключ (безопасно после удалений)
-  await idbPut(konspekt.id, ordinal, trimmed);       // сначала локально → карточка durable сразу
+  await idbPut(konspekt.id, ordinal, trimmed, ordinal); // локально; order=ordinal → новая карточка в конец
   const path = snapshotPath(konspekt, ordinal);      // логический путь (байты не заливаются)
   const data = await supaRest.rpc('konspekt_add_snapshot_v1', {
     p_konspekt_id: konspekt.id,
@@ -475,36 +499,37 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     y += h + CARD_GAP;
   }
 
-  // Карточки (prepared[1..]) — каждая в лёгкой рамке, с номером по ПОЗИЦИИ (авто-перенумерация
-  // при удалении). Номер рисуем здесь (не впечатан в снимок) — стиль .task-num: обводка + цифра.
-  const LABEL_H = 18;
+  // Карточки (prepared[1..]) — рамка + номер по ПОЗИЦИИ (авто-перенумерация). Раскладка как в
+  // рисовалке: чип-номер СЛЕВА, снимок СПРАВА (верх по одной линии). Номер не впечатан в снимок.
+  const CHIP_H = 16, COL_GAP = 10;
   let n = 0;
   for (let k = 1; k < prepared.length; k++) {
     const p = prepared[k];
     if (!p) continue;
     n++;
-    const innerW = contentW - CARD_PAD * 2;
+    const label = String(n);
+    const bw = Math.max(24, 16 + label.length * 7);
+    const innerW = contentW - CARD_PAD * 2 - bw - COL_GAP;   // колонка снимка (справа от чипа)
     let iw = innerW, ih = iw * p.ratio;
-    const innerMaxH = maxH - CARD_PAD * 2 - LABEL_H - 6;
+    const innerMaxH = maxH - CARD_PAD * 2;
     if (ih > innerMaxH) { ih = innerMaxH; iw = ih / p.ratio; }
-    const blockH = CARD_PAD + LABEL_H + 6 + ih + CARD_PAD;
+    const blockH = CARD_PAD + Math.max(ih, CHIP_H) + CARD_PAD;
     if (y + blockH > pageH - M) { doc.addPage(); y = M; }
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.8);
     doc.roundedRect(M, y, contentW, blockH, 7, 7, 'S');
 
-    // номер-чип (стиль .task-num: обводка, без заливки)
-    const label = String(n);
-    const bw = Math.max(24, 16 + label.length * 7);
+    // номер-чип слева (стиль .task-num: обводка, без заливки)
     doc.setLineWidth(1.4);
-    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 16, 4, 4, 'S');
+    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, CHIP_H, 4, 4, 'S');
     doc.setTextColor(31, 41, 55);
     doc.setFontSize(10.5);
     doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 11, { align: 'center' });
     doc.setTextColor(0, 0, 0);
 
-    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD + LABEL_H + 6, iw, ih);
+    // снимок справа от чипа, верх по одной линии
+    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD + bw + COL_GAP, y + CARD_PAD, iw, ih);
 
     y += blockH + CARD_GAP;
   }
