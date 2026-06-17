@@ -1,8 +1,8 @@
 // app/providers/supabase-write.js
 // Stable non-homework write path through PostgREST RPC + access_token.
 
-import { CONFIG } from '../config.js?v=2026-06-17-10-071836';
-import { getSession } from './supabase.js?v=2026-06-17-10-071836';
+import { CONFIG } from '../config.js?v=2026-06-17-11-071925';
+import { getSession } from './supabase.js?v=2026-06-17-11-071925';
 
 async function fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
   const ctrl = new AbortController();

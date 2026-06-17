@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-17-10-071836';
+import { navigate } from './nav.js?v=2026-06-17-11-071925';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
