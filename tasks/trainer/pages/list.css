@@ -136,3 +136,47 @@ body[data-home-variant] #runner > .panel{
 }
 .lesson-status.is-err{ color:#dc2626; }
 .lesson-status a{ color:var(--accent, #2563eb); }
+
+/* WLM.2: живой предпросмотр — лента миниатюр карточек конспекта. */
+.lesson-thumbs{
+  flex-basis:100%;
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:8px 0 2px;
+  margin-top:4px;
+}
+.lesson-thumbs[hidden]{ display:none; }
+.lesson-thumb{
+  height:56px;
+  width:auto;
+  flex:0 0 auto;
+  border:1px solid var(--border, #e5e7eb);
+  border-radius:6px;
+  background:#fff;
+  cursor:zoom-in;
+  object-fit:cover;
+}
+.lesson-thumb:hover{ border-color:var(--accent, #2563eb); }
+.lesson-lightbox{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  background:rgba(0,0,0,.72);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  cursor:zoom-out;
+}
+.lesson-lightbox[hidden]{ display:none; }
+.lesson-lightbox img{
+  max-width:96vw;
+  max-height:92vh;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 10px 44px rgba(0,0,0,.45);
+}
+
+/* Панель занятия (тумблер + лента миниатюр) НЕ должна попадать в снимок копирования. */
+body.dro-capturing .lesson-bar{ display:none; }

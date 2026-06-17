@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-13-165339';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-13-165339';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-14-171323';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-14-171323';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-13-165339';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-14-171323';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-13-165339';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-13-165339';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-13-165339';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-14-171323';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-14-171323';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-14-171323';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-13-165339';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-13-165339';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-13-165339';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-13-165339';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-13-165339';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-13-165339';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-13-165339';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-13-165339';
+import { withBuild } from '../app/build.js?v=2026-06-17-14-171323';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-14-171323';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-14-171323';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-14-171323';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-14-171323';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-14-171323';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-14-171323';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-14-171323';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1270,7 +1270,8 @@ function mountLessonMode() {
       <span id="lessonCount" class="lesson-count">0 в конспекте</span>
       <button id="lessonCollect" type="button" class="btn small lesson-collect-btn" disabled>Собрать конспект</button>
       <span id="lessonStatus" class="lesson-status muted" role="status"></span>
-    </div>`;
+    </div>
+    <div id="lessonThumbs" class="lesson-thumbs" hidden aria-label="Карточки в конспекте"></div>`;
   body.insertBefore(bar, body.firstChild);
 
   bar.querySelector('#lessonToggle').addEventListener('change', (e) => {
@@ -1355,6 +1356,7 @@ function lessonDisable() {
   if (controls) controls.hidden = true;
   LESSON.active = false;
   setLessonSticky(false);  // ручное выключение → не продолжать автоматически
+  renderLessonThumbs();    // скрыть ленту миниатюр
 }
 
 async function lessonStart() {
@@ -1370,6 +1372,7 @@ async function lessonStart() {
     LESSON.count = localN || Number(k.snapshot_count || 0);
     Konspekts.prewarmPdf();   // прогреть jsPDF заранее → «Собрать» будет быстрым
     updateLessonCount();
+    renderLessonThumbs();     // показать ленту уже добавленных карточек (из IndexedDB)
     setLessonStatus(LESSON.count
       ? `Конспект занятия продолжается: уже ${LESSON.count} карточек. Рисуйте поверх задачи и жмите кнопку копирования ↗.`
       : 'Конспект занятия начат. Откройте рисовалку ✎, при желании сделайте пометки и нажмите кнопку копирования ↗ — снимок уйдёт в конспект.');
@@ -1402,6 +1405,7 @@ async function lessonAddCapture(blob) {
     await Konspekts.addSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
     LESSON.count++;
     updateLessonCount();
+    renderLessonThumbs();     // обновить живой предпросмотр
     setLessonStatus(`✓ Добавлено в конспект (${LESSON.count}).`);
   } catch (e) {
     console.warn('add to konspekt failed', e);
@@ -1430,6 +1434,7 @@ async function lessonCollect() {
     let url = '';
     try { url = await Konspekts.signedUrl(LESSON.konspekt.pdf_path); } catch (_) {}
     showLessonDone(url);
+    renderLessonThumbs();     // конспект собран, локальные снимки очищены → лента пуста
   } catch (e) {
     console.warn('collect konspekt failed', e);
     setLessonStatus(lessonErrText(e, 'Не удалось собрать конспект.'), true);
@@ -1454,6 +1459,50 @@ function setLessonStatus(text, isErr) {
   if (!el) return;
   el.textContent = text || '';
   el.classList.toggle('is-err', !!isErr);
+}
+
+// WLM.2: живой предпросмотр — лента миниатюр карточек конспекта (из IndexedDB). Без сборки PDF;
+// обновляется по ходу занятия. Клик по миниатюре → лайтбокс с увеличенным снимком.
+let LESSON_THUMB_URLS = [];
+async function renderLessonThumbs() {
+  const strip = document.getElementById('lessonThumbs');
+  if (!strip) return;
+  let snaps = [];
+  try { if (LESSON.konspekt) snaps = await Konspekts.getLocalSnapshots(LESSON.konspekt.id); } catch (_) {}
+  LESSON_THUMB_URLS.forEach((u) => { try { URL.revokeObjectURL(u); } catch (_) {} });
+  LESSON_THUMB_URLS = [];
+  strip.textContent = '';
+  if (!snaps.length || !LESSON.active) { strip.hidden = true; return; }
+  snaps.forEach((s, i) => {
+    if (!s || !s.blob) return;
+    const url = URL.createObjectURL(s.blob);
+    LESSON_THUMB_URLS.push(url);
+    const im = document.createElement('img');
+    im.className = 'lesson-thumb';
+    im.src = url;
+    im.alt = `Карточка ${i + 1}`;
+    im.title = `Карточка ${i + 1} — открыть`;
+    im.addEventListener('click', () => openLessonThumb(url));
+    strip.appendChild(im);
+  });
+  strip.hidden = false;
+}
+
+function openLessonThumb(url) {
+  let ov = document.getElementById('lessonLightbox');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'lessonLightbox';
+    ov.className = 'lesson-lightbox';
+    ov.dataset.captureHide = '1';
+    ov.addEventListener('click', () => { ov.hidden = true; ov.textContent = ''; });
+    document.body.appendChild(ov);
+  }
+  ov.textContent = '';
+  const im = document.createElement('img');
+  im.src = url;
+  ov.appendChild(im);
+  ov.hidden = false;
 }
 
 function showLessonDone(url) {

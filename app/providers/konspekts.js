@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-13-165339';
-import { getSession } from './supabase.js?v=2026-06-17-13-165339';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-13-165339';
+import { CONFIG } from '../config.js?v=2026-06-17-14-171323';
+import { getSession } from './supabase.js?v=2026-06-17-14-171323';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-14-171323';
 
 const BUCKET = 'konspekts';
 
@@ -158,6 +158,10 @@ async function idbClear(konspektId) {
 // Сколько снимков уже в локальном конспекте (для счётчика «N в конспекте» при возврате/подборке B).
 export async function idbSnapshotCount(konspektId) {
   try { return (await idbGetAll(konspektId)).length; } catch (_) { return 0; }
+}
+// Локальные снимки конспекта по порядку (для живого предпросмотра-ленты миниатюр).
+export async function getLocalSnapshots(konspektId) {
+  try { return await idbGetAll(konspektId); } catch (_) { return []; }
 }
 
 // ───────────────────────── Обрезка пустых полей сверху/снизу ─────────────────────────
@@ -363,6 +367,30 @@ function loadJsPdf() {
 }
 export function prewarmPdf() { try { loadJsPdf(); } catch (_) {} }
 
+const PDF_MAX_W = 1240;   // целевая ширина растра под A4 (~160 dpi); 2×-снимки даунскейлим
+const PDF_JPEG_Q = 0.85;
+
+// Подготовить снимок карточки для PDF: даунскейл до PDF_MAX_W + JPEG. jsPDF кладёт JPEG нативно
+// (DCTDecode, без пере-DEFLATE) → в РАЗЫ быстрее и компактнее, чем большой PNG с compress. Это
+// и есть «быстрая победа»: сборка >10с → ~1–2с.
+async function prepareCardForPdf(blob) {
+  const c = await decodeBlobToCanvas(blob);
+  const scale = c.width > PDF_MAX_W ? PDF_MAX_W / c.width : 1;
+  let src = c;
+  if (scale < 1) {
+    const w = Math.max(1, Math.round(c.width * scale));
+    const h = Math.max(1, Math.round(c.height * scale));
+    const d = document.createElement('canvas');
+    d.width = w; d.height = h;
+    const dx = d.getContext('2d');
+    dx.imageSmoothingEnabled = true; dx.imageSmoothingQuality = 'high';
+    dx.fillStyle = '#ffffff'; dx.fillRect(0, 0, w, h);   // JPEG без альфы → подложка белая
+    dx.drawImage(c, 0, 0, w, h);
+    src = d;
+  }
+  return { dataUrl: src.toDataURL('image/jpeg', PDF_JPEG_Q), fmt: 'JPEG', ratio: src.height / src.width };
+}
+
 // Собрать PDF-blob из снимков. images = [{ blob } | { dataUrl }] в нужном порядке.
 // meta = { title, studentName, dateText }. Layout: A4-portrait, хедер + по странице(ам)
 // снимки во всю ширину контента, перенос на новую страницу при нехватке высоты.
@@ -371,20 +399,29 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
   const JsPDF = mod.jsPDF || (mod.default && (mod.default.jsPDF || mod.default));
   if (typeof JsPDF !== 'function') throw makeErr('JSPDF_LOAD_FAILED', 0);
 
+  // compress:true сжимает PNG-хедер и потоки, но JPEG-картинки НЕ пере-сжимает (они хранятся
+  // как DCTDecode «как есть») → быстро. compress:false наоборот раздул бы PNG-хедер до raw.
   const doc = new JsPDF({ unit: 'pt', format: 'a4', compress: true });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const M = 36;
   const contentW = pageW - M * 2;
 
-  // Хедер как первый «снимок»; декодируем все картинки ПАРАЛЛЕЛЬНО (быстрее, чем по очереди).
-  const items = [{ dataUrl: renderHeaderDataUrl(meta) }, ...(images || [])];
-  const prepared = await Promise.all(items.map(async (item) => {
-    const dataUrl = item.dataUrl || (item.blob ? await blobToDataUrl(item.blob) : null);
-    if (!dataUrl) return null;
-    const im = await loadImageEl(dataUrl);
-    return { dataUrl, ratio: (im.naturalHeight / im.naturalWidth) || 1 };
-  }));
+  // Хедер — мелкий PNG (текст крупно, оставляем чётким); карточки — даунскейл+JPEG. Всё параллельно.
+  const headerP = (async () => {
+    const u = renderHeaderDataUrl(meta);
+    const im = await loadImageEl(u);
+    return { dataUrl: u, fmt: 'PNG', ratio: (im.naturalHeight / im.naturalWidth) || 0.07 };
+  })();
+  const cardsP = (images || []).map((item) => {
+    if (item && item.blob) return prepareCardForPdf(item.blob);
+    if (item && item.dataUrl) return (async () => {
+      const im = await loadImageEl(item.dataUrl);
+      return { dataUrl: item.dataUrl, fmt: 'PNG', ratio: (im.naturalHeight / im.naturalWidth) || 1 };
+    })();
+    return Promise.resolve(null);
+  });
+  const prepared = await Promise.all([headerP, ...cardsP]);
 
   let y = M;
   let first = true;
@@ -396,8 +433,8 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     if (h > maxH) { h = maxH; w = h / p.ratio; }
     if (!first && y + h > pageH - M) { doc.addPage(); y = M; }
     const x = M + (contentW - w) / 2;
-    doc.addImage(p.dataUrl, 'PNG', x, y, w, h, undefined, 'FAST');
-    y += h + 14;
+    doc.addImage(p.dataUrl, p.fmt, x, y, w, h);
+    y += h + 16;
     first = false;
   }
 
