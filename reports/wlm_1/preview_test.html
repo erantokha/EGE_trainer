@@ -1,0 +1,37 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-16-172628">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>preview modal look</title>
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-17-16-172628">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-17-16-172628">
+<link rel="stylesheet" href="/tasks/trainer/pages/list.css?v=2026-06-17-16-172628">
+<style>body[data-home-variant]{}</style>
+</head>
+<body data-home-variant="teacher">
+  <div id="konsPreview" class="kons-preview-modal">
+    <div class="kons-preview-backdrop"></div>
+    <div class="kons-preview-sheet" role="dialog">
+      <div class="kons-preview-head">
+        <div class="kons-preview-htext">
+          <div class="kons-preview-htitle">Предпросмотр конспекта</div>
+          <div class="kons-preview-hsub">Иван Петров  ·  17 июня 2026  ·  3 карточек</div>
+        </div>
+        <button type="button" class="kons-preview-close">✕</button>
+      </div>
+      <div class="kons-preview-doc"><div class="kons-preview-page" id="page"></div></div>
+      <div class="kons-preview-foot">
+        <button type="button" class="btn kons-preview-collect">Собрать и отправить ученику</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    function card(text, sub, h){const c=document.createElement('canvas');c.width=1000;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#e5e7eb';x.lineWidth=2;x.strokeRect(8,8,c.width-16,h-16);x.fillStyle='#111827';x.font='bold 34px system-ui';x.fillText(text,32,64);x.fillStyle='#374151';x.font='26px system-ui';x.fillText(sub,32,120);return c.toDataURL('image/png');}
+    const page=document.getElementById('page');
+    const head=document.createElement('div');head.className='kons-preview-dochead';
+    const t=document.createElement('div');t.className='kons-preview-doctitle';t.textContent='Конспект занятия';head.appendChild(t);
+    const s=document.createElement('div');s.className='kons-preview-docsub';s.textContent='Иван Петров  ·  17 июня 2026';head.appendChild(s);
+    page.appendChild(head);
+    [['Задача 1. Степени','3⁵·3⁻²/3² = 3',300],['Задача 2. Производная','f(x)=3x²−12x+5',360],['Задача 3. Логарифмы','log₂8 = 3',240]].forEach(([a,b,h])=>{const im=document.createElement('img');im.className='kons-preview-img';im.src=card(a,b,h);page.appendChild(im);});
+    window.__READY__=true;
+  </script>
+</body></html>

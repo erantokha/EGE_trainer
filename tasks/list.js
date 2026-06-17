@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-15-171403';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-15-171403';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-16-172628';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-16-172628';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-15-171403';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-16-172628';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-15-171403';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-15-171403';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-15-171403';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-16-172628';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-16-172628';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-16-172628';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-15-171403';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-15-171403';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-15-171403';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-15-171403';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-15-171403';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-15-171403';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-15-171403';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-15-171403';
+import { withBuild } from '../app/build.js?v=2026-06-17-16-172628';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-16-172628';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-16-172628';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-16-172628';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-16-172628';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-16-172628';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-16-172628';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-16-172628';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1268,16 +1268,17 @@ function mountLessonMode() {
       <select id="lessonStudent" class="lesson-student-select" aria-label="Ученик" hidden></select>
       <span id="lessonStudentName" class="lesson-student-name"></span>
       <span id="lessonCount" class="lesson-count">0 в конспекте</span>
+      <button id="lessonPreview" type="button" class="btn small lesson-preview-btn" disabled>Предпросмотр</button>
       <button id="lessonCollect" type="button" class="btn small lesson-collect-btn" disabled>Собрать конспект</button>
       <span id="lessonStatus" class="lesson-status muted" role="status"></span>
-    </div>
-    <div id="lessonThumbs" class="lesson-thumbs" hidden aria-label="Карточки в конспекте"></div>`;
+    </div>`;
   body.insertBefore(bar, body.firstChild);
 
   bar.querySelector('#lessonToggle').addEventListener('change', (e) => {
     if (e.target.checked) lessonEnable(); else lessonDisable();
   });
   bar.querySelector('#lessonCollect').addEventListener('click', () => lessonCollect());
+  bar.querySelector('#lessonPreview').addEventListener('click', () => openLessonPreview());
 
   // WLM.1: снимок из рисовалки (кнопка «копировать в буфер» справа сверху, copyWindow)
   //   → в конспект. Рисовалка эмитит 'draw-overlay-capture' с готовым PNG-blob (с пометками).
@@ -1356,7 +1357,6 @@ function lessonDisable() {
   if (controls) controls.hidden = true;
   LESSON.active = false;
   setLessonSticky(false);  // ручное выключение → не продолжать автоматически
-  renderLessonThumbs();    // скрыть ленту миниатюр
 }
 
 async function lessonStart() {
@@ -1372,7 +1372,6 @@ async function lessonStart() {
     LESSON.count = localN || Number(k.snapshot_count || 0);
     Konspekts.prewarmPdf();   // прогреть jsPDF заранее → «Собрать» будет быстрым
     updateLessonCount();
-    renderLessonThumbs();     // показать ленту уже добавленных карточек (из IndexedDB)
     setLessonStatus(LESSON.count
       ? `Конспект занятия продолжается: уже ${LESSON.count} карточек. Рисуйте поверх задачи и жмите кнопку копирования ↗.`
       : 'Конспект занятия начат. Откройте рисовалку ✎, при желании сделайте пометки и нажмите кнопку копирования ↗ — снимок уйдёт в конспект.');
@@ -1405,7 +1404,6 @@ async function lessonAddCapture(blob) {
     await Konspekts.addSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
     LESSON.count++;
     updateLessonCount();
-    renderLessonThumbs();     // обновить живой предпросмотр
     setLessonStatus(`✓ Добавлено в конспект (${LESSON.count}).`);
   } catch (e) {
     console.warn('add to konspekt failed', e);
@@ -1434,7 +1432,6 @@ async function lessonCollect() {
     let url = '';
     try { url = await Konspekts.signedUrl(LESSON.konspekt.pdf_path); } catch (_) {}
     showLessonDone(url);
-    renderLessonThumbs();     // конспект собран, локальные снимки очищены → лента пуста
   } catch (e) {
     console.warn('collect konspekt failed', e);
     setLessonStatus(lessonErrText(e, 'Не удалось собрать конспект.'), true);
@@ -1450,8 +1447,11 @@ function updateLessonCount() {
 }
 
 function updateLessonCollectBtn() {
+  const ready = !!(LESSON.konspekt && LESSON.count > 0 && !LESSON.busy);
   const b = document.getElementById('lessonCollect');
-  if (b && !LESSON.published) b.disabled = !(LESSON.konspekt && LESSON.count > 0 && !LESSON.busy);
+  if (b && !LESSON.published) b.disabled = !ready;
+  const p = document.getElementById('lessonPreview');
+  if (p) p.disabled = !(LESSON.konspekt && LESSON.count > 0);   // смотреть можно даже во время сборки
 }
 
 function setLessonStatus(text, isErr) {
@@ -1461,48 +1461,88 @@ function setLessonStatus(text, isErr) {
   el.classList.toggle('is-err', !!isErr);
 }
 
-// WLM.2: живой предпросмотр — лента миниатюр карточек конспекта (из IndexedDB). Без сборки PDF;
-// обновляется по ходу занятия. Клик по миниатюре → лайтбокс с увеличенным снимком.
-let LESSON_THUMB_URLS = [];
-async function renderLessonThumbs() {
-  const strip = document.getElementById('lessonThumbs');
-  if (!strip) return;
-  let snaps = [];
-  try { if (LESSON.konspekt) snaps = await Konspekts.getLocalSnapshots(LESSON.konspekt.id); } catch (_) {}
-  LESSON_THUMB_URLS.forEach((u) => { try { URL.revokeObjectURL(u); } catch (_) {} });
-  LESSON_THUMB_URLS = [];
-  strip.textContent = '';
-  if (!snaps.length || !LESSON.active) { strip.hidden = true; return; }
-  snaps.forEach((s, i) => {
-    if (!s || !s.blob) return;
-    const url = URL.createObjectURL(s.blob);
-    LESSON_THUMB_URLS.push(url);
-    const im = document.createElement('img');
-    im.className = 'lesson-thumb';
-    im.src = url;
-    im.alt = `Карточка ${i + 1}`;
-    im.title = `Карточка ${i + 1} — открыть`;
-    im.addEventListener('click', () => openLessonThumb(url));
-    strip.appendChild(im);
-  });
-  strip.hidden = false;
+// WLM.2: предпросмотр конспекта — модальное окно с «документом» (белый лист: шапка + карточки
+// стопкой во всю ширину, как ляжет в PDF). Чистый HTML из снимков IndexedDB, БЕЗ сборки PDF →
+// мгновенно. В подвале — «Собрать и отправить ученику» (посмотрел → подтвердил).
+let PREVIEW_URLS = [];
+function revokePreviewUrls() {
+  PREVIEW_URLS.forEach((u) => { try { URL.revokeObjectURL(u); } catch (_) {} });
+  PREVIEW_URLS = [];
+}
+function ensurePreviewModal() {
+  let m = document.getElementById('konsPreview');
+  if (m) return m;
+  m = document.createElement('div');
+  m.id = 'konsPreview';
+  m.className = 'kons-preview-modal';
+  m.hidden = true;
+  m.dataset.captureHide = '1';
+  m.innerHTML = `
+    <div class="kons-preview-backdrop"></div>
+    <div class="kons-preview-sheet" role="dialog" aria-modal="true" aria-label="Предпросмотр конспекта">
+      <div class="kons-preview-head">
+        <div class="kons-preview-htext">
+          <div class="kons-preview-htitle">Предпросмотр конспекта</div>
+          <div class="kons-preview-hsub"></div>
+        </div>
+        <button type="button" class="kons-preview-close" aria-label="Закрыть">✕</button>
+      </div>
+      <div class="kons-preview-doc"><div class="kons-preview-page"></div></div>
+      <div class="kons-preview-foot">
+        <button type="button" class="btn kons-preview-collect">Собрать и отправить ученику</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  const close = () => { m.hidden = true; revokePreviewUrls(); };
+  m.querySelector('.kons-preview-backdrop').addEventListener('click', close);
+  m.querySelector('.kons-preview-close').addEventListener('click', close);
+  m.querySelector('.kons-preview-collect').addEventListener('click', () => { close(); lessonCollect(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !m.hidden) close(); });
+  return m;
 }
 
-function openLessonThumb(url) {
-  let ov = document.getElementById('lessonLightbox');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'lessonLightbox';
-    ov.className = 'lesson-lightbox';
-    ov.dataset.captureHide = '1';
-    ov.addEventListener('click', () => { ov.hidden = true; ov.textContent = ''; });
-    document.body.appendChild(ov);
+async function openLessonPreview() {
+  if (!LESSON.konspekt) return;
+  let snaps = [];
+  try { snaps = await Konspekts.getLocalSnapshots(LESSON.konspekt.id); } catch (_) {}
+
+  const m = ensurePreviewModal();
+  revokePreviewUrls();
+
+  const dateText = formatLessonDate(LESSON.konspekt.lesson_date);
+  m.querySelector('.kons-preview-hsub').textContent =
+    [LESSON.studentName, dateText, `${snaps.length} карточек`].filter(Boolean).join('  ·  ');
+
+  const page = m.querySelector('.kons-preview-page');
+  page.textContent = '';
+
+  const head = document.createElement('div');
+  head.className = 'kons-preview-dochead';
+  const t = document.createElement('div'); t.className = 'kons-preview-doctitle'; t.textContent = 'Конспект занятия';
+  head.appendChild(t);
+  const subText = [LESSON.studentName, dateText].filter(Boolean).join('  ·  ');
+  if (subText) { const s = document.createElement('div'); s.className = 'kons-preview-docsub'; s.textContent = subText; head.appendChild(s); }
+  page.appendChild(head);
+
+  if (!snaps.length) {
+    const e = document.createElement('div');
+    e.className = 'kons-preview-empty';
+    e.textContent = 'Пока нет добавленных карточек.';
+    page.appendChild(e);
+  } else {
+    snaps.forEach((s) => {
+      if (!s || !s.blob) return;
+      const url = URL.createObjectURL(s.blob);
+      PREVIEW_URLS.push(url);
+      const im = document.createElement('img');
+      im.className = 'kons-preview-img';
+      im.src = url;
+      im.alt = '';
+      page.appendChild(im);
+    });
   }
-  ov.textContent = '';
-  const im = document.createElement('img');
-  im.src = url;
-  ov.appendChild(im);
-  ov.hidden = false;
+  m.querySelector('.kons-preview-doc').scrollTop = 0;
+  m.hidden = false;
 }
 
 function showLessonDone(url) {
