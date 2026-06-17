@@ -7,13 +7,13 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 
-import { withBuild } from '../app/build.js?v=2026-06-17-18-175604';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-17-18-175604';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-17-18-175604';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-18-175604';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-18-175604';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-18-175604';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-17-18-175604';
+import { withBuild } from '../app/build.js?v=2026-06-17-19-175652';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-17-19-175652';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-17-19-175652';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-19-175652';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-19-175652';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-19-175652';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-17-19-175652';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
