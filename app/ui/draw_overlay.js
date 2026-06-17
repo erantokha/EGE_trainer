@@ -12,7 +12,7 @@
 // снапшоты objects. Картинки грузим как data:-URL (CSP img-src не пускает blob:).
 // Печать: корень = body>div + position:fixed → прячется print.css/print_lifecycle (+ @media print).
 
-import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-13-8-222021';
+import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-17-2-051831';
 
 const COLORS = [
   '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',
@@ -39,6 +39,50 @@ const ICON = {
   paste: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg>',
   copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
 };
+
+// ----- module-level capture helpers (общие для copyWindow и captureCardBlob) -----
+// dom-to-image-more (SVG foreignObject = РОДНАЯ раскладка браузера, верный текст/MathJax).
+// Грузим лениво один раз; загрузка модуля не меняет существующее clipboard-поведение.
+let __dtiMod = null;
+async function loadDTI() {
+  if (!__dtiMod) { const m = await import('https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm'); __dtiMod = m.default || m; }
+  return __dtiMod;
+}
+const __loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+
+// Текущий построенный overlay — нужен captureCardBlob, чтобы наложить слой штрихов (cMain)
+// поверх снимка карточки. null, пока рисовалку ни разу не открыли на странице.
+let __activeOverlay = null;
+
+// Захват ОДНОЙ карточки списка в PNG-blob: DOM карточки через dom-to-image-more, а если
+// рисовалка сейчас активна — поверх ложатся штрихи cMain над экранным регионом карточки.
+// Узлы с атрибутом data-capture-hide в снимок не попадают (UI-кнопки, пустая print-строка).
+// Аддитивно к рисовалке: clipboard-захват окна (copyWindow) не затрагивается.
+export async function captureCardBlob(cardEl, opts = {}) {
+  if (!cardEl) throw new Error('captureCardBlob: no card element');
+  const dti = await loadDTI();
+  const s = Number(opts.scale) || Math.min(2, window.devicePixelRatio || 1);
+  const rect = cardEl.getBoundingClientRect();
+  const filter = (node) => !(node && node.nodeType === 1 && node.hasAttribute && node.hasAttribute('data-capture-hide'));
+  const url = await dti.toPng(cardEl, { scale: s, bgcolor: '#ffffff', filter });
+  const cardImg = await __loadImg(url);
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(rect.width * s));
+  out.height = Math.max(1, Math.round(rect.height * s));
+  const octx = out.getContext('2d');
+  octx.drawImage(cardImg, 0, 0, out.width, out.height);
+  const ov = __activeOverlay;
+  if (ov && ov.cMain && ov.root.classList.contains('active') && ov.cMain.width > 0) {
+    const kx = ov.cMain.width / window.innerWidth;
+    const ky = ov.cMain.height / window.innerHeight;
+    octx.drawImage(
+      ov.cMain,
+      rect.left * kx, rect.top * ky, rect.width * kx, rect.height * ky,
+      0, 0, out.width, out.height,
+    );
+  }
+  return await new Promise((res) => out.toBlob(res, 'image/png'));
+}
 
 export function initDrawOverlay() {
   const btn = document.getElementById('drawBtn');
@@ -84,6 +128,7 @@ function build(btn) {
   const cMain = $('.dro-main'), cPrev = $('.dro-prev');
   const mctx = cMain.getContext('2d'), pctx = cPrev.getContext('2d');
   const bar = $('.dro-bar'), cdot = $('.dro-cdot');
+  __activeOverlay = { root, cMain };   // captureCardBlob накладывает слой штрихов через эту ссылку
 
   const state = { engine: 'pf', tool: 'pen', color: '#111111', size: THICKS[1], pressure: false, bg: 'transparent', drawing: false };
 
@@ -366,10 +411,8 @@ function build(btn) {
   // Фокус: снимаем белую маску (она viewport-размера) + рисунок. Обычный: снимаем страницу (без
   // оверлея, filter) + рисунок. Нужен secure context (localhost/HTTPS) для clipboard.write.
   const copyBtn = $('.dro-copy');
-  let dtiMod = null;
-  async function loadDTI() { if (!dtiMod) { const m = await import('https://cdn.jsdelivr.net/npm/dom-to-image-more@3.5.0/+esm'); dtiMod = m.default || m; } return dtiMod; }
   function flashCopy(cls) { copyBtn.classList.add(cls); setTimeout(() => copyBtn.classList.remove(cls), 1300); }
-  const loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src; });
+  const loadImg = __loadImg;
   async function copyWindow() {
     if (copyBtn.classList.contains('dro-busy')) return;
     copyBtn.classList.add('dro-busy');

@@ -5,21 +5,24 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-13-8-222021';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-13-8-222021';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-2-051831';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-2-051831';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-13-8-222021';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-2-051831';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-13-8-222021';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-13-8-222021';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-13-8-222021';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-2-051831';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-2-051831';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-2-051831';
 
-import { withBuild } from '../app/build.js?v=2026-06-13-8-222021';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-13-8-222021';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-13-8-222021';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-13-8-222021';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-13-8-222021';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-13-8-222021';
+import { withBuild } from '../app/build.js?v=2026-06-17-2-051831';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-2-051831';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-2-051831';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-2-051831';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-2-051831';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-2-051831';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-2-051831';
+import { captureCardBlob } from '../app/ui/draw_overlay.js?v=2026-06-17-2-051831';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-2-051831';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1040,6 +1043,7 @@ async function renderTaskList(questions, options = {}) {
     const card = document.createElement('article');
     card.className = 'task-card';
     if (q.topic_id) card.dataset.topicId = q.topic_id;
+    if (q.question_id) card.dataset.qid = String(q.question_id);
 
     const num = document.createElement('div');
     num.className = 'task-num';
@@ -1098,13 +1102,26 @@ async function renderTaskList(questions, options = {}) {
 
     const pal = document.createElement('div');
     pal.className = 'print-ans-line';
+    pal.dataset.captureHide = '1';
     pal.textContent = 'Ответ: ________________________';
     card.appendChild(pal);
+
+    // WLM.1: кнопка «В конспект» (видна только в Режиме занятия через body.lesson-active;
+    //   data-capture-hide → не попадает в снимок карточки).
+    const addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn small konspekt-add-btn';
+    addBtn.dataset.captureHide = '1';
+    addBtn.textContent = '+ В конспект';
+    card.appendChild(addBtn);
 
     list.appendChild(card);
   });
 
   body.appendChild(list);
+
+  // WLM.1: смонтировать панель «Режим занятия» (только для учителя; идемпотентно).
+  try { mountLessonMode(); } catch (e) { console.warn('lesson mode mount failed', e); }
 
   if (window.MathJax) {
     try {
@@ -1186,4 +1203,276 @@ function asset(p) {
   if (!s) return s;
   if (/^https?:\/\//i.test(s) || s.startsWith('//') || s.startsWith('data:')) return s;
   return toAbsUrl(s);
+}
+
+// ═══════════════════════════ WLM.1: Режим занятия + конспект ═══════════════════════════
+// Учитель на листе включает тумблер «Режим занятия», добавляет разобранные карточки в конспект
+// (снимок карточки → Storage → метаданные), в конце «Собирает конспект» → PDF публикуется ученику.
+// Только для учителя; ученик этого UI не видит. Student-контекст — из подбора (TEACHER_STUDENT_ID)
+// либо дропдаун. Доступ к данным гейтят RPC + RLS (см. docs/supabase/konspekts.sql).
+
+let LESSON_MOUNTED = false;
+const LESSON = {
+  active: false, konspekt: null, count: 0, blobs: [],
+  studentId: '', studentName: '', studentsLoaded: false, busy: false, published: false,
+};
+
+function readCachedRole() {
+  try {
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.indexOf('ege_profile_role:') === 0) {
+        const v = (sessionStorage.getItem(k) || '').trim().toLowerCase();
+        if (v) return v === 'teacher' ? 'teacher' : 'student';
+      }
+    }
+    const lr = (localStorage.getItem('ege_role') || '').trim().toLowerCase();
+    if (lr) return lr === 'teacher' ? 'teacher' : 'student';
+  } catch (_) {}
+  return '';
+}
+
+function mountLessonMode() {
+  if (LESSON_MOUNTED) return;
+  // Учитель: роль из кэша ИЛИ пришёл из подбора (только учителю кладут teacher_student_id).
+  const isTeacher = readCachedRole() === 'teacher' || !!TEACHER_STUDENT_ID;
+  if (!isTeacher) return;
+  const body = document.querySelector('#runner .run-body') || document.querySelector('.run-body');
+  if (!body) return;
+  LESSON_MOUNTED = true;
+  LESSON.studentId = TEACHER_STUDENT_ID || '';
+
+  const bar = document.createElement('div');
+  bar.className = 'lesson-bar';
+  bar.dataset.captureHide = '1';
+  bar.innerHTML = `
+    <label class="lesson-switch">
+      <input type="checkbox" id="lessonToggle" class="lesson-switch-input">
+      <span class="lesson-switch-track" aria-hidden="true"><span class="lesson-switch-thumb"></span></span>
+      <span class="lesson-switch-text">Режим занятия</span>
+    </label>
+    <div class="lesson-controls" hidden>
+      <select id="lessonStudent" class="lesson-student-select" aria-label="Ученик" hidden></select>
+      <span id="lessonStudentName" class="lesson-student-name"></span>
+      <span id="lessonCount" class="lesson-count">0 в конспекте</span>
+      <button id="lessonCollect" type="button" class="btn small lesson-collect-btn" disabled>Собрать конспект</button>
+      <span id="lessonStatus" class="lesson-status muted" role="status"></span>
+    </div>`;
+  body.insertBefore(bar, body.firstChild);
+
+  bar.querySelector('#lessonToggle').addEventListener('change', (e) => {
+    if (e.target.checked) lessonEnable(); else lessonDisable();
+  });
+  bar.querySelector('#lessonCollect').addEventListener('click', () => lessonCollect());
+
+  // Делегирование клика по кнопкам «+ В конспект» на карточках.
+  body.addEventListener('click', (e) => {
+    const btn = e.target.closest('.konspekt-add-btn');
+    if (!btn) return;
+    const card = btn.closest('.task-card');
+    if (card) lessonAddCard(card, btn);
+  });
+
+  ensureLessonStudents();
+}
+
+async function ensureLessonStudents() {
+  if (LESSON.studentsLoaded) return;
+  LESSON.studentsLoaded = true;
+  let rows = [];
+  try { const r = await listMyStudents(); if (r && r.ok) rows = r.data || []; } catch (_) {}
+
+  const map = new Map();
+  for (const r of rows) {
+    const sid = String(r.student_id || r.id || '').trim();
+    if (!sid) continue;
+    const nm = [r.first_name, r.last_name].map(x => String(x || '').trim()).filter(Boolean).join(' ')
+      || r.email || sid;
+    map.set(sid, nm);
+  }
+
+  const sel = document.getElementById('lessonStudent');
+  const nameEl = document.getElementById('lessonStudentName');
+
+  if (LESSON.studentId) {
+    LESSON.studentName = map.get(LESSON.studentId) || 'ученик';
+    if (nameEl) nameEl.textContent = LESSON.studentName;
+    if (sel) sel.hidden = true;
+  } else if (sel) {
+    sel.hidden = false;
+    sel.innerHTML = '<option value="">— выберите ученика —</option>'
+      + rows.map(r => {
+        const sid = String(r.student_id || r.id || '').trim();
+        if (!sid) return '';
+        return `<option value="${esc(sid)}">${esc(map.get(sid) || sid)}</option>`;
+      }).join('');
+    sel.addEventListener('change', () => {
+      LESSON.studentId = sel.value;
+      LESSON.studentName = map.get(sel.value) || '';
+      LESSON.konspekt = null; LESSON.count = 0; LESSON.blobs = []; LESSON.published = false;
+      resetLessonCardButtons();
+      updateLessonCount();
+      if (LESSON.active && LESSON.studentId) lessonStart();
+    });
+  }
+}
+
+async function lessonEnable() {
+  document.body.classList.add('lesson-active');
+  const controls = document.querySelector('.lesson-controls');
+  if (controls) controls.hidden = false;
+  LESSON.active = true;
+  if (LESSON.studentId) await lessonStart();
+  else setLessonStatus('Выберите ученика, чтобы начать конспект.');
+}
+
+function lessonDisable() {
+  document.body.classList.remove('lesson-active');
+  const controls = document.querySelector('.lesson-controls');
+  if (controls) controls.hidden = true;
+  LESSON.active = false;
+}
+
+async function lessonStart() {
+  if (!LESSON.studentId || LESSON.busy) return;
+  LESSON.busy = true; setLessonStatus('Открываю конспект…');
+  try {
+    const k = await Konspekts.konspektStart(LESSON.studentId);
+    LESSON.konspekt = k;
+    LESSON.published = false;
+    LESSON.count = Number(k.snapshot_count || 0);
+    LESSON.blobs = [];
+    resetLessonCardButtons();
+    updateLessonCount();
+    setLessonStatus(LESSON.count
+      ? `Сегодняшний черновик (${LESSON.count} уже добавлено). Добавляйте карточки.`
+      : 'Конспект начат. Добавляйте карточки.');
+  } catch (e) {
+    console.warn('konspektStart failed', e);
+    LESSON.konspekt = null;
+    setLessonStatus(lessonErrText(e, 'Не удалось открыть конспект.'), true);
+  } finally {
+    LESSON.busy = false; updateLessonCollectBtn();
+  }
+}
+
+async function lessonAddCard(card, btn) {
+  if (!LESSON.active) return;
+  if (!LESSON.konspekt) { setLessonStatus('Сначала выберите ученика.', true); return; }
+  if (btn.dataset.busy === '1' || btn.dataset.done === '1') return;
+  const oldText = btn.textContent;
+  btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Снимаю…';
+  try {
+    const blob = await captureCardBlob(card);
+    if (!blob) throw new Error('empty blob');
+    const ordinal = LESSON.count;
+    await Konspekts.addCardSnapshot(LESSON.konspekt, { ordinal, questionId: card.dataset.qid || null, blob });
+    LESSON.count++;
+    LESSON.blobs.push({ ordinal, blob });
+    btn.dataset.done = '1'; btn.classList.add('is-added'); btn.textContent = '✓ В конспекте';
+    updateLessonCount();
+    setLessonStatus('');
+  } catch (e) {
+    console.warn('add to konspekt failed', e);
+    btn.textContent = oldText; btn.disabled = false;
+    setLessonStatus(lessonErrText(e, 'Не удалось добавить карточку.'), true);
+  } finally {
+    btn.dataset.busy = '0';
+    updateLessonCollectBtn();
+  }
+}
+
+async function lessonCollect() {
+  if (!LESSON.konspekt || LESSON.busy) return;
+  LESSON.busy = true; updateLessonCollectBtn();
+  setLessonStatus('Собираю PDF…');
+  try {
+    let images = LESSON.blobs.slice().sort((a, b) => a.ordinal - b.ordinal).map(x => ({ blob: x.blob }));
+    // После релоада in-memory blob'ы потеряны → тянем снимки из Storage по метаданным.
+    if (!images.length && LESSON.count > 0) {
+      const rows = await Konspekts.listSnapshots(LESSON.konspekt.id);
+      images = [];
+      for (const r of rows) images.push({ blob: await Konspekts.fetchObjectBlob(r.storage_path) });
+    }
+    if (!images.length) { setLessonStatus('Нет добавленных карточек.', true); return; }
+
+    const pdfBlob = await Konspekts.buildKonspektPdfBlob(images, {
+      title: 'Конспект занятия',
+      studentName: LESSON.studentName || '',
+      dateText: formatLessonDate(LESSON.konspekt.lesson_date),
+    });
+    const published = await Konspekts.publishKonspekt(LESSON.konspekt, pdfBlob);
+    LESSON.konspekt = published || LESSON.konspekt;
+    LESSON.published = true;
+
+    let url = '';
+    try { url = await Konspekts.signedUrl(LESSON.konspekt.pdf_path); } catch (_) {}
+    showLessonDone(url);
+  } catch (e) {
+    console.warn('collect konspekt failed', e);
+    setLessonStatus(lessonErrText(e, 'Не удалось собрать конспект.'), true);
+  } finally {
+    LESSON.busy = false; updateLessonCollectBtn();
+  }
+}
+
+function resetLessonCardButtons() {
+  document.querySelectorAll('.konspekt-add-btn').forEach(b => {
+    b.dataset.done = ''; b.dataset.busy = ''; b.disabled = false;
+    b.classList.remove('is-added'); b.textContent = '+ В конспект';
+  });
+}
+
+function updateLessonCount() {
+  const el = document.getElementById('lessonCount');
+  if (el) el.textContent = `${LESSON.count} в конспекте`;
+  updateLessonCollectBtn();
+}
+
+function updateLessonCollectBtn() {
+  const b = document.getElementById('lessonCollect');
+  if (b && !LESSON.published) b.disabled = !(LESSON.konspekt && LESSON.count > 0 && !LESSON.busy);
+}
+
+function setLessonStatus(text, isErr) {
+  const el = document.getElementById('lessonStatus');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('is-err', !!isErr);
+}
+
+function showLessonDone(url) {
+  const el = document.getElementById('lessonStatus');
+  if (el) {
+    el.classList.remove('is-err');
+    el.textContent = '✓ Конспект собран и отправлен ученику. ';
+    if (url) {
+      const a = document.createElement('a');
+      a.href = url; a.target = '_blank'; a.rel = 'noopener';
+      a.textContent = 'Открыть PDF';
+      el.appendChild(a);
+    }
+  }
+  const collect = document.getElementById('lessonCollect');
+  if (collect) { collect.disabled = true; collect.textContent = 'Конспект собран'; }
+}
+
+function lessonErrText(e, fallback) {
+  const c = String((e && (e.code || e.message)) || '');
+  if (/NO_CONSENT/.test(c)) return 'Нет доступа к этому ученику (связь не подтверждена).';
+  if (/AUTH_REQUIRED/.test(c)) return 'Войдите снова — сессия истекла.';
+  if (/KONSPEKT_NOT_DRAFT/.test(c)) return 'Конспект уже собран. Переключите тумблер заново для нового.';
+  if (/STORAGE/.test(c)) return 'Хранилище недоступно (bucket konspekts ещё не создан?).';
+  return fallback;
+}
+
+function formatLessonDate(iso) {
+  try {
+    const parts = String(iso || '').split('-').map(Number);
+    const y = parts[0], m = parts[1], d = parts[2];
+    if (!y || !m || !d) return '';
+    const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+      'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    return `${d} ${months[m - 1] || ''} ${y}`.trim();
+  } catch (_) { return ''; }
 }

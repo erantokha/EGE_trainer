@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-2-051831">
+  <meta http-equiv="Content-Security-Policy" content="
+default-src 'self';
+img-src 'self' data: blob: https:;
+style-src 'self' 'unsafe-inline' https:;
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net;
+connect-src 'self' https://cdn.jsdelivr.net;
+frame-src 'self' blob:;
+">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>WLM.1 smoke (Level A — без бэкенда)</title>
+  <!-- реальные стили проекта (с сервер-рута http.server) -->
+  <link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-17-2-051831">
+  <link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-17-2-051831">
+  <link rel="stylesheet" href="/tasks/trainer/pages/list.css?v=2026-06-17-2-051831">
+  <style>
+    body{ padding:24px; max-width:860px; margin:0 auto; }
+    h2{ font-size:15px; margin:24px 0 8px; color:#374151; }
+    .kons-list{ display:flex; flex-direction:column; gap:12px; }
+    .kons-card{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px; padding:14px 16px;
+      border:1px solid var(--border,#e5e7eb); border-radius:12px; background:var(--panel,#fff); }
+    .kons-card-head{ display:flex; flex-direction:column; gap:3px; margin-right:auto; }
+    .kons-date{ font-weight:700; font-size:15.5px; }
+    .kons-meta{ font-size:13px; color:var(--muted-fg,#6b7280); }
+    #out img{ max-width:280px; border:1px solid #ddd; border-radius:8px; }
+    #pdfFrame{ width:100%; height:420px; border:1px solid #ddd; border-radius:8px; }
+    #status{ font:600 13px system-ui; padding:8px 12px; border-radius:8px; margin-top:8px; }
+    .ok{ background:#f0fdf4; color:#15803d; } .err{ background:#fef2f2; color:#dc2626; }
+  </style>
+</head>
+<body data-home-variant="teacher" class="lesson-active">
+  <h2>① Панель «Режим занятия» + кнопка на карточке</h2>
+  <div class="run-body">
+    <div class="lesson-bar" data-capture-hide="1">
+      <label class="lesson-switch">
+        <input type="checkbox" id="lessonToggle" class="lesson-switch-input" checked>
+        <span class="lesson-switch-track" aria-hidden="true"><span class="lesson-switch-thumb"></span></span>
+        <span class="lesson-switch-text">Режим занятия</span>
+      </label>
+      <div class="lesson-controls">
+        <span class="lesson-student-name">Иван Петров</span>
+        <span id="lessonCount" class="lesson-count">2 в конспекте</span>
+        <button class="btn small lesson-collect-btn">Собрать конспект</button>
+        <span class="lesson-status muted">Конспект начат. Добавляйте карточки.</span>
+      </div>
+    </div>
+
+    <div class="task-list">
+      <article class="task-card" id="sampleCard">
+        <div class="task-num">1</div>
+        <div class="task-stem">Найдите значение выражения \( \dfrac{3^{5}\cdot 3^{-2}}{3^{2}} \). Ответ запишите числом.</div>
+        <details class="task-ans" open><summary>Ответ</summary><div style="margin-top:4px">3</div></details>
+        <div class="print-ans-line" data-capture-hide="1">Ответ: ________________________</div>
+        <button class="btn small konspekt-add-btn is-added" data-capture-hide="1">✓ В конспекте</button>
+      </article>
+    </div>
+  </div>
+
+  <h2>② Раздел «Конспекты» у ученика</h2>
+  <div class="kons-list">
+    <div class="kons-card">
+      <div class="kons-card-head">
+        <div class="kons-date">17 июня 2026</div>
+        <div class="kons-meta">Анна Сергеевна  ·  3 карточки</div>
+      </div>
+      <button class="btn small kons-open">Открыть PDF</button>
+    </div>
+    <div class="kons-card">
+      <div class="kons-card-head">
+        <div class="kons-date">10 июня 2026</div>
+        <div class="kons-meta">Анна Сергеевна  ·  5 карточек</div>
+      </div>
+      <button class="btn small kons-open">Открыть PDF</button>
+    </div>
+  </div>
+
+  <h2>③ Изолированная проверка: захват карточки + сборка PDF (без бэкенда)</h2>
+  <div id="status">Выполняется…</div>
+  <div id="out" style="margin-top:10px"></div>
+  <iframe id="pdfFrame" title="konspekt pdf" style="margin-top:10px"></iframe>
+
+  <script type="module">
+    import { captureCardBlob } from '/app/ui/draw_overlay.js';
+    import { buildKonspektPdfBlob } from '/app/providers/konspekts.js';
+
+    function sampleCanvas(text, sub) {
+      const c = document.createElement('canvas');
+      c.width = 900; c.height = 260;
+      const x = c.getContext('2d');
+      x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height);
+      x.fillStyle = '#111827'; x.font = 'bold 34px system-ui';
+      x.fillText(text, 28, 70);
+      x.fillStyle = '#374151'; x.font = '22px system-ui';
+      x.fillText(sub, 28, 130);
+      x.strokeStyle = '#2563eb'; x.lineWidth = 3; x.strokeRect(10, 10, c.width - 20, c.height - 20);
+      return new Promise((res) => c.toBlob(res, 'image/png'));
+    }
+
+    (async () => {
+      const status = document.getElementById('status');
+      const out = document.getElementById('out');
+      const result = { captureOk: false, captureBytes: 0, pdfOk: false, pdfBytes: 0, error: null };
+      try {
+        // 1) реальный захват карточки списка через captureCardBlob (dom-to-image + canvas)
+        const cardBlob = await captureCardBlob(document.getElementById('sampleCard'));
+        result.captureBytes = cardBlob ? cardBlob.size : 0;
+        result.captureOk = !!cardBlob && cardBlob.size > 500;
+        if (cardBlob) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(cardBlob);
+          out.appendChild(img);
+        }
+
+        // 2) сборка PDF из захваченной карточки + 2 sample-картинок с кириллицей (raster)
+        const s1 = await sampleCanvas('Задача 2. Производная', 'f(x) = 3x² − 12x + 5 — кириллица');
+        const s2 = await sampleCanvas('Задача 3. Логарифмы', 'log₂(8) = 3 — корректный текст');
+        const images = [{ blob: cardBlob }, { blob: s1 }, { blob: s2 }].filter((i) => i.blob);
+        const pdfBlob = await buildKonspektPdfBlob(images, {
+          title: 'Конспект занятия',
+          studentName: 'Иван Петров',
+          dateText: '17 июня 2026',
+        });
+        result.pdfBytes = pdfBlob ? pdfBlob.size : 0;
+        result.pdfOk = !!pdfBlob && pdfBlob.size > 1000;
+        if (pdfBlob) document.getElementById('pdfFrame').src = URL.createObjectURL(pdfBlob);
+
+        if (result.captureOk && result.pdfOk) {
+          status.className = 'ok';
+          status.textContent = `PASS — захват: ${result.captureBytes} B PNG; PDF: ${result.pdfBytes} B (3 страницы-изображения).`;
+        } else {
+          status.className = 'err';
+          status.textContent = `FAIL — capture=${result.captureOk}(${result.captureBytes}) pdf=${result.pdfOk}(${result.pdfBytes})`;
+        }
+      } catch (e) {
+        result.error = String(e && (e.message || e));
+        status.className = 'err';
+        status.textContent = 'ERROR — ' + result.error;
+      } finally {
+        window.__RESULT__ = result;
+      }
+    })();
+  </script>
+</body>
+</html>

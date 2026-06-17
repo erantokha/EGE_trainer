@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-13-8-222021';
+import { navigate } from './nav.js?v=2026-06-17-2-051831';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -298,6 +298,7 @@ menu.innerHTML = `
       <img src="${bellSrc}" alt="" aria-hidden="true" decoding="async">
     </span>
   </button>
+  <button id="menuKonspekts" type="button" class="user-menu-item hidden" role="menuitem">Конспекты</button>
   <button id="menuStats" type="button" class="user-menu-item" role="menuitem">Статистика</button>
   <button id="menuProfile" type="button" class="user-menu-item" role="menuitem">Профиль</button>
   <div class="user-menu-sep"></div>
@@ -320,6 +321,7 @@ auth.appendChild(userMenuWrap);
     menu: $('#userMenu', userMenuWrap),
     menuMyHw: $('#menuMyHw', userMenuWrap),
     menuMyHwBell: $('#menuMyHwBell', userMenuWrap),
+    menuKonspekts: $('#menuKonspekts', userMenuWrap),
     menuStats: $('#menuStats', userMenuWrap),
     menuProfile: $('#menuProfile', userMenuWrap),
     menuLogout: $('#menuLogout', userMenuWrap),
@@ -584,6 +586,7 @@ export async function initHeader(opts = {}) {
       currentRole = '';
       roleResolved = false;
       if (ui.menuMyHw) ui.menuMyHw.classList.add('hidden');
+      if (ui.menuKonspekts) ui.menuKonspekts.classList.add('hidden');
       setMyHwBells(0);
       return;
     }
@@ -591,6 +594,8 @@ export async function initHeader(opts = {}) {
     roleResolved = true;
     if (ui.menuStats) ui.menuStats.textContent = (currentRole === 'teacher') ? 'Мои ученики' : 'Статистика';
     if (ui.menuMyHw) ui.menuMyHw.classList.toggle('hidden', currentRole !== 'student');
+    // WLM.1: «Конспекты» — пункт только для ученика (просмотр опубликованных конспектов занятий).
+    if (ui.menuKonspekts) ui.menuKonspekts.classList.toggle('hidden', currentRole !== 'student');
     if (currentRole !== 'student') setMyHwBells(0);
     else refreshMyHwBellsSoon();
 
@@ -687,6 +692,16 @@ export async function initHeader(opts = {}) {
       location.href = buildWithV(new URL('tasks/profile.html', home).toString());
     } catch (_) {
       location.href = buildWithV(computeHomeUrl() + 'tasks/profile.html');
+    }
+  });
+
+  ui.menuKonspekts?.addEventListener('click', () => {
+    closeMenu();
+    try {
+      const home = computeHomeUrl();
+      location.href = buildWithV(new URL('tasks/konspekts.html', home).toString());
+    } catch (_) {
+      location.href = buildWithV(computeHomeUrl() + 'tasks/konspekts.html');
     }
   });
 

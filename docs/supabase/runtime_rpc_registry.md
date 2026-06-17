@@ -22,12 +22,16 @@
 - `snapshot_only` — функция найдена только в schema snapshot / overview, но не вынесена в отдельный SQL-файл.
 - `missing_in_repo` — функция используется рантаймом, но в первом проходе не найдена ни как standalone SQL, ни в snapshot-источнике.
 
-## Итог (актуально на 2026-05-13)
+## Итог (актуально на 2026-06-17)
 
-- Всего активных runtime-RPC в реестре: `42`
-- `standalone_sql`: `42`
+- Всего активных runtime-RPC в реестре: `47`
+- `standalone_sql`: `47`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
+
+WLM.1 (2026-06-17): добавлены 5 RPC «Режима занятия» / конспектов
+(`docs/supabase/konspekts.sql`): `konspekt_start_v1`, `konspekt_add_snapshot_v1`,
+`konspekt_publish_v1`, `student_konspekts_list_v1`, `teacher_konspekts_for_student_v1`.
 
 Pre-prod consent-волна (2026-06-11): добавлены 7 RPC consent-модели «учитель↔ученик»
 (`docs/supabase/teacher_student_consent_v1.sql`): `teacher_invite_student`,
@@ -80,6 +84,21 @@ Teacher-picking `v2` rollout отражён в реестре:
 | `student_my_homeworks_summary` | `studentMyHomeworksSummary`, `my_homeworks_summary` | `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_summary.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает summary JSON по assignments, pending и archive counts. |
 | `student_my_homeworks_archive` | `studentMyHomeworksArchive`, `my_homeworks_archive` | `tasks/my_homeworks_archive.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_archive.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает paginated archive по assignments текущего `auth.uid()`. |
 | `create_session_link` | `-` | `tasks/picker.js` via `app/providers/task_session.js` | `docs/supabase/create_session_link.sql` | `homework-domain` | `standalone_sql` | WS.1 (2026-05-13). Создаёт session-ссылку: `homeworks` row с `kind='session'`, `attempts_per_student=1`, `title=null` + соответствующий `homework_links` row с url-safe base64 токеном (`sess_` префикс, 18 байт энтропии). `security definer`, доступен только `authenticated`. Validates `p_mode in ('list','test')`, требует непустой jsonb-array `p_frozen_questions`. |
+
+## Konspekts (Lesson mode / WLM.1)
+
+> Owner-зона всех пяти RPC — `homework-domain`: конспект = teacher→student артефакт того же
+> доменного семейства, что и ДЗ. Доступ к Storage-файлам гейтят `storage.objects` RLS-политики
+> (bucket `konspekts`, приватный); подписанный URL клиент мьютит сам через Storage REST —
+> отдельного `*_signed_url` RPC нет (SQL-функция не может выпустить подписанный Storage-JWT).
+
+| canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `konspekt_start_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Создаёт/возвращает сегодняшний черновик конспекта для (teacher, student) под consent (`teacher_students`). RETURN = строка konspekt + `snapshot_count` (для индикатора «N в конспекте» при возврате на вкладку). Гонку параллельного start ловит partial-unique `uq_konspekts_draft_per_day` + re-select. `security definer`, `search_path=public`, `revoke anon` / `grant authenticated`. |
+| `konspekt_add_snapshot_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Пишет метаданные снимка карточки в черновик. Гейт: владелец-учитель + consent + статус `draft` + `storage_path` обязан лежать под префиксом `{teacher_id}/{student_id}/{konspekt_id}/` (иначе `BAD_STORAGE_PATH`). RETURN = строка `konspekt_snapshots`. |
+| `konspekt_publish_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Помечает конспект `published`, выставляет `pdf_path`/`published_at`. Валидация: владелец + consent + префикс `pdf_path` + непустой конспект (`KONSPEKT_EMPTY`). После публикации становится виден ученику. |
+| `student_konspekts_list_v1` | `-` | `tasks/konspekts.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Опубликованные конспекты авторизованного ученика (`auth.uid()=student_id`, `status='published'`), с `teacher_name` (left join `profiles`) и `snapshot_count`, сортировка по дате занятия. PDF открывается по подписанному URL, который клиент мьютит сам (Storage REST + `storage.objects` RLS). |
+| `teacher_konspekts_for_student_v1` | `-` | `tasks/student.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Конспекты учителя для конкретного ученика под consent (`draft`+`published`), с `snapshot_count`. Питает раздел «Конспекты ученика» в карточке ученика. |
 
 ## Teacher / Student Management
 

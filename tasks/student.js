@@ -1469,6 +1469,78 @@ if (statsFiltersToggle && statsControls) {
     }
   }
 
+  // WLM.1: Конспекты занятий этого ученика (teacher-scope, под consent). Ленивая загрузка
+  //   при раскрытии секции — зеркало механики «Выполненные работы».
+  const konspektsHead = $('#konspektsHead');
+  const konspektsPanel = $('#konspektsPanel');
+  let konspektsLoaded = false;
+
+  function fmtKonsDate(iso) {
+    try {
+      const p = String(iso || '').split('-').map(Number);
+      const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+      return p[0] ? `${p[2]} ${months[p[1] - 1] || ''} ${p[0]}`.trim() : String(iso || '');
+    } catch (_) { return String(iso || ''); }
+  }
+
+  function renderKonspektRow(k, mod) {
+    const left = el('div', { style: 'display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0' }, [
+      el('div', { style: 'font-weight:600', text: fmtKonsDate(k.lesson_date) }),
+    ]);
+    const meta = [];
+    if (k.status !== 'published') meta.push('черновик');
+    if (k.snapshot_count) meta.push(`${k.snapshot_count} карточек`);
+    if (meta.length) left.appendChild(el('div', { class: 'muted', text: meta.join(' · ') }));
+
+    const children = [left];
+    if (k.status === 'published' && k.pdf_path) {
+      const btn = el('button', { class: 'btn small', text: 'Открыть PDF' });
+      btn.type = 'button';
+      btn.addEventListener('click', async () => {
+        const w = window.open('', '_blank');
+        const old = btn.textContent; btn.disabled = true; btn.textContent = 'Открываю…';
+        try {
+          const url = await mod.signedUrl(k.pdf_path, 3600);
+          if (w) w.location.href = url; else window.location.href = url;
+        } catch (e) {
+          if (w) { try { w.close(); } catch (_) {} }
+          btn.textContent = 'Ошибка'; setTimeout(() => { btn.textContent = old; }, 1500);
+        } finally {
+          btn.disabled = false; if (btn.textContent === 'Открываю…') btn.textContent = old;
+        }
+      });
+      children.push(btn);
+    }
+    return el('div', {
+      style: 'display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border)',
+    }, children);
+  }
+
+  async function loadKonspekts() {
+    const box = $('#konspektsList');
+    if (!box) return;
+    box.replaceChildren(el('div', { class: 'muted', text: 'Загружаем конспекты...' }));
+    try {
+      const mod = await import(withV('../app/providers/konspekts.js'));
+      const rows = await mod.teacherKonspektsForStudent(studentId);
+      if (!rows.length) { box.replaceChildren(el('div', { class: 'muted', text: 'Конспектов пока нет.' })); return; }
+      box.replaceChildren(...rows.map((k) => renderKonspektRow(k, mod)));
+    } catch (e) {
+      if (isAccessDenied(e)) { box.replaceChildren(el('div', { class: 'errbox', text: 'Нет доступа к конспектам этого ученика.' })); return; }
+      box.replaceChildren(el('div', { class: 'errbox', text: `Ошибка загрузки конспектов: ${String(e?.message || e || 'Ошибка')}` }));
+    }
+  }
+
+  function toggleKonspektsPanel() {
+    if (!konspektsPanel) return;
+    const willOpen = konspektsPanel.classList.contains('hidden');
+    setHidden(konspektsPanel, !willOpen);
+    if (konspektsHead) konspektsHead.classList.toggle('is-open', willOpen);
+    if (willOpen && !konspektsLoaded) { konspektsLoaded = true; loadKonspekts(); }
+  }
+  if (konspektsHead) konspektsHead.addEventListener('click', () => toggleKonspektsPanel());
+
   await loadDashboard();
   startWorksFetch();
 }

@@ -44,3 +44,108 @@ body[data-home-variant] #runner > .panel{
     margin-top: 10px;
   }
 }
+
+
+/* ═══════════════ WLM.1: Режим занятия + конспект (на листе, только учитель) ═══════════════ */
+.lesson-bar{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:14px 18px;
+  margin:0 0 14px;
+  padding:10px 14px;
+  border:1px solid var(--border, #e5e7eb);
+  border-radius:12px;
+  background:var(--panel-2, #f8fafc);
+}
+.lesson-switch{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  cursor:pointer;
+  user-select:none;
+}
+.lesson-switch-input{
+  position:absolute;
+  width:1px;height:1px;
+  opacity:0;
+  pointer-events:none;
+}
+.lesson-switch-track{
+  position:relative;
+  width:40px;height:22px;
+  border-radius:999px;
+  background:var(--border, #cbd5e1);
+  transition:background .18s ease;
+  flex:0 0 auto;
+}
+.lesson-switch-thumb{
+  position:absolute;
+  top:2px;left:2px;
+  width:18px;height:18px;
+  border-radius:50%;
+  background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);
+  transition:transform .18s ease;
+}
+.lesson-switch-input:checked + .lesson-switch-track{
+  background:var(--accent, #2563eb);
+}
+.lesson-switch-input:checked + .lesson-switch-track .lesson-switch-thumb{
+  transform:translateX(18px);
+}
+.lesson-switch-input:focus-visible + .lesson-switch-track{
+  outline:2px solid var(--accent, #2563eb);
+  outline-offset:2px;
+}
+.lesson-switch-text{
+  font-weight:600;
+  font-size:14px;
+  color:var(--text, #111827);
+}
+.lesson-controls{
+  display:inline-flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px 14px;
+}
+.lesson-controls[hidden]{ display:none; }
+.lesson-student-select{
+  padding:6px 10px;
+  border:1px solid var(--border, #e5e7eb);
+  border-radius:8px;
+  background:var(--panel, #fff);
+  color:var(--text, #111827);
+  font-size:13.5px;
+  max-width:240px;
+}
+.lesson-student-select[hidden]{ display:none; }
+.lesson-student-name{
+  font-weight:600;
+  font-size:13.5px;
+  color:var(--text, #111827);
+}
+.lesson-count{
+  font-size:13px;
+  color:var(--muted-fg, #6b7280);
+  white-space:nowrap;
+}
+.lesson-status{
+  font-size:12.5px;
+  color:var(--muted-fg, #6b7280);
+}
+.lesson-status.is-err{ color:#dc2626; }
+.lesson-status a{ color:var(--accent, #2563eb); }
+
+/* Кнопка «+ В конспект» на карточке — видна только в активном Режиме занятия. */
+.konspekt-add-btn{ display:none; }
+body.lesson-active .konspekt-add-btn{
+  display:inline-flex;
+  align-items:center;
+  margin-top:8px;
+}
+.konspekt-add-btn.is-added{
+  color:#15803d;
+  border-color:#86efac;
+  background:#f0fdf4;
+}
