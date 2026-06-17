@@ -1,5 +1,5 @@
 // app/build.js
-// Единый BUILD / cache-busting: читаем из <meta name="app-build" content="2026-06-17-34-230659">.
+// Единый BUILD / cache-busting: читаем из <meta name="app-build" content="2026-06-17-35-233342">.
 // Используется для fetch(...) статических JSON/манифестов, чтобы не ловить смесь кэша.
 //
 // Пример:

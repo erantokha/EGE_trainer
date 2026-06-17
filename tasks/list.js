@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-34-230659';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-34-230659';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-35-233342';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-35-233342';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-34-230659';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-35-233342';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-34-230659';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-34-230659';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-34-230659';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-35-233342';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-35-233342';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-35-233342';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-34-230659';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-34-230659';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-34-230659';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-34-230659';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-34-230659';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-34-230659';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-34-230659';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-34-230659';
+import { withBuild } from '../app/build.js?v=2026-06-17-35-233342';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-35-233342';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-35-233342';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-35-233342';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-35-233342';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-35-233342';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-35-233342';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-35-233342';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1211,11 +1211,22 @@ const LESSON = {
 };
 
 // WLM.2: 4 флага разбора карточки (приватная учительская оценка; ученик не видит).
+// WLM.2.1: современные line-иконки (Lucide-стиль, stroke=currentColor; активный цвет — в CSS per-flag).
+const LF_ICON = {
+  // check-circle
+  clean: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  // lightbulb
+  hint: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.76.76 1.23 1.52 1.41 2.5"/></svg>',
+  // calculator (ошибка в счёте)
+  arith: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M8 10h.01"/><path d="M12 10h.01"/><path d="M16 10h.01"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/></svg>',
+  // x-circle
+  lost: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+};
 const LESSON_FLAGS = [
-  { code: 'clean', icon: '✅', title: 'Сам, чисто' },
-  { code: 'hint',  icon: '💡', title: 'С подсказкой' },
-  { code: 'arith', icon: '⚠️', title: 'Идея верна, ошибка в счёте' },
-  { code: 'lost',  icon: '❌', title: 'Не понял' },
+  { code: 'clean', icon: LF_ICON.clean, title: 'Сам, чисто' },
+  { code: 'hint',  icon: LF_ICON.hint,  title: 'С подсказкой' },
+  { code: 'arith', icon: LF_ICON.arith, title: 'Идея верна, ошибка в счёте' },
+  { code: 'lost',  icon: LF_ICON.lost,  title: 'Не понял' },
 ];
 
 function readCachedRole() {
@@ -1408,9 +1419,6 @@ function lessonFlagState(qid) {
 function lessonCards() {
   return Array.from(document.querySelectorAll('#runner .task-card[data-qid]'));
 }
-function lessonCardByQid(qid) {
-  return lessonCards().find((c) => c.dataset.qid === qid) || null;
-}
 
 // Закрываем открытые меню навыков по клику вне (вешаем один раз).
 let LESSON_SKILL_OUTSIDE = false;
@@ -1438,6 +1446,26 @@ function unmountLessonFlags() {
   document.querySelectorAll('#runner .task-card .lesson-flags').forEach((el) => el.remove());
 }
 
+// Ряд из 4 флаг-кнопок для qid. Переиспользуется на карточке списка И в панели-рисовалке (§4.3).
+// Иконки — SVG (innerHTML), подсказка — мгновенный data-tip (как на главной), без нативного title.
+function buildFlagRow(qid) {
+  const row = document.createElement('div');
+  row.className = 'lf-row';
+  LESSON_FLAGS.forEach((f) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'lf-btn';
+    b.dataset.flag = f.code;
+    b.innerHTML = f.icon;
+    b.setAttribute('data-tip', f.title);
+    b.setAttribute('aria-label', f.title);
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => onLessonFlagClick(qid, f.code));
+    row.appendChild(b);
+  });
+  return row;
+}
+
 function buildCardFlags(card) {
   if (!card || card.querySelector('.lesson-flags')) return;   // идемпотентно
   const qid = card.dataset.qid;
@@ -1446,23 +1474,9 @@ function buildCardFlags(card) {
   const wrap = document.createElement('div');
   wrap.className = 'lesson-flags';
   wrap.dataset.captureHide = '1';   // не попадает в снимок рисовалки
+  wrap.dataset.lfQid = qid;         // якорь для синхронизации состояния (applyFlagState)
 
-  const row = document.createElement('div');
-  row.className = 'lf-row';
-  LESSON_FLAGS.forEach((f) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'lf-btn';
-    b.dataset.flag = f.code;
-    b.textContent = f.icon;
-    b.title = f.title;
-    b.setAttribute('aria-label', f.title);
-    b.setAttribute('aria-pressed', 'false');
-    b.addEventListener('click', () => onLessonFlagClick(card, qid, f.code));
-    row.appendChild(b);
-  });
-  wrap.appendChild(row);
-
+  wrap.appendChild(buildFlagRow(qid));
   wrap.appendChild(buildSkillDropdown(qid));
   card.appendChild(wrap);
 
@@ -1472,7 +1486,7 @@ function buildCardFlags(card) {
     if (!st.openedAt) st.openedAt = nowIso();
   }, { capture: true, once: true });
 
-  applyCardState(card, qid);
+  applyFlagState(qid);
 }
 
 function buildSkillDropdown(qid) {
@@ -1536,37 +1550,41 @@ function buildSkillDropdown(qid) {
   return box;
 }
 
-// Отрисовать состояние карточки (активный флаг, выбранные навыки, метка кнопки) из flagState.
-function applyCardState(card, qid) {
+// Отрисовать состояние qid (активный флаг, выбранные навыки, метка кнопки) ВО ВСЕХ его контейнерах:
+// карточка списка (.lesson-flags) И панель-рисовалка (.lf-bar) — оба несут data-lf-qid.
+function applyFlagState(qid) {
   const st = lessonFlagState(qid);
-  card.querySelectorAll('.lf-btn').forEach((b) => {
-    const on = b.dataset.flag === st.flag;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
+  const containers = Array.from(document.querySelectorAll('[data-lf-qid]'))
+    .filter((el) => el.dataset.lfQid === qid);
+  containers.forEach((cont) => {
+    cont.querySelectorAll('.lf-btn').forEach((b) => {
+      const on = b.dataset.flag === st.flag;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    cont.querySelectorAll('.lf-skill-menu input[type="checkbox"]').forEach((cb) => {
+      cb.checked = st.skills.has(cb.value);
+    });
+    const sb = cont.querySelector('.lf-skill-btn');
+    if (sb) {
+      const n = st.skills.size;
+      sb.textContent = n ? `Навык: ${n}` : 'Навык';
+      sb.classList.toggle('has', n > 0);
+    }
   });
-  card.querySelectorAll('.lf-skill-menu input[type="checkbox"]').forEach((cb) => {
-    cb.checked = st.skills.has(cb.value);
-  });
-  const btn = card.querySelector('.lf-skill-btn');
-  if (btn) {
-    const n = st.skills.size;
-    btn.textContent = n ? `Навык: ${n}` : 'Навык';
-    btn.classList.toggle('has', n > 0);
-  }
 }
 
-function onLessonFlagClick(card, qid, code) {
+function onLessonFlagClick(qid, code) {
   const st = lessonFlagState(qid);
   st.flag = (st.flag === code) ? null : code;   // повторный тап того же флага — снять
-  applyCardState(card, qid);
+  applyFlagState(qid);
   persistLessonItem(qid, true);
 }
 
 function onLessonSkillToggle(qid, code, checked) {
   const st = lessonFlagState(qid);
   if (checked) st.skills.add(code); else st.skills.delete(code);
-  const card = lessonCardByQid(qid);
-  if (card) applyCardState(card, qid);
+  applyFlagState(qid);
   persistLessonItem(qid, false);
 }
 
@@ -1615,7 +1633,7 @@ async function hydrateLessonFlags() {
     st.skills = new Set(it && Array.isArray(it.skill_tags) ? it.skill_tags : []);
     st.flaggedAt = it ? it.flagged_at : null;
     if (it && it.opened_at) st.openedAt = it.opened_at;   // серверный opened_at (первое взаимодействие)
-    applyCardState(card, qid);
+    applyFlagState(qid);
   });
 }
 
