@@ -7,8 +7,8 @@
 // A full role-split of picker.js was found infeasible (W2.1' stop-ask: shared count/proto/home-stats
 // functions call into role logic → core call-closure = 100%). This is the cleanly-extractable leaf.
 
-import { withBuild } from '../app/build.js?v=2026-06-17-32-220254';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-32-220254';
+import { withBuild } from '../app/build.js?v=2026-06-17-33-220403';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-33-220403';
 
 export async function ensurePickerManifest(topic) {
   if (topic._manifest) return topic._manifest;
