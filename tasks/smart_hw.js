@@ -4,10 +4,10 @@
 // 2) распределяем количество задач по темам
 // 3) «замораживаем» конкретные question_id из манифестов (frozen_questions)
 
-import { buildSmartPlan } from './smart_select.js?v=2026-06-17-11-071925';
-import { sampleKByBase, interleaveBatches, shuffleInPlace } from '../app/core/pick.js?v=2026-06-17-11-071925';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-11-071925';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-11-071925';
+import { buildSmartPlan } from './smart_select.js?v=2026-06-17-12-165301';
+import { sampleKByBase, interleaveBatches, shuffleInPlace } from '../app/core/pick.js?v=2026-06-17-12-165301';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-12-165301';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-12-165301';
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {

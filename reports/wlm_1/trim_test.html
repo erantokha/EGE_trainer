@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-12-165301">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net;">
+<title>trim test</title></head><body><div id="s">…</div>
+<script type="module">
+import { trimSnapshotVertical } from '/app/providers/konspekts.js';
+function makeBlob(w,h,bg,content){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle=bg;x.fillRect(0,0,w,h);if(content){x.fillStyle=content.color;x.fillRect(40,content.y0,w-80,content.y1-content.y0);}return new Promise(r=>c.toBlob(r,'image/png'));}
+async function dims(blob){const b=await createImageBitmap(blob);const r={w:b.width,h:b.height};b.close&&b.close();return r;}
+(async()=>{
+  const out={};
+  try{
+    // 1) контент в середине белого полотна → сильно короче, ширина та же
+    const t1=await trimSnapshotVertical(await makeBlob(800,2000,'#ffffff',{y0:800,y1:1100,color:'#111111'}));
+    out.t1=await dims(t1);
+    // 2) полностью пустой белый → без изменений
+    const t2=await trimSnapshotVertical(await makeBlob(800,600,'#ffffff',null));
+    out.t2=await dims(t2);
+    // 3) тёмная тема: светлый контент на тёмном фоне → короче
+    const t3=await trimSnapshotVertical(await makeBlob(800,2000,'#1a1a1a',{y0:900,y1:1000,color:'#eeeeee'}));
+    out.t3=await dims(t3);
+    out.ok = out.t1.w===800 && out.t1.h>200 && out.t1.h<700
+          && out.t2.h===600
+          && out.t3.w===800 && out.t3.h>40 && out.t3.h<400;
+  }catch(e){out.error=String(e&&(e.message||e));out.ok=false;}
+  window.__TRIM__=out; document.getElementById('s').textContent=JSON.stringify(out);
+})();
+</script></body></html>

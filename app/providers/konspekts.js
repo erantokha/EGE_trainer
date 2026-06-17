@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-11-071925';
-import { getSession } from './supabase.js?v=2026-06-17-11-071925';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-11-071925';
+import { CONFIG } from '../config.js?v=2026-06-17-12-165301';
+import { getSession } from './supabase.js?v=2026-06-17-12-165301';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-12-165301';
 
 const BUCKET = 'konspekts';
 
@@ -160,6 +160,70 @@ export async function idbSnapshotCount(konspektId) {
   try { return (await idbGetAll(konspektId)).length; } catch (_) { return 0; }
 }
 
+// ───────────────────────── Обрезка пустых полей сверху/снизу ─────────────────────────
+// Снимок — по сути скриншот вьюпорта: карточка + пометки занимают часть, остальное сверху/снизу
+// пустой фон. Режем верхнее/нижнее пустое поле (ширину сохраняем) → в PDF влезает несколько
+// карточек на лист. Содержимым считаем всё, что отличается от фона (текст/рисунок карточки И
+// нарисованные линии/объекты). Фон берём по верхнему-левому пикселю (адаптивно к теме). Только
+// для конспекта; копирование в буфер не затрагивается.
+
+async function decodeBlobToCanvas(blob) {
+  let bmp = null;
+  try { bmp = await createImageBitmap(blob); } catch (_) {}
+  if (bmp) {
+    const c = document.createElement('canvas');
+    c.width = bmp.width; c.height = bmp.height;
+    c.getContext('2d', { willReadFrequently: true }).drawImage(bmp, 0, 0);
+    try { bmp.close(); } catch (_) {}
+    return c;
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const im = await loadImageEl(url);
+    const c = document.createElement('canvas');
+    c.width = im.naturalWidth; c.height = im.naturalHeight;
+    c.getContext('2d', { willReadFrequently: true }).drawImage(im, 0, 0);
+    return c;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+export async function trimSnapshotVertical(blob) {
+  try {
+    const c = await decodeBlobToCanvas(blob);
+    const w = c.width, h = c.height;
+    if (!w || !h) return blob;
+    const data = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+    const bg = [data[0], data[1], data[2], data[3]];   // верхний-левый = фон
+    const T = 18;                                       // допуск канала (PNG без шума → безопасно)
+    const rowHasContent = (y) => {
+      const base = y * w * 4;
+      for (let x = 0; x < w; x++) {
+        const i = base + x * 4;
+        if (data[i + 3] < 12) continue;                 // прозрачный → фон
+        if (bg[3] < 12) return true;                    // фон прозрачный, тут непрозрачный → контент
+        if (Math.abs(data[i] - bg[0]) > T || Math.abs(data[i + 1] - bg[1]) > T || Math.abs(data[i + 2] - bg[2]) > T) return true;
+      }
+      return false;
+    };
+    let top = 0;
+    while (top < h && !rowHasContent(top)) top++;
+    if (top >= h) return blob;                          // всё пусто → не режем
+    let bottom = h - 1;
+    while (bottom > top && !rowHasContent(bottom)) bottom--;
+    const PAD = 16;
+    const y0 = Math.max(0, top - PAD);
+    const y1 = Math.min(h - 1, bottom + PAD);
+    const ch = y1 - y0 + 1;
+    if (ch >= h - 2) return blob;                       // обрезать практически нечего
+    const out = document.createElement('canvas');
+    out.width = w; out.height = ch;
+    out.getContext('2d').drawImage(c, 0, y0, w, ch, 0, 0, w, ch);
+    return await new Promise((res) => out.toBlob((b) => res(b || blob), 'image/png'));
+  } catch (_) {
+    return blob;                                        // любая ошибка (taint и т.п.) → исходный снимок
+  }
+}
+
 // ───────────────────────────── RPC-обёртки ─────────────────────────────
 
 function firstRow(data) {
@@ -180,7 +244,8 @@ export async function konspektStart(studentId) {
 // метаданные → сервер (для счётчика + гейта публикации). БАЙТЫ В STORAGE НЕ ЛЬЁМ — это ускоряет
 // добавление и устраняет потерю карточек: collect соберёт PDF из IndexedDB по konspekt.id.
 export async function addSnapshot(konspekt, { ordinal, questionId, blob }) {
-  await idbPut(konspekt.id, ordinal, blob);   // сначала локально → карточка durable сразу
+  const trimmed = await trimSnapshotVertical(blob);  // срезать пустые поля сверху/снизу
+  await idbPut(konspekt.id, ordinal, trimmed); // сначала локально → карточка durable сразу
   const path = snapshotPath(konspekt, ordinal); // логический путь (байты не заливаются)
   const data = await supaRest.rpc('konspekt_add_snapshot_v1', {
     p_konspekt_id: konspekt.id,
