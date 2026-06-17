@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-31-205307';
-import { getSession } from './supabase.js?v=2026-06-17-31-205307';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-31-205307';
+import { CONFIG } from '../config.js?v=2026-06-17-32-220254';
+import { getSession } from './supabase.js?v=2026-06-17-32-220254';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-32-220254';
 
 const BUCKET = 'konspekts';
 
@@ -356,6 +356,38 @@ export async function studentKonspektsList() {
 //   status, pdf_path, published_at, snapshot_count }]
 export async function teacherKonspektsForStudent(studentId) {
   const data = await supaRest.rpc('teacher_konspekts_for_student_v1', { p_student_id: studentId });
+  return Array.isArray(data) ? data : (data ? [data] : []);
+}
+
+// ───────────────────────── WLM.2: флаги занятия + теги навыков ─────────────────────────
+// Приватная учительская оценка карточки на занятии (флаг разбора + теги навыков). Ученик
+// доступа НЕ имеет (см. lesson_items.sql RLS/RPC). Привязка — (konspekt_id, question_id).
+
+// Upsert флага/тегов карточки. flag ∈ {clean,hint,arith,lost} | null; skillTags — массив кодов
+// навыков (text[]). openedAt/flaggedAt — ISO-строки (пассивные timestamps, best-effort).
+//   → строка lesson_items.
+export async function lessonItemUpsert(konspektId, { questionId, flag, skillTags, openedAt, flaggedAt } = {}) {
+  const data = await supaRest.rpc('lesson_item_upsert_v1', {
+    p_konspekt_id: konspektId,
+    p_question_id: questionId,
+    p_flag: flag || null,
+    p_skill_tags: Array.isArray(skillTags) ? skillTags : [],
+    p_opened_at: openedAt || null,
+    p_flagged_at: flaggedAt || null,
+  });
+  return firstRow(data);
+}
+
+// Все события карточек занятия (для повторного входа). → [{ konspekt_id, question_id, flag,
+//   skill_tags, opened_at, flagged_at, time_ms, ... }]
+export async function lessonItemsForKonspekt(konspektId) {
+  const data = await supaRest.rpc('lesson_items_for_konspekt_v1', { p_konspekt_id: konspektId });
+  return Array.isArray(data) ? data : (data ? [data] : []);
+}
+
+// Словарь навыков (is_enabled, сортировка по sort,label). → [{ code, label, topic, sort }]
+export async function skillTagsDim() {
+  const data = await supaRest.rpc('skill_tags_dim_v1', {});
   return Array.isArray(data) ? data : (data ? [data] : []);
 }
 

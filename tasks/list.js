@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-31-205307';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-31-205307';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-32-220254';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-32-220254';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-31-205307';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-32-220254';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-31-205307';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-31-205307';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-31-205307';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-32-220254';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-32-220254';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-32-220254';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-31-205307';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-31-205307';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-31-205307';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-31-205307';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-31-205307';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-31-205307';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-31-205307';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-31-205307';
+import { withBuild } from '../app/build.js?v=2026-06-17-32-220254';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-32-220254';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-32-220254';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-32-220254';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-32-220254';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-32-220254';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-32-220254';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-32-220254';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1205,7 +1205,18 @@ let LESSON_MOUNTED = false;
 const LESSON = {
   active: false, konspekt: null, count: 0, title: '',
   studentId: '', studentName: '', studentsLoaded: false, busy: false, addBusy: false, published: false,
+  // WLM.2: флаги занятия + теги навыков.
+  skillDict: null,              // словарь навыков из БД (грузим один раз)
+  flagState: new Map(),         // qid → { flag, skills:Set<string>, openedAt, flaggedAt, busy }
 };
+
+// WLM.2: 4 флага разбора карточки (приватная учительская оценка; ученик не видит).
+const LESSON_FLAGS = [
+  { code: 'clean', icon: '✅', title: 'Сам, чисто' },
+  { code: 'hint',  icon: '💡', title: 'С подсказкой' },
+  { code: 'arith', icon: '⚠️', title: 'Идея верна, ошибка в счёте' },
+  { code: 'lost',  icon: '❌', title: 'Не понял' },
+];
 
 function readCachedRole() {
   try {
@@ -1347,6 +1358,7 @@ async function lessonEnable() {
   if (controls) controls.hidden = false;
   LESSON.active = true;
   setLessonSticky(true);   // держим режим включённым между подборками одного занятия
+  await mountLessonFlags();           // WLM.2: показать флаг-контролы на карточках (грузит словарь)
   if (LESSON.studentId) await lessonStart();
   else setLessonStatus('Выберите ученика, чтобы начать конспект.');
 }
@@ -1357,7 +1369,236 @@ function lessonDisable() {
   if (controls) controls.hidden = true;
   LESSON.active = false;
   setLessonSticky(false);  // ручное выключение → не продолжать автоматически
+  unmountLessonFlags();    // WLM.2: убрать флаг-контролы с карточек
   try { delete document.body.dataset.lessonNextNum; } catch (_) {}
+}
+
+// ═══════════════════════════ WLM.2: флаги занятия + теги навыков ═══════════════════════════
+// На каждой карточке (в режиме занятия) — ряд из 4 флагов разбора + дропдаун тега навыка.
+// Приватная учительская оценка: пишется в lesson_items по (konspekt_id, question_id), ученику
+// недоступна. Контролы помечены data-capture-hide (не попадают в снимок рисовалки) и скрыты при
+// печати (см. list.css). Привязка к карточке — через data-qid (= question_id).
+
+function nowIso() { try { return new Date().toISOString(); } catch (_) { return null; } }
+
+function lessonFlagState(qid) {
+  let st = LESSON.flagState.get(qid);
+  if (!st) { st = { flag: null, skills: new Set(), openedAt: null, flaggedAt: null, busy: false }; LESSON.flagState.set(qid, st); }
+  return st;
+}
+
+function lessonCards() {
+  return Array.from(document.querySelectorAll('#runner .task-card[data-qid]'));
+}
+function lessonCardByQid(qid) {
+  return lessonCards().find((c) => c.dataset.qid === qid) || null;
+}
+
+// Закрываем открытые меню навыков по клику вне (вешаем один раз).
+let LESSON_SKILL_OUTSIDE = false;
+function ensureSkillOutsideClose() {
+  if (LESSON_SKILL_OUTSIDE) return;
+  LESSON_SKILL_OUTSIDE = true;
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('.lf-skill-menu:not([hidden])').forEach((menu) => {
+      if (!menu.closest('.lf-skill')?.contains(e.target)) menu.hidden = true;
+    });
+  });
+}
+
+// Смонтировать флаг-контролы на все карточки + загрузить словарь навыков (один раз).
+async function mountLessonFlags() {
+  if (!LESSON.active) return;
+  if (!LESSON.skillDict) {
+    try { LESSON.skillDict = await Konspekts.skillTagsDim(); } catch (_) { LESSON.skillDict = []; }
+  }
+  ensureSkillOutsideClose();
+  lessonCards().forEach(buildCardFlags);
+}
+
+function unmountLessonFlags() {
+  document.querySelectorAll('#runner .task-card .lesson-flags').forEach((el) => el.remove());
+}
+
+function buildCardFlags(card) {
+  if (!card || card.querySelector('.lesson-flags')) return;   // идемпотентно
+  const qid = card.dataset.qid;
+  if (!qid) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'lesson-flags';
+  wrap.dataset.captureHide = '1';   // не попадает в снимок рисовалки
+
+  const row = document.createElement('div');
+  row.className = 'lf-row';
+  LESSON_FLAGS.forEach((f) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'lf-btn';
+    b.dataset.flag = f.code;
+    b.textContent = f.icon;
+    b.title = f.title;
+    b.setAttribute('aria-label', f.title);
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => onLessonFlagClick(card, qid, f.code));
+    row.appendChild(b);
+  });
+  wrap.appendChild(row);
+
+  wrap.appendChild(buildSkillDropdown(qid));
+  card.appendChild(wrap);
+
+  // opened_at = первое взаимодействие с карточкой в режиме занятия (best-effort).
+  card.addEventListener('pointerdown', () => {
+    const st = lessonFlagState(qid);
+    if (!st.openedAt) st.openedAt = nowIso();
+  }, { capture: true, once: true });
+
+  applyCardState(card, qid);
+}
+
+function buildSkillDropdown(qid) {
+  const box = document.createElement('div');
+  box.className = 'lf-skill';
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'lf-skill-btn';
+  btn.textContent = 'Навык';
+  btn.setAttribute('aria-haspopup', 'true');
+  btn.setAttribute('aria-expanded', 'false');
+
+  const menu = document.createElement('div');
+  menu.className = 'lf-skill-menu';
+  menu.hidden = true;
+
+  const dict = LESSON.skillDict || [];
+  if (!dict.length) {
+    const empty = document.createElement('div');
+    empty.className = 'lf-skill-empty';
+    empty.textContent = 'Словарь навыков пуст.';
+    menu.appendChild(empty);
+  } else {
+    let lastTopic = null;
+    dict.forEach((s) => {
+      const code = String(s.code || '');
+      if (!code) return;
+      const topic = String(s.topic || '').trim();
+      if (topic && topic !== lastTopic) {
+        const h = document.createElement('div');
+        h.className = 'lf-skill-group';
+        h.textContent = topic;
+        menu.appendChild(h);
+        lastTopic = topic;
+      }
+      const lab = document.createElement('label');
+      lab.className = 'lf-skill-opt';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = code;
+      cb.addEventListener('change', () => onLessonSkillToggle(qid, code, cb.checked));
+      const txt = document.createElement('span');
+      txt.textContent = String(s.label || code);
+      lab.appendChild(cb);
+      lab.appendChild(txt);
+      menu.appendChild(lab);
+    });
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = menu.hidden;
+    document.querySelectorAll('.lf-skill-menu:not([hidden])').forEach((m) => { if (m !== menu) m.hidden = true; });
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+  });
+
+  box.appendChild(btn);
+  box.appendChild(menu);
+  return box;
+}
+
+// Отрисовать состояние карточки (активный флаг, выбранные навыки, метка кнопки) из flagState.
+function applyCardState(card, qid) {
+  const st = lessonFlagState(qid);
+  card.querySelectorAll('.lf-btn').forEach((b) => {
+    const on = b.dataset.flag === st.flag;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  card.querySelectorAll('.lf-skill-menu input[type="checkbox"]').forEach((cb) => {
+    cb.checked = st.skills.has(cb.value);
+  });
+  const btn = card.querySelector('.lf-skill-btn');
+  if (btn) {
+    const n = st.skills.size;
+    btn.textContent = n ? `Навык: ${n}` : 'Навык';
+    btn.classList.toggle('has', n > 0);
+  }
+}
+
+function onLessonFlagClick(card, qid, code) {
+  const st = lessonFlagState(qid);
+  st.flag = (st.flag === code) ? null : code;   // повторный тап того же флага — снять
+  applyCardState(card, qid);
+  persistLessonItem(qid, true);
+}
+
+function onLessonSkillToggle(qid, code, checked) {
+  const st = lessonFlagState(qid);
+  if (checked) st.skills.add(code); else st.skills.delete(code);
+  const card = lessonCardByQid(qid);
+  if (card) applyCardState(card, qid);
+  persistLessonItem(qid, false);
+}
+
+// Сохранить оценку карточки на сервере (upsert). Оптимистичный UI уже обновлён вызывающим.
+async function persistLessonItem(qid, flagJustSet) {
+  const st = lessonFlagState(qid);
+  if (!LESSON.konspekt) {
+    setLessonStatus(LESSON.studentId
+      ? 'Конспект ещё открывается — оценка сохранится через секунду.'
+      : 'Выберите ученика, чтобы сохранять оценки.', true);
+    if (LESSON.studentId && !LESSON.busy) lessonStart();   // откроет конспект; повторный тап сохранит
+    return;
+  }
+  if (!st.openedAt) st.openedAt = nowIso();
+  if (flagJustSet) st.flaggedAt = nowIso();
+  st.busy = true;
+  try {
+    await Konspekts.lessonItemUpsert(LESSON.konspekt.id, {
+      questionId: qid,
+      flag: st.flag,
+      skillTags: [...st.skills],
+      openedAt: st.openedAt,
+      flaggedAt: st.flaggedAt || null,
+    });
+  } catch (e) {
+    console.warn('lesson flag upsert failed', e);
+    setLessonStatus(lessonErrText(e, 'Не удалось сохранить оценку карточки.'), true);
+  } finally {
+    st.busy = false;
+  }
+}
+
+// Подтянуть уже проставленные флаги/теги текущего занятия и отрисовать их на карточках.
+// Карточки этой подборки, по которым есть запись в конспекте, отрисуются с оценкой; остальные —
+// чистыми (флаги привязаны к konspekt_id, занятие может состоять из разных подборок).
+async function hydrateLessonFlags() {
+  if (!LESSON.active || !LESSON.konspekt) return;
+  let rows = [];
+  try { rows = await Konspekts.lessonItemsForKonspekt(LESSON.konspekt.id); } catch (_) {}
+  const byQid = new Map((rows || []).map((r) => [String(r.question_id), r]));
+  lessonCards().forEach((card) => {
+    const qid = card.dataset.qid;
+    const it = byQid.get(qid);
+    const st = lessonFlagState(qid);
+    st.flag = it ? (it.flag || null) : null;
+    st.skills = new Set(it && Array.isArray(it.skill_tags) ? it.skill_tags : []);
+    st.flaggedAt = it ? it.flagged_at : null;
+    if (it && it.opened_at) st.openedAt = it.opened_at;   // серверный opened_at (первое взаимодействие)
+    applyCardState(card, qid);
+  });
 }
 
 async function lessonStart() {
@@ -1372,6 +1613,7 @@ async function lessonStart() {
     try { localN = await Konspekts.idbSnapshotCount(k.id); } catch (_) {}
     LESSON.count = localN || Number(k.snapshot_count || 0);
     Konspekts.prewarmPdf();   // прогреть jsPDF заранее → «Собрать» будет быстрым
+    await hydrateLessonFlags();   // WLM.2: подтянуть уже проставленные флаги/теги этого занятия
     updateLessonCount();
     setLessonStatus(LESSON.count
       ? `Конспект занятия продолжается: уже ${LESSON.count} карточек. Рисуйте поверх задачи и жмите кнопку копирования ↗.`

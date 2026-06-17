@@ -137,6 +137,78 @@ body[data-home-variant] #runner > .panel{
 .lesson-status.is-err{ color:#dc2626; }
 .lesson-status a{ color:var(--accent, #2563eb); }
 
+/* ═══════ WLM.2: флаги занятия + теги навыков на карточке (только учитель, режим занятия) ═══════ */
+/* Контролы рисуются в list.js только в режиме занятия; data-capture-hide держит их вне снимка
+   рисовалки. Во всю ширину карточки отдельной строкой под grid-сеткой .task-card. */
+.lesson-flags{
+  grid-column:1 / -1;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px 12px;
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px dashed var(--border, #e5e7eb);
+}
+.lf-row{ display:inline-flex; gap:6px; }
+.lf-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:30px;
+  font-size:16px; line-height:1;
+  border:1px solid var(--border, #e5e7eb);
+  border-radius:8px;
+  background:var(--panel, #fff);
+  cursor:pointer;
+  filter:grayscale(.55); opacity:.72;
+  transition:filter .12s ease, opacity .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.lf-btn:hover{ opacity:1; filter:none; }
+.lf-btn.on{
+  opacity:1; filter:none;
+  border-color:var(--accent, #2563eb);
+  background:var(--panel-2, #f1f5f9);
+  box-shadow:0 0 0 2px rgba(37, 99, 235, .28);
+}
+.lf-btn:focus-visible{ outline:2px solid var(--accent, #2563eb); outline-offset:2px; }
+
+.lf-skill{ position:relative; display:inline-flex; }
+.lf-skill-btn{
+  padding:5px 12px; font-size:12.5px;
+  border:1px solid var(--border, #e5e7eb); border-radius:8px;
+  background:var(--panel, #fff); color:var(--text, #111827); cursor:pointer;
+  white-space:nowrap;
+}
+.lf-skill-btn.has{ border-color:var(--accent, #2563eb); color:var(--accent, #2563eb); font-weight:600; }
+.lf-skill-btn:focus-visible{ outline:2px solid var(--accent, #2563eb); outline-offset:2px; }
+.lf-skill-menu{
+  position:absolute; top:calc(100% + 6px); left:0; z-index:50;
+  min-width:248px; max-height:300px; overflow:auto;
+  padding:6px;
+  background:var(--panel, #fff);
+  border:1px solid var(--border, #e5e7eb);
+  border-radius:10px;
+  box-shadow:0 10px 30px rgba(0, 0, 0, .16);
+}
+.lf-skill-menu[hidden]{ display:none; }
+.lf-skill-group{
+  font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--muted-fg, #6b7280);
+  padding:6px 8px 2px;
+}
+.lf-skill-opt{
+  display:flex; align-items:center; gap:8px;
+  padding:5px 8px; border-radius:6px; cursor:pointer; font-size:13px;
+  color:var(--text, #111827);
+}
+.lf-skill-opt:hover{ background:var(--panel-2, #f1f5f9); }
+.lf-skill-opt input{ flex:0 0 auto; }
+.lf-skill-empty{ padding:8px; font-size:12.5px; color:var(--muted-fg, #6b7280); }
+
+/* Флаги — экранный учительский UI: не печатаем (приватная оценка) и не захватываем в снимок.
+   Печать гейтим через body.print-layout-active (не @media print — оно живёт в print.css). */
+body.dro-capturing .lesson-flags{ display:none; }
+body.print-layout-active .lesson-flags{ display:none; }
+
 /* WLM.2: предпросмотр конспекта — модальное окно с «документом» (без сборки PDF). */
 .kons-preview-modal{
   position:fixed; inset:0; z-index:99999;

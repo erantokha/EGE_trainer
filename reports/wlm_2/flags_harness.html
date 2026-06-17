@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-32-220254">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WLM.2 flags — visual harness</title>
+  <!-- Реальные слои CSS (как в tasks/list.html) -->
+  <link rel="stylesheet" href="../../tasks/trainer/tokens.css?v=2026-06-17-32-220254">
+  <link rel="stylesheet" href="../../tasks/trainer/base.css?v=2026-06-17-32-220254">
+  <link rel="stylesheet" href="../../tasks/trainer/pages/list.css?v=2026-06-17-32-220254">
+  <style>
+    body { padding: 24px; max-width: 820px; margin: 0 auto; }
+    .harness-note { font: 13px/1.5 system-ui, sans-serif; color: #6b7280; margin: 0 0 16px; }
+  </style>
+</head>
+<body data-theme="light" class="lesson-active">
+  <p class="harness-note">Визуальный harness WLM.2 — реальные tokens/base/list.css + точная разметка
+    флаг-контролов из list.js (buildCardFlags/buildSkillDropdown). Данные мокнуты (backend Level B).</p>
+  <div id="runner"><div class="task-list"></div></div>
+
+  <script>
+    // Зеркало LESSON_FLAGS и DOM-структуры из tasks/list.js (для визуальной проверки вёрстки).
+    const LESSON_FLAGS = [
+      { code: 'clean', icon: '✅', title: 'Сам, чисто' },
+      { code: 'hint',  icon: '💡', title: 'С подсказкой' },
+      { code: 'arith', icon: '⚠️', title: 'Идея верна, ошибка в счёте' },
+      { code: 'lost',  icon: '❌', title: 'Не понял' },
+    ];
+    // Мок словаря навыков (соответствует seed в lesson_items.sql).
+    const DICT = [
+      { code:'fractions', label:'дроби', topic:'алгебра' },
+      { code:'discriminant', label:'дискриминант', topic:'алгебра' },
+      { code:'roots_radicals', label:'корни и радикалы', topic:'алгебра' },
+      { code:'interval_method', label:'метод интервалов (анализ знаков)', topic:'алгебра' },
+      { code:'odz', label:'ОДЗ', topic:'общее' },
+      { code:'reduction_formulas', label:'формулы приведения', topic:'тригонометрия' },
+      { code:'double_angle', label:'формулы двойного угла', topic:'тригонометрия' },
+      { code:'trig_circle', label:'тригонометрическая окружность / отбор корней', topic:'тригонометрия' },
+      { code:'planimetry_facts', label:'базовая планиметрия (факты)', topic:'планиметрия' },
+    ];
+
+    function buildSkillDropdown(preset) {
+      const box = document.createElement('div'); box.className = 'lf-skill';
+      const btn = document.createElement('button'); btn.type='button'; btn.className='lf-skill-btn'; btn.textContent='Навык';
+      const menu = document.createElement('div'); menu.className='lf-skill-menu'; menu.hidden=true;
+      let lastTopic = null;
+      DICT.forEach((s) => {
+        if (s.topic && s.topic !== lastTopic) { const h=document.createElement('div'); h.className='lf-skill-group'; h.textContent=s.topic; menu.appendChild(h); lastTopic=s.topic; }
+        const lab=document.createElement('label'); lab.className='lf-skill-opt';
+        const cb=document.createElement('input'); cb.type='checkbox'; cb.value=s.code;
+        if (preset && preset.has(s.code)) cb.checked = true;
+        cb.addEventListener('change', () => refreshSkillBtn(box));
+        const txt=document.createElement('span'); txt.textContent=s.label;
+        lab.appendChild(cb); lab.appendChild(txt); menu.appendChild(lab);
+      });
+      btn.addEventListener('click',(e)=>{ e.stopPropagation(); menu.hidden=!menu.hidden; });
+      box.appendChild(btn); box.appendChild(menu);
+      refreshSkillBtn(box);
+      return box;
+    }
+    function refreshSkillBtn(box){
+      const n = box.querySelectorAll('input:checked').length;
+      const btn = box.querySelector('.lf-skill-btn');
+      btn.textContent = n ? `Навык: ${n}` : 'Навык';
+      btn.classList.toggle('has', n>0);
+    }
+    function buildCard(idx, stem, activeFlag, presetSkills){
+      const card=document.createElement('article'); card.className='task-card'; card.dataset.qid='q'+idx;
+      const num=document.createElement('div'); num.className='task-num'; num.textContent=String(idx); card.appendChild(num);
+      const st=document.createElement('div'); st.className='task-stem'; st.textContent=stem; card.appendChild(st);
+      const pal=document.createElement('div'); pal.className='print-ans-line'; pal.textContent='Ответ: ________________________'; card.appendChild(pal);
+      const wrap=document.createElement('div'); wrap.className='lesson-flags'; wrap.dataset.captureHide='1';
+      const row=document.createElement('div'); row.className='lf-row';
+      LESSON_FLAGS.forEach((f)=>{ const b=document.createElement('button'); b.type='button'; b.className='lf-btn'; b.dataset.flag=f.code; b.textContent=f.icon; b.title=f.title;
+        if (f.code===activeFlag) b.classList.add('on');
+        b.addEventListener('click',()=>{ row.querySelectorAll('.lf-btn').forEach(x=>x.classList.toggle('on', x===b && !x.classList.contains('on'))); });
+        row.appendChild(b); });
+      wrap.appendChild(row);
+      wrap.appendChild(buildSkillDropdown(presetSkills));
+      card.appendChild(wrap);
+      return card;
+    }
+    const list=document.querySelector('.task-list');
+    list.appendChild(buildCard(1,'Найдите корень уравнения √(2x+7) = x − 1.', null, null));
+    // Карточка с «персистнутым» состоянием (как после повторного входа): активный флаг + 2 навыка.
+    list.appendChild(buildCard(2,'Решите неравенство методом интервалов: (x−2)(x+3)/(x−1) ≥ 0.', 'arith', new Set(['interval_method','odz'])));
+  </script>
+</body>
+</html>

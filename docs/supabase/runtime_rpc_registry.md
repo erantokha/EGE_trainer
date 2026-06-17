@@ -24,10 +24,14 @@
 
 ## Итог (актуально на 2026-06-17)
 
-- Всего активных runtime-RPC в реестре: `48`
-- `standalone_sql`: `48`
+- Всего активных runtime-RPC в реестре: `51`
+- `standalone_sql`: `51`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
+
+WLM.2 (2026-06-17): добавлены 3 RPC «Флагов занятия» / тегов навыков
+(`docs/supabase/lesson_items.sql`): `lesson_item_upsert_v1`, `lesson_items_for_konspekt_v1`,
+`skill_tags_dim_v1`. Флаги приватны для учителя (нет student-доступа).
 
 WLM.1 (2026-06-17): добавлены 5 RPC «Режима занятия» / конспектов
 (`docs/supabase/konspekts.sql`): `konspekt_start_v1`, `konspekt_add_snapshot_v1`,
@@ -100,6 +104,18 @@ Teacher-picking `v2` rollout отражён в реестре:
 | `konspekt_delete_snapshot_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.2 (2026-06-17). Удаляет снимок черновика по `(konspekt_id, ordinal)` — для удаления карточки из превью конспекта. Гейт: владелец-учитель + consent. `security definer`, `revoke anon` / `grant authenticated`. |
 | `student_konspekts_list_v1` | `-` | `tasks/konspekts.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Опубликованные конспекты авторизованного ученика (`auth.uid()=student_id`, `status='published'`), с `teacher_name` (left join `profiles`) и `snapshot_count`, сортировка по дате занятия. PDF открывается по подписанному URL, который клиент мьютит сам (Storage REST + `storage.objects` RLS). |
 | `teacher_konspekts_for_student_v1` | `-` | `tasks/student.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Конспекты учителя для конкретного ученика под consent (`draft`+`published`), с `snapshot_count`. Питает раздел «Конспекты ученика» в карточке ученика. |
+
+## Lesson items (Lesson flags / skills · WLM.2)
+
+> Owner-зона — `homework-domain` (то же семейство, что конспекты). **Главный инвариант: флаги
+> приватны для учителя.** У `lesson_items` нет student-select RLS-политики и нет student-скоуп RPC.
+> Доступ — только учителю-владельцу контейнера занятия (`konspekts`) под consent (`teacher_students`).
+
+| canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `lesson_item_upsert_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/lesson_items.sql` | `homework-domain` | `standalone_sql` | WLM.2 (2026-06-17). Upsert флага разбора (`clean/hint/arith/lost`) + тегов навыков карточки занятия по `(konspekt_id, question_id)`. Гейт: владелец-учитель контейнера + consent. `opened_at` не перезатирается (первое взаимодействие), `time_ms` = best-effort `flagged_at-opened_at` (null если не определить). `security definer`, `revoke anon` / `grant authenticated`. RETURN = строка `lesson_items`. |
+| `lesson_items_for_konspekt_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/lesson_items.sql` | `homework-domain` | `standalone_sql` | WLM.2 (2026-06-17). Все события карточек данного занятия (для повторного входа: отрисовать проставленные флаги/теги). Гейт: владелец-учитель + consent; ученику недоступно. RETURN = `setof lesson_items`. |
+| `skill_tags_dim_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/lesson_items.sql` | `homework-domain` | `standalone_sql` | WLM.2 (2026-06-17). Управляемый словарь навыков (`is_enabled=true`, сортировка по `sort,label`) для дропдауна тега навыка. Словарь расширяет/правит оператор через SQL (seed — стартовый, требует ревью). RETURN = `setof skill_tags_dim`. |
 
 ## Teacher / Student Management
 

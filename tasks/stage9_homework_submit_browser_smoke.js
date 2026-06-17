@@ -1,11 +1,11 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-31-205307';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-31-205307';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-32-220254';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-32-220254';
 import {
   getHomeworkByToken,
   startHomeworkAttempt,
   submitHomeworkAttempt,
   getHomeworkAttempt,
-} from '../app/providers/homework.js?v=2026-06-17-31-205307';
+} from '../app/providers/homework.js?v=2026-06-17-32-220254';
 
 const BUILD = '2026-04-01-5';
 
