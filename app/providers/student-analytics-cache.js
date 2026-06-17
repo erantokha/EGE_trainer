@@ -1,4 +1,4 @@
-import { readRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-17-26-200917';
+import { readRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-17-27-200954';
 
 const NAMESPACE = 'student_analytics_screen_v1';
 const SESSION_TTL_MS = 2 * 60 * 1000;
