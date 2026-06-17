@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-19-175652';
-import { getSession } from './supabase.js?v=2026-06-17-19-175652';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-19-175652';
+import { CONFIG } from '../config.js?v=2026-06-17-20-181411';
+import { getSession } from './supabase.js?v=2026-06-17-20-181411';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-20-181411';
 
 const BUCKET = 'konspekts';
 
@@ -460,14 +460,15 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     doc.setLineWidth(0.8);
     doc.roundedRect(M, y, contentW, blockH, 7, 7, 'S');
 
-    // номер-бейдж (цифра — helvetica её рисует; глиф «№» в базовом шрифте jsPDF отсутствует)
+    // номер — в стиле нумерации задач (.task-num): обводка + цифра, без заливки.
     const label = String(n);
-    const bw = 16 + label.length * 7;
-    doc.setFillColor(37, 99, 235);
-    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 15, 3, 3, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9.5);
-    doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 10.5, { align: 'center' });
+    const bw = Math.max(24, 16 + label.length * 7);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(1.4);
+    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 16, 4, 4, 'S');
+    doc.setTextColor(31, 41, 55);
+    doc.setFontSize(10.5);
+    doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 11, { align: 'center' });
     doc.setTextColor(0, 0, 0);
 
     // снимок — слева внутри рамки (левовыровнен)
