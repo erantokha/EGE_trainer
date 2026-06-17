@@ -193,7 +193,7 @@ body[data-home-variant] #runner > .panel{
 /* карточка = [номер] [снимок] в ряд (как «num stem» в рисовалке); перетаскивается для reorder */
 .kons-preview-card{
   position:relative;
-  display:flex; gap:12px; align-items:flex-start;
+  display:flex; gap:6px; align-items:flex-start;
   border:1px solid #cbd5e1;
   border-radius:8px;
   padding:10px;
@@ -211,15 +211,15 @@ body[data-home-variant] #runner > .panel{
   font-weight:600; font-size:13px; color:var(--text, #111827);
   min-width:calc(1.5em + 15px);
 }
-/* корзина — поверх правого-верхнего угла, не сдвигает контент */
+/* корзина — как в #addedTasksModal: красная иконка БЕЗ обводки, в правом-верхнем углу */
 .kons-preview-del{
-  position:absolute; top:8px; right:8px;
+  position:absolute; top:6px; right:6px;
   display:inline-flex; align-items:center; justify-content:center;
-  width:30px; height:30px;
-  border:1px solid var(--border, #e5e7eb); border-radius:8px;
-  background:var(--panel, #fff); color:#6b7280; cursor:pointer;
+  width:30px; height:30px; padding:0;
+  border:0; background:transparent; color:#dc2626; cursor:pointer;
 }
-.kons-preview-del:hover{ background:#fef2f2; border-color:#fca5a5; color:#dc2626; }
+.kons-preview-del svg{ width:18px; height:18px; display:block; }
+.kons-preview-del:hover{ color:#b91c1c; }
 .kons-preview-img{
   flex:1 1 auto; min-width:0;
   display:block; width:100%; height:auto;

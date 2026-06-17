@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-27-200954';
-import { getSession } from './supabase.js?v=2026-06-17-27-200954';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-27-200954';
+import { CONFIG } from '../config.js?v=2026-06-17-28-202814';
+import { getSession } from './supabase.js?v=2026-06-17-28-202814';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-28-202814';
 
 const BUCKET = 'konspekts';
 
@@ -256,7 +256,7 @@ export async function trimSnapshot(blob) {
       if (rowHas) { if (top < 0) top = y; bottom = y; }
     }
     if (top < 0) return blob;                           // всё пусто → не режем
-    const PAD = 16;
+    const PAD = 6;   // небольшое поле вокруг контента (чтобы условие в карточке начиналось вплотную к номеру, как в рисовалке)
     const x0 = Math.max(0, left - PAD), y0 = Math.max(0, top - PAD);
     const x1 = Math.min(w - 1, right + PAD), y1 = Math.min(h - 1, bottom + PAD);
     const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
@@ -501,7 +501,7 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
 
   // Карточки (prepared[1..]) — рамка + номер по ПОЗИЦИИ (авто-перенумерация). Раскладка как в
   // рисовалке: чип-номер СЛЕВА, снимок СПРАВА (верх по одной линии). Номер не впечатан в снимок.
-  const CHIP_H = 16, COL_GAP = 10;
+  const CHIP_H = 16, COL_GAP = 6;
   let n = 0;
   for (let k = 1; k < prepared.length; k++) {
     const p = prepared[k];
