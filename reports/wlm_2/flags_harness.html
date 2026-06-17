@@ -2,14 +2,17 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="app-build" content="2026-06-17-36-233421">
+  <meta name="app-build" content="2026-06-17-37-235358">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>WLM.2.1 flags — visual harness</title>
-  <!-- Реальные слои CSS (как в tasks/list.html) + draw_overlay (фокус-бар рисовалки) -->
-  <link rel="stylesheet" href="../../tasks/trainer/tokens.css?v=2026-06-17-36-233421">
-  <link rel="stylesheet" href="../../tasks/trainer/base.css?v=2026-06-17-36-233421">
-  <link rel="stylesheet" href="../../tasks/trainer/pages/list.css?v=2026-06-17-36-233421">
-  <link rel="stylesheet" href="../../app/ui/draw_overlay.css?v=2026-06-17-36-233421">
+  <!-- ТОЧНО как в tasks/list.html: тот же набор и порядок CSS (для верного каскада) -->
+  <link rel="stylesheet" href="../../tasks/trainer/tokens.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../tasks/trainer/base.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../tasks/trainer/pages/list.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../tasks/trainer/pages/home-student.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../tasks/home_student.mobile.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../tasks/trainer/print.css?v=2026-06-17-37-235358">
+  <link rel="stylesheet" href="../../app/ui/draw_overlay.css?v=2026-06-17-37-235358">
   <style>
     body { padding: 24px; max-width: 880px; margin: 0 auto; }
     .hn { font: 13px/1.5 system-ui, sans-serif; color: #6b7280; margin: 0 0 6px; }
@@ -18,12 +21,12 @@
     .dro-focus-bar.harness-show { position: static !important; display: inline-flex !important; }
   </style>
 </head>
-<body data-theme="light" class="lesson-active">
+<body data-theme="light" data-home-variant="student" data-sidebar-pending="1" class="lesson-active">
   <p class="hn">Визуальный harness WLM.2.1 — реальные tokens/base/list/draw_overlay.css + точная разметка из
     list.js (buildFlagRow/buildCardFlags) и card_focus.js. Данные мокнуты.</p>
 
   <div class="sec">1) Карточки: современные иконки + дропдаун навыка (вторая — с активным флагом и 2 навыками)</div>
-  <div id="runner"><div class="task-list"></div></div>
+  <main class="container"><section id="runner"><div class="panel"><div class="run-body"><div class="task-list"></div></div></div></section></main>
 
   <div class="sec">2) Панель рисовалки: масштаб 150% + тот же тулбар флагов справа (data-lf-qid="q2")</div>
   <div class="dro-focus-bar harness-show">

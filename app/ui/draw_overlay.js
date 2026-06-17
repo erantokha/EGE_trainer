@@ -12,7 +12,7 @@
 // снапшоты objects. Картинки грузим как data:-URL (CSP img-src не пускает blob:).
 // Печать: корень = body>div + position:fixed → прячется print.css/print_lifecycle (+ @media print).
 
-import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-17-36-233421';
+import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-17-37-235358';
 
 const COLORS = [
   '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',

@@ -160,6 +160,7 @@ body[data-home-variant] #runner > .panel{
 .lf-btn{
   display:inline-flex; align-items:center; justify-content:center;
   width:34px; height:30px;
+  padding:0;                       /* гасим глобальный button{padding:8px 12px} (иначе svg сжимается флексом) */
   border:1px solid var(--border, #e5e7eb);
   border-radius:8px;
   background:var(--panel, #fff);
@@ -168,7 +169,7 @@ body[data-home-variant] #runner > .panel{
   opacity:.85;
   transition:opacity .12s ease, color .12s ease, border-color .12s ease, box-shadow .12s ease, background .12s ease;
 }
-.lf-btn svg{ width:19px; height:19px; display:block; }
+.lf-btn svg{ width:19px; height:19px; display:block; flex:0 0 auto; }   /* flex:0 0 auto — не сжимать иконку */
 .lf-btn:hover{ opacity:1; color:var(--text, #334155); }
 .lf-btn:focus-visible{ outline:2px solid var(--accent, #2563eb); outline-offset:2px; }
 /* активные состояния — цветовая семантика */
@@ -177,6 +178,18 @@ body[data-home-variant] #runner > .panel{
 .lf-btn.on[data-flag="hint"]{  color:#d97706; border-color:#d97706; background:#fffbeb; box-shadow:0 0 0 2px rgba(217,119,6,.20); }
 .lf-btn.on[data-flag="arith"]{ color:#ea580c; border-color:#ea580c; background:#fff7ed; box-shadow:0 0 0 2px rgba(234,88,12,.20); }
 .lf-btn.on[data-flag="lost"]{  color:#dc2626; border-color:#dc2626; background:#fef2f2; box-shadow:0 0 0 2px rgba(220,38,38,.20); }
+
+/* WLM.2.1-fix: подсказки флагов (data-tip) должны быть видны и ПОВЕРХ соседних карточек.
+   Общий мобильный гейт (home_student.mobile.css) глушит [data-tip]::after/::before
+   (content/display:none !important) на узких/портретных вьюпортах — для коротких флаг-подсказок
+   возвращаем их, но ТОЛЬКО на hover-устройствах (десктоп, в т.ч. узкое окно), чтобы не воскрешать
+   псевдоэлементы на тач-телефонах (там они давали горизонтальный overflow). */
+@media (hover: hover) {
+  body[data-home-variant] .lf-btn[data-tip]::after { content: attr(data-tip) !important; display: block !important; }
+  body[data-home-variant] .lf-btn[data-tip]::before { content: '' !important; display: block !important; }
+}
+/* при наведении поднимаем кнопку над соседними карточками — подсказка не «уезжает» под контейнер */
+.lf-btn[data-tip]:hover { z-index: 10000; }
 
 .lf-skill{ position:relative; display:inline-flex; }
 .lf-skill-btn{
