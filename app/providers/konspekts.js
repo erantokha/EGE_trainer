@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-34-225021';
-import { getSession } from './supabase.js?v=2026-06-17-34-225021';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-34-225021';
+import { CONFIG } from '../config.js?v=2026-06-17-33-225308';
+import { getSession } from './supabase.js?v=2026-06-17-33-225308';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-33-225308';
 
 const BUCKET = 'konspekts';
 
@@ -311,6 +311,13 @@ export async function deleteSnapshot(konspekt, ordinal) {
   } catch (e) {
     console.warn('delete snapshot meta failed (локально уже удалено)', e);
   }
+}
+
+// WLM.2.1 «Очистить конспект»: удалить ЧЕРНОВИК целиком — сервер (каскад убирает снимки + lesson_items)
+// + локальные снимки в IndexedDB. Гейт владелец+consent+draft — на стороне RPC.
+export async function deleteKonspekt(konspektId) {
+  await supaRest.rpc('konspekt_delete_v1', { p_konspekt_id: konspektId });
+  try { await idbClear(konspektId); } catch (_) {}
 }
 
 // Опубликовать конспект: PDF-blob → Storage → konspekt_publish_v1 (+ название). → konspekt-row.

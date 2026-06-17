@@ -79,7 +79,10 @@ export function initCardFocus() {
       + `<button type="button" data-zoom="out" aria-label="Уменьшить">−</button>`
       + `<span class="dro-focus-zoom-val">150%</span>`
       + `<button type="button" data-zoom="in" aria-label="Увеличить">+</button>`
-      + `</span>`;
+      + `</span>`
+      // Нейтральный слот справа от масштаба: страница может вставить свои контролы (напр. флаги
+      // занятия в list.js). Сам card_focus о его содержимом ничего не знает.
+      + `<span class="dro-focus-extra"></span>`;
     document.body.appendChild(chrome);
     chrome.querySelector('[data-zoom="in"]').addEventListener('click', () => setFocusZoom(focusZoom + 0.25));
     chrome.querySelector('[data-zoom="out"]').addEventListener('click', () => setFocusZoom(focusZoom - 0.25));
@@ -123,13 +126,22 @@ export function initCardFocus() {
     const db = document.getElementById('drawBtn');
     if (db && !drawActive()) db.click();         // авто-открыть рисовалку (если ещё не открыта)
     ensureDrawObserver();                         // ✕ рисовалки → выход из фокуса
+    // Нейтральное событие: страница может наполнить слот .dro-focus-extra (см. list.js — флаги).
+    const slot = chrome && chrome.querySelector('.dro-focus-extra');
+    if (slot) slot.innerHTML = '';
+    document.dispatchEvent(new CustomEvent('card-focus-enter', {
+      detail: { card, qid: (card.dataset && card.dataset.qid) || '', bar: chrome, slot },
+    }));
   }
 
   function exitFocus() {
     if (!isFocus()) return;
     document.body.classList.remove('dro-card-focus');
     if (mask) mask.innerHTML = '';
+    const slot = chrome && chrome.querySelector('.dro-focus-extra');
+    if (slot) slot.innerHTML = '';
     setTaskZoom(1);
+    document.dispatchEvent(new CustomEvent('card-focus-exit', {}));
   }
 
   // Кнопка фокуса на каждую карточку задачи (.task-card в trainer/list/hw, .ws-item в unique).

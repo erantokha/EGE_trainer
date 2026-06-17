@@ -352,6 +352,49 @@ begin
 end;
 $function$;
 
+-- 3c) konspekt_delete_v1: удалить ЧЕРНОВИК конспекта целиком («Очистить конспект», WLM.2.1).
+--     Гейт: владелец-учитель + consent + статус draft. Каскад (on delete cascade) убирает
+--     konspekt_snapshots И lesson_items (флаги занятия). Storage-объектов у черновика нет (PDF —
+--     только при публикации; снимки черновика живут в IndexedDB у клиента, чистит клиент).
+--     Опубликованный конспект НЕ трогаем (KONSPEKT_NOT_DRAFT). Идемпотентно (нет строки → no-op).
+drop function if exists public.konspekt_delete_v1(uuid);
+create function public.konspekt_delete_v1(
+  p_konspekt_id uuid
+)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_teacher uuid := auth.uid();
+  v_k       public.konspekts%rowtype;
+begin
+  if v_teacher is null then
+    raise exception 'AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  select * into v_k from public.konspekts where id = p_konspekt_id;
+  if not found then
+    return;   -- уже удалён → идемпотентно
+  end if;
+  if v_k.teacher_id <> v_teacher then
+    raise exception 'NOT_OWNER' using errcode = '42501';
+  end if;
+  if not exists (
+    select 1 from public.teacher_students ts
+    where ts.teacher_id = v_teacher and ts.student_id = v_k.student_id
+  ) then
+    raise exception 'NO_CONSENT' using errcode = '42501';
+  end if;
+  if v_k.status <> 'draft' then
+    raise exception 'KONSPEKT_NOT_DRAFT' using errcode = '42501';
+  end if;
+
+  delete from public.konspekts where id = p_konspekt_id;   -- cascade → snapshots + lesson_items
+end;
+$function$;
+
 -- 4) student_konspekts_list_v1: опубликованные конспекты авторизованного ученика.
 drop function if exists public.student_konspekts_list_v1();
 create function public.student_konspekts_list_v1()
@@ -427,6 +470,7 @@ revoke execute on function public.konspekt_start_v1(uuid)                       
 revoke execute on function public.konspekt_add_snapshot_v1(uuid, text, integer, text) from anon;
 revoke execute on function public.konspekt_publish_v1(uuid, text, text)          from anon;
 revoke execute on function public.konspekt_delete_snapshot_v1(uuid, integer)     from anon;
+revoke execute on function public.konspekt_delete_v1(uuid)                       from anon;
 revoke execute on function public.student_konspekts_list_v1()                    from anon;
 revoke execute on function public.teacher_konspekts_for_student_v1(uuid)         from anon;
 
@@ -434,6 +478,7 @@ grant execute on function public.konspekt_start_v1(uuid)                        
 grant execute on function public.konspekt_add_snapshot_v1(uuid, text, integer, text) to authenticated;
 grant execute on function public.konspekt_publish_v1(uuid, text, text)           to authenticated;
 grant execute on function public.konspekt_delete_snapshot_v1(uuid, integer)      to authenticated;
+grant execute on function public.konspekt_delete_v1(uuid)                        to authenticated;
 grant execute on function public.student_konspekts_list_v1()                     to authenticated;
 grant execute on function public.teacher_konspekts_for_student_v1(uuid)          to authenticated;
 

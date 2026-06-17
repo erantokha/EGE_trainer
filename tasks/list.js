@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-34-225021';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-34-225021';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-33-225308';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-33-225308';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-34-225021';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-33-225308';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-34-225021';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-34-225021';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-34-225021';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-33-225308';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-33-225308';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-33-225308';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-34-225021';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-34-225021';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-34-225021';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-34-225021';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-34-225021';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-34-225021';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-34-225021';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-34-225021';
+import { withBuild } from '../app/build.js?v=2026-06-17-33-225308';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-33-225308';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-33-225308';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-33-225308';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-33-225308';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-33-225308';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-33-225308';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-33-225308';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1281,6 +1281,7 @@ function mountLessonMode() {
       <span id="lessonCount" class="lesson-count">0 в конспекте</span>
       <button id="lessonPreview" type="button" class="btn small lesson-preview-btn" disabled>Предпросмотр</button>
       <button id="lessonCollect" type="button" class="btn small lesson-collect-btn" disabled>Собрать конспект</button>
+      <button id="lessonClear" type="button" class="btn small lesson-clear-btn" disabled>Очистить конспект</button>
       <span id="lessonStatus" class="lesson-status muted" role="status"></span>
     </div>`;
   body.insertBefore(bar, body.firstChild);
@@ -1289,6 +1290,7 @@ function mountLessonMode() {
     if (e.target.checked) lessonEnable(); else lessonDisable();
   });
   bar.querySelector('#lessonCollect').addEventListener('click', () => lessonCollect());
+  bar.querySelector('#lessonClear').addEventListener('click', () => lessonClear());
   bar.querySelector('#lessonPreview').addEventListener('click', () => openLessonPreview());
 
   // WLM.1: снимок из рисовалки (кнопка «копировать в буфер» справа сверху, copyWindow)
@@ -1297,6 +1299,22 @@ function mountLessonMode() {
   document.addEventListener('draw-overlay-capture', (e) => {
     const blob = e && e.detail && e.detail.blob;
     if (blob && LESSON.active) lessonAddCapture(blob);
+  });
+
+  // WLM.2.1: при фокусе карточки для рисования — тот же ряд флагов в панель сверху (справа от
+  // масштаба, слот .dro-focus-extra). Только в Режиме занятия и только для карточки с qid.
+  document.addEventListener('card-focus-enter', (e) => {
+    const slot = e && e.detail && e.detail.slot;
+    const qid = e && e.detail && e.detail.qid;
+    if (!slot) return;
+    slot.innerHTML = '';
+    if (!LESSON.active || !qid) return;
+    const fbar = document.createElement('div');
+    fbar.className = 'lf-bar';
+    fbar.dataset.lfQid = qid;
+    fbar.appendChild(buildFlagRow(qid));
+    slot.appendChild(fbar);
+    applyFlagState(qid);
   });
 
   // WLM.2 sticky: если режим был включён на прошлой подборке этого занятия и ученик в контексте —
@@ -1699,6 +1717,39 @@ function updateLessonCollectBtn() {
   if (b && !LESSON.published) b.disabled = !ready;
   const p = document.getElementById('lessonPreview');
   if (p) p.disabled = !(LESSON.konspekt && LESSON.count > 0);   // смотреть можно даже во время сборки
+  // «Очистить конспект» — доступна, когда есть незавершённый черновик (флаги могут быть и без снимков).
+  const c = document.getElementById('lessonClear');
+  if (c) c.disabled = !(LESSON.konspekt && !LESSON.published && !LESSON.busy);
+}
+
+// «Очистить конспект»: удалить черновик целиком (с подтверждением) + сбросить флаги/состояние.
+async function lessonClear() {
+  if (!LESSON.konspekt || LESSON.busy || LESSON.published) return;
+  if (!confirm('Очистить конспект? Будут удалены все карточки и пометки (флаги/навыки) этого занятия. Действие необратимо.')) return;
+  const id = LESSON.konspekt.id;
+  LESSON.busy = true; updateLessonCollectBtn(); setLessonStatus('Очищаю конспект…');
+  try {
+    await Konspekts.deleteKonspekt(id);
+  } catch (e) {
+    console.warn('clear konspekt failed', e);
+    setLessonStatus(lessonErrText(e, 'Не удалось очистить конспект.'), true);
+    LESSON.busy = false; updateLessonCollectBtn();
+    return;
+  }
+  // черновик удалён → сброс состояния занятия и флагов на карточках
+  LESSON.konspekt = null; LESSON.count = 0; LESSON.published = false;
+  LESSON.flagState.clear();
+  lessonCards().forEach((c) => { if (c.dataset.qid) applyFlagState(c.dataset.qid); });  // снять подсветку
+  updateLessonCount();
+  LESSON.busy = false;
+  // если режим активен и ученик выбран — открываем свежий пустой черновик, чтобы продолжить занятие
+  if (LESSON.active && LESSON.studentId) {
+    await lessonStart();
+    setLessonStatus('Конспект очищен — начат новый.');
+  } else {
+    updateLessonCollectBtn();
+    setLessonStatus('Конспект очищен.');
+  }
 }
 
 function setLessonStatus(text, isErr) {
