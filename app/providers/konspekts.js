@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-4-062114';
-import { getSession } from './supabase.js?v=2026-06-17-4-062114';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-4-062114';
+import { CONFIG } from '../config.js?v=2026-06-17-5-062154';
+import { getSession } from './supabase.js?v=2026-06-17-5-062154';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-5-062154';
 
 const BUCKET = 'konspekts';
 
