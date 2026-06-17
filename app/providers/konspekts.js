@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-29-202854';
-import { getSession } from './supabase.js?v=2026-06-17-29-202854';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-29-202854';
+import { CONFIG } from '../config.js?v=2026-06-17-30-205230';
+import { getSession } from './supabase.js?v=2026-06-17-30-205230';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-30-205230';
 
 const BUCKET = 'konspekts';
 
@@ -501,7 +501,7 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
 
   // Карточки (prepared[1..]) — рамка + номер по ПОЗИЦИИ (авто-перенумерация). Раскладка как в
   // рисовалке: чип-номер СЛЕВА, снимок СПРАВА (верх по одной линии). Номер не впечатан в снимок.
-  const CHIP_H = 16, COL_GAP = 6;
+  const CHIP_H = 16, COL_GAP = 6, IMG_TOP = 3;   // IMG_TOP: снимок чуть ниже верха чипа (1-я строка ≈ цифра)
   let n = 0;
   for (let k = 1; k < prepared.length; k++) {
     const p = prepared[k];
@@ -511,9 +511,9 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     const bw = Math.max(24, 16 + label.length * 7);
     const innerW = contentW - CARD_PAD * 2 - bw - COL_GAP;   // колонка снимка (справа от чипа)
     let iw = innerW, ih = iw * p.ratio;
-    const innerMaxH = maxH - CARD_PAD * 2;
+    const innerMaxH = maxH - CARD_PAD * 2 - IMG_TOP;
     if (ih > innerMaxH) { ih = innerMaxH; iw = ih / p.ratio; }
-    const blockH = CARD_PAD + Math.max(ih, CHIP_H) + CARD_PAD;
+    const blockH = CARD_PAD + Math.max(ih + IMG_TOP, CHIP_H) + CARD_PAD;
     if (y + blockH > pageH - M) { doc.addPage(); y = M; }
 
     doc.setDrawColor(203, 213, 225);
@@ -528,8 +528,8 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 11, { align: 'center' });
     doc.setTextColor(0, 0, 0);
 
-    // снимок справа от чипа, верх по одной линии
-    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD + bw + COL_GAP, y + CARD_PAD, iw, ih);
+    // снимок справа от чипа, первая строка ≈ на уровне цифры (IMG_TOP-сдвиг)
+    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD + bw + COL_GAP, y + CARD_PAD + IMG_TOP, iw, ih);
 
     y += blockH + CARD_GAP;
   }

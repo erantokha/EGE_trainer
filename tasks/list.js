@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-29-202854';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-29-202854';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-30-205230';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-30-205230';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-29-202854';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-30-205230';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-29-202854';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-29-202854';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-29-202854';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-30-205230';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-30-205230';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-30-205230';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-29-202854';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-29-202854';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-29-202854';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-29-202854';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-29-202854';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-29-202854';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-29-202854';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-29-202854';
+import { withBuild } from '../app/build.js?v=2026-06-17-30-205230';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-30-205230';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-30-205230';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-30-205230';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-30-205230';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-30-205230';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-30-205230';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-30-205230';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1572,7 +1572,7 @@ async function openLessonPreview() {
       PREVIEW_URLS.push(url);
       const ord = s.ordinal;
 
-      // карточка = [номер] [снимок] в ряд (как в рисовалке: num слева, условие справа)
+      // карточка = [верхняя служебная полоса] над [ряд: номер + условие] (как в рисовалке)
       const cardEl = document.createElement('div');
       cardEl.className = 'kons-preview-card';
       cardEl.draggable = true;
@@ -1586,18 +1586,9 @@ async function openLessonPreview() {
         openLessonPreview();   // перерисовать → перенумеровать
       });
 
-      const num = document.createElement('div');
-      num.className = 'kons-preview-num';      // стиль .task-num; номер по позиции (авто-перенумерация)
-      num.textContent = String(n);
-      cardEl.appendChild(num);
-
-      const im = document.createElement('img');
-      im.className = 'kons-preview-img';
-      im.src = url;
-      im.alt = '';
-      im.draggable = false;
-      cardEl.appendChild(im);
-
+      // верхняя полоса: служебные действия (корзина; на будущее — место под другие кнопки)
+      const bar = document.createElement('div');
+      bar.className = 'kons-preview-cardbar';
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'kons-preview-del';
@@ -1605,7 +1596,23 @@ async function openLessonPreview() {
       del.setAttribute('aria-label', 'Удалить карточку');
       del.innerHTML = TRASH_ICON_SVG;
       del.addEventListener('click', (e) => { e.stopPropagation(); deletePreviewCard(ord); });
-      cardEl.appendChild(del);
+      bar.appendChild(del);
+      cardEl.appendChild(bar);
+
+      // тело: [номер][условие] — как в карточке рисовалки
+      const body = document.createElement('div');
+      body.className = 'kons-preview-cardbody';
+      const num = document.createElement('div');
+      num.className = 'kons-preview-num';      // стиль .task-num; номер по позиции (авто-перенумерация)
+      num.textContent = String(n);
+      body.appendChild(num);
+      const im = document.createElement('img');
+      im.className = 'kons-preview-img';
+      im.src = url;
+      im.alt = '';
+      im.draggable = false;
+      body.appendChild(im);
+      cardEl.appendChild(body);
 
       page.appendChild(cardEl);
     });

@@ -1,0 +1,40 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-30-205230">
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-17-30-205230">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-17-30-205230">
+<link rel="stylesheet" href="/app/ui/draw_overlay.css?v=2026-06-17-30-205230">
+<link rel="stylesheet" href="/tasks/trainer/pages/list.css?v=2026-06-17-30-205230">
+<style>body{margin:0;padding:20px;display:flex;gap:30px;align-items:flex-start;background:#eef2f7}
+ .col{flex:1} h3{font:13px system-ui;margin:0 0 8px;color:#555}
+ .frame{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:10px}
+ /* baseline-линия для сравнения верха условия */
+ .ref{position:relative}
+</style></head><body>
+  <div class="col">
+    <h3>РИСОВАЛКА (.dro-focus-content)</h3>
+    <div class="frame">
+      <div class="dro-focus-content" style="zoom:1;padding:0;max-width:none">
+        <div class="task-num dro-focus-num">1</div>
+        <div class="dro-focus-body"><div class="task-stem">Задача 1. Степени. 3⁵·3⁻²/3² = 3. Найдите значение выражения.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col">
+    <h3>ПРЕВЬЮ (.kons-preview-cardbody)</h3>
+    <div class="kons-preview-modal" style="position:static;display:block">
+    <div class="kons-preview-page">
+    <div class="kons-preview-card" style="cursor:default">
+      <div class="kons-preview-cardbar"><button class="kons-preview-del"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button></div>
+      <div class="kons-preview-cardbody"><div class="kons-preview-num">1</div><img class="kons-preview-img" id="im"></div>
+    </div></div></div>
+  </div>
+  <script>
+    // имитация снимка: текст у верхнего края (тесная обрезка PAD=6)
+    const c=document.createElement('canvas');c.width=900;c.height=120;const x=c.getContext('2d');
+    x.fillStyle='#fff';x.fillRect(0,0,900,120);
+    x.fillStyle='#111827';x.font='bold 30px system-ui';x.fillText('Задача 1. Степени.',6,28);
+    x.fillStyle='#374151';x.font='24px system-ui';x.fillText('3⁵·3⁻²/3² = 3. Найдите значение выражения.',6,72);
+    document.getElementById('im').src=c.toDataURL('image/png');
+    window.__READY__=true;
+  </script>
+</body></html>
