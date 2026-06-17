@@ -1,13 +1,13 @@
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-22-183443';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-22-183443';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-23-183535';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-23-183535';
 import {
   loadCatalogIndexLike,
   loadCatalogSubtopicUnicsV1,
   lookupQuestionsByIdsV1,
   lookupQuestionsByUnicsV1,
-} from '../app/providers/catalog.js?v=2026-06-17-22-183443';
-import { buildFrozenQuestionsForTopics } from './smart_hw_builder.js?v=2026-06-17-22-183443';
-import { renderFrozenPreviewList } from './question_preview.js?v=2026-06-17-22-183443';
+} from '../app/providers/catalog.js?v=2026-06-17-23-183535';
+import { buildFrozenQuestionsForTopics } from './smart_hw_builder.js?v=2026-06-17-23-183535';
+import { renderFrozenPreviewList } from './question_preview.js?v=2026-06-17-23-183535';
 
 const FALLBACK_WARNINGS = [
   'question_preview: lookupQuestionsByIdsV1 failed, using topic-path fallback',
