@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-10-071836">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net;">
+<title>idb test</title></head><body><div id="s">…</div>
+<script type="module">
+import { idbSnapshotCount, buildKonspektPdfBlob } from '/app/providers/konspekts.js';
+function sampleBlob(text){ const c=document.createElement('canvas');c.width=600;c.height=180;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,600,180);x.fillStyle='#111';x.font='28px system-ui';x.fillText(text,20,90);return new Promise(r=>c.toBlob(r,'image/png')); }
+// пишем 3 записи в ТУ ЖЕ схему, что использует konspekts.js (store snapshots, index konspekt)
+function openDb(){return new Promise((res,rej)=>{const rq=indexedDB.open('ege_konspekts',1);rq.onupgradeneeded=()=>{const db=rq.result;if(!db.objectStoreNames.contains('snapshots')){const os=db.createObjectStore('snapshots',{keyPath:'id'});os.createIndex('konspekt','konspektId',{unique:false});}};rq.onsuccess=()=>res(rq.result);rq.onerror=()=>rej(rq.error);});}
+function put(db,rec){return new Promise((res,rej)=>{const tx=db.transaction('snapshots','readwrite');tx.objectStore('snapshots').put(rec);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+(async()=>{
+  const out={};
+  try{
+    const K='TEST-KONSPEKT-1';
+    const db=await openDb();
+    const b0=await sampleBlob('Карточка 1'), b1=await sampleBlob('Карточка 2'), b2=await sampleBlob('Карточка 3');
+    await put(db,{id:K+':0',konspektId:K,ordinal:0,blob:b0});
+    await put(db,{id:K+':2',konspektId:K,ordinal:2,blob:b2}); // нарочно не по порядку
+    await put(db,{id:K+':1',konspektId:K,ordinal:1,blob:b1});
+    out.count = await idbSnapshotCount(K);            // должно быть 3 (через idbGetAll+index)
+    out.countOther = await idbSnapshotCount('NOPE');  // 0
+    const pdf = await buildKonspektPdfBlob([{blob:b0},{blob:b1},{blob:b2}], {title:'Конспект занятия', studentName:'Тест', dateText:'17 июня 2026'});
+    out.pdfBytes = pdf? pdf.size : 0;
+    out.ok = out.count===3 && out.countOther===0 && out.pdfBytes>1000;
+  }catch(e){ out.error=String(e&&(e.message||e)); out.ok=false; }
+  window.__IDB__=out; document.getElementById('s').textContent=JSON.stringify(out);
+})();
+</script></body></html>

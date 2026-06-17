@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-9-064602';
-import { getSession } from './supabase.js?v=2026-06-17-9-064602';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-9-064602';
+import { CONFIG } from '../config.js?v=2026-06-17-10-071836';
+import { getSession } from './supabase.js?v=2026-06-17-10-071836';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-10-071836';
 
 const BUCKET = 'konspekts';
 
@@ -97,6 +97,69 @@ function pdfPath(k) {
   return `${k.teacher_id}/${k.student_id}/${k.id}/konspekt.pdf`;
 }
 
+// ───────────────────────── IndexedDB: снимки до публикации ─────────────────────────
+// Байты снимков живут локально и origin-persistent (переживают навигацию, перезагрузку и
+// закрытие вкладки) до «Собрать». Зачем: (1) добавление мгновенно — без заливки байтов;
+// (2) сборка быстрая — без скачивания; (3) карточки из РАЗНЫХ подборок одного занятия
+// копятся в один конспект (ключ = konspekt.id), а не теряются в in-memory массиве страницы.
+const IDB_NAME = 'ege_konspekts';
+const IDB_STORE = 'snapshots';
+let __idbPromise = null;
+function idb() {
+  if (__idbPromise) return __idbPromise;
+  __idbPromise = new Promise((res, rej) => {
+    let req;
+    try { req = indexedDB.open(IDB_NAME, 1); } catch (e) { rej(e); return; }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        const os = db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        os.createIndex('konspekt', 'konspektId', { unique: false });
+      }
+    };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+  return __idbPromise;
+}
+async function idbPut(konspektId, ordinal, blob) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put({ id: `${konspektId}:${ordinal}`, konspektId, ordinal, blob });
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbGetAll(konspektId) {
+  const db = await idb();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const cur = tx.objectStore(IDB_STORE).index('konspekt').openCursor(IDBKeyRange.only(konspektId));
+    const out = [];
+    cur.onsuccess = () => {
+      const c = cur.result;
+      if (c) { out.push(c.value); c.continue(); }
+      else { out.sort((a, b) => a.ordinal - b.ordinal); res(out); }
+    };
+    cur.onerror = () => rej(cur.error);
+  });
+}
+async function idbClear(konspektId) {
+  const db = await idb();
+  return new Promise((res) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    const cur = tx.objectStore(IDB_STORE).index('konspekt').openCursor(IDBKeyRange.only(konspektId));
+    cur.onsuccess = () => { const c = cur.result; if (c) { c.delete(); c.continue(); } };
+    tx.oncomplete = () => res();
+    tx.onerror = () => res();
+  });
+}
+// Сколько снимков уже в локальном конспекте (для счётчика «N в конспекте» при возврате/подборке B).
+export async function idbSnapshotCount(konspektId) {
+  try { return (await idbGetAll(konspektId)).length; } catch (_) { return 0; }
+}
+
 // ───────────────────────────── RPC-обёртки ─────────────────────────────
 
 function firstRow(data) {
@@ -113,10 +176,12 @@ export async function konspektStart(studentId) {
   return row;
 }
 
-// Захватить карточку в конспект: blob → Storage → метаданные снимка. → snapshot-row.
-export async function addCardSnapshot(konspekt, { ordinal, questionId, blob }) {
-  const path = snapshotPath(konspekt, ordinal);
-  await uploadObject(path, blob, 'image/png');
+// Добавить снимок в конспект: байты → IndexedDB (мгновенно, локально, durable между подборками),
+// метаданные → сервер (для счётчика + гейта публикации). БАЙТЫ В STORAGE НЕ ЛЬЁМ — это ускоряет
+// добавление и устраняет потерю карточек: collect соберёт PDF из IndexedDB по konspekt.id.
+export async function addSnapshot(konspekt, { ordinal, questionId, blob }) {
+  await idbPut(konspekt.id, ordinal, blob);   // сначала локально → карточка durable сразу
+  const path = snapshotPath(konspekt, ordinal); // логический путь (байты не заливаются)
   const data = await supaRest.rpc('konspekt_add_snapshot_v1', {
     p_konspekt_id: konspekt.id,
     p_storage_path: path,
@@ -135,6 +200,18 @@ export async function publishKonspekt(konspekt, pdfBlob) {
     p_pdf_path: path,
   });
   return firstRow(data);
+}
+
+// Собрать и опубликовать: снимки из IndexedDB (ВСЕ, из всех подборок занятия) → PDF →
+// залить PDF (один upload) → publish → очистить локальные снимки. → konspekt-row.
+export async function collectAndPublish(konspekt, meta) {
+  const snaps = await idbGetAll(konspekt.id);
+  if (!snaps.length) throw makeErr('KONSPEKT_NO_LOCAL_SNAPSHOTS', 0);
+  const images = snaps.map((s) => ({ blob: s.blob }));
+  const pdfBlob = await buildKonspektPdfBlob(images, meta || {});
+  const published = await publishKonspekt(konspekt, pdfBlob);
+  try { await idbClear(konspekt.id); } catch (_) {}
+  return published;
 }
 
 // Список опубликованных конспектов авторизованного ученика. → [{ id, lesson_date, title,
@@ -212,11 +289,20 @@ function renderHeaderDataUrl(meta) {
   return c.toDataURL('image/png');
 }
 
+// jsPDF грузим лениво один раз; prewarmPdf() прогревает кэш заранее (на старте занятия), чтобы
+// «Собрать» не платил за загрузку с CDN.
+let __jspdfPromise = null;
+function loadJsPdf() {
+  if (!__jspdfPromise) __jspdfPromise = import('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm');
+  return __jspdfPromise;
+}
+export function prewarmPdf() { try { loadJsPdf(); } catch (_) {} }
+
 // Собрать PDF-blob из снимков. images = [{ blob } | { dataUrl }] в нужном порядке.
 // meta = { title, studentName, dateText }. Layout: A4-portrait, хедер + по странице(ам)
 // снимки во всю ширину контента, перенос на новую страницу при нехватке высоты.
 export async function buildKonspektPdfBlob(images, meta = {}) {
-  const mod = await import('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm');
+  const mod = await loadJsPdf();
   const JsPDF = mod.jsPDF || (mod.default && (mod.default.jsPDF || mod.default));
   if (typeof JsPDF !== 'function') throw makeErr('JSPDF_LOAD_FAILED', 0);
 
@@ -226,23 +312,26 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
   const M = 36;
   const contentW = pageW - M * 2;
 
-  // Хедер как первый «снимок».
+  // Хедер как первый «снимок»; декодируем все картинки ПАРАЛЛЕЛЬНО (быстрее, чем по очереди).
   const items = [{ dataUrl: renderHeaderDataUrl(meta) }, ...(images || [])];
+  const prepared = await Promise.all(items.map(async (item) => {
+    const dataUrl = item.dataUrl || (item.blob ? await blobToDataUrl(item.blob) : null);
+    if (!dataUrl) return null;
+    const im = await loadImageEl(dataUrl);
+    return { dataUrl, ratio: (im.naturalHeight / im.naturalWidth) || 1 };
+  }));
 
   let y = M;
   let first = true;
-  for (const item of items) {
-    const dataUrl = item.dataUrl || (item.blob ? await blobToDataUrl(item.blob) : null);
-    if (!dataUrl) continue;
-    const im = await loadImageEl(dataUrl);
-    const ratio = (im.naturalHeight / im.naturalWidth) || 1;
+  for (const p of prepared) {
+    if (!p) continue;
     let w = contentW;
-    let h = w * ratio;
+    let h = w * p.ratio;
     const maxH = pageH - M * 2;
-    if (h > maxH) { h = maxH; w = h / ratio; }
+    if (h > maxH) { h = maxH; w = h / p.ratio; }
     if (!first && y + h > pageH - M) { doc.addPage(); y = M; }
     const x = M + (contentW - w) / 2;
-    doc.addImage(dataUrl, 'PNG', x, y, w, h, undefined, 'FAST');
+    doc.addImage(p.dataUrl, 'PNG', x, y, w, h, undefined, 'FAST');
     y += h + 14;
     first = false;
   }

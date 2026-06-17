@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-9-064602';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-9-064602';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-10-071836';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-10-071836';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-9-064602';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-10-071836';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-9-064602';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-9-064602';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-9-064602';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-10-071836';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-10-071836';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-10-071836';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-9-064602';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-9-064602';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-9-064602';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-9-064602';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-9-064602';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-9-064602';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-9-064602';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-9-064602';
+import { withBuild } from '../app/build.js?v=2026-06-17-10-071836';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-10-071836';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-10-071836';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-10-071836';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-10-071836';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-10-071836';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-10-071836';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-10-071836';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1203,7 +1203,7 @@ function asset(p) {
 
 let LESSON_MOUNTED = false;
 const LESSON = {
-  active: false, konspekt: null, count: 0, blobs: [],
+  active: false, konspekt: null, count: 0,
   studentId: '', studentName: '', studentsLoaded: false, busy: false, addBusy: false, published: false,
 };
 
@@ -1333,7 +1333,7 @@ async function ensureLessonStudents() {
   sel.addEventListener('change', () => {
     LESSON.studentId = sel.value;
     LESSON.studentName = map.get(sel.value) || '';
-    LESSON.konspekt = null; LESSON.count = 0; LESSON.blobs = []; LESSON.published = false;
+    LESSON.konspekt = null; LESSON.count = 0; LESSON.published = false;
     updateLessonCount();
     if (LESSON.active && LESSON.studentId) lessonStart();
   });
@@ -1364,8 +1364,11 @@ async function lessonStart() {
     const k = await Konspekts.konspektStart(LESSON.studentId);
     LESSON.konspekt = k;
     LESSON.published = false;
-    LESSON.count = Number(k.snapshot_count || 0);
-    LESSON.blobs = [];
+    // Счётчик = реальные снимки в IndexedDB (их соберём в PDF); сервер-count как запасной.
+    let localN = 0;
+    try { localN = await Konspekts.idbSnapshotCount(k.id); } catch (_) {}
+    LESSON.count = localN || Number(k.snapshot_count || 0);
+    Konspekts.prewarmPdf();   // прогреть jsPDF заранее → «Собрать» будет быстрым
     updateLessonCount();
     setLessonStatus(LESSON.count
       ? `Конспект занятия продолжается: уже ${LESSON.count} карточек. Рисуйте поверх задачи и жмите кнопку копирования ↗.`
@@ -1396,9 +1399,8 @@ async function lessonAddCapture(blob) {
   const ordinal = LESSON.count;
   setLessonStatus('Добавляю снимок в конспект…');
   try {
-    await Konspekts.addCardSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
+    await Konspekts.addSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
     LESSON.count++;
-    LESSON.blobs.push({ ordinal, blob });
     updateLessonCount();
     setLessonStatus(`✓ Добавлено в конспект (${LESSON.count}).`);
   } catch (e) {
@@ -1415,21 +1417,12 @@ async function lessonCollect() {
   LESSON.busy = true; updateLessonCollectBtn();
   setLessonStatus('Собираю PDF…');
   try {
-    let images = LESSON.blobs.slice().sort((a, b) => a.ordinal - b.ordinal).map(x => ({ blob: x.blob }));
-    // После релоада in-memory blob'ы потеряны → тянем снимки из Storage по метаданным.
-    if (!images.length && LESSON.count > 0) {
-      const rows = await Konspekts.listSnapshots(LESSON.konspekt.id);
-      images = [];
-      for (const r of rows) images.push({ blob: await Konspekts.fetchObjectBlob(r.storage_path) });
-    }
-    if (!images.length) { setLessonStatus('Нет добавленных карточек.', true); return; }
-
-    const pdfBlob = await Konspekts.buildKonspektPdfBlob(images, {
+    // Собираем ВСЕ снимки конспекта из IndexedDB (из всех подборок занятия) → PDF → publish.
+    const published = await Konspekts.collectAndPublish(LESSON.konspekt, {
       title: 'Конспект занятия',
       studentName: LESSON.studentName || '',
       dateText: formatLessonDate(LESSON.konspekt.lesson_date),
     });
-    const published = await Konspekts.publishKonspekt(LESSON.konspekt, pdfBlob);
     LESSON.konspekt = published || LESSON.konspekt;
     LESSON.published = true;
     setLessonSticky(false);   // занятие завершено → след. подборка начнёт новый конспект
@@ -1484,6 +1477,7 @@ function lessonErrText(e, fallback) {
   if (/NO_CONSENT/.test(c)) return 'Нет доступа к этому ученику (связь не подтверждена).';
   if (/AUTH_REQUIRED/.test(c)) return 'Войдите снова — сессия истекла.';
   if (/KONSPEKT_NOT_DRAFT/.test(c)) return 'Конспект уже собран. Переключите тумблер заново для нового.';
+  if (/KONSPEKT_NO_LOCAL_SNAPSHOTS/.test(c)) return 'Снимки этого конспекта недоступны на этом устройстве/в этом браузере. Соберите там, где добавляли карточки.';
   if (/STORAGE/.test(c)) return 'Хранилище недоступно (bucket konspekts ещё не создан?).';
   return fallback;
 }
