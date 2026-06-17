@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-21-181451';
-import { getSession } from './supabase.js?v=2026-06-17-21-181451';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-21-181451';
+import { CONFIG } from '../config.js?v=2026-06-17-22-183443';
+import { getSession } from './supabase.js?v=2026-06-17-22-183443';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-22-183443';
 
 const BUCKET = 'konspekts';
 
@@ -430,10 +430,9 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
   const maxH = pageH - M * 2;
   const CARD_PAD = 10;   // внутренний отступ рамки карточки
   const CARD_GAP = 18;   // зазор между карточками
-  const LABEL_H = 18;    // строка номера-бейджа внутри рамки
   let y = M;
 
-  // Хедер (prepared[0]) — без рамки/номера.
+  // Хедер (prepared[0]) — без рамки.
   const hdr = prepared[0];
   if (hdr) {
     let w = contentW, h = w * hdr.ratio;
@@ -442,37 +441,22 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     y += h + CARD_GAP;
   }
 
-  // Карточки (prepared[1..]) — каждая в лёгкой рамке, с номером-бейджем сверху-слева.
-  let n = 0;
+  // Карточки (prepared[1..]) — каждая в лёгкой рамке. Порядковый номер уже впечатан в сам
+  // снимок (рисовалка/фокус), поэтому отдельный бейдж не рисуем.
   for (let k = 1; k < prepared.length; k++) {
     const p = prepared[k];
     if (!p) continue;
-    n++;
     const innerW = contentW - CARD_PAD * 2;
     let iw = innerW, ih = iw * p.ratio;
-    const innerMaxH = maxH - CARD_PAD * 2 - LABEL_H - 6;
+    const innerMaxH = maxH - CARD_PAD * 2;
     if (ih > innerMaxH) { ih = innerMaxH; iw = ih / p.ratio; }
-    const blockH = CARD_PAD + LABEL_H + 6 + ih + CARD_PAD;
+    const blockH = CARD_PAD + ih + CARD_PAD;
     if (y + blockH > pageH - M) { doc.addPage(); y = M; }
 
-    // рамка
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.8);
     doc.roundedRect(M, y, contentW, blockH, 7, 7, 'S');
-
-    // номер — в стиле нумерации задач (.task-num): обводка + цифра, без заливки.
-    const label = String(n);
-    const bw = Math.max(24, 16 + label.length * 7);
-    doc.setDrawColor(203, 213, 225);
-    doc.setLineWidth(1.4);
-    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 16, 4, 4, 'S');
-    doc.setTextColor(31, 41, 55);
-    doc.setFontSize(10.5);
-    doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 11, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-
-    // снимок — слева внутри рамки (левовыровнен)
-    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD + LABEL_H + 6, iw, ih);
+    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD, iw, ih);
 
     y += blockH + CARD_GAP;
   }

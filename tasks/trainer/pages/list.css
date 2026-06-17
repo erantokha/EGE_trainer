@@ -188,15 +188,7 @@ body[data-home-variant] #runner > .panel{
   margin:18px 0;
   background:#fff;
 }
-/* номер карточки — в стиле нумерации задач (.task-num): обводка + число, без заливки */
-.kons-preview-num{
-  display:inline-flex; align-items:center; justify-content:center;
-  padding:3px 8px; border-radius:6px;
-  border:2px solid var(--border, #e5e7eb);
-  font-weight:600; font-size:13px; color:var(--text, #111827);
-  background:var(--panel, #fff);
-  margin-bottom:8px; min-width:calc(1.5em + 15px);
-}
+/* номер карточки впечатан в сам снимок (рисовалка/фокус) — отдельный чип в превью не нужен */
 .kons-preview-img{
   display:block; width:100%; height:auto;
   border-radius:4px;

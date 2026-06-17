@@ -92,15 +92,30 @@ export function initCardFocus() {
     const fig = card.querySelector(':scope > .task-fig, :scope > .ws-fig');
     const wrap = document.createElement('div');
     wrap.className = 'dro-focus-content';
-    if (stem) wrap.appendChild(stem.cloneNode(true));
+
+    // WLM.2: в Режиме занятия — порядковый номер конспекта СЛЕВА от условия (как «num stem» в
+    // карточке листа). Значение кладёт list.js в body.dataset.lessonNextNum; попадает в снимок.
+    const nextNum = document.body.dataset.lessonNextNum;
+    if (nextNum) {
+      const num = document.createElement('div');
+      num.className = 'task-num dro-focus-num';   // стиль .task-num (обводка, без заливки)
+      num.textContent = nextNum;
+      wrap.appendChild(num);
+    }
+
+    const body = document.createElement('div');
+    body.className = 'dro-focus-body';
+    if (stem) body.appendChild(stem.cloneNode(true));
     if (fig) {
       const figClone = fig.cloneNode(true);
       // Размер «больших» фигур (vectors/derivatives) задаёт grid-колонка .ws-item/.task-card.
       // Вне этого контекста клон раздувается на всю ширину → фиксируем исходный рендер-размер.
       const fw = Math.round(fig.getBoundingClientRect().width);
       if (fw) figClone.style.width = fw + 'px';
-      wrap.appendChild(figClone);
+      body.appendChild(figClone);
     }
+    wrap.appendChild(body);
+
     mask.innerHTML = '';
     mask.appendChild(wrap);
     setFocusZoom(FOCUS_START);                  // старт 1.5×

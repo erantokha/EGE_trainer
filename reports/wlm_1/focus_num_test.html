@@ -1,0 +1,33 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-22-183443">
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-17-22-183443">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-17-22-183443">
+<link rel="stylesheet" href="/app/ui/draw_overlay.css?v=2026-06-17-22-183443">
+<title>focus num</title></head><body data-home-variant="teacher">
+<button id="drawBtn" type="button" style="position:fixed;top:0;right:0">draw</button>
+<main class="container"><div class="task-list">
+  <article class="task-card"><div class="task-num">3</div><div class="task-stem">Найдите значение выражения. Условие задачи для проверки фокуса.</div></article>
+</div></main>
+<script type="module">
+  import { initDrawOverlay } from '/app/ui/draw_overlay.js';
+  import { initCardFocus } from '/app/ui/card_focus.js';
+  document.body.dataset.lessonNextNum = '5';   // как будто Режим занятия, следующий №5
+  initDrawOverlay(); initCardFocus();
+  window.__run = async () => {
+    const btn = document.querySelector('.task-card .dro-card-focus-btn');
+    if (!btn) { window.__R__={err:'no focus btn'}; return; }
+    btn.click();
+    await new Promise(r=>setTimeout(r,400));
+    const numEl = document.querySelector('.dro-focus-content .dro-focus-num');
+    const bodyStem = document.querySelector('.dro-focus-content .dro-focus-body .task-stem');
+    const cs = numEl ? getComputedStyle(numEl) : null;
+    window.__R__ = {
+      hasNum: !!numEl, numText: numEl ? numEl.textContent.trim() : null,
+      numHasTaskNumClass: numEl ? numEl.classList.contains('task-num') : false,
+      borderPx: cs ? cs.borderTopWidth : null, bg: cs ? cs.backgroundColor : null,
+      bodyStem: !!bodyStem,
+      // номер ЛЕВЕЕ условия?
+      numLeftOfStem: (numEl && bodyStem) ? (numEl.getBoundingClientRect().left < bodyStem.getBoundingClientRect().left) : false,
+    };
+  };
+</script></body></html>

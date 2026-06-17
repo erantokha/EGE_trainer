@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-21-181451';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-21-181451';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-22-183443';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-22-183443';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-21-181451';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-22-183443';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-21-181451';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-21-181451';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-21-181451';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-22-183443';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-22-183443';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-22-183443';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-21-181451';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-21-181451';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-21-181451';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-21-181451';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-21-181451';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-21-181451';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-21-181451';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-21-181451';
+import { withBuild } from '../app/build.js?v=2026-06-17-22-183443';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-22-183443';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-22-183443';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-22-183443';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-22-183443';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-22-183443';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-22-183443';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-22-183443';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1357,6 +1357,7 @@ function lessonDisable() {
   if (controls) controls.hidden = true;
   LESSON.active = false;
   setLessonSticky(false);  // ручное выключение → не продолжать автоматически
+  try { delete document.body.dataset.lessonNextNum; } catch (_) {}
 }
 
 async function lessonStart() {
@@ -1443,6 +1444,11 @@ async function lessonCollect() {
 function updateLessonCount() {
   const el = document.getElementById('lessonCount');
   if (el) el.textContent = `${LESSON.count} в конспекте`;
+  // WLM.2: «следующий» порядковый номер для рисовалки (card_focus впечатает его на карточку).
+  try {
+    if (LESSON.active && LESSON.konspekt) document.body.dataset.lessonNextNum = String(LESSON.count + 1);
+    else delete document.body.dataset.lessonNextNum;
+  } catch (_) {}
   updateLessonCollectBtn();
 }
 
@@ -1530,18 +1536,13 @@ async function openLessonPreview() {
     e.textContent = 'Пока нет добавленных карточек.';
     page.appendChild(e);
   } else {
-    let n = 0;
     snaps.forEach((s) => {
       if (!s || !s.blob) return;
-      n += 1;
       const url = URL.createObjectURL(s.blob);
       PREVIEW_URLS.push(url);
       const cardEl = document.createElement('div');
       cardEl.className = 'kons-preview-card';
-      const num = document.createElement('div');
-      num.className = 'kons-preview-num';
-      num.textContent = String(n);
-      cardEl.appendChild(num);
+      // номер теперь впечатан в сам снимок (рисовалка) → отдельный чип не рисуем
       const im = document.createElement('img');
       im.className = 'kons-preview-img';
       im.src = url;
