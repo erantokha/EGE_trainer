@@ -4,8 +4,8 @@
 // - falls back to layer-2 catalog tables while RPC is not deployed yet
 // - exposes a legacy-compatible adapter for current stats/student screens
 
-import { supaRest } from './supabase-rest.js?v=2026-06-17-3-051914';
-import { readRuntimeCache, removeRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-17-3-051914';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-4-062114';
+import { readRuntimeCache, removeRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-17-4-062114';
 
 let __treeCache = null;
 let __treePromise = null;

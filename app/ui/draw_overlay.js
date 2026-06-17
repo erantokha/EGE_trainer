@@ -12,7 +12,7 @@
 // снапшоты objects. Картинки грузим как data:-URL (CSP img-src не пускает blob:).
 // Печать: корень = body>div + position:fixed → прячется print.css/print_lifecycle (+ @media print).
 
-import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-17-3-051914';
+import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-17-4-062114';
 
 const COLORS = [
   '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',
@@ -444,6 +444,9 @@ function build(btn) {
       document.body.classList.remove('dro-capturing');
       const blob = await new Promise((res) => out.toBlob(res, 'image/png'));
       if (!blob) throw new Error('empty');
+      // WLM.1: отдать снимок подписчикам (Режим занятия добавит его в конспект). Событие летит
+      // ДО clipboard и независимо от его поддержки — blob уже валиден для конспекта.
+      try { document.dispatchEvent(new CustomEvent('draw-overlay-capture', { detail: { blob, focused: focus } })); } catch (_) {}
       if (!navigator.clipboard || !window.ClipboardItem) throw new Error('clipboard image unsupported');
       await navigator.clipboard.write([new window.ClipboardItem({ 'image/png': blob })]);
       flashCopy('dro-ok');

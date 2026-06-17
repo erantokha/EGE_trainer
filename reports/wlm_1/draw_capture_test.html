@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-06-17-4-062114">
+  <meta http-equiv="Content-Security-Policy" content="
+default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https:;
+script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net;">
+  <title>WLM.1 draw→capture→event test</title>
+  <link rel="stylesheet" href="/app/ui/draw_overlay.css?v=2026-06-17-4-062114">
+  <style> body{font:14px system-ui;margin:0;padding:16px} .task-card{border:1px solid #ccc;border-radius:10px;padding:16px;margin:8px 0} </style>
+</head>
+<body>
+  <button id="drawBtn" type="button">draw</button>
+  <main class="container">
+    <div class="task-list">
+      <article class="task-card"><div class="task-stem">Задача 1. 2+2 = ?</div><div>Ответ: 4</div></article>
+    </div>
+  </main>
+  <div id="status">…</div>
+  <script type="module">
+    import { initDrawOverlay } from '/app/ui/draw_overlay.js';
+    initDrawOverlay();
+    let cap = null, fired = false;
+    document.addEventListener('draw-overlay-capture', (e) => { fired = true; cap = e.detail && e.detail.blob; });
+    window.__run = async () => {
+      document.getElementById('drawBtn').click();          // build + включить рисовалку
+      await new Promise(r => setTimeout(r, 400));
+      const copy = document.querySelector('.dro-copy');
+      if (!copy) { window.__CAP__ = { error: 'no .dro-copy button' }; return; }
+      copy.click();                                        // copyWindow → должен эмитнуть событие
+      for (let i = 0; i < 50 && !cap; i++) await new Promise(r => setTimeout(r, 100));
+      window.__CAP__ = { eventFired: fired, hasBlob: !!cap, bytes: cap ? cap.size : 0 };
+      document.getElementById('status').textContent = JSON.stringify(window.__CAP__);
+    };
+  </script>
+</body>
+</html>

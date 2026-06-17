@@ -5,24 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-3-051914';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-3-051914';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-4-062114';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-4-062114';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-3-051914';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-4-062114';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-3-051914';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-3-051914';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-3-051914';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-4-062114';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-4-062114';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-4-062114';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-3-051914';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-3-051914';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-3-051914';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-3-051914';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-3-051914';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-3-051914';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-3-051914';
-import { captureCardBlob } from '../app/ui/draw_overlay.js?v=2026-06-17-3-051914';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-3-051914';
+import { withBuild } from '../app/build.js?v=2026-06-17-4-062114';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-4-062114';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-4-062114';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-4-062114';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-4-062114';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-4-062114';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-4-062114';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-4-062114';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1106,15 +1105,6 @@ async function renderTaskList(questions, options = {}) {
     pal.textContent = 'Ответ: ________________________';
     card.appendChild(pal);
 
-    // WLM.1: кнопка «В конспект» (видна только в Режиме занятия через body.lesson-active;
-    //   data-capture-hide → не попадает в снимок карточки).
-    const addBtn = document.createElement('button');
-    addBtn.type = 'button';
-    addBtn.className = 'btn small konspekt-add-btn';
-    addBtn.dataset.captureHide = '1';
-    addBtn.textContent = '+ В конспект';
-    card.appendChild(addBtn);
-
     list.appendChild(card);
   });
 
@@ -1214,7 +1204,7 @@ function asset(p) {
 let LESSON_MOUNTED = false;
 const LESSON = {
   active: false, konspekt: null, count: 0, blobs: [],
-  studentId: '', studentName: '', studentsLoaded: false, busy: false, published: false,
+  studentId: '', studentName: '', studentsLoaded: false, busy: false, addBusy: false, published: false,
 };
 
 function readCachedRole() {
@@ -1232,15 +1222,28 @@ function readCachedRole() {
   return '';
 }
 
+// Student-контекст Режима занятия. Приходит из подбора: либо selection (обычная ветка,
+// TEACHER_STUDENT_ID), либо teacher-локальный sessionStorage-ключ lesson_ctx_v1 — его кладёт
+// picker при навигации по session-ссылке, т.к. в сам шарящийся токен teacher_student_id НЕ
+// попадает (приватность). Не утекает в расшаренную ссылку.
+function readLessonCtxStudent() {
+  try {
+    const raw = sessionStorage.getItem('lesson_ctx_v1');
+    if (raw) return String((JSON.parse(raw) || {}).teacher_student_id || '').trim();
+  } catch (_) {}
+  return '';
+}
+
 function mountLessonMode() {
   if (LESSON_MOUNTED) return;
-  // Учитель: роль из кэша ИЛИ пришёл из подбора (только учителю кладут teacher_student_id).
-  const isTeacher = readCachedRole() === 'teacher' || !!TEACHER_STUDENT_ID;
+  const ctxStudent = TEACHER_STUDENT_ID || readLessonCtxStudent();
+  // Учитель: роль из кэша ИЛИ в контексте есть ученик из подбора (тогда это точно учитель).
+  const isTeacher = readCachedRole() === 'teacher' || !!ctxStudent;
   if (!isTeacher) return;
   const body = document.querySelector('#runner .run-body') || document.querySelector('.run-body');
   if (!body) return;
   LESSON_MOUNTED = true;
-  LESSON.studentId = TEACHER_STUDENT_ID || '';
+  LESSON.studentId = ctxStudent || '';
 
   const bar = document.createElement('div');
   bar.className = 'lesson-bar';
@@ -1265,12 +1268,12 @@ function mountLessonMode() {
   });
   bar.querySelector('#lessonCollect').addEventListener('click', () => lessonCollect());
 
-  // Делегирование клика по кнопкам «+ В конспект» на карточках.
-  body.addEventListener('click', (e) => {
-    const btn = e.target.closest('.konspekt-add-btn');
-    if (!btn) return;
-    const card = btn.closest('.task-card');
-    if (card) lessonAddCard(card, btn);
+  // WLM.1: снимок из рисовалки (кнопка «копировать в буфер» справа сверху, copyWindow)
+  //   → в конспект. Рисовалка эмитит 'draw-overlay-capture' с готовым PNG-blob (с пометками).
+  //   Добавляем только когда Режим занятия активен.
+  document.addEventListener('draw-overlay-capture', (e) => {
+    const blob = e && e.detail && e.detail.blob;
+    if (blob && LESSON.active) lessonAddCapture(blob);
   });
 
   ensureLessonStudents();
@@ -1293,28 +1296,29 @@ async function ensureLessonStudents() {
 
   const sel = document.getElementById('lessonStudent');
   const nameEl = document.getElementById('lessonStudentName');
+  if (nameEl) nameEl.textContent = '';
+  if (!sel) return;
 
-  if (LESSON.studentId) {
-    LESSON.studentName = map.get(LESSON.studentId) || 'ученик';
-    if (nameEl) nameEl.textContent = LESSON.studentName;
-    if (sel) sel.hidden = true;
-  } else if (sel) {
-    sel.hidden = false;
-    sel.innerHTML = '<option value="">— выберите ученика —</option>'
-      + rows.map(r => {
-        const sid = String(r.student_id || r.id || '').trim();
-        if (!sid) return '';
-        return `<option value="${esc(sid)}">${esc(map.get(sid) || sid)}</option>`;
-      }).join('');
-    sel.addEventListener('change', () => {
-      LESSON.studentId = sel.value;
-      LESSON.studentName = map.get(sel.value) || '';
-      LESSON.konspekt = null; LESSON.count = 0; LESSON.blobs = []; LESSON.published = false;
-      resetLessonCardButtons();
-      updateLessonCount();
-      if (LESSON.active && LESSON.studentId) lessonStart();
-    });
-  }
+  // Дропдаун показываем всегда; авто-ученика из подбора ПРЕДвыбираем (его можно сменить).
+  sel.innerHTML = '<option value="">— выберите ученика —</option>'
+    + rows.map(r => {
+      const sid = String(r.student_id || r.id || '').trim();
+      if (!sid) return '';
+      const selAttr = sid === LESSON.studentId ? ' selected' : '';
+      return `<option value="${esc(sid)}"${selAttr}>${esc(map.get(sid) || sid)}</option>`;
+    }).join('');
+  sel.hidden = false;
+  // Сверяем состояние с реально выбранным option (если авто-id не в списке учителя — сбросится).
+  LESSON.studentId = sel.value;
+  LESSON.studentName = map.get(LESSON.studentId) || '';
+
+  sel.addEventListener('change', () => {
+    LESSON.studentId = sel.value;
+    LESSON.studentName = map.get(sel.value) || '';
+    LESSON.konspekt = null; LESSON.count = 0; LESSON.blobs = []; LESSON.published = false;
+    updateLessonCount();
+    if (LESSON.active && LESSON.studentId) lessonStart();
+  });
 }
 
 async function lessonEnable() {
@@ -1342,11 +1346,10 @@ async function lessonStart() {
     LESSON.published = false;
     LESSON.count = Number(k.snapshot_count || 0);
     LESSON.blobs = [];
-    resetLessonCardButtons();
     updateLessonCount();
     setLessonStatus(LESSON.count
-      ? `Сегодняшний черновик (${LESSON.count} уже добавлено). Добавляйте карточки.`
-      : 'Конспект начат. Добавляйте карточки.');
+      ? `Сегодняшний черновик (${LESSON.count} уже добавлено). Рисуйте поверх задачи и жмите кнопку копирования ↗ — снимок уйдёт в конспект.`
+      : 'Конспект начат. Откройте рисовалку ✎, при желании сделайте пометки и нажмите кнопку копирования ↗ — снимок уйдёт в конспект.');
   } catch (e) {
     console.warn('konspektStart failed', e);
     LESSON.konspekt = null;
@@ -1356,28 +1359,33 @@ async function lessonStart() {
   }
 }
 
-async function lessonAddCard(card, btn) {
-  if (!LESSON.active) return;
-  if (!LESSON.konspekt) { setLessonStatus('Сначала выберите ученика.', true); return; }
-  if (btn.dataset.busy === '1' || btn.dataset.done === '1') return;
-  const oldText = btn.textContent;
-  btn.dataset.busy = '1'; btn.disabled = true; btn.textContent = 'Снимаю…';
+// Добавить готовый снимок (из рисовалки) в конспект. Снимок уже несёт пометки (copyWindow
+// композитит слой рисунка). Сериализуем через addBusy, чтобы быстрые повторные нажатия не
+// дали гонку по ordinal.
+async function lessonAddCapture(blob) {
+  if (!LESSON.active || !blob) return;
+  if (LESSON.addBusy) return;
+  if (LESSON.published) { setLessonStatus('Конспект уже собран. Переключите тумблер заново для нового.', true); return; }
+  if (!LESSON.konspekt) {
+    setLessonStatus(LESSON.studentId ? 'Конспект ещё открывается — повторите через секунду.'
+      : 'Выберите ученика, чтобы добавлять в конспект.', true);
+    if (LESSON.studentId && !LESSON.busy) lessonStart();
+    return;
+  }
+  LESSON.addBusy = true;
+  const ordinal = LESSON.count;
+  setLessonStatus('Добавляю снимок в конспект…');
   try {
-    const blob = await captureCardBlob(card);
-    if (!blob) throw new Error('empty blob');
-    const ordinal = LESSON.count;
-    await Konspekts.addCardSnapshot(LESSON.konspekt, { ordinal, questionId: card.dataset.qid || null, blob });
+    await Konspekts.addCardSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
     LESSON.count++;
     LESSON.blobs.push({ ordinal, blob });
-    btn.dataset.done = '1'; btn.classList.add('is-added'); btn.textContent = '✓ В конспекте';
     updateLessonCount();
-    setLessonStatus('');
+    setLessonStatus(`✓ Добавлено в конспект (${LESSON.count}).`);
   } catch (e) {
     console.warn('add to konspekt failed', e);
-    btn.textContent = oldText; btn.disabled = false;
-    setLessonStatus(lessonErrText(e, 'Не удалось добавить карточку.'), true);
+    setLessonStatus(lessonErrText(e, 'Не удалось добавить снимок.'), true);
   } finally {
-    btn.dataset.busy = '0';
+    LESSON.addBusy = false;
     updateLessonCollectBtn();
   }
 }
@@ -1414,13 +1422,6 @@ async function lessonCollect() {
   } finally {
     LESSON.busy = false; updateLessonCollectBtn();
   }
-}
-
-function resetLessonCardButtons() {
-  document.querySelectorAll('.konspekt-add-btn').forEach(b => {
-    b.dataset.done = ''; b.dataset.busy = ''; b.disabled = false;
-    b.classList.remove('is-added'); b.textContent = '+ В конспект';
-  });
 }
 
 function updateLessonCount() {

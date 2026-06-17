@@ -136,16 +136,3 @@ body[data-home-variant] #runner > .panel{
 }
 .lesson-status.is-err{ color:#dc2626; }
 .lesson-status a{ color:var(--accent, #2563eb); }
-
-/* Кнопка «+ В конспект» на карточке — видна только в активном Режиме занятия. */
-.konspekt-add-btn{ display:none; }
-body.lesson-active .konspekt-add-btn{
-  display:inline-flex;
-  align-items:center;
-  margin-top:8px;
-}
-.konspekt-add-btn.is-added{
-  color:#15803d;
-  border-color:#86efac;
-  background:#f0fdf4;
-}
