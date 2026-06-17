@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-23-183535';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-23-183535';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-24-192123';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-24-192123';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-23-183535';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-24-192123';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-23-183535';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-23-183535';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-23-183535';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-24-192123';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-24-192123';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-24-192123';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-23-183535';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-23-183535';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-23-183535';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-23-183535';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-23-183535';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-23-183535';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-23-183535';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-23-183535';
+import { withBuild } from '../app/build.js?v=2026-06-17-24-192123';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-24-192123';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-24-192123';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-24-192123';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-24-192123';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-24-192123';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-24-192123';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-24-192123';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1203,7 +1203,7 @@ function asset(p) {
 
 let LESSON_MOUNTED = false;
 const LESSON = {
-  active: false, konspekt: null, count: 0,
+  active: false, konspekt: null, count: 0, title: '',
   studentId: '', studentName: '', studentsLoaded: false, busy: false, addBusy: false, published: false,
 };
 
@@ -1399,10 +1399,9 @@ async function lessonAddCapture(blob) {
     return;
   }
   LESSON.addBusy = true;
-  const ordinal = LESSON.count;
   setLessonStatus('Добавляю снимок в конспект…');
   try {
-    await Konspekts.addSnapshot(LESSON.konspekt, { ordinal, questionId: null, blob });
+    await Konspekts.addSnapshot(LESSON.konspekt, { questionId: null, blob });  // ordinal монотонный внутри
     LESSON.count++;
     updateLessonCount();
     setLessonStatus(`✓ Добавлено в конспект (${LESSON.count}).`);
@@ -1422,7 +1421,7 @@ async function lessonCollect() {
   try {
     // Собираем ВСЕ снимки конспекта из IndexedDB (из всех подборок занятия) → PDF → publish.
     const published = await Konspekts.collectAndPublish(LESSON.konspekt, {
-      title: 'Конспект занятия',
+      title: (LESSON.title || '').trim() || 'Конспект занятия',
       studentName: LESSON.studentName || '',
       dateText: formatLessonDate(LESSON.konspekt.lesson_date),
     });
@@ -1524,7 +1523,13 @@ async function openLessonPreview() {
 
   const head = document.createElement('div');
   head.className = 'kons-preview-dochead';
-  const t = document.createElement('div'); t.className = 'kons-preview-doctitle'; t.textContent = 'Конспект занятия';
+  // редактируемое название (идёт в шапку PDF и в список «Конспекты» ученика)
+  const t = document.createElement('input');
+  t.type = 'text';
+  t.className = 'kons-preview-doctitle kons-preview-title-input';
+  t.placeholder = 'Конспект занятия';
+  t.value = LESSON.title || '';
+  t.addEventListener('input', () => { LESSON.title = t.value; });
   head.appendChild(t);
   const subText = [LESSON.studentName, dateText].filter(Boolean).join('  ·  ');
   if (subText) { const s = document.createElement('div'); s.className = 'kons-preview-docsub'; s.textContent = subText; head.appendChild(s); }
@@ -1536,13 +1541,32 @@ async function openLessonPreview() {
     e.textContent = 'Пока нет добавленных карточек.';
     page.appendChild(e);
   } else {
+    let n = 0;
     snaps.forEach((s) => {
       if (!s || !s.blob) return;
+      n += 1;
       const url = URL.createObjectURL(s.blob);
       PREVIEW_URLS.push(url);
       const cardEl = document.createElement('div');
       cardEl.className = 'kons-preview-card';
-      // номер теперь впечатан в сам снимок (рисовалка) → отдельный чип не рисуем
+
+      const top = document.createElement('div');
+      top.className = 'kons-preview-cardtop';
+      const num = document.createElement('div');
+      num.className = 'kons-preview-num';      // стиль .task-num; номер по позиции (авто-перенумерация)
+      num.textContent = String(n);
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'kons-preview-del';
+      del.title = 'Удалить карточку';
+      del.setAttribute('aria-label', 'Удалить карточку');
+      del.textContent = '✕';
+      const ord = s.ordinal;
+      del.addEventListener('click', () => deletePreviewCard(ord));
+      top.appendChild(num);
+      top.appendChild(del);
+      cardEl.appendChild(top);
+
       const im = document.createElement('img');
       im.className = 'kons-preview-img';
       im.src = url;
@@ -1553,6 +1577,16 @@ async function openLessonPreview() {
   }
   m.querySelector('.kons-preview-doc').scrollTop = 0;
   m.hidden = false;
+}
+
+// Удалить карточку из конспекта (из превью): сервер+IndexedDB → пересчёт → перерисовка превью
+// (номера перенумеровываются по позиции).
+async function deletePreviewCard(ordinal) {
+  if (!LESSON.konspekt) return;
+  try { await Konspekts.deleteSnapshot(LESSON.konspekt, ordinal); } catch (e) { console.warn('delete card failed', e); }
+  try { LESSON.count = await Konspekts.idbSnapshotCount(LESSON.konspekt.id); } catch (_) {}
+  updateLessonCount();
+  openLessonPreview();   // перерисовать (re-index номеров)
 }
 
 function showLessonDone(url) {

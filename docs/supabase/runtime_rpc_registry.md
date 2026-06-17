@@ -24,8 +24,8 @@
 
 ## Итог (актуально на 2026-06-17)
 
-- Всего активных runtime-RPC в реестре: `47`
-- `standalone_sql`: `47`
+- Всего активных runtime-RPC в реестре: `48`
+- `standalone_sql`: `48`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -96,7 +96,8 @@ Teacher-picking `v2` rollout отражён в реестре:
 | --- | --- | --- | --- | --- | --- | --- |
 | `konspekt_start_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Создаёт/возвращает сегодняшний черновик конспекта для (teacher, student) под consent (`teacher_students`). RETURN = строка konspekt + `snapshot_count` (для индикатора «N в конспекте» при возврате на вкладку). Гонку параллельного start ловит partial-unique `uq_konspekts_draft_per_day` + re-select. `security definer`, `search_path=public`, `revoke anon` / `grant authenticated`. |
 | `konspekt_add_snapshot_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Пишет метаданные снимка карточки в черновик. Гейт: владелец-учитель + consent + статус `draft` + `storage_path` обязан лежать под префиксом `{teacher_id}/{student_id}/{konspekt_id}/` (иначе `BAD_STORAGE_PATH`). RETURN = строка `konspekt_snapshots`. |
-| `konspekt_publish_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Помечает конспект `published`, выставляет `pdf_path`/`published_at`. Валидация: владелец + consent + префикс `pdf_path` + непустой конспект (`KONSPEKT_EMPTY`). После публикации становится виден ученику. |
+| `konspekt_publish_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Помечает конспект `published`, выставляет `pdf_path`/`published_at`. Валидация: владелец + consent + префикс `pdf_path` + непустой конспект (`KONSPEKT_EMPTY`). После публикации становится виден ученику. **WLM.2 (2026-06-17):** добавлен `p_title` (3-й арг, default null) — название конспекта (в шапку PDF + в списки student/teacher); сигнатура `(uuid, text, text)`. |
+| `konspekt_delete_snapshot_v1` | `-` | `tasks/list.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.2 (2026-06-17). Удаляет снимок черновика по `(konspekt_id, ordinal)` — для удаления карточки из превью конспекта. Гейт: владелец-учитель + consent. `security definer`, `revoke anon` / `grant authenticated`. |
 | `student_konspekts_list_v1` | `-` | `tasks/konspekts.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Опубликованные конспекты авторизованного ученика (`auth.uid()=student_id`, `status='published'`), с `teacher_name` (left join `profiles`) и `snapshot_count`, сортировка по дате занятия. PDF открывается по подписанному URL, который клиент мьютит сам (Storage REST + `storage.objects` RLS). |
 | `teacher_konspekts_for_student_v1` | `-` | `tasks/student.js` via `app/providers/konspekts.js` | `docs/supabase/konspekts.sql` | `homework-domain` | `standalone_sql` | WLM.1 (2026-06-17). Конспекты учителя для конкретного ученика под consent (`draft`+`published`), с `snapshot_count`. Питает раздел «Конспекты ученика» в карточке ученика. |
 

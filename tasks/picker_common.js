@@ -9,7 +9,7 @@
 //   - механический lift без изменения логики — тела функций перенесены verbatim,
 //     добавлен лишь `export`.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-23-183535';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-24-192123';
 
 /* ───────────── JSON / строки / id ───────────── */
 

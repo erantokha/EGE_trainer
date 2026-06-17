@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-23-183535';
-import { getSession } from './supabase.js?v=2026-06-17-23-183535';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-23-183535';
+import { CONFIG } from '../config.js?v=2026-06-17-24-192123';
+import { getSession } from './supabase.js?v=2026-06-17-24-192123';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-24-192123';
 
 const BUCKET = 'konspekts';
 
@@ -159,9 +159,23 @@ async function idbClear(konspektId) {
 export async function idbSnapshotCount(konspektId) {
   try { return (await idbGetAll(konspektId)).length; } catch (_) { return 0; }
 }
-// Локальные снимки конспекта по порядку (для живого предпросмотра-ленты миниатюр).
+// Локальные снимки конспекта по порядку (для превью; в записях есть ordinal для удаления).
 export async function getLocalSnapshots(konspektId) {
   try { return await idbGetAll(konspektId); } catch (_) { return []; }
+}
+// Следующий МОНОТОННЫЙ ordinal (max+1) — не переиспользуем после удаления (иначе коллизия ключа).
+async function idbNextOrdinal(konspektId) {
+  const all = await idbGetAll(konspektId);
+  return all.length ? Math.max(...all.map((s) => Number(s.ordinal) || 0)) + 1 : 0;
+}
+async function idbDelete(konspektId, ordinal) {
+  const db = await idb();
+  return new Promise((res) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete(`${konspektId}:${ordinal}`);
+    tx.oncomplete = () => res();
+    tx.onerror = () => res();
+  });
 }
 
 // ───────────────────────── Обрезка пустых полей сверху/снизу ─────────────────────────
@@ -251,10 +265,11 @@ export async function konspektStart(studentId) {
 // Добавить снимок в конспект: байты → IndexedDB (мгновенно, локально, durable между подборками),
 // метаданные → сервер (для счётчика + гейта публикации). БАЙТЫ В STORAGE НЕ ЛЬЁМ — это ускоряет
 // добавление и устраняет потерю карточек: collect соберёт PDF из IndexedDB по konspekt.id.
-export async function addSnapshot(konspekt, { ordinal, questionId, blob }) {
-  const trimmed = await trimSnapshot(blob);  // обрезать по содержимому со всех сторон
-  await idbPut(konspekt.id, ordinal, trimmed); // сначала локально → карточка durable сразу
-  const path = snapshotPath(konspekt, ordinal); // логический путь (байты не заливаются)
+export async function addSnapshot(konspekt, { questionId, blob }) {
+  const trimmed = await trimSnapshot(blob);          // обрезать по содержимому со всех сторон
+  const ordinal = await idbNextOrdinal(konspekt.id); // монотонный ключ (безопасно после удалений)
+  await idbPut(konspekt.id, ordinal, trimmed);       // сначала локально → карточка durable сразу
+  const path = snapshotPath(konspekt, ordinal);      // логический путь (байты не заливаются)
   const data = await supaRest.rpc('konspekt_add_snapshot_v1', {
     p_konspekt_id: konspekt.id,
     p_storage_path: path,
@@ -264,25 +279,44 @@ export async function addSnapshot(konspekt, { ordinal, questionId, blob }) {
   return firstRow(data);
 }
 
-// Опубликовать конспект: PDF-blob → Storage → konspekt_publish_v1. → konspekt-row.
-export async function publishKonspekt(konspekt, pdfBlob) {
+// Удалить карточку из конспекта: локально (IndexedDB) + метаданные на сервере.
+export async function deleteSnapshot(konspekt, ordinal) {
+  await idbDelete(konspekt.id, ordinal);
+  try {
+    await supaRest.rpc('konspekt_delete_snapshot_v1', { p_konspekt_id: konspekt.id, p_ordinal: ordinal });
+  } catch (e) {
+    console.warn('delete snapshot meta failed (локально уже удалено)', e);
+  }
+}
+
+// Опубликовать конспект: PDF-blob → Storage → konspekt_publish_v1 (+ название). → konspekt-row.
+// Фолбэк: если на проде ещё старый 2-арг publish (SQL не перезалит) — публикуем без названия.
+export async function publishKonspekt(konspekt, pdfBlob, title) {
   const path = pdfPath(konspekt);
   await uploadObject(path, pdfBlob, 'application/pdf');
-  const data = await supaRest.rpc('konspekt_publish_v1', {
-    p_konspekt_id: konspekt.id,
-    p_pdf_path: path,
-  });
-  return firstRow(data);
+  const t = (title && String(title).trim()) || null;
+  try {
+    const data = await supaRest.rpc('konspekt_publish_v1', { p_konspekt_id: konspekt.id, p_pdf_path: path, p_title: t });
+    return firstRow(data);
+  } catch (e) {
+    const msg = String((e && (e.details && (e.details.message || e.details.code))) || (e && e.message) || '');
+    const missing = (e && e.status === 404) || /PGRST202|could not find|does not exist|p_title/i.test(msg);
+    if (missing) {
+      const data = await supaRest.rpc('konspekt_publish_v1', { p_konspekt_id: konspekt.id, p_pdf_path: path });
+      return firstRow(data);
+    }
+    throw e;
+  }
 }
 
 // Собрать и опубликовать: снимки из IndexedDB (ВСЕ, из всех подборок занятия) → PDF →
-// залить PDF (один upload) → publish → очистить локальные снимки. → konspekt-row.
+// залить PDF (один upload) → publish (+название) → очистить локальные снимки. → konspekt-row.
 export async function collectAndPublish(konspekt, meta) {
   const snaps = await idbGetAll(konspekt.id);
   if (!snaps.length) throw makeErr('KONSPEKT_NO_LOCAL_SNAPSHOTS', 0);
   const images = snaps.map((s) => ({ blob: s.blob }));
   const pdfBlob = await buildKonspektPdfBlob(images, meta || {});
-  const published = await publishKonspekt(konspekt, pdfBlob);
+  const published = await publishKonspekt(konspekt, pdfBlob, meta && meta.title);
   try { await idbClear(konspekt.id); } catch (_) {}
   return published;
 }
@@ -441,22 +475,36 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
     y += h + CARD_GAP;
   }
 
-  // Карточки (prepared[1..]) — каждая в лёгкой рамке. Порядковый номер уже впечатан в сам
-  // снимок (рисовалка/фокус), поэтому отдельный бейдж не рисуем.
+  // Карточки (prepared[1..]) — каждая в лёгкой рамке, с номером по ПОЗИЦИИ (авто-перенумерация
+  // при удалении). Номер рисуем здесь (не впечатан в снимок) — стиль .task-num: обводка + цифра.
+  const LABEL_H = 18;
+  let n = 0;
   for (let k = 1; k < prepared.length; k++) {
     const p = prepared[k];
     if (!p) continue;
+    n++;
     const innerW = contentW - CARD_PAD * 2;
     let iw = innerW, ih = iw * p.ratio;
-    const innerMaxH = maxH - CARD_PAD * 2;
+    const innerMaxH = maxH - CARD_PAD * 2 - LABEL_H - 6;
     if (ih > innerMaxH) { ih = innerMaxH; iw = ih / p.ratio; }
-    const blockH = CARD_PAD + ih + CARD_PAD;
+    const blockH = CARD_PAD + LABEL_H + 6 + ih + CARD_PAD;
     if (y + blockH > pageH - M) { doc.addPage(); y = M; }
 
     doc.setDrawColor(203, 213, 225);
     doc.setLineWidth(0.8);
     doc.roundedRect(M, y, contentW, blockH, 7, 7, 'S');
-    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD, iw, ih);
+
+    // номер-чип (стиль .task-num: обводка, без заливки)
+    const label = String(n);
+    const bw = Math.max(24, 16 + label.length * 7);
+    doc.setLineWidth(1.4);
+    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 16, 4, 4, 'S');
+    doc.setTextColor(31, 41, 55);
+    doc.setFontSize(10.5);
+    doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 11, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+
+    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD + LABEL_H + 6, iw, ih);
 
     y += blockH + CARD_GAP;
   }

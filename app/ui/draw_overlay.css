@@ -87,7 +87,8 @@
 .dro-copy.dro-busy { opacity: .55; cursor: default; }
 /* при захвате прячем UI-хром (но НЕ рисунок: .dro-stage остаётся) */
 body.dro-capturing .dro-bar, body.dro-capturing .dro-copy, body.dro-capturing .dro-pop,
-body.dro-capturing .dro-focus-bar, body.dro-capturing .brush-fab, body.dro-capturing .dro-card-focus-btn { display: none !important; }
+body.dro-capturing .dro-focus-bar, body.dro-capturing .brush-fab, body.dro-capturing .dro-card-focus-btn,
+body.dro-capturing .dro-focus-num { display: none !important; }
 /* dom-to-image serializes the computed overflow box literally. The regular
    MathJax overflow-x:auto therefore becomes a clipped box with both scrollbars
    in the exported PNG. Keep screen scrolling, but flatten formulas for capture. */

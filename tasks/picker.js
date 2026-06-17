@@ -8,26 +8,26 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-17-23-183535';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-17-23-183535';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-17-23-183535';
-import { CONFIG } from '../app/config.js?v=2026-06-17-23-183535';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-23-183535';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-23-183535';
-import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-17-23-183535';
-import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-17-23-183535';
-import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-17-23-183535';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-17-23-183535';
+import { withBuild } from '../app/build.js?v=2026-06-17-24-192123';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-17-24-192123';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-17-24-192123';
+import { CONFIG } from '../app/config.js?v=2026-06-17-24-192123';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-24-192123';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-24-192123';
+import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-17-24-192123';
+import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-17-24-192123';
+import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-17-24-192123';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-17-24-192123';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-17-23-183535';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-23-183535';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-23-183535';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-17-23-183535';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-23-183535';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-17-23-183535';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-17-23-183535';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-17-24-192123';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-24-192123';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-24-192123';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-17-24-192123';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-24-192123';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-17-24-192123';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-17-24-192123';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-17-23-183535';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-17-24-192123';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -35,13 +35,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-17-23-183535';
+} from './picker_common.js?v=2026-06-17-24-192123';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-17-23-183535';
+} from './picker_stats.js?v=2026-06-17-24-192123';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';

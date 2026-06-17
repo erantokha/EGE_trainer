@@ -255,11 +255,13 @@ begin
 end;
 $function$;
 
--- 3) konspekt_publish_v1: пометить published, выставить pdf_path/published_at.
+-- 3) konspekt_publish_v1: пометить published, выставить pdf_path/published_at/title.
 drop function if exists public.konspekt_publish_v1(uuid, text);
+drop function if exists public.konspekt_publish_v1(uuid, text, text);
 create function public.konspekt_publish_v1(
   p_konspekt_id uuid,
-  p_pdf_path text
+  p_pdf_path text,
+  p_title text default null
 )
 returns public.konspekts
 language plpgsql
@@ -302,11 +304,51 @@ begin
   update public.konspekts
      set status = 'published',
          pdf_path = p_pdf_path,
+         title = coalesce(nullif(btrim(p_title), ''), title),
          published_at = now()
    where id = p_konspekt_id
   returning * into v_row;
 
   return v_row;
+end;
+$function$;
+
+-- 3b) konspekt_delete_snapshot_v1: удалить снимок черновика (для удаления карточки из превью).
+--     Гейт: владелец-учитель + consent + статус draft. Удаляет по (konspekt_id, ordinal).
+drop function if exists public.konspekt_delete_snapshot_v1(uuid, integer);
+create function public.konspekt_delete_snapshot_v1(
+  p_konspekt_id uuid,
+  p_ordinal integer
+)
+returns void
+language plpgsql
+volatile
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_teacher uuid := auth.uid();
+  v_k       public.konspekts%rowtype;
+begin
+  if v_teacher is null then
+    raise exception 'AUTH_REQUIRED' using errcode = '42501';
+  end if;
+  select * into v_k from public.konspekts where id = p_konspekt_id;
+  if not found then
+    raise exception 'KONSPEKT_NOT_FOUND' using errcode = 'P0002';
+  end if;
+  if v_k.teacher_id <> v_teacher then
+    raise exception 'NOT_OWNER' using errcode = '42501';
+  end if;
+  if not exists (
+    select 1 from public.teacher_students ts
+    where ts.teacher_id = v_teacher and ts.student_id = v_k.student_id
+  ) then
+    raise exception 'NO_CONSENT' using errcode = '42501';
+  end if;
+
+  delete from public.konspekt_snapshots
+   where konspekt_id = p_konspekt_id and ordinal = p_ordinal;
 end;
 $function$;
 
@@ -383,13 +425,15 @@ $function$;
 -- ───────────────────────────── GRANT / REVOKE ─────────────────────────────
 revoke execute on function public.konspekt_start_v1(uuid)                        from anon;
 revoke execute on function public.konspekt_add_snapshot_v1(uuid, text, integer, text) from anon;
-revoke execute on function public.konspekt_publish_v1(uuid, text)                from anon;
+revoke execute on function public.konspekt_publish_v1(uuid, text, text)          from anon;
+revoke execute on function public.konspekt_delete_snapshot_v1(uuid, integer)     from anon;
 revoke execute on function public.student_konspekts_list_v1()                    from anon;
 revoke execute on function public.teacher_konspekts_for_student_v1(uuid)         from anon;
 
 grant execute on function public.konspekt_start_v1(uuid)                         to authenticated;
 grant execute on function public.konspekt_add_snapshot_v1(uuid, text, integer, text) to authenticated;
-grant execute on function public.konspekt_publish_v1(uuid, text)                 to authenticated;
+grant execute on function public.konspekt_publish_v1(uuid, text, text)           to authenticated;
+grant execute on function public.konspekt_delete_snapshot_v1(uuid, integer)      to authenticated;
 grant execute on function public.student_konspekts_list_v1()                     to authenticated;
 grant execute on function public.teacher_konspekts_for_student_v1(uuid)          to authenticated;
 
