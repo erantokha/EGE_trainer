@@ -12,7 +12,7 @@
  * Точка отсчёта «сейчас» для stale-лестниц — snapshot.meta.generated_at.
  */
 
-import { md5Hex } from './md5.js?v=2026-06-17-5-062154';
+import { md5Hex } from './md5.js?v=2026-06-17-6-063624';
 
 const FILTERS = new Set(['unseen_low', 'stale', 'unstable', 'weak_spots']);
 const SCOPES = new Set(['proto', 'topic', 'section', 'global_all']);

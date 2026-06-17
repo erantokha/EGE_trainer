@@ -5,7 +5,7 @@
 // 1) В HTML: <header id="appHeader" class="page-head">...</header>
 // 2) Вызвать initHeader({ isHome: true/false })
 
-import { navigate } from './nav.js?v=2026-06-17-5-062154';
+import { navigate } from './nav.js?v=2026-06-17-6-063624';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -515,6 +515,9 @@ export async function initHeader(opts = {}) {
   // Если страницу открыли по URL с ?v=..., сразу "чистим" адресную строку.
   stripBuildParamInPlace();
 
+  // WLM.2: пункт «Конспекты» в сайдбаре (после «Мои ДЗ») — на всех страницах из одной точки.
+  ensureKonspektsSidebarItem();
+
   const { right } = ensureHeaderSkeleton(headerEl);
   const ui = mountAuthUI(right);
 
@@ -907,6 +910,40 @@ export async function initHeader(opts = {}) {
   } catch (_) {}
 
   wireSidebarRailExpand();
+}
+
+// WLM.2: вставка пункта «Конспекты» в сайдбар (после «Мои ДЗ») — единая точка для всех страниц,
+// чтобы не дублировать статическую разметку в 10 файлах. Роль-видимость наследуем от соседнего
+// «Мои ДЗ»: если у него есть data-role — ставим student (на дуальных страницах правило CSS
+// прячет student-пункты для учителя); если нет — страница только ученика, показываем всегда.
+// На самой konspekts.html пункт уже в статике (с id htNavKonspekts) → повторно не добавляем.
+function ensureKonspektsSidebarItem() {
+  try {
+    const sidebar = document.getElementById('htSidebar');
+    if (!sidebar) return;
+    const works = sidebar.querySelector('#htNavWorks'); // «Мои ДЗ»
+    if (!works || sidebar.querySelector('#htNavKonspekts')) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'htNavKonspekts';
+    btn.className = 'ht-sidebar-item';
+    if (works.hasAttribute('data-role')) btn.setAttribute('data-role', 'student');
+    btn.setAttribute('data-href', 'tasks/konspekts.html');
+    btn.setAttribute('data-match', 'konspekts');
+    btn.setAttribute('data-railtip', 'Конспекты');
+    btn.innerHTML = '<span class="ht-sidebar-icon" aria-hidden="true">'
+      + '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>'
+      + '</span><span class="ht-sidebar-label">Конспекты</span>';
+    works.after(btn);
+
+    if (/\/tasks\/konspekts\.html$/.test(String(location.pathname || ''))) btn.classList.add('active');
+    // Инлайн-контроллер сайдбара уже отработал (он синхронный, до header.js) → этому пункту
+    // навигацию вешаем здесь сами.
+    btn.addEventListener('click', () => {
+      try { location.href = computeHomeUrl() + 'tasks/konspekts.html'; } catch (_) {}
+    });
+  } catch (_) {}
 }
 
 // Рельс-сайдбар (десктоп): клик по СВОБОДНОМУ месту рельса раскрывает меню тем же путём, что
