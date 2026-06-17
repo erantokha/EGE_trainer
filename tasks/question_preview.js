@@ -2,11 +2,11 @@
 // Превью frozen_questions как мини-карточки (условие + картинка) — аналогично hw_create.
 // Используется в умном ДЗ (страница ученика у учителя).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-33-225308';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-34-230659';
 import {
   loadCatalogTopicPathMap,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-17-33-225308';
+} from '../app/providers/catalog.js?v=2026-06-17-34-230659';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
