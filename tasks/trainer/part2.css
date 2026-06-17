@@ -46,3 +46,28 @@
   margin: 16px 0 6px;
 }
 .uniq-class-head:first-child { margin-top: 0; }
+
+/* W13.2b: самооценка ученика 0/1/2 (после эталона, тренажёр) */
+.part2-selfscore {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px;
+}
+.part2-selfscore-label { font-size: 13px; color: var(--text-dim, #94a3b8); }
+.part2-selfscore-btn {
+  min-width: 36px; height: 32px; padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, .35);
+  border-radius: 8px; background: transparent;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  color: inherit;
+}
+.part2-selfscore-btn:hover { background: rgba(148, 163, 184, .12); }
+.part2-selfscore-btn.is-selected {
+  border-color: rgba(16, 185, 129, .6);
+  background: rgba(16, 185, 129, .16);
+}
+.part2-selfscore-status { font-size: 12px; color: var(--text-dim, #94a3b8); }
+
+/* W13.2c: блок проверки части 2 в обзоре ДЗ (баллы самооценки/учителя + статус) */
+.part2-review { margin-top: 12px; }
+.part2-review-info { font-size: 13px; color: var(--text-dim, #94a3b8); margin-bottom: 6px; }
+.part2-review-status { font-size: 12px; color: var(--text-dim, #94a3b8); margin-top: 4px; }

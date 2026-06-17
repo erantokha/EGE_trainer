@@ -10,7 +10,7 @@
 //
 // Извлечено из tasks/trainer.js (W13.1) без изменения поведения.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-3-015314';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-6-033942';
 
 // Порядок классов = как в аккордеоне = Тип 1/2/3.
 const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];
@@ -165,5 +165,36 @@ export function buildPart2EtalonBlock(solution, answer) {
   });
   box.appendChild(btn);
   box.appendChild(panel);
+  return box;
+}
+
+// ───────── самооценка ученика 0/1/2 (W13.2b) ─────────
+// Контрол после эталона: ученик сравнивает своё решение с эталоном и ставит предварительный балл.
+// Запись делает onSave(score) (его проводит вызывающий экран — провайдер RPC). part2_render остаётся
+// провайдер-независимым. savedScore — уже сохранённая самооценка (подсветить), если известна.
+export function buildPart2SelfScore({ savedScore = null, onSave } = {}) {
+  const box = mkEl('div', 'part2-selfscore');
+  box.appendChild(mkEl('span', 'part2-selfscore-label', 'Ваша самооценка:'));
+  const status = mkEl('span', 'part2-selfscore-status');
+  const btns = [0, 1, 2].map((n) => {
+    const b = mkEl('button', 'part2-selfscore-btn', String(n));
+    b.type = 'button';
+    if (Number(savedScore) === n) b.classList.add('is-selected');
+    b.addEventListener('click', async () => {
+      box.querySelectorAll('.part2-selfscore-btn').forEach((x) => x.classList.remove('is-selected'));
+      b.classList.add('is-selected');
+      status.textContent = 'Сохранение…';
+      try {
+        if (onSave) await onSave(n);
+        status.textContent = 'Сохранено';
+      } catch (e) {
+        status.textContent = 'Не сохранилось';
+        console.error('part2 self-score save failed', e);
+      }
+    });
+    return b;
+  });
+  btns.forEach((b) => box.appendChild(b));
+  box.appendChild(status);
   return box;
 }

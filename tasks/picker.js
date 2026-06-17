@@ -8,27 +8,28 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-18-3-015314';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-18-3-015314';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-18-3-015314';
-import { CONFIG } from '../app/config.js?v=2026-06-18-3-015314';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-3-015314';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-3-015314';
-import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-18-3-015314';
-import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-18-3-015314';
-import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-18-3-015314';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-18-3-015314';
+import { withBuild } from '../app/build.js?v=2026-06-18-6-033942';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-18-6-033942';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-18-6-033942';
+import { CONFIG } from '../app/config.js?v=2026-06-18-6-033942';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-6-033942';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-6-033942';
+import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-18-6-033942';
+import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-18-6-033942';
+import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-18-6-033942';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-18-6-033942';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-18-3-015314';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-3-015314';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-3-015314';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-18-3-015314';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-3-015314';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-18-3-015314';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-18-3-015314';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-18-6-033942';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-6-033942';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-6-033942';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-18-6-033942';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-6-033942';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-18-6-033942';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-18-6-033942';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-18-3-015314';
-import { part2Label, isPart2Id, renderPart2Stem } from './part2_render.js?v=2026-06-18-3-015314';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-18-6-033942';
+import { part2Label, isPart2Id, renderPart2Stem } from './part2_render.js?v=2026-06-18-6-033942';
+import { getMyPart2Scores } from '../app/providers/part2.js?v=2026-06-18-6-033942';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -36,13 +37,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-18-3-015314';
+} from './picker_common.js?v=2026-06-18-6-033942';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
-  _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
+  _syncHtThermoHeight, updateScoreForecast, updateSelfScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-18-3-015314';
+} from './picker_stats.js?v=2026-06-18-6-033942';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -1832,6 +1833,48 @@ function initStudentLast10LiveRefresh() {
 
 
 
+// W13.2b/c: прогнозы части 2. Баллы (self + teacher) читаем один раз (RLS → только свои),
+// держим средний процент от max; перерисовываем при готовности. Только на странице самого
+// ученика (IS_STUDENT_PAGE) — у учителя self-чтение даёт чужой/пустой результат.
+// «Самооценка» прогноз = по self_score (W13.2b); официальный прогноз = по teacher_score (W13.2c,
+// «подтверждённый»). До подтверждения учителем teacher_score нет → официальный = часть 1 (без регресса).
+let _PART2_SELF_PCT = null;
+let _PART2_TEACHER_PCT = null;
+let _PART2_LOADED = false;
+let _LAST_SECTION_PCT = null;
+
+function meanPctFromScores(scores) {
+  const xs = (scores || []).filter((n) => isFinite(n) && n >= 0 && n <= 2);
+  if (!xs.length) return null;
+  return (xs.reduce((a, b) => a + b, 0) / xs.length / 2) * 100; // средний балл в % от max (№13 = 2)
+}
+
+async function ensurePart2Pct() {
+  if (_PART2_LOADED) return;
+  _PART2_LOADED = true;
+  try {
+    const rows = await getMyPart2Scores();
+    _PART2_SELF_PCT = meanPctFromScores((rows || []).map((r) => Number(r && r.self_score)));
+    _PART2_TEACHER_PCT = meanPctFromScores((rows || []).map((r) => Number(r && r.teacher_score)));
+  } catch (_) {
+    _PART2_SELF_PCT = null;
+    _PART2_TEACHER_PCT = null;
+  }
+}
+
+// Перерисовать оба прогноза по последнему известному sectionPctById + текущим part-2 баллам.
+function refreshPart2Forecasts() {
+  if (!_LAST_SECTION_PCT) return;
+  // Официальный («подтверждённый»): часть 1 + teacher_score части 2 (если есть).
+  const officialMap = new Map(_LAST_SECTION_PCT);
+  if (_PART2_TEACHER_PCT !== null && _PART2_TEACHER_PCT !== undefined) {
+    officialMap.set('13', _PART2_TEACHER_PCT);
+  }
+  updateScoreForecast(officialMap, { signedIn: true });
+  // Строка «самооценка»: часть 1 + self_score части 2 (база без №13).
+  updateSelfScoreForecast(_LAST_SECTION_PCT, _PART2_SELF_PCT, { signedIn: true });
+}
+
 function applyDashboardHomeStats(dash) {
   if (!isStudentLikeHome()) return;
   setHomeStatsLoading(false);
@@ -1874,7 +1917,16 @@ function applyDashboardHomeStats(dash) {
     setHomeTopicBadge(badge, st);
   });
 
-  updateScoreForecast(model.sectionPctById, { signedIn: true });
+  // W13.2b/c: на странице самого ученика официальный прогноз = часть 1 + teacher_score части 2
+  // («подтверждённый»), плюс отдельная строка «самооценка» (self_score). На прочих страницах —
+  // официальный прогноз по части 1 как раньше (без части 2).
+  if (IS_STUDENT_PAGE) {
+    _LAST_SECTION_PCT = model.sectionPctById;
+    refreshPart2Forecasts();
+    if (!_PART2_LOADED) ensurePart2Pct().then(refreshPart2Forecasts);
+  } else {
+    updateScoreForecast(model.sectionPctById, { signedIn: true });
+  }
 
   updateSmartHint();
 

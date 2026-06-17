@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-18-6-033942"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>W13.2b — прогноз «самооценка» (preview)</title>
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-18-6-033942">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-18-6-033942">
+<link rel="stylesheet" href="/tasks/trainer/pages/home-student.css?v=2026-06-18-6-033942">
+<style>body{padding:24px;max-width:420px;margin:0 auto}.note{font:13px/1.5 system-ui;color:#64748b;margin:0 0 16px}</style>
+</head><body data-home-variant="student">
+<p class="note">W13.2b — официальный прогноз (часть 1) + видимая строка «самооценка» (часть 1 + self_score части 2). Реальные picker_stats.js + home-student.css. Данные — пример (часть 1 + самооценка №13 = 50% = 1/2).</p>
+<div class="picker-right">
+  <div class="score-forecast" id="scoreForecast">
+    <div class="sf-eyebrow">Прогноз ЕГЭ</div>
+    <div class="sf-bignum"><span class="sf-value sf-secondary" id="sfSecondary">—</span><span class="sf-max">из 100</span></div>
+    <div class="sf-caption">вторичный балл сейчас</div>
+    <div class="sf-gauge" id="sfGauge" style="--sec:0">
+      <div class="sf-track" aria-hidden="true"><div class="sf-goalzone"></div><div class="sf-fill"></div><div class="sf-goalline"></div></div>
+      <div class="sf-marks" aria-hidden="true">
+        <span class="sf-mark sf-mark-edge" style="--at:100">100</span>
+        <span class="sf-mark sf-mark-goal" style="--at:70">цель 70</span>
+        <span class="sf-mark sf-mark-cur" id="sfMarkCur" style="--at:0">вы здесь</span>
+        <span class="sf-mark sf-mark-edge" style="--at:0">0</span>
+      </div>
+    </div>
+    <div class="sf-delta"><div class="sf-delta-label">До цели в 70 баллов</div><div class="sf-delta-val">+<span id="sfDelta">—</span><span class="sf-delta-unit"> балла</span></div></div>
+    <div class="sf-primary-row"><span class="sf-primary-label">Первичные баллы</span><span class="sf-value" id="sfPrimaryExact">—</span></div>
+    <div class="sf-note" id="sfNote" hidden></div>
+    <div class="sf-self-note" id="sfSelfNote" hidden></div>
+  </div>
+</div>
+<script type="module">
+import { updateScoreForecast, updateSelfScoreForecast } from '/tasks/picker_stats.js';
+// пример точностей части 1 (как sectionPctById с home)
+const m = new Map([['1',90],['2',70],['4',100],['6',80],['7',75],['9',60]]);
+// W13.2c: официальный прогноз «подтверждённый» = часть 1 + teacher_score части 2.
+// Пример: учитель подтвердил №13 на 2 из 2 = 100%.
+const official = new Map(m); official.set('13', 100);
+updateScoreForecast(official, { signedIn: true });
+// строка «самооценка» = часть 1 + self_score части 2 (база без №13). Пример: self 1 из 2 = 50%.
+updateSelfScoreForecast(m, 50, { signedIn: true });
+document.body.dataset.ready = '1';
+</script></body></html>

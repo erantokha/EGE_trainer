@@ -22,10 +22,10 @@
 - `snapshot_only` — функция найдена только в schema snapshot / overview, но не вынесена в отдельный SQL-файл.
 - `missing_in_repo` — функция используется рантаймом, но в первом проходе не найдена ни как standalone SQL, ни в snapshot-источнике.
 
-## Итог (актуально на 2026-06-17)
+## Итог (актуально на 2026-06-18)
 
-- Всего активных runtime-RPC в реестре: `52`
-- `standalone_sql`: `52`
+- Всего активных runtime-RPC в реестре: `54`
+- `standalone_sql`: `54`
 - `snapshot_only`: `0`
 - `missing_in_repo`: `0`
 
@@ -87,6 +87,7 @@ Teacher-picking `v2` rollout отражён в реестре:
 | `get_homework_attempt_by_token` | `getHomeworkAttemptByToken`, `get_homework_result_by_token` | `tasks/hw.js`, `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/get_homework_attempt_by_token.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает последнюю attempt-строку для `auth.uid()` и token. |
 | `submit_homework_attempt` | `-` | `tasks/hw.js` via `app/providers/homework.js` | `docs/supabase/submit_homework_attempt.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Делает finish/update только для текущего `auth.uid()` и незавершённой attempt. |
 | `get_homework_attempt_for_teacher` | `-` | `tasks/hw.js` | `docs/supabase/get_homework_attempt_for_teacher.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Teacher-only отчёт по attempt с проверкой owner link и `teacher_students`. |
+| `confirm_part2_teacher_score_v1` | `-` | `tasks/hw.js` via `app/providers/part2.js` | `docs/supabase/part2_teacher_review.sql` | `homework-domain` | `standalone_sql` | W13.2c (2026-06-18). Учитель подтверждает балл части 2 (№13) 0/1/2 в конкретной ДЗ-попытке своего ученика. Гейт (повторяет `get_homework_attempt_for_teacher`): ВЛАДЕНИЕ `homework_links.owner_id=auth.uid()` + СОГЛАСИЕ accepted `teacher_students` + СКОУП на `p_attempt_id`. Пишет `teacher_score`+`status='teacher_confirmed'`+аудит (`teacher_id`/`reviewed_at`) в `part2_attempt_reviews` (upsert по student/question/hw_attempt). `is_teacher()` сознательно НЕ используется (ownership+consent строго сильнее; самоэскалация роли — security-audit-2026-06-10). `security definer`, `revoke anon`/`grant authenticated`. RETURN = строка `part2_attempt_reviews`. |
 | `assign_homework_to_student` | `assignHomeworkToStudent`, `assign_homework` | `tasks/hw_create.js` via `app/providers/homework.js` | `docs/supabase/assign_homework_to_student.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Назначать может только owner homework или admin; `token` сохраняется как часть assignment. WS.1 (2026-05-13): добавлен guard `SESSION_NOT_ASSIGNABLE` (errcode `42501`) для homeworks с `kind='session'`. |
 | `student_my_homeworks_summary` | `studentMyHomeworksSummary`, `my_homeworks_summary` | `tasks/my_homeworks.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_summary.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает summary JSON по assignments, pending и archive counts. |
 | `student_my_homeworks_archive` | `studentMyHomeworksArchive`, `my_homeworks_archive` | `tasks/my_homeworks_archive.js` via `app/providers/homework.js` | `docs/supabase/student_my_homeworks_archive.sql` | `homework-domain` | `standalone_sql` | SQL синхронизирован с live Supabase через `pg_get_functiondef(...)` 2026-03-29. Возвращает paginated archive по assignments текущего `auth.uid()`. |
@@ -152,6 +153,7 @@ Teacher-picking `v2` rollout отражён в реестре:
 | canonical_name | aliases | used_by | source_sql_file | owner | status | notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | `student_analytics_screen_v1` | `-` | `tasks/student.js` (teacher scope), `tasks/stats.js` (self scope), `tasks/picker.js` via `app/providers/supabase-rest.js` | `docs/supabase/student_analytics_screen_v1.sql` | `student-analytics` | `standalone_sql` | Canonical layer-4 screen contract. Supports `p_viewer_scope='teacher'` and `p_viewer_scope='self'`. Replaces `student_dashboard_self_v2`, `student_dashboard_for_teacher_v2`, `subtopic_coverage_for_teacher_v1`. Deployed Stage 3–4, fully live as of Stage 8. WL3.1: проброс `topics[].subtopic_last3_avg_pct` (среднее last-3 точностей прототипов). |
+| `submit_part2_self_score_v1` | `-` | `tasks/trainer.js` via `app/providers/part2.js` | `docs/supabase/part2_attempt_reviews.sql` | `student-analytics` | `standalone_sql` | W13.2b (2026-06-18). Самооценка ученика 0/1/2 за задачу части 2 (№13). Пишет ТОЛЬКО `self_score`+`status='self_scored'` для своей строки `part2_attempt_reviews` (`student_id=auth.uid()`); `teacher_score` ученику недоступен (whitelist колонок в RPC; прямых INSERT/UPDATE RLS-политик нет). Upsert по `(student_id, question_id, coalesce(hw_attempt_id, 0-uuid))`; переоценка не снимает `teacher_confirmed`. `security definer`, `search_path=public`, `revoke anon` / `grant authenticated`. RETURN = строка `part2_attempt_reviews`. Teacher-write (`teacher_score`) — W13.2c. |
 
 ## Teacher Picking / Prioritization
 

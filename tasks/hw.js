@@ -10,21 +10,23 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-3-015314';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-3-015314';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-6-033942';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-6-033942';
 
-import { CONFIG } from '../app/config.js?v=2026-06-18-3-015314';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-3-015314';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-3-015314';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-3-015314';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-3-015314';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-3-015314';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-3-015314';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-3-015314';
+import { CONFIG } from '../app/config.js?v=2026-06-18-6-033942';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-6-033942';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-6-033942';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-6-033942';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-6-033942';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-6-033942';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-6-033942';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-6-033942';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-3-015314';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-3-015314';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-6-033942';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-6-033942';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock } from './part2_render.js?v=2026-06-18-6-033942';
+import { confirmPart2TeacherScore, getPart2ReviewsForAttempt } from '../app/providers/part2.js?v=2026-06-18-6-033942';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1118,6 +1120,7 @@ async function showAttemptSummaryFromRow(row) {
   const restartBtn = $('#restart');
   if (restartBtn) restartBtn.onclick = () => { location.href = HOME_URL; };
 
+  await ensurePart2ReviewsLoaded(); // W13.2c: пред-заполнить баллы части 2 для обзора
   renderReviewCards();
 }
 
@@ -1496,7 +1499,7 @@ function buildQuestion(manifest, type, proto) {
   const stem = interpolate(stemTpl, params);
   const fig = proto.figure || type.figure || null;
   const ans = computeAnswer(type, proto, params);
-  return {
+  const q = {
     topic_id: manifest.topic || '',
     topic_title: manifest.title || '',
     question_id: proto.id,
@@ -1510,6 +1513,14 @@ function buildQuestion(manifest, type, proto) {
     correct: null,
     time_ms: 0,
   };
+  // Часть 2 (№13): несём эталон/метку для показа + учительской проверки (W13.2c).
+  const part = proto.part ?? type.part ?? null;
+  if (Number(part) === 2) {
+    q.part = 2;
+    q.solution = proto.solution || null;
+    q.answer2 = proto.answer || null;
+  }
+  return q;
 }
 
 function computeAnswer(type, proto, params) {
@@ -2064,6 +2075,86 @@ function escHtml(s) {
   }[m]));
 }
 
+// W13.2c: режим учителя (as_teacher=1) → показываем контрол подтверждения балла части 2.
+const IS_TEACHER_VIEW = (() => {
+  try { return new URLSearchParams(location.search).get('as_teacher') === '1'; } catch (_) { return false; }
+})();
+let _PART2_REVIEWS = new Map(); // question_id -> { self_score, teacher_score, status }
+
+// Загрузить ревью части 2 по текущей ДЗ-попытке (для пред-заполнения баллов в обзоре).
+// RLS: ученик видит свои строки, учитель — по своей ДЗ-попытке. Зовётся до renderReviewCards.
+async function ensurePart2ReviewsLoaded() {
+  _PART2_REVIEWS = new Map();
+  const hasP2 = (SESSION?.questions || []).some(isPart2Question);
+  const attemptId = SESSION?.meta?.homeworkAttemptId || null;
+  if (!hasP2 || !attemptId) return;
+  try {
+    const rows = await getPart2ReviewsForAttempt(attemptId);
+    for (const r of (rows || [])) {
+      const qid = String(r?.question_id || '').trim();
+      if (qid) _PART2_REVIEWS.set(qid, r);
+    }
+  } catch (_) { /* мягкая деградация: контролы без пред-заполнения */ }
+}
+
+// Блок проверки части 2: баллы (самооценка/учитель) + контрол подтверждения 0/1/2 (только учитель).
+function buildPart2ReviewControl(q) {
+  const qid = String(q.question_id || q.id || '').trim();
+  const rev = _PART2_REVIEWS.get(qid) || {};
+  const selfScore = rev.self_score;
+  const teacherScore = rev.teacher_score;
+  const fmt = (v) => (v === 0 || v === 1 || v === 2) ? String(v) : '—';
+
+  const box = document.createElement('div');
+  box.className = 'part2-review';
+
+  const info = document.createElement('div');
+  info.className = 'part2-review-info';
+  info.textContent = `Самооценка ученика: ${fmt(selfScore)} · Балл учителя: ${fmt(teacherScore)}`;
+  box.appendChild(info);
+
+  if (IS_TEACHER_VIEW) {
+    const attemptId = SESSION?.meta?.homeworkAttemptId || null;
+    const ctl = document.createElement('div');
+    ctl.className = 'part2-selfscore'; // переиспользуем стиль контрола 0/1/2
+    const label = document.createElement('span');
+    label.className = 'part2-selfscore-label';
+    label.textContent = 'Подтвердить балл:';
+    ctl.appendChild(label);
+    const status = document.createElement('span');
+    status.className = 'part2-selfscore-status';
+    [0, 1, 2].forEach((n) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'part2-selfscore-btn';
+      b.textContent = String(n);
+      if (teacherScore === n) b.classList.add('is-selected');
+      b.addEventListener('click', async () => {
+        if (!attemptId) { status.textContent = 'нет attempt_id'; return; }
+        ctl.querySelectorAll('.part2-selfscore-btn').forEach((x) => x.classList.remove('is-selected'));
+        b.classList.add('is-selected');
+        status.textContent = 'Сохранение…';
+        try {
+          await confirmPart2TeacherScore(attemptId, qid, n);
+          status.textContent = 'Подтверждено';
+        } catch (e) {
+          status.textContent = 'Не сохранилось';
+          console.error('confirm part2 teacher score failed', e);
+        }
+      });
+      ctl.appendChild(b);
+    });
+    ctl.appendChild(status);
+    box.appendChild(ctl);
+  } else {
+    const st = document.createElement('div');
+    st.className = 'part2-review-status';
+    st.textContent = (rev.status === 'teacher_confirmed') ? 'Подтверждено учителем' : 'Ожидает проверки учителем';
+    box.appendChild(st);
+  }
+  return box;
+}
+
 function renderReviewCards() {
   const host = $('#reviewList');
   if (!host) return;
@@ -2075,15 +2166,17 @@ function renderReviewCards() {
     if (onlyWrong && q.correct) return;
     const card = document.createElement('div');
     card.className = 'task-card q-card';
+    const isP2 = isPart2Question(q); // W13.2c: часть 2 = ручная проверка (нет ok/bad)
 
     const num = document.createElement('div');
-    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
+    num.className = 'task-num ' + (isP2 ? '' : (q.correct ? 'ok' : 'bad'));
     num.textContent = String(idx + 1);
     card.appendChild(num);
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    setStem(stem, q.stem);
+    if (isP2) renderPart2Stem(stem, q.stem); // условие а/б без литерального <br>
+    else setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -2108,24 +2201,33 @@ function renderReviewCards() {
       card.appendChild(figWrap);
     }
 
-    const ans = document.createElement('div');
-    ans.className = 'hw-review-answers task-ans';
-    const protoId = String(q.question_id || q.id || '').trim();
-    ans.innerHTML =
-      `<div class="hw-ans-line">` +
-      `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
-      `</div>` +
-      `<div class="hw-ans-line">` +
-      `<span>Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></span>` +
-      `<span class="hw-actions">` +
-      `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
-      `${(String(q.topic_id || '').trim() && protoId)
-        ? `<button type="button" class="analog-btn" data-topic-id="${escHtml(String(q.topic_id || '').trim())}" data-base-proto="${escHtml(protoId)}">Решить аналог</button>`
-        : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`}` +
-      `</span>` +
-      `</div>`;
+    if (isP2) {
+      // Часть 2: эталон для сверки + баллы (самооценка/учитель) + контрол подтверждения (только учитель).
+      const wrap = document.createElement('div');
+      wrap.className = 'task-ans';
+      wrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      wrap.appendChild(buildPart2ReviewControl(q));
+      card.appendChild(wrap);
+    } else {
+      const ans = document.createElement('div');
+      ans.className = 'hw-review-answers task-ans';
+      const protoId = String(q.question_id || q.id || '').trim();
+      ans.innerHTML =
+        `<div class="hw-ans-line">` +
+        `<span>Ваш ответ: <span class="muted">${escHtml(q.chosen_text || '')}</span></span>` +
+        `</div>` +
+        `<div class="hw-ans-line">` +
+        `<span>Правильный ответ: <span class="muted">${escHtml(q.correct_text || '')}</span></span>` +
+        `<span class="hw-actions">` +
+        `<span class="video-solution-slot" data-video-proto="${escHtml(protoId)}"></span>` +
+        `${(String(q.topic_id || '').trim() && protoId)
+          ? `<button type="button" class="analog-btn" data-topic-id="${escHtml(String(q.topic_id || '').trim())}" data-base-proto="${escHtml(protoId)}">Решить аналог</button>`
+          : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`}` +
+        `</span>` +
+        `</div>`;
 
-    card.appendChild(ans);
+      card.appendChild(ans);
+    }
 
     host.appendChild(card);
   });

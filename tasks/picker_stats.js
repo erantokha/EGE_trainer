@@ -15,7 +15,7 @@
 
 import {
   pct, badgeClassByPct, fmtPct, fmtDateTimeRu, BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-18-3-015314';
+} from './picker_common.js?v=2026-06-18-6-033942';
 
 /* ───────────── заголовки узлов (base-title + сброс рекомендации) ───────────── */
 
@@ -117,7 +117,10 @@ export function setHomeCoverageBadge(badgeEl, usedTopics, totalTopics) {
 
 /* ───────────── прогноз баллов + термометр ───────────── */
 
-// Таблица перевода первичных -> вторичных (первая часть, 12 заданий по 1 баллу)
+// Официальная таблица перевода первичных -> вторичных (ФИПИ, профильная математика).
+// Строки 0-12 (часть 1, 12 заданий по 1 баллу) — как было. Строки 13-32 добавлены в W13.2a
+// по мере включения части 2 (№13 = +2 первичных и т.д.); плато на вершине 30/31/32 → 100.
+// Источник — `docs/navigation/part2_integration_contract.md` §«Зафиксированные решения оператора».
 const SECONDARY_BY_PRIMARY = Object.freeze({
   0: 0,
   1: 6,
@@ -132,10 +135,33 @@ const SECONDARY_BY_PRIMARY = Object.freeze({
   10: 58,
   11: 64,
   12: 70,
+  13: 72,
+  14: 74,
+  15: 76,
+  16: 78,
+  17: 80,
+  18: 82,
+  19: 84,
+  20: 86,
+  21: 88,
+  22: 90,
+  23: 92,
+  24: 94,
+  25: 95,
+  26: 96,
+  27: 97,
+  28: 98,
+  29: 99,
+  30: 100,
+  31: 100,
+  32: 100,
 });
 
+// Максимум первичных в шкале (верхняя граница клампов вместо прежней 12).
+const MAX_PRIMARY_TOTAL = 32;
+
 export function secondaryFromPrimary(primaryRounded) {
-  const p = Math.max(0, Math.min(12, Number(primaryRounded || 0) || 0));
+  const p = Math.max(0, Math.min(MAX_PRIMARY_TOTAL, Number(primaryRounded || 0) || 0));
   const k = Math.round(p);
   return (k in SECONDARY_BY_PRIMARY) ? SECONDARY_BY_PRIMARY[k] : 0;
 }
@@ -145,7 +171,7 @@ export function secondaryFromPrimary(primaryRounded) {
 // дробному первичному, поэтому любое улучшение точности двигает балл, без полок
 // и без резких скачков на границе округления. Якоря (8→46, 9→52, …) не меняются.
 export function secondaryFromPrimaryExact(primaryExact) {
-  const p = Math.max(0, Math.min(12, Number(primaryExact || 0) || 0));
+  const p = Math.max(0, Math.min(MAX_PRIMARY_TOTAL, Number(primaryExact || 0) || 0));
   const lo = Math.floor(p);
   const hi = Math.ceil(p);
   const sLo = SECONDARY_BY_PRIMARY[lo] || 0;
@@ -195,7 +221,10 @@ export function _syncHtThermoHeight() {
 export function thermoColorByPrimary(primaryRounded) {
   const v = Number(primaryRounded || 0);
   if (!isFinite(v)) return 'gray';
-  const p = Math.max(0, Math.min(12, Math.round(v)));
+  const p = Math.max(0, Math.min(MAX_PRIMARY_TOTAL, Math.round(v)));
+  // Пороги по первичным сохранены для части 1 (p≤12): ≤4 red, ≤7 yellow, ≤10 lime, иначе green.
+  // Для p>12 (часть 2) — green; точная перекалибровка цветовых полос — в W13.2b/c, когда
+  // балл части 2 реально заливает термометр.
   if (p <= 4) return 'red';
   if (p <= 7) return 'yellow';
   if (p <= 10) return 'lime';
@@ -280,15 +309,7 @@ export function updateScoreForecast(sectionPctById, opts = {}) {
     return;
   }
 
-  let sum = 0;
-  for (let i = 1; i <= 12; i++) {
-    const key = String(i);
-    const p = sectionPctById && (sectionPctById.get ? sectionPctById.get(key) : sectionPctById[key]);
-    const v = (p === null || p === undefined) ? 0 : Number(p);
-    if (isFinite(v) && v > 0) sum += (v / 100);
-  }
-
-  const primaryExact = sum;
+  const primaryExact = forecastPrimaryFromSections(sectionPctById);
   const secondary = secondaryFromPrimaryExact(primaryExact);
   const secClamped = Math.max(0, Math.min(100, secondary));
   const toGoal = Math.max(0, Math.round(GOAL - secondary));
@@ -307,6 +328,40 @@ export function updateScoreForecast(sectionPctById, opts = {}) {
   }
 
   updateScoreThermo(primaryExact, secondary, { signedIn: true });
+}
+
+// Ожидаемые первичные по точностям секций (часть 1 = 1 балл/задание; №13 = 2).
+// Каждая секция при 100% точности даёт свой max первичных. Часть 2 в official-прогнозе
+// даёт вклад 0 (точности по части 2 нет); «самооценка» учитывается отдельно (см. ниже).
+export function forecastPrimaryFromSections(sectionPctById) {
+  const maxPrimaryForSection = (id) => (String(id) === '13' ? 2 : 1);
+  const ids = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'];
+  let sum = 0;
+  for (const key of ids) {
+    const p = sectionPctById && (sectionPctById.get ? sectionPctById.get(key) : sectionPctById[key]);
+    const v = (p === null || p === undefined) ? 0 : Number(p);
+    if (isFinite(v) && v > 0) sum += (v / 100) * maxPrimaryForSection(key);
+  }
+  return sum;
+}
+
+// W13.2b: прогноз «самооценка» — официальная база (часть 1) + вклад части 2 по САМООЦЕНКЕ ученика
+// (№13, max 2 первичных). Пишет отдельную строку #sfSelfNote; официальный прогноз/градусник НЕ трогает.
+// part2SelfPct — средний self_score части 2 в процентах от max (0..100), либо null (нет самооценки → скрыто).
+export function updateSelfScoreForecast(sectionPctById, part2SelfPct, opts = {}) {
+  const el = document.getElementById('sfSelfNote');
+  if (!el) return;
+  const signedIn = opts?.signedIn !== false;
+  const pct = Number(part2SelfPct);
+  const hasSelf = signedIn && part2SelfPct !== null && part2SelfPct !== undefined && isFinite(pct);
+  if (!hasSelf) { el.hidden = true; el.textContent = ''; return; }
+
+  const base = forecastPrimaryFromSections(sectionPctById);          // часть 1 (часть 2 в official = 0)
+  const self13 = (Math.max(0, Math.min(100, pct)) / 100) * 2;        // вклад №13 (max 2 первичных)
+  const primarySelf = base + self13;
+  const secondarySelf = secondaryFromPrimaryExact(primarySelf);
+  el.hidden = false;
+  el.textContent = `С учётом самооценки части 2: ${fmtPrimaryExact(primarySelf)} перв. → ${fmtSecondaryExact(secondarySelf)} втор.`;
 }
 
 /* ───────────── recommendation-хелперы (teacher) ───────────── */

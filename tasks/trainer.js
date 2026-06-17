@@ -1,30 +1,31 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-3-015314';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-3-015314';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-6-033942';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-6-033942';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-3-015314';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-3-015314';
+} from '../app/providers/catalog.js?v=2026-06-18-6-033942';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-6-033942';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-3-015314';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-6-033942';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-3-015314';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-3-015314';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-3-015314';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-6-033942';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-6-033942';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-6-033942';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-3-015314';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-3-015314';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-3-015314';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, typesetEl } from './part2_render.js?v=2026-06-18-3-015314';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-3-015314';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-3-015314';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-3-015314';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-3-015314';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-3-015314';
+import { withBuild } from '../app/build.js?v=2026-06-18-6-033942';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-6-033942';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-6-033942';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore, typesetEl } from './part2_render.js?v=2026-06-18-6-033942';
+import { submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-6-033942';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-6-033942';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-6-033942';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-6-033942';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-6-033942';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-6-033942';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -1630,7 +1631,13 @@ function renderCurrent() {
   if (part2) {
     if (answerRow) answerRow.style.display = 'none';
     if (res) res.style.display = 'none';
-    if (mount) mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+    if (mount) {
+      mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      mount.appendChild(buildPart2SelfScore({
+        savedScore: q.self_score ?? null,
+        onSave: (score) => submitPart2SelfScore(q.question_id, score, { source: 'test' }),
+      }));
+    }
   } else {
     if (answerRow) answerRow.style.display = '';
     if (res) res.style.display = '';
@@ -1760,6 +1767,10 @@ function renderSheetList() {
       const ansWrap = document.createElement('div');
       ansWrap.className = 'task-ans';
       ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      ansWrap.appendChild(buildPart2SelfScore({
+        savedScore: q.self_score ?? null,
+        onSave: (score) => submitPart2SelfScore(q.question_id, score, { source: 'test' }),
+      }));
       card.appendChild(ansWrap);
     } else {
       const ansRow = document.createElement('div');
