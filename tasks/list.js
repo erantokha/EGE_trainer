@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-7-063704';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-7-063704';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-8-064533';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-8-064533';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-7-063704';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-8-064533';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-7-063704';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-7-063704';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-7-063704';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-8-064533';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-8-064533';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-8-064533';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-7-063704';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-7-063704';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-7-063704';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-7-063704';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-7-063704';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-7-063704';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-7-063704';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-7-063704';
+import { withBuild } from '../app/build.js?v=2026-06-17-8-064533';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-8-064533';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-8-064533';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-8-064533';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-8-064533';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-8-064533';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-8-064533';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-8-064533';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1234,6 +1234,16 @@ function readLessonCtxStudent() {
   return '';
 }
 
+// WLM.2: «липкий» Режим занятия. Один конспект на занятие копит карточки из разных подборок:
+// флаг в sessionStorage (per-tab) держит режим включённым между навигациями. Сбрасывается при
+// «Собрать конспект» (занятие завершено) или ручном выключении тумблера.
+function isLessonSticky() {
+  try { return sessionStorage.getItem('lesson_sticky_v1') === '1'; } catch (_) { return false; }
+}
+function setLessonSticky(on) {
+  try { if (on) sessionStorage.setItem('lesson_sticky_v1', '1'); else sessionStorage.removeItem('lesson_sticky_v1'); } catch (_) {}
+}
+
 function mountLessonMode() {
   if (LESSON_MOUNTED) return;
   const ctxStudent = TEACHER_STUDENT_ID || readLessonCtxStudent();
@@ -1275,6 +1285,14 @@ function mountLessonMode() {
     const blob = e && e.detail && e.detail.blob;
     if (blob && LESSON.active) lessonAddCapture(blob);
   });
+
+  // WLM.2 sticky: если режим был включён на прошлой подборке этого занятия и ученик в контексте —
+  // продолжаем автоматически (тот же сегодняшний конспект дописывается), без повторного клика.
+  if (isLessonSticky() && LESSON.studentId) {
+    const t = bar.querySelector('#lessonToggle');
+    if (t) t.checked = true;
+    lessonEnable();
+  }
 
   ensureLessonStudents();
 }
@@ -1326,6 +1344,7 @@ async function lessonEnable() {
   const controls = document.querySelector('.lesson-controls');
   if (controls) controls.hidden = false;
   LESSON.active = true;
+  setLessonSticky(true);   // держим режим включённым между подборками одного занятия
   if (LESSON.studentId) await lessonStart();
   else setLessonStatus('Выберите ученика, чтобы начать конспект.');
 }
@@ -1335,6 +1354,7 @@ function lessonDisable() {
   const controls = document.querySelector('.lesson-controls');
   if (controls) controls.hidden = true;
   LESSON.active = false;
+  setLessonSticky(false);  // ручное выключение → не продолжать автоматически
 }
 
 async function lessonStart() {
@@ -1348,8 +1368,8 @@ async function lessonStart() {
     LESSON.blobs = [];
     updateLessonCount();
     setLessonStatus(LESSON.count
-      ? `Сегодняшний черновик (${LESSON.count} уже добавлено). Рисуйте поверх задачи и жмите кнопку копирования ↗ — снимок уйдёт в конспект.`
-      : 'Конспект начат. Откройте рисовалку ✎, при желании сделайте пометки и нажмите кнопку копирования ↗ — снимок уйдёт в конспект.');
+      ? `Конспект занятия продолжается: уже ${LESSON.count} карточек. Рисуйте поверх задачи и жмите кнопку копирования ↗.`
+      : 'Конспект занятия начат. Откройте рисовалку ✎, при желании сделайте пометки и нажмите кнопку копирования ↗ — снимок уйдёт в конспект.');
   } catch (e) {
     console.warn('konspektStart failed', e);
     LESSON.konspekt = null;
@@ -1412,6 +1432,7 @@ async function lessonCollect() {
     const published = await Konspekts.publishKonspekt(LESSON.konspekt, pdfBlob);
     LESSON.konspekt = published || LESSON.konspekt;
     LESSON.published = true;
+    setLessonSticky(false);   // занятие завершено → след. подборка начнёт новый конспект
 
     let url = '';
     try { url = await Konspekts.signedUrl(LESSON.konspekt.pdf_path); } catch (_) {}

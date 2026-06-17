@@ -5,8 +5,8 @@
 // - 1 ретрай при 401 с принудительным refresh (forceRefresh)
 // - единый формат ошибок (code/status/endpoint/details)
 
-import { CONFIG } from '../config.js?v=2026-06-17-7-063704';
-import { getSession, requireSession, fetchWithRetry } from './supabase.js?v=2026-06-17-7-063704';
+import { CONFIG } from '../config.js?v=2026-06-17-8-064533';
+import { getSession, requireSession, fetchWithRetry } from './supabase.js?v=2026-06-17-8-064533';
 
 // Сколько раз повторять при сетевом сбое/таймауте (status=0). По умолчанию:
 // чтения (rpc/select) — 2 ретрая; записи (insert/update/remove) — 0.
