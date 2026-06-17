@@ -1,29 +1,29 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-17-28-202814';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-28-202814';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-17-29-202854';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-29-202854';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-17-28-202814';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-28-202814';
+} from '../app/providers/catalog.js?v=2026-06-17-29-202854';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-29-202854';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-17-28-202814';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-17-29-202854';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-28-202814';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-28-202814';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-28-202814';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-29-202854';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-29-202854';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-29-202854';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-17-28-202814';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-17-28-202814';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-28-202814';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-28-202814';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-28-202814';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-28-202814';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-28-202814';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-17-28-202814';
+import { withBuild } from '../app/build.js?v=2026-06-17-29-202854';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-17-29-202854';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-29-202854';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-29-202854';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-29-202854';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-29-202854';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-29-202854';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-17-29-202854';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
