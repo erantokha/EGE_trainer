@@ -2,11 +2,12 @@
 // Превью frozen_questions как мини-карточки (условие + картинка) — аналогично hw_create.
 // Используется в умном ДЗ (страница ученика у учителя).
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-2-014501';
 import {
   loadCatalogTopicPathMap,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-1-004351';
+} from '../app/providers/catalog.js?v=2026-06-18-2-014501';
+import { part2Label, isPart2Id } from './part2_render.js?v=2026-06-18-2-014501';
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';
 const withV = (u) => {
   if (!BUILD) return u;
@@ -236,7 +237,10 @@ async function updatePreviews(listEl, refs) {
     }
 
     if (type && proto) {
-      const meta = `${type.id} ${type.title || ''}`.trim();
+      // W13.1-fix §5.4: для части 2 — название метода без технического слага.
+      const meta = isPart2Id(type.id)
+        ? part2Label(type.id, { title: type.title }).display
+        : `${type.id} ${type.title || ''}`.trim();
       if (metaEl) metaEl.textContent = meta;
       if (bodyEl) bodyEl.innerHTML = buildStemPreview(man, type, proto);
     } else {

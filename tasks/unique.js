@@ -7,13 +7,14 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-1-004351';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-1-004351';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-1-004351';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-1-004351';
+import { withBuild } from '../app/build.js?v=2026-06-18-2-014501';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-2-014501';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-18-2-014501';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-2-014501';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-2-014501';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-2-014501';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-2-014501';
+import { isPart2Id, renderPart2Stem, buildPart2EtalonBlock, part2Label, part2ClassKey, part2ClassOrder, part2ClassTitle } from './part2_render.js?v=2026-06-18-2-014501';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).
@@ -133,8 +134,14 @@ async function init() {
   host.innerHTML = '';
 
   TOPIC_CONTROLLERS = [];
-  for (const t of topics) {
-    host.appendChild(renderTopicNode(t));
+  // W13.1-fix §5.5: для части 2 (подтемы с буквенными id) группируем по классу
+  // (Тригонометрические/Логарифмические/Показательные = Тип 1/2/3) — вид как в аккордеоне.
+  if (topics.some(t => isPart2Id(t.id))) {
+    appendUnicTopicsGroupedByClass(host, topics);
+  } else {
+    for (const t of topics) {
+      host.appendChild(renderTopicNode(t));
+    }
   }
 
   // Счётчик уникальных прототипов по текущему разделу (во всех темах раздела).
@@ -248,15 +255,42 @@ async function computeSectionUnicCount(topics, el) {
 }
 
 // ---------- аккордеон тем ----------
+// W13.1-fix §5.5: группировка подтем части 2 по классу с заголовками-группировщиками.
+function appendUnicTopicsGroupedByClass(host, topics) {
+  const order = part2ClassOrder();
+  const byClass = new Map();
+  for (const t of topics) {
+    const cls = part2ClassKey(t.id);
+    if (!byClass.has(cls)) byClass.set(cls, []);
+    byClass.get(cls).push(t);
+  }
+  const known = order.filter(c => byClass.has(c));
+  const extra = [...byClass.keys()].filter(c => !order.includes(c)).sort();
+  for (const cls of [...known, ...extra]) {
+    const list = byClass.get(cls);
+    if (!list || !list.length) continue;
+    const head = document.createElement('div');
+    head.className = 'uniq-class-head';
+    head.textContent = part2ClassTitle(cls);
+    host.appendChild(head);
+    for (const t of list) host.appendChild(renderTopicNode(t));
+  }
+}
+
 function renderTopicNode(topic) {
   const node = document.createElement('div');
   node.className = 'node topic';
   node.dataset.id = topic.id;
 
+  // W13.1-fix §5.4: для части 2 — название метода без технического слага.
+  const topicLabel = isPart2Id(topic.id)
+    ? part2Label(topic.id, { title: topic.title }).display
+    : `${topic.id}. ${topic.title}`;
+
   node.innerHTML = `
     <div class="row">
       <button class="section-title" type="button">
-        ${esc(`${topic.id}. ${topic.title}`)}
+        ${esc(topicLabel)}
       </button>
       <div class="spacer"></div>
     </div>
@@ -363,12 +397,16 @@ async function loadUnicTasksForTopic(topic) {
         else if (p.answer.value != null) ansText = String(p.answer.value);
       }
 
+      const isP2 = Number(typ.part ?? p.part) === 2;
       out.push({
         id: p.id,
         stem,
         figure: fig,
         answerText: ansText,
         topicId: man.topic || String(topic.id || ''),
+        part: isP2 ? 2 : undefined,           // W13.1-fix: метка части 2 для показа
+        solution: isP2 ? (p.solution || null) : null,
+        answer2: isP2 ? (p.answer || null) : null, // эталонный ответ {general, roots}
       });
     }
   }
@@ -387,18 +425,22 @@ function renderUnicTasks(container, tasks) {
   const list = document.createElement('div');
   list.className = 'uniq-list';
 
+  let p2ord = 0; // W13.1-fix §5.5: порядковые номера прототипов части 2 (вместо слага-id)
+
   for (const t of tasks) {
+    const isP2 = Number(t.part) === 2;
     const item = document.createElement('div');
     item.className = 'ws-item';
     if (t.topicId) item.dataset.topicId = t.topicId;
 
     const num = document.createElement('div');
     num.className = 'ws-num';
-    num.textContent = t.id;
+    num.textContent = isP2 ? String(++p2ord) : t.id;
 
     const stemEl = document.createElement('div');
     stemEl.className = 'ws-stem';
-    setStem(stemEl, t.stem);
+    if (isP2) renderPart2Stem(stemEl, t.stem);
+    else setStem(stemEl, t.stem);
 
     // Раньше эти элементы не добавлялись в DOM — из-за этого «текст задач пропадал».
     item.appendChild(num);
@@ -459,34 +501,43 @@ function renderUnicTasks(container, tasks) {
       if (figWrap.childNodes.length) item.appendChild(figWrap);
     }
 
-    const ans = document.createElement('details');
-    ans.className = 'ws-ans';
-    const sum = document.createElement('summary');
-    sum.textContent = 'Ответ';
-    ans.appendChild(sum);
+    if (isP2) {
+      // W13.1-fix §5.6: часть 2 — эталон-тоггл (вместо «Ответ»/видео/print-line);
+      // обёртка .ws-ans → grid-область "ans" карточки (готча grid из W13.1).
+      const ansWrap = document.createElement('div');
+      ansWrap.className = 'ws-ans';
+      ansWrap.appendChild(buildPart2EtalonBlock(t.solution, t.answer2));
+      item.appendChild(ansWrap);
+    } else {
+      const ans = document.createElement('details');
+      ans.className = 'ws-ans';
+      const sum = document.createElement('summary');
+      sum.textContent = 'Ответ';
+      ans.appendChild(sum);
 
-    if (t.answerText) {
-      const ansText = document.createElement('div');
-      ansText.textContent = t.answerText;
-      ansText.style.marginTop = '4px';
-      ans.appendChild(ansText);
+      if (t.answerText) {
+        const ansText = document.createElement('div');
+        ansText.textContent = t.answerText;
+        ansText.style.marginTop = '4px';
+        ans.appendChild(ansText);
+      }
+
+      // Видео-решение (гидратируется из манифеста content/video/rutube_map.json)
+      const videoSlot = document.createElement('span');
+      videoSlot.className = 'video-solution-slot';
+      videoSlot.dataset.videoProto = t.id;
+
+      const ansWrap = document.createElement('div');
+      ansWrap.className = 'ws-ans-wrap';
+      ansWrap.appendChild(ans);
+      ansWrap.appendChild(videoSlot);
+      item.appendChild(ansWrap);
+
+      const pal = document.createElement('div');
+      pal.className = 'print-ans-line';
+      pal.textContent = 'Ответ: ________________________';
+      item.appendChild(pal);
     }
-
-    // Видео-решение (гидратируется из манифеста content/video/rutube_map.json)
-    const videoSlot = document.createElement('span');
-    videoSlot.className = 'video-solution-slot';
-    videoSlot.dataset.videoProto = t.id;
-
-    const ansWrap = document.createElement('div');
-    ansWrap.className = 'ws-ans-wrap';
-    ansWrap.appendChild(ans);
-    ansWrap.appendChild(videoSlot);
-    item.appendChild(ansWrap);
-
-    const pal = document.createElement('div');
-    pal.className = 'print-ans-line';
-    pal.textContent = 'Ответ: ________________________';
-    item.appendChild(pal);
 
     list.appendChild(item);
   }

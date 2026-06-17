@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-18-2-014501">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>W13.1-fix §5.3–§5.6 — render preview (общий модуль part2_render.js)</title>
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-18-2-014501">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-18-2-014501">
+<link rel="stylesheet" href="/tasks/trainer/part2.css?v=2026-06-18-2-014501">
+<link rel="stylesheet" href="/tasks/trainer/pages/unique.css?v=2026-06-18-2-014501">
+<link rel="stylesheet" href="/tasks/trainer/pages/home-student.css?v=2026-06-18-2-014501">
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)'], ['$','$']] }, svg: { fontCache: 'local' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+  body { padding:24px; max-width:980px; margin:0 auto; }
+  .preview-note { font:13px/1.5 system-ui; color:#64748b; background:rgba(148,163,184,.08);
+    border:1px solid rgba(148,163,184,.25); border-radius:8px; padding:10px 14px; margin:0 0 18px; }
+  .preview-h { font:600 14px/1.4 system-ui; margin:26px 0 10px; color:#0f172a; }
+  .label-demo { font:13px/1.7 system-ui; color:#0f172a; }
+  .label-demo .slug { color:#94a3b8; }
+</style>
+</head>
+<body data-home-variant="student">
+
+<p class="preview-note">
+  <b>Render-preview через РЕАЛЬНЫЙ общий модуль</b> <code>tasks/part2_render.js</code> + реальный CSS
+  (<code>part2.css</code>, <code>unique.css</code>). Live-страницы читают каталог из Supabase (№13
+  появится после заливки). Демонстрирует §5.3 (условие а/б), §5.4 (подписи без слага), §5.5 (класс-группировка),
+  §5.6 (эталон-тоггл).
+</p>
+
+<div class="preview-h">§5.5 + §5.6 — «Уникальные прототипы» части 2: группировка по классу (Тип 1/2/3) + эталон-тоггл</div>
+<div id="uniqAccordion"></div>
+
+<div class="preview-h">§5.4 — подписи (part2Label): слаг → человекочитаемо</div>
+<div class="label-demo" id="labelDemo"></div>
+
+<script type="module">
+import {
+  isPart2Id, renderPart2Stem, buildPart2EtalonBlock, part2Label,
+  part2ClassKey, part2ClassOrder, part2ClassTitle, mkEl,
+} from '/tasks/part2_render.js';
+
+const esc = (s) => String(s ?? '');
+async function getJson(p) { return (await fetch(p)).json(); }
+
+(async () => {
+  const index = await getJson('/content/tasks/index.json');
+  const topics = index.filter(t => t.parent === '13' && t.enabled !== false && t.hidden !== true);
+
+  // ── §5.5/§5.6: unique-стиль (как renderUnicTasks + класс-группировка) ──
+  const host = document.getElementById('uniqAccordion');
+  const order = part2ClassOrder();
+  const byClass = new Map();
+  for (const t of topics) {
+    const c = part2ClassKey(t.id);
+    if (!byClass.has(c)) byClass.set(c, []);
+    byClass.get(c).push(t);
+  }
+  for (const cls of order.filter(c => byClass.has(c))) {
+    const head = mkEl('div', 'uniq-class-head', part2ClassTitle(cls));
+    host.appendChild(head);
+    for (const t of byClass.get(cls)) {
+      // заголовок темы = название метода без слага (§5.4)
+      const node = mkEl('div', 'node topic');
+      node.style.marginBottom = '10px';
+      const label = part2Label(t.id, { title: t.title }).display;
+      const titleRow = mkEl('div', 'row');
+      const btn = mkEl('button', 'section-title', label); btn.type = 'button';
+      titleRow.appendChild(btn);
+      node.appendChild(titleRow);
+
+      // одна задача метода с эталон-тогглом (раскрыт для скриншота)
+      const man = await getJson(`/content/tasks/part2/13/${t.id}.json`);
+      const proto = man.types[0].prototypes.find(p => p.unic) || man.types[0].prototypes[0];
+
+      const item = mkEl('div', 'ws-item');
+      item.appendChild(mkEl('div', 'ws-num', '1'));
+      const stem = mkEl('div', 'ws-stem'); renderPart2Stem(stem, proto.stem); item.appendChild(stem);
+      const ansWrap = mkEl('div', 'ws-ans');
+      const block = buildPart2EtalonBlock(proto.solution, proto.answer);
+      ansWrap.appendChild(block);
+      item.appendChild(ansWrap);
+      node.appendChild(item);
+      host.appendChild(node);
+    }
+  }
+
+  // ── §5.4: демонстрация подписей ──
+  const demo = document.getElementById('labelDemo');
+  for (const t of topics) {
+    const lab = part2Label(t.id, { title: t.title });
+    const row = mkEl('div');
+    row.innerHTML = `<span class="slug">${esc(t.id)}</span> &nbsp;→&nbsp; <b>${esc(lab.display)}</b> &nbsp;<span class="slug">(Тип ${lab.typeNo} · ${esc(lab.className)})</span>`;
+    demo.appendChild(row);
+  }
+
+  // раскрыть только первый эталон-тоггл (для скриншота); остальные — свёрнутые кнопки
+  const firstBtn = document.querySelector('.part2-etalon-btn');
+  if (firstBtn) firstBtn.click();
+
+  if (window.MathJax && window.MathJax.startup) {
+    await window.MathJax.startup.promise;
+    await window.MathJax.typesetPromise();
+  }
+  document.body.dataset.ready = '1';
+})();
+</script>
+</body>
+</html>

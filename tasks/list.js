@@ -5,23 +5,24 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-1-004351';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-2-014501';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-2-014501';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-1-004351';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-2-014501';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-1-004351';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-1-004351';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-18-1-004351';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-2-014501';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-2-014501';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-18-2-014501';
 
-import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-1-004351';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-1-004351';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-18-1-004351';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-18-1-004351';
+import { withBuild } from '../app/build.js?v=2026-06-18-2-014501';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-2-014501';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-2-014501';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-2-014501';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-2-014501';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-2-014501';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-18-2-014501';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-18-2-014501';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock } from './part2_render.js?v=2026-06-18-2-014501';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -953,7 +954,7 @@ function buildQuestion(manifest, type, proto) {
   const stem = interpolate(stemTpl, params);
   const fig = proto.figure || type.figure || null;
   const ans = computeAnswer(type, proto, params);
-  return {
+  const q = {
     topic_id: manifest.topic || '',
     topic_title: manifest.title || '',
     question_id: proto.id,
@@ -962,6 +963,14 @@ function buildQuestion(manifest, type, proto) {
     stem,
     answer: ans,
   };
+  // W13.1-fix §5.6: часть 2 несёт эталон для показа (scoring — W13.2).
+  const part = proto.part ?? type.part ?? null;
+  if (Number(part) === 2) {
+    q.part = 2;
+    q.solution = proto.solution || null;
+    q.answer2 = proto.answer || null; // эталонный ответ {general, roots}
+  }
+  return q;
 }
 
 function computeAnswer(type, proto, params) {
@@ -1051,7 +1060,8 @@ async function renderTaskList(questions, options = {}) {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    setStem(stem, q.stem);
+    if (isPart2Question(q)) renderPart2Stem(stem, q.stem); // W13.1-fix §5.3: а/б без литерального <br>
+    else setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -1076,34 +1086,43 @@ async function renderTaskList(questions, options = {}) {
       card.appendChild(figWrap);
     }
 
-    const correctText =
-      q.answer && q.answer.text != null
-        ? String(q.answer.text)
-        : q.answer && q.answer.value != null
-          ? String(q.answer.value)
-          : '';
+    if (isPart2Question(q)) {
+      // W13.1-fix §5.6: часть 2 — эталон-тоггл (вместо «Ответ»/print-line);
+      // обёртка .task-ans → grid-область "ans" карточки (готча grid из W13.1).
+      const ansWrap = document.createElement('div');
+      ansWrap.className = 'task-ans';
+      ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      card.appendChild(ansWrap);
+    } else {
+      const correctText =
+        q.answer && q.answer.text != null
+          ? String(q.answer.text)
+          : q.answer && q.answer.value != null
+            ? String(q.answer.value)
+            : '';
 
-    if (correctText) {
-      const details = document.createElement('details');
-      details.className = 'task-ans';
+      if (correctText) {
+        const details = document.createElement('details');
+        details.className = 'task-ans';
 
-      const summary = document.createElement('summary');
-      summary.textContent = 'Ответ';
-      details.appendChild(summary);
+        const summary = document.createElement('summary');
+        summary.textContent = 'Ответ';
+        details.appendChild(summary);
 
-      const ans = document.createElement('div');
-      ans.textContent = correctText;
-      ans.style.marginTop = '4px';
+        const ans = document.createElement('div');
+        ans.textContent = correctText;
+        ans.style.marginTop = '4px';
 
-      details.appendChild(ans);
-      card.appendChild(details);
+        details.appendChild(ans);
+        card.appendChild(details);
+      }
+
+      const pal = document.createElement('div');
+      pal.className = 'print-ans-line';
+      pal.dataset.captureHide = '1';
+      pal.textContent = 'Ответ: ________________________';
+      card.appendChild(pal);
     }
-
-    const pal = document.createElement('div');
-    pal.className = 'print-ans-line';
-    pal.dataset.captureHide = '1';
-    pal.textContent = 'Ответ: ________________________';
-    card.appendChild(pal);
 
     list.appendChild(card);
   });

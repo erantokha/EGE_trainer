@@ -1,29 +1,30 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-1-004351';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-1-004351';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-2-014501';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-2-014501';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-1-004351';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
+} from '../app/providers/catalog.js?v=2026-06-18-2-014501';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-2-014501';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-1-004351';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-2-014501';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-1-004351';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-1-004351';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-1-004351';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-2-014501';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-2-014501';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-2-014501';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-1-004351';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-1-004351';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-1-004351';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-1-004351';
+import { withBuild } from '../app/build.js?v=2026-06-18-2-014501';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-2-014501';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-2-014501';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, typesetEl } from './part2_render.js?v=2026-06-18-2-014501';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-2-014501';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-2-014501';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-2-014501';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-2-014501';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-2-014501';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -1586,120 +1587,7 @@ header?.querySelector('.theme-toggle')?.classList.remove('hidden');
   }
 }
 
-// ---------- Часть 2 (№13): показ задачи + эталон (W13.1 §5.6) ----------
-// Часть 2 не автопроверяется: ученик решает на бумаге, открывает эталон по кнопке.
-// Балл/запись попытки — НЕ здесь (W13.2). Весь DOM строится через createElement +
-// textContent (без innerHTML) — LaTeX как текст для MathJax, окружность как <img>
-// (Решение 5 контракта: без зависимости от safe_dom).
-function isPart2Question(q) {
-  return Number(q && q.part) === 2;
-}
-
-function mkEl(tag, cls, text) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text != null) e.textContent = text;
-  return e;
-}
-
-function typesetEl(el) {
-  if (!el || !window.MathJax) return;
-  try {
-    if (window.MathJax.typesetPromise) window.MathJax.typesetPromise([el]).catch(err => console.error(err));
-    else if (window.MathJax.typeset) window.MathJax.typeset([el]);
-  } catch (e) {
-    console.error('MathJax error', e);
-  }
-}
-
-// Stem части 2 содержит <br> между пунктами а) и б). setStem кладёт текст как есть
-// (HTML не интерпретируется), поэтому здесь делим по <br> на отдельные строки.
-function renderPart2Stem(el, stem) {
-  if (!el) return;
-  el.textContent = '';
-  const lines = String(stem || '').split(/<br\s*\/?>/i);
-  for (const line of lines) {
-    el.appendChild(mkEl('div', 'q-line', line));
-  }
-}
-
-function buildPart2EtalonContent(q) {
-  const sol = q.solution || {};
-  const wrap = mkEl('div', 'part2-etalon-inner');
-
-  const addSection = (title, lines, lineCls) => {
-    if (!Array.isArray(lines) || !lines.length) return;
-    const sec = mkEl('div', 'etalon-section');
-    sec.appendChild(mkEl('h4', 'etalon-h', title));
-    for (const ln of lines) sec.appendChild(mkEl('div', lineCls, `\\[ ${ln} \\]`));
-    wrap.appendChild(sec);
-  };
-
-  // пошаговая цепочка преобразований
-  addSection('Решение', sol.steps, 'etalon-step');
-
-  // общее решение (столбиками)
-  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
-    const sec = mkEl('div', 'etalon-section');
-    sec.appendChild(mkEl('h4', 'etalon-h', 'Общее решение'));
-    for (const g of sol.gen_groups) {
-      if (g && g.head) sec.appendChild(mkEl('div', 'etalon-genhead', `\\[ ${g.head} \\]`));
-      for (const s of ((g && g.series) || [])) sec.appendChild(mkEl('div', 'etalon-series', `\\[ ${s} \\]`));
-    }
-    wrap.appendChild(sec);
-  }
-
-  // окружность отбора корней (SVG как <img>)
-  if (sol.figure) {
-    const sec = mkEl('div', 'etalon-section etalon-fig');
-    const img = mkEl('img');
-    img.alt = 'Окружность отбора корней';
-    img.loading = 'lazy';
-    img.referrerPolicy = 'no-referrer';
-    img.src = asset(sol.figure);
-    sec.appendChild(img);
-    wrap.appendChild(sec);
-  }
-
-  // разложение корней по опорным
-  addSection('Отбор корней', sol.below, 'etalon-below');
-
-  // ответ (а — общее решение, б — отобранные корни)
-  const ans = q.answer2 || {};
-  const hasGeneral = Array.isArray(ans.general) && ans.general.length;
-  const hasRoots = Array.isArray(ans.roots) && ans.roots.length;
-  if (hasGeneral || hasRoots) {
-    const sec = mkEl('div', 'etalon-section etalon-answer');
-    sec.appendChild(mkEl('h4', 'etalon-h', 'Ответ'));
-    if (hasGeneral) sec.appendChild(mkEl('div', 'etalon-ans-line', 'а) ' + ans.general.map(g => `\\( ${g} \\)`).join(';\\quad ')));
-    if (hasRoots) sec.appendChild(mkEl('div', 'etalon-ans-line', 'б) ' + ans.roots.map(r => `\\( ${r} \\)`).join(';\\quad ')));
-    wrap.appendChild(sec);
-  }
-
-  return wrap;
-}
-
-// Самодостаточный блок: кнопка-тоггл + панель эталона (лениво наполняется и типсетится).
-function buildPart2EtalonBlock(q) {
-  const box = mkEl('div', 'part2-box');
-  const btn = mkEl('button', 'btn part2-etalon-btn', 'Показать эталон');
-  btn.type = 'button';
-  const panel = mkEl('div', 'part2-etalon');
-  panel.hidden = true;
-  let rendered = false;
-  btn.addEventListener('click', () => {
-    if (!rendered) {
-      panel.appendChild(buildPart2EtalonContent(q));
-      rendered = true;
-      typesetEl(panel);
-    }
-    panel.hidden = !panel.hidden;
-    btn.textContent = panel.hidden ? 'Показать эталон' : 'Скрыть эталон';
-  });
-  box.appendChild(btn);
-  box.appendChild(panel);
-  return box;
-}
+// Часть 2 (№13): показ задачи + эталон — общий модуль ./part2_render.js (W13.1-fix §5.2).
 
 function renderCurrent() {
   const q = SESSION.questions[SESSION.idx];
@@ -1742,7 +1630,7 @@ function renderCurrent() {
   if (part2) {
     if (answerRow) answerRow.style.display = 'none';
     if (res) res.style.display = 'none';
-    if (mount) mount.appendChild(buildPart2EtalonBlock(q));
+    if (mount) mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
   } else {
     if (answerRow) answerRow.style.display = '';
     if (res) res.style.display = '';
@@ -1871,7 +1759,7 @@ function renderSheetList() {
       // Оборачиваем в .task-ans → grid-область "ans" карточки (full-width низ).
       const ansWrap = document.createElement('div');
       ansWrap.className = 'task-ans';
-      ansWrap.appendChild(buildPart2EtalonBlock(q));
+      ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
       card.appendChild(ansWrap);
     } else {
       const ansRow = document.createElement('div');

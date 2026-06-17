@@ -1,0 +1,48 @@
+/* tasks/trainer/part2.css
+   W13.1-fix §5.2/§5.6 — общие стили показа части 2 (№13): условие а/б, эталон-тоггл,
+   класс-заголовки уникальных прототипов. Подключается из trainer.html / unique.html / list.html
+   (параллель общему JS-модулю part2_render.js). Все классы — новые, аддитивно; часть 1 не затронута. */
+
+/* строки stem части 2 (пункты а)/б) отдельными абзацами вместо <br>) */
+.q-line { margin: 0 0 6px; }
+.q-line:last-child { margin-bottom: 0; }
+
+/* блок «показать эталон» */
+.part2-box { margin-top: 10px; }
+.part2-etalon-btn { margin: 0; }
+.part2-etalon {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, .25);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, .06);
+}
+.part2-etalon[hidden] { display: none; }
+
+.part2-etalon .etalon-section { margin: 0 0 14px; }
+.part2-etalon .etalon-section:last-child { margin-bottom: 0; }
+.part2-etalon .etalon-h {
+  margin: 0 0 6px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-dim, #94a3b8);
+  text-transform: uppercase; letter-spacing: .03em;
+}
+.part2-etalon .etalon-step,
+.part2-etalon .etalon-genhead,
+.part2-etalon .etalon-series,
+.part2-etalon .etalon-below { margin: 2px 0; overflow-x: auto; }
+
+/* окружность отбора корней */
+.part2-etalon .etalon-fig { text-align: center; }
+.part2-etalon .etalon-fig img { max-width: 320px; width: 100%; height: auto; }
+
+.part2-etalon .etalon-answer .etalon-ans-line { margin: 2px 0; }
+
+/* класс-заголовок в уникальных прототипах (Тригонометрические/Логарифмические/Показательные) */
+.uniq-class-head {
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .03em;
+  color: var(--text-dim, #94a3b8);
+  margin: 16px 0 6px;
+}
+.uniq-class-head:first-child { margin-top: 0; }
