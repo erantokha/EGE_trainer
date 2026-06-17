@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-17-172707';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-17-172707';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-18-175604';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-18-175604';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-17-172707';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-18-175604';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-17-172707';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-17-172707';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-17-172707';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-18-175604';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-18-175604';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-18-175604';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-17-172707';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-17-172707';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-17-172707';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-17-172707';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-17-172707';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-17-172707';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-17-172707';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-17-172707';
+import { withBuild } from '../app/build.js?v=2026-06-17-18-175604';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-18-175604';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-18-175604';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-18-175604';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-17-18-175604';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-18-175604';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-18-175604';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-18-175604';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/
@@ -1530,15 +1530,24 @@ async function openLessonPreview() {
     e.textContent = 'Пока нет добавленных карточек.';
     page.appendChild(e);
   } else {
+    let n = 0;
     snaps.forEach((s) => {
       if (!s || !s.blob) return;
+      n += 1;
       const url = URL.createObjectURL(s.blob);
       PREVIEW_URLS.push(url);
+      const cardEl = document.createElement('div');
+      cardEl.className = 'kons-preview-card';
+      const num = document.createElement('div');
+      num.className = 'kons-preview-num';
+      num.textContent = `№ ${n}`;
+      cardEl.appendChild(num);
       const im = document.createElement('img');
       im.className = 'kons-preview-img';
       im.src = url;
       im.alt = '';
-      page.appendChild(im);
+      cardEl.appendChild(im);
+      page.appendChild(cardEl);
     });
   }
   m.querySelector('.kons-preview-doc').scrollTop = 0;

@@ -114,11 +114,12 @@ body.dro-capturing mjx-container { overflow: visible; }
 /* белая маска: фикс на весь экран, ниже рисовалки (z 9000). flex → центрирование условия */
 .dro-focus-mask { position: fixed; inset: 0; background: #fff; z-index: 8000; display: none; overflow: auto; }
 body.dro-card-focus { overflow: hidden; }
-body.dro-card-focus .dro-focus-mask { display: flex; }
+body.dro-card-focus .dro-focus-mask { display: flex; align-items: flex-start; justify-content: flex-start; }
 body.dro-card-focus .dro-card-focus-btn { display: none; }
 
-/* клон условия — по ЦЕНТРУ экрана (margin:auto в flex); zoom масштабирует текст И картинку */
-.dro-focus-content { margin: auto; max-width: 900px; padding: 40px 32px; color: #111; zoom: var(--focus-zoom, 1); }
+/* клон условия — в ВЕРХНЕМ ЛЕВОМ углу (как лист: условие сверху-слева, решаешь ниже/правее).
+   zoom масштабирует от левого-верха; так и живой вид, и конспект левовыровнены. */
+.dro-focus-content { margin: 0; max-width: 900px; padding: 28px 32px; color: #111; zoom: var(--focus-zoom, 1); }
 .dro-focus-content .task-stem, .dro-focus-content .ws-stem { font-size: 18px; line-height: 1.55; color: #111; }
 .dro-focus-content .task-fig, .dro-focus-content .ws-fig { margin-top: 18px; max-width: 100%; }
 /* фигура заполняет зафиксированную (в card_focus.js) ширину клона; svg — тоже */

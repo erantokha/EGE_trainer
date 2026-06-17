@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-17-17-172707';
-import { getSession } from './supabase.js?v=2026-06-17-17-172707';
-import { supaRest } from './supabase-rest.js?v=2026-06-17-17-172707';
+import { CONFIG } from '../config.js?v=2026-06-17-18-175604';
+import { getSession } from './supabase.js?v=2026-06-17-18-175604';
+import { supaRest } from './supabase-rest.js?v=2026-06-17-18-175604';
 
 const BUCKET = 'konspekts';
 
@@ -191,7 +191,11 @@ async function decodeBlobToCanvas(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-export async function trimSnapshotVertical(blob) {
+// Обрезать снимок ПО СОДЕРЖИМОМУ со всех сторон (bounding box контента + пометок). Условие в
+// фокусе теперь в верхнем-левом углу → левый край bbox = левый край условия (или штриха, если
+// нарисовано левее — корректно войдёт). Это убирает пустые поля и делает карточку плотной и
+// левовыровненной, без «магии центрирования».
+export async function trimSnapshot(blob) {
   try {
     const c = await decodeBlobToCanvas(blob);
     const w = c.width, h = c.height;
@@ -199,29 +203,29 @@ export async function trimSnapshotVertical(blob) {
     const data = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, w, h).data;
     const bg = [data[0], data[1], data[2], data[3]];   // верхний-левый = фон
     const T = 18;                                       // допуск канала (PNG без шума → безопасно)
-    const rowHasContent = (y) => {
-      const base = y * w * 4;
-      for (let x = 0; x < w; x++) {
-        const i = base + x * 4;
-        if (data[i + 3] < 12) continue;                 // прозрачный → фон
-        if (bg[3] < 12) return true;                    // фон прозрачный, тут непрозрачный → контент
-        if (Math.abs(data[i] - bg[0]) > T || Math.abs(data[i + 1] - bg[1]) > T || Math.abs(data[i + 2] - bg[2]) > T) return true;
-      }
-      return false;
+    const isContent = (i) => {
+      if (data[i + 3] < 12) return false;               // прозрачный → фон
+      if (bg[3] < 12) return true;                      // фон прозрачный, тут непрозрачный → контент
+      return Math.abs(data[i] - bg[0]) > T || Math.abs(data[i + 1] - bg[1]) > T || Math.abs(data[i + 2] - bg[2]) > T;
     };
-    let top = 0;
-    while (top < h && !rowHasContent(top)) top++;
-    if (top >= h) return blob;                          // всё пусто → не режем
-    let bottom = h - 1;
-    while (bottom > top && !rowHasContent(bottom)) bottom--;
+    let top = -1, bottom = -1, left = w, right = -1;
+    for (let y = 0; y < h; y++) {
+      const base = y * w * 4;
+      let rowHas = false;
+      for (let x = 0; x < w; x++) {
+        if (isContent(base + x * 4)) { rowHas = true; if (x < left) left = x; if (x > right) right = x; }
+      }
+      if (rowHas) { if (top < 0) top = y; bottom = y; }
+    }
+    if (top < 0) return blob;                           // всё пусто → не режем
     const PAD = 16;
-    const y0 = Math.max(0, top - PAD);
-    const y1 = Math.min(h - 1, bottom + PAD);
-    const ch = y1 - y0 + 1;
-    if (ch >= h - 2) return blob;                       // обрезать практически нечего
+    const x0 = Math.max(0, left - PAD), y0 = Math.max(0, top - PAD);
+    const x1 = Math.min(w - 1, right + PAD), y1 = Math.min(h - 1, bottom + PAD);
+    const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+    if (cw >= w - 2 && ch >= h - 2) return blob;        // обрезать практически нечего
     const out = document.createElement('canvas');
-    out.width = w; out.height = ch;
-    out.getContext('2d').drawImage(c, 0, y0, w, ch, 0, 0, w, ch);
+    out.width = cw; out.height = ch;
+    out.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, cw, ch);
     return await new Promise((res) => out.toBlob((b) => res(b || blob), 'image/png'));
   } catch (_) {
     return blob;                                        // любая ошибка (taint и т.п.) → исходный снимок
@@ -248,7 +252,7 @@ export async function konspektStart(studentId) {
 // метаданные → сервер (для счётчика + гейта публикации). БАЙТЫ В STORAGE НЕ ЛЬЁМ — это ускоряет
 // добавление и устраняет потерю карточек: collect соберёт PDF из IndexedDB по konspekt.id.
 export async function addSnapshot(konspekt, { ordinal, questionId, blob }) {
-  const trimmed = await trimSnapshotVertical(blob);  // срезать пустые поля сверху/снизу
+  const trimmed = await trimSnapshot(blob);  // обрезать по содержимому со всех сторон
   await idbPut(konspekt.id, ordinal, trimmed); // сначала локально → карточка durable сразу
   const path = snapshotPath(konspekt, ordinal); // логический путь (байты не заливаются)
   const data = await supaRest.rpc('konspekt_add_snapshot_v1', {
@@ -423,19 +427,53 @@ export async function buildKonspektPdfBlob(images, meta = {}) {
   });
   const prepared = await Promise.all([headerP, ...cardsP]);
 
+  const maxH = pageH - M * 2;
+  const CARD_PAD = 10;   // внутренний отступ рамки карточки
+  const CARD_GAP = 18;   // зазор между карточками
+  const LABEL_H = 18;    // строка номера-бейджа внутри рамки
   let y = M;
-  let first = true;
-  for (const p of prepared) {
+
+  // Хедер (prepared[0]) — без рамки/номера.
+  const hdr = prepared[0];
+  if (hdr) {
+    let w = contentW, h = w * hdr.ratio;
+    if (h > maxH) { h = maxH; w = h / hdr.ratio; }
+    doc.addImage(hdr.dataUrl, hdr.fmt, M, y, w, h);
+    y += h + CARD_GAP;
+  }
+
+  // Карточки (prepared[1..]) — каждая в лёгкой рамке, с номером-бейджем сверху-слева.
+  let n = 0;
+  for (let k = 1; k < prepared.length; k++) {
+    const p = prepared[k];
     if (!p) continue;
-    let w = contentW;
-    let h = w * p.ratio;
-    const maxH = pageH - M * 2;
-    if (h > maxH) { h = maxH; w = h / p.ratio; }
-    if (!first && y + h > pageH - M) { doc.addPage(); y = M; }
-    const x = M + (contentW - w) / 2;
-    doc.addImage(p.dataUrl, p.fmt, x, y, w, h);
-    y += h + 16;
-    first = false;
+    n++;
+    const innerW = contentW - CARD_PAD * 2;
+    let iw = innerW, ih = iw * p.ratio;
+    const innerMaxH = maxH - CARD_PAD * 2 - LABEL_H - 6;
+    if (ih > innerMaxH) { ih = innerMaxH; iw = ih / p.ratio; }
+    const blockH = CARD_PAD + LABEL_H + 6 + ih + CARD_PAD;
+    if (y + blockH > pageH - M) { doc.addPage(); y = M; }
+
+    // рамка
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.8);
+    doc.roundedRect(M, y, contentW, blockH, 7, 7, 'S');
+
+    // номер-бейдж (цифра — helvetica её рисует; глиф «№» в базовом шрифте jsPDF отсутствует)
+    const label = String(n);
+    const bw = 16 + label.length * 7;
+    doc.setFillColor(37, 99, 235);
+    doc.roundedRect(M + CARD_PAD, y + CARD_PAD, bw, 15, 3, 3, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9.5);
+    doc.text(label, M + CARD_PAD + bw / 2, y + CARD_PAD + 10.5, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
+
+    // снимок — слева внутри рамки (левовыровнен)
+    doc.addImage(p.dataUrl, p.fmt, M + CARD_PAD, y + CARD_PAD + LABEL_H + 6, iw, ih);
+
+    y += blockH + CARD_GAP;
   }
 
   return doc.output('blob');
