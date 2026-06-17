@@ -1,0 +1,169 @@
+{
+  "topic": "13.log",
+  "title": "Логарифмические",
+  "part": 2,
+  "types": [
+    {
+      "id": "13.log",
+      "title": "Логарифмические",
+      "part": 2,
+      "max_primary": 2,
+      "answer_spec": {
+        "type": "manual"
+      },
+      "defaults": {
+        "difficulty": 3
+      },
+      "prototypes": [
+        {
+          "id": "13.log.93.1",
+          "cid": "Б13-070",
+          "part": 2,
+          "class": "логарифмическое",
+          "method": "",
+          "uses": [
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{2}^2(2\\sin x) - 5 \\cdot \\log_{2}(2\\sin x) + 2 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{15 \\pi}{4}",
+              "- \\frac{13 \\pi}{4}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\text{ОДЗ: } 2\\sin x > 0",
+              "\\text{замена } w = \\log_{2}(2\\sin x)",
+              "2 w^2 - 5 w + 2 = 0",
+              "2\\left(w - \\frac{1}{2}\\right)\\left(w - 2\\right) = 0",
+              "2\\sin x = 2^{\\frac{1}{2}},\\quad 2\\sin x = 2^{2}",
+              "\\sin x = \\frac{\\sqrt{2}}{2},\\quad \\sin x = 2\\;(>1\\text{ — посторонний})"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{4} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 4 \\pi + \\frac{\\pi}{4} = - \\frac{15 \\pi}{4}",
+              "x_{2} = - \\frac{7 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{13 \\pi}{4}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-070.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.log.93.2",
+          "cid": "Б13-071",
+          "part": 2,
+          "class": "логарифмическое",
+          "method": "",
+          "uses": [
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\log_{2}^2(4\\sin x) - 4 \\cdot \\log_{2}(4\\sin x) + 3 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{23 \\pi}{6}",
+              "- \\frac{19 \\pi}{6}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\text{ОДЗ: } 4\\sin x > 0",
+              "\\text{замена } w = \\log_{2}(4\\sin x)",
+              "w^2 - 4 w + 3 = 0",
+              "\\left(w - 1\\right)\\left(w - 3\\right) = 0",
+              "4\\sin x = 2^{1},\\quad 4\\sin x = 2^{3}",
+              "\\sin x = \\frac{1}{2},\\quad \\sin x = 2\\;(>1\\text{ — посторонний})"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{6} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 4 \\pi + \\frac{\\pi}{6} = - \\frac{23 \\pi}{6}",
+              "x_{2} = - 3 \\pi - \\frac{\\pi}{6} = - \\frac{19 \\pi}{6}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-071.svg"
+          }
+        },
+        {
+          "id": "13.log.93.3",
+          "cid": "Б13-072",
+          "part": 2,
+          "class": "логарифмическое",
+          "method": "",
+          "uses": [
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{3}^2(2\\sin x) - 3 \\cdot \\log_{3}(2\\sin x) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{3}",
+              "- \\frac{10 \\pi}{3}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\text{ОДЗ: } 2\\sin x > 0",
+              "\\text{замена } w = \\log_{3}(2\\sin x)",
+              "2 w^2 - 3 w + 1 = 0",
+              "2\\left(w - \\frac{1}{2}\\right)\\left(w - 1\\right) = 0",
+              "2\\sin x = 3^{\\frac{1}{2}},\\quad 2\\sin x = 3^{1}",
+              "\\sin x = \\frac{\\sqrt{3}}{2},\\quad \\sin x = \\frac{3}{2}\\;(>1\\text{ — посторонний})"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = \\frac{\\sqrt{3}}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{3} + 2\\pi n",
+                  "x = \\frac{2 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{7 \\pi}{2} - \\frac{\\pi}{6} = - \\frac{11 \\pi}{3}",
+              "x_{2} = - \\frac{7 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{10 \\pi}{3}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-072.svg"
+          }
+        }
+      ]
+    }
+  ]
+}

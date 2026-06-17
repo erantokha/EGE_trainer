@@ -321,5 +321,15 @@
   { "id": "12.1", "title": "Степенная", "parent": "12", "path": "content/tasks/extrema/12.1/manifest.json", "enabled": true },
   { "id": "12.2", "title": "Логарифм", "parent": "12", "path": "content/tasks/extrema/12.2/manifest.json", "enabled": true },
   { "id": "12.3", "title": "Тригонометрия", "parent": "12", "path": "content/tasks/extrema/12.3/manifest.json", "enabled": true },
-  { "id": "12.4", "title": "Произведение", "parent": "12", "path": "content/tasks/extrema/12.4/manifest.json", "enabled": true }
+  { "id": "12.4", "title": "Произведение", "parent": "12", "path": "content/tasks/extrema/12.4/manifest.json", "enabled": true },
+
+  { "id": "13", "title": "Уравнение", "type": "group" },
+
+  { "id": "13.trig.factor", "title": "Вынесение общего множителя", "parent": "13", "path": "content/tasks/part2/13/13.trig.factor.json", "enabled": true },
+  { "id": "13.trig.quad", "title": "Сведение к квадратному", "parent": "13", "path": "content/tasks/part2/13/13.trig.quad.json", "enabled": true },
+  { "id": "13.trig.group", "title": "Группировка", "parent": "13", "path": "content/tasks/part2/13/13.trig.group.json", "enabled": true },
+  { "id": "13.trig.homog", "title": "Однородные", "parent": "13", "path": "content/tasks/part2/13/13.trig.homog.json", "enabled": true },
+  { "id": "13.trig.other", "title": "Остальное", "parent": "13", "path": "content/tasks/part2/13/13.trig.other.json", "enabled": true },
+  { "id": "13.log", "title": "Логарифмические", "parent": "13", "path": "content/tasks/part2/13/13.log.json", "enabled": true },
+  { "id": "13.exp", "title": "Показательные", "parent": "13", "path": "content/tasks/part2/13/13.exp.json", "enabled": true }
 ]

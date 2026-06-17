@@ -5,23 +5,23 @@
 // Дополнительно: режим просмотра всех задач одной темы по ссылке
 // list.html?topic=<topicId>&view=all
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-38-235425';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-38-235425';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-1-004351';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-38-235425';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-1-004351';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-38-235425';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-38-235425';
-import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-17-38-235425';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-1-004351';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-1-004351';
+import { loadCatalogIndexLike, lookupQuestionsByIdsV1 } from '../app/providers/catalog.js?v=2026-06-18-1-004351';
 
-import { withBuild } from '../app/build.js?v=2026-06-17-38-235425';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-38-235425';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-38-235425';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-38-235425';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-38-235425';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-38-235425';
-import { listMyStudents } from '../app/providers/homework.js?v=2026-06-17-38-235425';
-import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-17-38-235425';
+import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-1-004351';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-1-004351';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
+import { listMyStudents } from '../app/providers/homework.js?v=2026-06-18-1-004351';
+import * as Konspekts from '../app/providers/konspekts.js?v=2026-06-18-1-004351';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // индекс и манифесты лежат в корне репозитория относительно /tasks/

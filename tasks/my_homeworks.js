@@ -6,7 +6,7 @@ const withV = (p) => BUILD ? `${p}${p.includes('?') ? '&' : '?'}v=${encodeURICom
 
 const $ = (sel, root = document) => root.querySelector(sel);
 
-import { navigate } from '../app/ui/nav.js?v=2026-06-17-38-235425';
+import { navigate } from '../app/ui/nav.js?v=2026-06-18-1-004351';
 
 async function api(){
   // ВАЖНО: dynamic import резолвится относительно URL текущего модуля.

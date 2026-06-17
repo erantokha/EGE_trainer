@@ -1,29 +1,29 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-17-38-235425';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-17-38-235425';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-1-004351';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-1-004351';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-17-38-235425';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-38-235425';
+} from '../app/providers/catalog.js?v=2026-06-18-1-004351';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-17-38-235425';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-1-004351';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-17-38-235425';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-17-38-235425';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-38-235425';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-1-004351';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-1-004351';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-1-004351';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-17-38-235425';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-17-38-235425';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-17-38-235425';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-38-235425';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-17-38-235425';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-38-235425';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-38-235425';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-17-38-235425';
+import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-1-004351';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-1-004351';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-1-004351';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-1-004351';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -1465,7 +1465,7 @@ function buildQuestion(manifest, type, proto) {
   const stem = interpolate(stemTpl, params);
   const fig = proto.figure || type.figure || null;
   const ans = computeAnswer(type, proto, params);
-  return {
+  const q = {
     topic_id: manifest.topic || '',
     topic_title: manifest.title || '',
     question_id: proto.id,
@@ -1479,6 +1479,15 @@ function buildQuestion(manifest, type, proto) {
     correct: null,
     time_ms: 0,
   };
+  // Часть 2 (№13): несём эталон и метку part для ветки показа (W13.1 §5.6).
+  // Скоринг/запись — НЕ здесь (W13.2).
+  const part = proto.part ?? type.part ?? null;
+  if (Number(part) === 2) {
+    q.part = 2;
+    q.solution = proto.solution || null;
+    q.answer2 = proto.answer || null; // эталонный ответ {general, roots}
+  }
+  return q;
 }
 
 function computeAnswer(type, proto, params) {
@@ -1577,24 +1586,132 @@ header?.querySelector('.theme-toggle')?.classList.remove('hidden');
   }
 }
 
+// ---------- Часть 2 (№13): показ задачи + эталон (W13.1 §5.6) ----------
+// Часть 2 не автопроверяется: ученик решает на бумаге, открывает эталон по кнопке.
+// Балл/запись попытки — НЕ здесь (W13.2). Весь DOM строится через createElement +
+// textContent (без innerHTML) — LaTeX как текст для MathJax, окружность как <img>
+// (Решение 5 контракта: без зависимости от safe_dom).
+function isPart2Question(q) {
+  return Number(q && q.part) === 2;
+}
+
+function mkEl(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+
+function typesetEl(el) {
+  if (!el || !window.MathJax) return;
+  try {
+    if (window.MathJax.typesetPromise) window.MathJax.typesetPromise([el]).catch(err => console.error(err));
+    else if (window.MathJax.typeset) window.MathJax.typeset([el]);
+  } catch (e) {
+    console.error('MathJax error', e);
+  }
+}
+
+// Stem части 2 содержит <br> между пунктами а) и б). setStem кладёт текст как есть
+// (HTML не интерпретируется), поэтому здесь делим по <br> на отдельные строки.
+function renderPart2Stem(el, stem) {
+  if (!el) return;
+  el.textContent = '';
+  const lines = String(stem || '').split(/<br\s*\/?>/i);
+  for (const line of lines) {
+    el.appendChild(mkEl('div', 'q-line', line));
+  }
+}
+
+function buildPart2EtalonContent(q) {
+  const sol = q.solution || {};
+  const wrap = mkEl('div', 'part2-etalon-inner');
+
+  const addSection = (title, lines, lineCls) => {
+    if (!Array.isArray(lines) || !lines.length) return;
+    const sec = mkEl('div', 'etalon-section');
+    sec.appendChild(mkEl('h4', 'etalon-h', title));
+    for (const ln of lines) sec.appendChild(mkEl('div', lineCls, `\\[ ${ln} \\]`));
+    wrap.appendChild(sec);
+  };
+
+  // пошаговая цепочка преобразований
+  addSection('Решение', sol.steps, 'etalon-step');
+
+  // общее решение (столбиками)
+  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
+    const sec = mkEl('div', 'etalon-section');
+    sec.appendChild(mkEl('h4', 'etalon-h', 'Общее решение'));
+    for (const g of sol.gen_groups) {
+      if (g && g.head) sec.appendChild(mkEl('div', 'etalon-genhead', `\\[ ${g.head} \\]`));
+      for (const s of ((g && g.series) || [])) sec.appendChild(mkEl('div', 'etalon-series', `\\[ ${s} \\]`));
+    }
+    wrap.appendChild(sec);
+  }
+
+  // окружность отбора корней (SVG как <img>)
+  if (sol.figure) {
+    const sec = mkEl('div', 'etalon-section etalon-fig');
+    const img = mkEl('img');
+    img.alt = 'Окружность отбора корней';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = asset(sol.figure);
+    sec.appendChild(img);
+    wrap.appendChild(sec);
+  }
+
+  // разложение корней по опорным
+  addSection('Отбор корней', sol.below, 'etalon-below');
+
+  // ответ (а — общее решение, б — отобранные корни)
+  const ans = q.answer2 || {};
+  const hasGeneral = Array.isArray(ans.general) && ans.general.length;
+  const hasRoots = Array.isArray(ans.roots) && ans.roots.length;
+  if (hasGeneral || hasRoots) {
+    const sec = mkEl('div', 'etalon-section etalon-answer');
+    sec.appendChild(mkEl('h4', 'etalon-h', 'Ответ'));
+    if (hasGeneral) sec.appendChild(mkEl('div', 'etalon-ans-line', 'а) ' + ans.general.map(g => `\\( ${g} \\)`).join(';\\quad ')));
+    if (hasRoots) sec.appendChild(mkEl('div', 'etalon-ans-line', 'б) ' + ans.roots.map(r => `\\( ${r} \\)`).join(';\\quad ')));
+    wrap.appendChild(sec);
+  }
+
+  return wrap;
+}
+
+// Самодостаточный блок: кнопка-тоггл + панель эталона (лениво наполняется и типсетится).
+function buildPart2EtalonBlock(q) {
+  const box = mkEl('div', 'part2-box');
+  const btn = mkEl('button', 'btn part2-etalon-btn', 'Показать эталон');
+  btn.type = 'button';
+  const panel = mkEl('div', 'part2-etalon');
+  panel.hidden = true;
+  let rendered = false;
+  btn.addEventListener('click', () => {
+    if (!rendered) {
+      panel.appendChild(buildPart2EtalonContent(q));
+      rendered = true;
+      typesetEl(panel);
+    }
+    panel.hidden = !panel.hidden;
+    btn.textContent = panel.hidden ? 'Показать эталон' : 'Скрыть эталон';
+  });
+  box.appendChild(btn);
+  box.appendChild(panel);
+  return box;
+}
+
 function renderCurrent() {
   const q = SESSION.questions[SESSION.idx];
   $('#idx').textContent = SESSION.idx + 1;
 
+  const part2 = isPart2Question(q);
+
   const stemEl = $('#stem');
   if (stemEl) {
-    setStem(stemEl, q.stem);
-    if (window.MathJax) {
-      try {
-        if (window.MathJax.typesetPromise) {
-          window.MathJax.typesetPromise([stemEl]).catch(err => console.error(err));
-        } else if (window.MathJax.typeset) {
-          window.MathJax.typeset([stemEl]);
-        }
-      } catch (e) {
-        console.error('MathJax error', e);
-      }
-    }
+    if (part2) renderPart2Stem(stemEl, q.stem);
+    else setStem(stemEl, q.stem);
+    typesetEl(stemEl);
   }
 
   const img = $('#figure');
@@ -1616,6 +1733,19 @@ function renderCurrent() {
   if (res) {
     res.textContent = '';
     res.className = 'result';
+  }
+
+  // Часть 2: вместо автопроверки — кнопка «показать эталон» (W13.1 §5.6).
+  const answerRow = document.querySelector('.answer-row');
+  const mount = $('#part2Mount');
+  if (mount) mount.textContent = '';
+  if (part2) {
+    if (answerRow) answerRow.style.display = 'none';
+    if (res) res.style.display = 'none';
+    if (mount) mount.appendChild(buildPart2EtalonBlock(q));
+  } else {
+    if (answerRow) answerRow.style.display = '';
+    if (res) res.style.display = '';
   }
 }
 
@@ -1689,7 +1819,8 @@ function renderSheetList() {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    setStem(stem, q.stem || '');
+    if (isPart2Question(q)) renderPart2Stem(stem, q.stem || '');
+    else setStem(stem, q.stem || '');
     card.appendChild(stem);
 
     if (q.figure) {
@@ -1735,26 +1866,35 @@ function renderSheetList() {
       }
     }
 
-    const ansRow = document.createElement('div');
-    ansRow.className = 'task-ans hw-answer-row';
+    if (isPart2Question(q)) {
+      // Часть 2: без поля ввода/автопроверки — эталон по кнопке (W13.1 §5.6).
+      // Оборачиваем в .task-ans → grid-область "ans" карточки (full-width низ).
+      const ansWrap = document.createElement('div');
+      ansWrap.className = 'task-ans';
+      ansWrap.appendChild(buildPart2EtalonBlock(q));
+      card.appendChild(ansWrap);
+    } else {
+      const ansRow = document.createElement('div');
+      ansRow.className = 'task-ans hw-answer-row';
 
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.inputMode = 'text';
-    input.autocomplete = 'off';
-    input.placeholder = 'Ответ';
-    input.value = q.chosen_text || '';
-    input.addEventListener('input', () => {
-      q.chosen_text = input.value;
-    });
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.inputMode = 'text';
+      input.autocomplete = 'off';
+      input.placeholder = 'Ответ';
+      input.value = q.chosen_text || '';
+      input.addEventListener('input', () => {
+        q.chosen_text = input.value;
+      });
 
-    ansRow.appendChild(input);
-    card.appendChild(ansRow);
+      ansRow.appendChild(input);
+      card.appendChild(ansRow);
 
-    const pal = document.createElement('div');
-    pal.className = 'print-ans-line';
-    pal.textContent = 'Ответ: ________________________';
-    card.appendChild(pal);
+      const pal = document.createElement('div');
+      pal.className = 'print-ans-line';
+      pal.textContent = 'Ответ: ________________________';
+      card.appendChild(pal);
+    }
 
     listEl.appendChild(card);
   });
@@ -2269,7 +2409,8 @@ function renderReviewCards() {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    setStem(stem, q.stem || '');
+    if (isPart2Question(q)) renderPart2Stem(stem, q.stem || '');
+    else setStem(stem, q.stem || '');
     card.appendChild(stem);
 
     if (q.figure && q.figure.img) {

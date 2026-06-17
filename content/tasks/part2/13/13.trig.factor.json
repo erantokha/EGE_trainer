@@ -1,0 +1,1449 @@
+{
+  "topic": "13.trig.factor",
+  "title": "Вынесение общего множителя",
+  "part": 2,
+  "types": [
+    {
+      "id": "13.trig.factor",
+      "title": "Вынесение общего множителя",
+      "part": 2,
+      "max_primary": 2,
+      "answer_spec": {
+        "type": "manual"
+      },
+      "defaults": {
+        "difficulty": 3
+      },
+      "prototypes": [
+        {
+          "id": "13.trig.factor.46.1",
+          "cid": "Б13-007",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\sin 2x - \\cos(\\pi - x) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{11 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{29 \\pi}{6}",
+              "- \\frac{9 \\pi}{2}",
+              "- \\frac{25 \\pi}{6}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\sin 2x + \\cos x = 0",
+              "2 \\sin x \\cos x + \\cos x = 0",
+              "\\cos x\\left(2 \\sin x + 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{7 \\pi}{6} + 2\\pi n",
+                  "x = \\frac{11 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{6} = - \\frac{29 \\pi}{6}",
+              "x_{3} = - \\frac{9 \\pi}{2}",
+              "x_{4} = - 4 \\pi - \\frac{\\pi}{6} = - \\frac{25 \\pi}{6}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-007.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.46.2",
+          "cid": "Б13-008",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\sin 2x - \\sqrt{2}\\,\\cos(\\pi - x) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{19 \\pi}{4}",
+              "- \\frac{9 \\pi}{2}",
+              "- \\frac{17 \\pi}{4}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\sin 2x + \\sqrt{2} \\cos x = 0",
+              "2 \\sin x \\cos x + \\sqrt{2} \\cos x = 0",
+              "\\cos x\\left(2 \\sin x + \\sqrt{2}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{5 \\pi}{4} + 2\\pi n",
+                  "x = \\frac{7 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{3} = - \\frac{9 \\pi}{2}",
+              "x_{4} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{17 \\pi}{4}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-008.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.46.3",
+          "cid": "Б13-009",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\sin 2x - 2\\cos(\\pi - x) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\sin 2x + 2 \\cos x = 0",
+              "2 \\sin x \\cos x + 2 \\cos x = 0",
+              "\\cos x\\left(2 \\sin x + 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = -1",
+                "series": [
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-009.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.50.1",
+          "cid": "Б13-025",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + \\sin(x - \\pi) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{11 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{29 \\pi}{6}",
+              "- \\frac{25 \\pi}{6}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x - \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x - \\sin x - 1 = 0",
+              "-2 \\sin^2 x - \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{7 \\pi}{6} + 2\\pi n",
+                  "x = \\frac{11 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{6} = - \\frac{29 \\pi}{6}",
+              "x_{3} = - 4 \\pi - \\frac{\\pi}{6} = - \\frac{25 \\pi}{6}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-025.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.50.2",
+          "cid": "Б13-026",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + \\sqrt{3}\\,\\sin(x - \\pi) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{4 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{14 \\pi}{3}",
+              "- \\frac{13 \\pi}{3}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x - \\sqrt{3} \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x - \\sqrt{3} \\sin x - 1 = 0",
+              "-2 \\sin^2 x - \\sqrt{3} \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + \\sqrt{3}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{\\sqrt{3}}{2}",
+                "series": [
+                  "x = \\frac{4 \\pi}{3} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2} - \\frac{\\pi}{6} = - \\frac{14 \\pi}{3}",
+              "x_{3} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{13 \\pi}{3}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-026.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.50.3",
+          "cid": "Б13-027",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + 2\\,\\sin(x - \\pi) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{9 \\pi}{2}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x - 2 \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x - 2 \\sin x - 1 = 0",
+              "-2 \\sin^2 x - 2 \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = -1",
+                "series": [
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-027.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.58.1",
+          "cid": "Б13-028",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x - \\cos(x - \\pi) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{4 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{16 \\pi}{3}",
+              "- \\frac{14 \\pi}{3}",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + \\cos x + 1 = 0",
+              "2 \\cos^2 x - 1 + \\cos x + 1 = 0",
+              "2 \\cos^2 x + \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = - \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{2 \\pi}{3} + 2\\pi n",
+                  "x = \\frac{4 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{16 \\pi}{3}",
+              "x_{3} = - \\frac{9 \\pi}{2} - \\frac{\\pi}{6} = - \\frac{14 \\pi}{3}",
+              "x_{4} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-028.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.58.2",
+          "cid": "Б13-029",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x - \\sqrt{2}\\,\\cos(x - \\pi) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{21 \\pi}{4}",
+              "- \\frac{19 \\pi}{4}",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + \\sqrt{2} \\cos x + 1 = 0",
+              "2 \\cos^2 x - 1 + \\sqrt{2} \\cos x + 1 = 0",
+              "2 \\cos^2 x + \\sqrt{2} \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + \\sqrt{2}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = - \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{3 \\pi}{4} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{21 \\pi}{4}",
+              "x_{3} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{4} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-029.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.58.3",
+          "cid": "Б13-030",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла",
+            "замена переменной"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x - 2\\,\\cos(x - \\pi) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- 5 \\pi",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + 2 \\cos x + 1 = 0",
+              "2 \\cos^2 x - 1 + 2 \\cos x + 1 = 0",
+              "2 \\cos^2 x + 2 \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = -1",
+                "series": [
+                  "x = \\pi + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-030.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.66.1",
+          "cid": "Б13-037",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "основное тригонометрическое тождество"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\sin^2 x \\cos x + \\cos^2 x = 1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{13 \\pi}{3}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x \\cos x + \\cos^2 x - 1 = 0",
+              "2 \\sin^2 x \\cos x - \\sin^2 x = 0",
+              "\\sin^2 x\\left(2 \\cos x - 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{3} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{13 \\pi}{3}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-037.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.66.2",
+          "cid": "Б13-038",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "основное тригонометрическое тождество"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\sin^2 x \\cos x + \\sqrt{2} \\cos^2 x = \\sqrt{2}\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{17 \\pi}{4}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x \\cos x + \\sqrt{2} \\cos^2 x - \\sqrt{2} = 0",
+              "2 \\sin^2 x \\cos x - \\sqrt{2} \\sin^2 x = 0",
+              "\\sin^2 x\\left(2 \\cos x - \\sqrt{2}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{4} + 2\\pi n",
+                  "x = \\frac{7 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{17 \\pi}{4}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-038.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.66.3",
+          "cid": "Б13-039",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "основное тригонометрическое тождество"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\sin^2 x \\cos x - \\cos^2 x = -1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{4 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{16 \\pi}{3}",
+              "- 5 \\pi",
+              "- \\frac{14 \\pi}{3}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x \\cos x - \\cos^2 x + 1 = 0",
+              "2 \\sin^2 x \\cos x + \\sin^2 x = 0",
+              "\\sin^2 x\\left(2 \\cos x + 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = - \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{2 \\pi}{3} + 2\\pi n",
+                  "x = \\frac{4 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{16 \\pi}{3}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - \\frac{9 \\pi}{2} - \\frac{\\pi}{6} = - \\frac{14 \\pi}{3}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-039.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.84.1",
+          "cid": "Б13-031",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + \\cos\\left(\\frac{\\pi}{2} - x\\right) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{31 \\pi}{6}",
+              "- 5 \\pi",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x + \\sin x - 1 = 0",
+              "-2 \\sin^2 x + \\sin x = 0",
+              "\\sin x\\left(2 \\sin x - 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{6} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi - \\frac{\\pi}{6} = - \\frac{31 \\pi}{6}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-031.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.84.2",
+          "cid": "Б13-032",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + \\sqrt{3}\\,\\cos\\left(\\frac{\\pi}{2} - x\\right) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{16 \\pi}{3}",
+              "- 5 \\pi",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + \\sqrt{3} \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x + \\sqrt{3} \\sin x - 1 = 0",
+              "-2 \\sin^2 x + \\sqrt{3} \\sin x = 0",
+              "\\sin x\\left(2 \\sin x - \\sqrt{3}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = \\frac{\\sqrt{3}}{2}",
+                "series": [
+                  "x = \\frac{\\pi}{3} + 2\\pi n",
+                  "x = \\frac{2 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{6} = - \\frac{16 \\pi}{3}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-032.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.84.3",
+          "cid": "Б13-033",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos 2x + 2\\,\\cos\\left(\\frac{\\pi}{2} - x\\right) - 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- 5 \\pi",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos 2x + 2 \\sin x - 1 = 0",
+              "1 - 2 \\sin^2 x + 2 \\sin x - 1 = 0",
+              "-2 \\sin^2 x + 2 \\sin x = 0",
+              "\\sin x\\left(2 \\sin x - 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = 1",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-033.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.87.1",
+          "cid": "Б13-046",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) + \\sin x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{11 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{29 \\pi}{6}",
+              "- \\frac{25 \\pi}{6}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x + \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + 1\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{1}{2}",
+                "series": [
+                  "x = \\frac{7 \\pi}{6} + 2\\pi n",
+                  "x = \\frac{11 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{6} = - \\frac{29 \\pi}{6}",
+              "x_{3} = - 4 \\pi - \\frac{\\pi}{6} = - \\frac{25 \\pi}{6}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-046.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.87.2",
+          "cid": "Б13-047",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) + \\sqrt{2} \\sin x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{19 \\pi}{4}",
+              "- \\frac{17 \\pi}{4}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x + \\sqrt{2} \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + \\sqrt{2}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = - \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{5 \\pi}{4} + 2\\pi n",
+                  "x = \\frac{7 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{3} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{17 \\pi}{4}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-047.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.87.3",
+          "cid": "Б13-048",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) + 2 \\sin x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{9 \\pi}{2}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x + 2 \\sin x = 0",
+              "\\sin x\\left(2 \\sin x + 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\sin x = -1",
+                "series": [
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-048.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.90.1",
+          "cid": "Б13-034",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы сложения/разности аргументов",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\sqrt{2}\\,\\cos x + \\sqrt{2}\\,\\sin\\left(2x + \\frac{\\pi}{4}\\right) = \\sin 2x - 1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{21 \\pi}{4}",
+              "- \\frac{19 \\pi}{4}",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\sqrt{2} \\cos x + \\sin 2x + \\cos 2x - \\sin 2x + 1 = 0",
+              "\\sqrt{2} \\cos x + \\cos 2x + 1 = 0",
+              "\\sqrt{2} \\cos x + 2 \\cos^2 x - 1 + 1 = 0",
+              "2 \\cos^2 x + \\sqrt{2} \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + \\sqrt{2}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = - \\frac{\\sqrt{2}}{2}",
+                "series": [
+                  "x = \\frac{3 \\pi}{4} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{21 \\pi}{4}",
+              "x_{3} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{4} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-034.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.90.2",
+          "cid": "Б13-035",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы сложения/разности аргументов",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\sqrt{3}\\,\\cos x + \\sqrt{2}\\,\\sin\\left(2x + \\frac{\\pi}{4}\\right) = \\sin 2x - 1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- \\frac{31 \\pi}{6}",
+              "- \\frac{29 \\pi}{6}",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\sqrt{3} \\cos x + \\sin 2x + \\cos 2x - \\sin 2x + 1 = 0",
+              "\\sqrt{3} \\cos x + \\cos 2x + 1 = 0",
+              "\\sqrt{3} \\cos x + 2 \\cos^2 x - 1 + 1 = 0",
+              "2 \\cos^2 x + \\sqrt{3} \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + \\sqrt{3}\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = - \\frac{\\sqrt{3}}{2}",
+                "series": [
+                  "x = \\frac{5 \\pi}{6} + 2\\pi n",
+                  "x = \\frac{7 \\pi}{6} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi - \\frac{\\pi}{6} = - \\frac{31 \\pi}{6}",
+              "x_{3} = - 5 \\pi + \\frac{\\pi}{6} = - \\frac{29 \\pi}{6}",
+              "x_{4} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-035.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.90.3",
+          "cid": "Б13-036",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы сложения/разности аргументов",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2\\,\\cos x + \\sqrt{2}\\,\\sin\\left(2x + \\frac{\\pi}{4}\\right) = \\sin 2x - 1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{11 \\pi}{2}",
+              "- 5 \\pi",
+              "- \\frac{9 \\pi}{2}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\cos x + \\sin 2x + \\cos 2x - \\sin 2x + 1 = 0",
+              "2 \\cos x + \\cos 2x + 1 = 0",
+              "2 \\cos x + 2 \\cos^2 x - 1 + 1 = 0",
+              "2 \\cos^2 x + 2 \\cos x = 0",
+              "\\cos x\\left(2 \\cos x + 2\\right) = 0"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\cos x = 0",
+                "series": [
+                  "x = \\frac{\\pi}{2} + 2\\pi n",
+                  "x = \\frac{3 \\pi}{2} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos x = -1",
+                "series": [
+                  "x = \\pi + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - \\frac{9 \\pi}{2}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-036.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.99.1",
+          "cid": "Б13-049",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) - \\sin 2x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{5 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{19 \\pi}{4}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x - \\sin 2x = 0",
+              "2 \\sin^2 x - 2 \\sin x \\cos x = 0",
+              "\\sin x\\left(2 \\sin x - 2 \\cos x\\right) = 0",
+              "\\sin x = 0 \\quad\\text{или}\\quad 2 \\sin x - 2 \\cos x = 0",
+              "\\operatorname{tg} x = 1"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\operatorname{tg} x = 1",
+                "series": [
+                  "x = \\frac{\\pi}{4} + 2\\pi n",
+                  "x = \\frac{5 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-049.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.factor.99.2",
+          "cid": "Б13-050",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) - \\sqrt{3} \\sin 2x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{4 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- 5 \\pi",
+              "- \\frac{14 \\pi}{3}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x - \\sqrt{3} \\sin 2x = 0",
+              "2 \\sin^2 x - 2 \\sqrt{3} \\sin x \\cos x = 0",
+              "\\sin x\\left(2 \\sin x - 2 \\sqrt{3} \\cos x\\right) = 0",
+              "\\sin x = 0 \\quad\\text{или}\\quad 2 \\sin x - 2 \\sqrt{3} \\cos x = 0",
+              "\\operatorname{tg} x = \\sqrt{3}"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\operatorname{tg} x = \\sqrt{3}",
+                "series": [
+                  "x = \\frac{\\pi}{3} + 2\\pi n",
+                  "x = \\frac{4 \\pi}{3} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi",
+              "x_{2} = - \\frac{9 \\pi}{2} - \\frac{\\pi}{6} = - \\frac{14 \\pi}{3}",
+              "x_{3} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-050.svg"
+          }
+        },
+        {
+          "id": "13.trig.factor.99.3",
+          "cid": "Б13-051",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "вынесение общего множителя",
+          "uses": [
+            "формулы приведения",
+            "формулы двойного угла"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(2 \\cos^2\\!\\left(\\tfrac{3\\pi}{2} + x\\right) + \\sin 2x = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{7 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{21 \\pi}{4}",
+              "- 5 \\pi",
+              "- \\frac{17 \\pi}{4}",
+              "- 4 \\pi"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "2 \\sin^2 x + \\sin 2x = 0",
+              "2 \\sin^2 x + 2 \\sin x \\cos x = 0",
+              "\\sin x\\left(2 \\sin x + 2 \\cos x\\right) = 0",
+              "\\sin x = 0 \\quad\\text{или}\\quad 2 \\sin x + 2 \\cos x = 0",
+              "\\operatorname{tg} x = -1"
+            ],
+            "gen_groups": [
+              {
+                "head": "\\sin x = 0",
+                "series": [
+                  "x = 2\\pi n",
+                  "x = \\pi + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\operatorname{tg} x = -1",
+                "series": [
+                  "x = \\frac{3 \\pi}{4} + 2\\pi n",
+                  "x = \\frac{7 \\pi}{4} + 2\\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - \\frac{11 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{21 \\pi}{4}",
+              "x_{2} = - 5 \\pi",
+              "x_{3} = - \\frac{9 \\pi}{2} + \\frac{\\pi}{4} = - \\frac{17 \\pi}{4}",
+              "x_{4} = - 4 \\pi"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-051.svg"
+          }
+        }
+      ]
+    }
+  ]
+}

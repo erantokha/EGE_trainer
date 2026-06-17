@@ -1,0 +1,163 @@
+{
+  "topic": "13.trig.homog",
+  "title": "Однородные",
+  "part": 2,
+  "types": [
+    {
+      "id": "13.trig.homog",
+      "title": "Однородные",
+      "part": 2,
+      "max_primary": 2,
+      "answer_spec": {
+        "type": "manual"
+      },
+      "defaults": {
+        "difficulty": 3
+      },
+      "prototypes": [
+        {
+          "id": "13.trig.homog.5.1",
+          "cid": "Б13-001",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "однородные",
+          "uses": [
+            "формулы приведения",
+            "формулы сложения/разности аргументов"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(3\\cos\\left(x - \\tfrac{\\pi}{6}\\right) - \\sqrt{3}\\,\\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = - \\frac{\\pi}{6} + \\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{31 \\pi}{6}",
+              "- \\frac{25 \\pi}{6}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "3 \\cos\\left(x - \\frac{\\pi}{6}\\right) - \\sqrt{3} \\cos x = 0",
+              "3 \\left(\\frac{\\sqrt{3}}{2} \\cos x + \\frac{1}{2} \\sin x\\right) - \\sqrt{3} \\cos x = 0",
+              "\\frac{3 \\sqrt{3}}{2} \\cos x + \\frac{3}{2} \\sin x - \\sqrt{3} \\cos x = 0",
+              "\\frac{3}{2} \\sin x + \\frac{\\sqrt{3}}{2} \\cos x = 0",
+              "\\operatorname{tg} x = - \\frac{\\sqrt{3}}{3}"
+            ],
+            "gen_groups": [
+              {
+                "head": "",
+                "series": [
+                  "x = - \\frac{\\pi}{6} + \\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi - \\frac{\\pi}{6} = - \\frac{31 \\pi}{6}",
+              "x_{2} = - 4 \\pi - \\frac{\\pi}{6} = - \\frac{25 \\pi}{6}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-001.svg"
+          },
+          "unic": true
+        },
+        {
+          "id": "13.trig.homog.5.2",
+          "cid": "Б13-002",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "однородные",
+          "uses": [
+            "формулы приведения",
+            "формулы сложения/разности аргументов"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos\\left(x - \\tfrac{\\pi}{4}\\right) - \\sqrt{2}\\,\\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{4} + \\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{19 \\pi}{4}",
+              "- \\frac{15 \\pi}{4}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos\\left(x - \\frac{\\pi}{4}\\right) - \\sqrt{2} \\cos x = 0",
+              "\\left(\\frac{\\sqrt{2}}{2} \\cos x + \\frac{\\sqrt{2}}{2} \\sin x\\right) - \\sqrt{2} \\cos x = 0",
+              "\\frac{\\sqrt{2}}{2} \\cos x + \\frac{\\sqrt{2}}{2} \\sin x - \\sqrt{2} \\cos x = 0",
+              "\\frac{\\sqrt{2}}{2} \\sin x - \\frac{\\sqrt{2}}{2} \\cos x = 0",
+              "\\operatorname{tg} x = 1"
+            ],
+            "gen_groups": [
+              {
+                "head": "",
+                "series": [
+                  "x = \\frac{\\pi}{4} + \\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi + \\frac{\\pi}{4} = - \\frac{19 \\pi}{4}",
+              "x_{2} = - 4 \\pi + \\frac{\\pi}{4} = - \\frac{15 \\pi}{4}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-002.svg"
+          }
+        },
+        {
+          "id": "13.trig.homog.5.3",
+          "cid": "Б13-003",
+          "part": 2,
+          "class": "тригонометрическое",
+          "method": "однородные",
+          "uses": [
+            "формулы приведения",
+            "формулы сложения/разности аргументов"
+          ],
+          "max_primary": 2,
+          "stem": "а) Решите уравнение \\(\\cos\\left(x - \\tfrac{\\pi}{3}\\right) - \\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "answer_spec": {
+            "type": "manual"
+          },
+          "answer": {
+            "general": [
+              "x = \\frac{\\pi}{6} + \\pi n,\\ n \\in \\mathbb{Z}"
+            ],
+            "roots": [
+              "- \\frac{29 \\pi}{6}",
+              "- \\frac{23 \\pi}{6}"
+            ]
+          },
+          "solution": {
+            "steps": [
+              "\\cos\\left(x - \\frac{\\pi}{3}\\right) - \\cos x = 0",
+              "\\left(\\frac{1}{2} \\cos x + \\frac{\\sqrt{3}}{2} \\sin x\\right) - \\cos x = 0",
+              "\\frac{1}{2} \\cos x + \\frac{\\sqrt{3}}{2} \\sin x - \\cos x = 0",
+              "\\frac{\\sqrt{3}}{2} \\sin x - \\frac{1}{2} \\cos x = 0",
+              "\\operatorname{tg} x = \\frac{\\sqrt{3}}{3}"
+            ],
+            "gen_groups": [
+              {
+                "head": "",
+                "series": [
+                  "x = \\frac{\\pi}{6} + \\pi n"
+                ]
+              }
+            ],
+            "below": [
+              "x_{1} = - 5 \\pi + \\frac{\\pi}{6} = - \\frac{29 \\pi}{6}",
+              "x_{2} = - 4 \\pi + \\frac{\\pi}{6} = - \\frac{23 \\pi}{6}"
+            ],
+            "figure": "content/tasks/part2/13/img/part2/Б13-003.svg"
+          }
+        }
+      ]
+    }
+  ]
+}

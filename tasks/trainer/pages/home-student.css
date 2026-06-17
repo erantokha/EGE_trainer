@@ -1993,3 +1993,33 @@ body.has-notif[data-home-variant] #htSidebarOpen::after {
     padding-left: 260px;
   }
 }
+
+/* ───────────── W13.1 §5.4: часть 2 (№13) — граница части 1|2, класс-группировка ─────────────
+   Обе главные (ученик и учитель) через [data-home-variant]. №1..12 не затрагиваются. */
+
+/* визуальный разделитель «часть 1 | часть 2» перед секцией №13 */
+body[data-home-variant] #accordion .node.section[data-id="13"]{
+  margin-top:18px;
+  padding-top:12px;
+  border-top:1px solid rgba(148,163,184,.22);
+}
+
+/* класс-заголовок (Тригонометрические/Логарифмические/Показательные) — 2-й уровень */
+body[data-home-variant] #accordion .node.class-head > .row{
+  display:block;
+  padding-left:34px;
+  padding-top:8px;
+  padding-bottom:2px;
+}
+body[data-home-variant] #accordion .node.class-head .class-head-title{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  color:var(--text-dim, #94a3b8);
+}
+
+/* методы №13 — глубже на 3-й уровень (под класс-заголовком) */
+body[data-home-variant] #accordion .node.section[data-id="13"] .node.topic > .row{
+  padding-left:50px !important;
+}

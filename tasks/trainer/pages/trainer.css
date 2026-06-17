@@ -161,3 +161,67 @@ body[data-home-variant] #appHeader .run-meta{
     margin-top: 10px;
   }
 }
+
+/* ───────────── W13.1 §5.6: часть 2 (№13) — stem (а/б) + эталон ───────────── */
+
+/* строки stem части 2 (пункты а) и б) — отдельными абзацами вместо <br>) */
+#stem .q-line,
+.task-stem .q-line {
+  margin: 0 0 6px;
+}
+#stem .q-line:last-child,
+.task-stem .q-line:last-child {
+  margin-bottom: 0;
+}
+
+/* блок «показать эталон» */
+.part2-box {
+  margin-top: 10px;
+}
+.part2-etalon-btn {
+  margin: 0;
+}
+.part2-etalon {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, .25);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, .06);
+}
+.part2-etalon[hidden] { display: none; }
+
+.part2-etalon .etalon-section {
+  margin: 0 0 14px;
+}
+.part2-etalon .etalon-section:last-child { margin-bottom: 0; }
+
+.part2-etalon .etalon-h {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dim, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+
+.part2-etalon .etalon-step,
+.part2-etalon .etalon-genhead,
+.part2-etalon .etalon-series,
+.part2-etalon .etalon-below {
+  margin: 2px 0;
+  overflow-x: auto;
+}
+
+/* окружность отбора корней */
+.part2-etalon .etalon-fig {
+  text-align: center;
+}
+.part2-etalon .etalon-fig img {
+  max-width: 320px;
+  width: 100%;
+  height: auto;
+}
+
+.part2-etalon .etalon-answer .etalon-ans-line {
+  margin: 2px 0;
+}

@@ -18,8 +18,8 @@
 //   11. catalog_version present
 //   12. screen contract block
 
-import { getSession } from '../app/providers/supabase.js?v=2026-06-17-38-235425';
-import { supaRest }   from '../app/providers/supabase-rest.js?v=2026-06-17-38-235425';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
+import { supaRest }   from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
 
 const PRIMARY_RPC = 'student_analytics_screen_v1';
 const REQUIRED_TOP_KEYS = ['student', 'catalog_version', 'screen', 'overall', 'sections', 'topics', 'variant12', 'recommendations', 'warnings', 'generated_at'];

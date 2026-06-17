@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>W13.1 §5.4/§5.6 — render preview (№13)</title>
+<!-- Реальный CSS проекта (тот же, что грузит trainer.html / home_student.html) -->
+<link rel="stylesheet" href="/tasks/trainer/tokens.css">
+<link rel="stylesheet" href="/tasks/trainer/base.css">
+<link rel="stylesheet" href="/tasks/trainer/pages/trainer.css">
+<link rel="stylesheet" href="/tasks/trainer/pages/home-student.css">
+<script>
+  window.MathJax = { tex: { inlineMath: [['\\(','\\)'], ['$','$']] }, svg: { fontCache: 'local' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+  body { padding:24px; max-width:980px; margin:0 auto; }
+  .preview-note { font:13px/1.5 system-ui; color:#64748b; background:rgba(148,163,184,.08);
+    border:1px solid rgba(148,163,184,.25); border-radius:8px; padding:10px 14px; margin:0 0 18px; }
+  .preview-h { font:600 14px/1.4 system-ui; margin:26px 0 10px; color:#0f172a; }
+  .run-body { max-width:720px; }
+</style>
+</head>
+<body data-home-variant="student">
+
+<p class="preview-note">
+  <b>Render-preview (не live-прод).</b> Аккордеон в проде строится из бэкенд-каталога (Supabase);
+  №13 появится после заливки оператором. Здесь — рендер той же разметкой picker.js/trainer.js + тот же
+  CSS, на реальном контенте из <code>content/tasks/part2/13/</code>. Цель — показать §5.4 (группировка
+  по классу + отступ после №12) и §5.6 (stem а/б + эталон).
+</p>
+
+<div class="preview-h">§5.4 — аккордеон: №12 (часть 1) → отступ → №13 (часть 2) с класс-группировкой</div>
+<div class="picker-left">
+  <div id="accordion"></div>
+</div>
+
+<div class="preview-h">§5.6 — показ задачи №13 (sheet-режим): stem (а/б) + раскрытый эталон</div>
+<div class="run-body">
+  <div class="task-list" id="taskList"></div>
+</div>
+
+<script type="module">
+// ──────────────────────────────────────────────────────────────────────────
+// Харнесс мирроринга: копии markup-функций picker.js (§5.4) и trainer.js (§5.6).
+// Заглушки окружения (esc/asset/CHOICE_*), чтобы вызвать тот же код изолированно.
+// ──────────────────────────────────────────────────────────────────────────
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const asset = (p) => '/' + String(p || '').replace(/^\/+/, '');
+const CHOICE_SECTIONS = {}, CHOICE_TOPICS = {};
+const $ = (sel, el = document) => el.querySelector(sel);
+
+// ── §5.4: точные копии из tasks/picker.js ──
+const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];
+const PART2_CLASS_TITLE = { trig: 'Тригонометрические', log: 'Логарифмические', exp: 'Показательные' };
+function part2ClassOfTopicId(id) { return String(id || '').split('.')[1] || ''; }
+function appendPart2GroupedTopics(ch, topics) {
+  const byClass = new Map();
+  for (const t of (topics || [])) {
+    const cls = part2ClassOfTopicId(t.id);
+    if (!byClass.has(cls)) byClass.set(cls, []);
+    byClass.get(cls).push(t);
+  }
+  const known = PART2_CLASS_ORDER.filter(c => byClass.has(c));
+  const extra = [...byClass.keys()].filter(c => !PART2_CLASS_ORDER.includes(c)).sort();
+  for (const cls of [...known, ...extra]) {
+    const list = byClass.get(cls);
+    if (!list || !list.length) continue;
+    const head = document.createElement('div');
+    head.className = 'node class-head';
+    head.innerHTML = `<div class="row"><span class="class-head-title">${esc(PART2_CLASS_TITLE[cls] || cls)}</span></div>`;
+    ch.appendChild(head);
+    for (const t of list) ch.appendChild(renderTopicRow(t));
+  }
+}
+function renderTopicRow(topic) {
+  const row = document.createElement('div');
+  row.className = 'node topic';
+  row.dataset.id = topic.id;
+  const isPart2Topic = /[a-z]/i.test(String(topic.id || ''));
+  const topicLabel = isPart2Topic ? String(topic.title || '') : `${topic.id}. ${topic.title}`;
+  row.innerHTML = `
+    <div class="row">
+      <div class="countbox">
+        <button class="btn minus" type="button">−</button>
+        <input class="count" type="number" min="0" step="1" value="0">
+        <button class="btn plus" type="button">+</button>
+      </div>
+      <span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><i class="acc-bar" aria-hidden="true"></i><b>—</b><span class="small"></span></span>
+      <div class="row-title"><div class="title">${esc(topicLabel)}</div></div>
+      <div class="spacer"></div>
+    </div>`;
+  return row;
+}
+function renderSectionNode(sec) {
+  const node = document.createElement('div');
+  node.className = 'node section expanded show-uniq';
+  node.dataset.id = sec.id;
+  node.innerHTML = `
+    <div class="row">
+      <div class="countbox">
+        <button class="btn minus" type="button">−</button>
+        <input class="count" type="number" min="0" step="1" value="0">
+        <button class="btn plus" type="button">+</button>
+      </div>
+      <span class="home-section-badges">
+        <span class="badge gray home-last10-badge home-section-pct" data-tip="Процент правильных ответов"><i class="acc-bar" aria-hidden="true"></i><b>—</b></span>
+        <span class="badge gray home-coverage-badge home-section-cov" data-tip="Покрытие тем"><b>0/0</b></span>
+      </span>
+      <div class="row-title">
+        <button class="section-title" type="button">${esc(`${sec.id}. ${sec.title}`)}</button>
+        <button class="unique-btn" type="button" aria-label="Уникальные прототипы" data-tip="Уникальные прототипы">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="5" height="15" rx="1"/><rect x="10" y="3" width="4" height="17" rx="1"/><rect x="16" y="6" width="5" height="14" rx="1"/><line x1="2" y1="21" x2="22" y2="21"/></svg>
+        </button>
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <div class="children"></div>`;
+  const ch = $('.children', node);
+  if (String(sec.id) === '13') appendPart2GroupedTopics(ch, sec.topics);
+  else for (const t of sec.topics) ch.appendChild(renderTopicRow(t));
+  return node;
+}
+function renderBadgesHead() {
+  const node = document.createElement('div');
+  node.className = 'home-badges-head';
+  node.innerHTML = `<div class="row"><div class="home-head-label home-head-title">Тема и точность</div><div class="home-head-label home-head-cov">Покрытие</div><div class="home-head-label home-head-tasks">Задачи</div></div>`;
+  return node;
+}
+
+// ── §5.6: точные копии из tasks/trainer.js ──
+function mkEl(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function typesetEl(el) { if (!el || !window.MathJax) return; try { if (window.MathJax.typesetPromise) window.MathJax.typesetPromise([el]); } catch(e){} }
+function renderPart2Stem(el, stem) {
+  el.textContent = '';
+  for (const line of String(stem || '').split(/<br\s*\/?>/i)) el.appendChild(mkEl('div', 'q-line', line));
+}
+function buildPart2EtalonContent(q) {
+  const sol = q.solution || {};
+  const wrap = mkEl('div', 'part2-etalon-inner');
+  const addSection = (title, lines, lineCls) => {
+    if (!Array.isArray(lines) || !lines.length) return;
+    const sec = mkEl('div', 'etalon-section');
+    sec.appendChild(mkEl('h4', 'etalon-h', title));
+    for (const ln of lines) sec.appendChild(mkEl('div', lineCls, `\\[ ${ln} \\]`));
+    wrap.appendChild(sec);
+  };
+  addSection('Решение', sol.steps, 'etalon-step');
+  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
+    const sec = mkEl('div', 'etalon-section');
+    sec.appendChild(mkEl('h4', 'etalon-h', 'Общее решение'));
+    for (const g of sol.gen_groups) {
+      if (g && g.head) sec.appendChild(mkEl('div', 'etalon-genhead', `\\[ ${g.head} \\]`));
+      for (const s of ((g && g.series) || [])) sec.appendChild(mkEl('div', 'etalon-series', `\\[ ${s} \\]`));
+    }
+    wrap.appendChild(sec);
+  }
+  if (sol.figure) {
+    const sec = mkEl('div', 'etalon-section etalon-fig');
+    const img = mkEl('img'); img.alt = 'Окружность отбора корней'; img.src = asset(sol.figure);
+    sec.appendChild(img); wrap.appendChild(sec);
+  }
+  addSection('Отбор корней', sol.below, 'etalon-below');
+  const ans = q.answer2 || {};
+  const hasG = Array.isArray(ans.general) && ans.general.length, hasR = Array.isArray(ans.roots) && ans.roots.length;
+  if (hasG || hasR) {
+    const sec = mkEl('div', 'etalon-section etalon-answer');
+    sec.appendChild(mkEl('h4', 'etalon-h', 'Ответ'));
+    if (hasG) sec.appendChild(mkEl('div', 'etalon-ans-line', 'а) ' + ans.general.map(g => `\\( ${g} \\)`).join(';\\quad ')));
+    if (hasR) sec.appendChild(mkEl('div', 'etalon-ans-line', 'б) ' + ans.roots.map(r => `\\( ${r} \\)`).join(';\\quad ')));
+    wrap.appendChild(sec);
+  }
+  return wrap;
+}
+
+// ── собрать данные из реального контента ──
+async function getJson(p) { return (await fetch(p)).json(); }
+
+(async () => {
+  const index = await getJson('/content/tasks/index.json');
+  const groups = index.filter(x => x.type === 'group');
+  const topics = index.filter(x => x.parent && x.enabled !== false && x.hidden !== true);
+  const mkSec = (id) => { const s = groups.find(g => g.id === id); s.topics = topics.filter(t => t.parent === id); return s; };
+
+  const acc = document.getElementById('accordion');
+  acc.appendChild(renderBadgesHead());
+  acc.appendChild(renderSectionNode(mkSec('12'))); // часть 1 — для контекста границы
+  acc.appendChild(renderSectionNode(mkSec('13'))); // часть 2
+
+  // §5.6: первая задача из 13.trig.factor (вынесение множителя)
+  const man = await getJson('/content/tasks/part2/13/13.trig.factor.json');
+  const proto = man.types[0].prototypes[0];
+  const q = { stem: proto.stem, part: 2, solution: proto.solution, answer2: proto.answer };
+
+  const list = document.getElementById('taskList');
+  const card = mkEl('div', 'task-card');
+  card.appendChild(mkEl('div', 'task-num', '1'));
+  const stem = mkEl('div', 'task-stem'); renderPart2Stem(stem, q.stem); card.appendChild(stem);
+  const ansWrap = mkEl('div', 'task-ans');
+  const box = mkEl('div', 'part2-box');
+  const panel = mkEl('div', 'part2-etalon'); panel.appendChild(buildPart2EtalonContent(q));
+  box.appendChild(mkEl('button', 'btn part2-etalon-btn', 'Скрыть эталон'));
+  box.appendChild(panel);
+  ansWrap.appendChild(box);
+  card.appendChild(ansWrap);
+  list.appendChild(card);
+
+  if (window.MathJax && window.MathJax.startup) {
+    await window.MathJax.startup.promise;
+    await window.MathJax.typesetPromise();
+  }
+  document.body.dataset.ready = '1';
+})();
+</script>
+</body>
+</html>

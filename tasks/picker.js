@@ -8,26 +8,26 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 // picker.js используется как со страницы /tasks/index.html,
 // так и с корневой /index.html (которая является "копией" страницы выбора).
 // Поэтому пути строим динамически, исходя из текущего URL страницы.
-import { withBuild } from '../app/build.js?v=2026-06-17-38-235425';
-import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-17-38-235425';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-17-38-235425';
-import { CONFIG } from '../app/config.js?v=2026-06-17-38-235425';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-17-38-235425';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-17-38-235425';
-import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-17-38-235425';
-import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-17-38-235425';
-import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-17-38-235425';
-import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-17-38-235425';
+import { withBuild } from '../app/build.js?v=2026-06-18-1-004351';
+import { applyMetricHelp as applyMetricHelpF5 } from '../app/ui/metric_help.js?v=2026-06-18-1-004351';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-18-1-004351';
+import { CONFIG } from '../app/config.js?v=2026-06-18-1-004351';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-1-004351';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-1-004351';
+import { readStudentAnalyticsCache, writeStudentAnalyticsCache } from '../app/providers/student-analytics-cache.js?v=2026-06-18-1-004351';
+import { readStudentAttemptsCache, writeStudentAttemptsCache } from '../app/providers/student-attempts-cache.js?v=2026-06-18-1-004351';
+import { readTeacherPickingScreenCache, writeTeacherPickingScreenCache } from '../app/providers/teacher-picking-screen-cache.js?v=2026-06-18-1-004351';
+import { listMyStudents, questionStatsForTeacherV1, protoLast3ForTeacherV1, protoLast3ForSelfV1, loadTeacherPickingScreenV2, loadTeacherPickingResolveBatchV1, loadStudentPickingSnapshotV1 } from '../app/providers/homework.js?v=2026-06-18-1-004351';
 // WPS.1: локальный движок фильтр-подбора от «витрины» (pure, parity с серверным resolve).
-import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-17-38-235425';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-17-38-235425';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-17-38-235425';
-import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-17-38-235425';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-17-38-235425';
-import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-17-38-235425';
-import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-17-38-235425';
+import { resolveBatchLocal } from '../app/core/pick_filtered.js?v=2026-06-18-1-004351';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-1-004351';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-1-004351';
+import { navigate, reserveTab, commitNavigation } from '../app/ui/nav.js?v=2026-06-18-1-004351';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-1-004351';
+import { baseIdFromProtoId } from '../app/core/pick.js?v=2026-06-18-1-004351';
+import { createSessionLink } from '../app/providers/task_session.js?v=2026-06-18-1-004351';
 // W2.1' Variant B: pure resolve/manifest builders extracted to a self-contained module.
-import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-17-38-235425';
+import { ensurePickerManifest, loadTopicPoolForPreview, normalizeResolveReqArray, buildResolveBucketKey, getResolveRowBucketKey } from './picker_added_tasks.js?v=2026-06-18-1-004351';
 // W2 Шаг 1: роле-агностичные чистые stateless-утилиты вынесены в self-contained common-модуль (no picker-state, no cycle).
 import {
   safeJsonParse, fmtName, emailLocalPart, esc, escapeHtml, interpolate, compareId,
@@ -35,13 +35,13 @@ import {
   pct, badgeClassByPct, fmtPct, fmtCnt, fmtDateTimeRu, fmtDateShortRu, badgeClassByLastAttemptAt,
   supabaseRefFromUrl, sessionTtlSec, asset, buildStemPreview, typesetMathIfNeeded, ensureMathJaxLoaded,
   BADGE_COLOR_CLASSES,
-} from './picker_common.js?v=2026-06-17-38-235425';
+} from './picker_common.js?v=2026-06-18-1-004351';
 // W2 Шаг 2: домашняя статистика (писатели + forecast/термометр + teacher model + rec-хелперы) вынесена в лист picker_stats.js.
 import {
   resetTitle, setHomeBadge, setHomeTopicBadge, setHomeSectionBadge, setHomeCoverageBadge,
   _syncHtThermoHeight, updateScoreForecast, applyTitleRecommendation, buildTeacherPickingHomeModel,
   buildStudentStatsModel,
-} from './picker_stats.js?v=2026-06-17-38-235425';
+} from './picker_stats.js?v=2026-06-18-1-004351';
 
 const IN_TASKS_DIR = /\/tasks(\/|$)/.test(location.pathname);
 const PAGES_BASE = IN_TASKS_DIR ? './' : './tasks/';
@@ -2890,6 +2890,43 @@ function renderSectionBadgesHead() {
   return node;
 }
 
+// W13.1 §5.4: часть 2 (№13) — визуальная группировка подтем-методов по классу
+// (триг/лог/показ). Класс выводится из id-префикса подтемы (13.<class>.<method>);
+// бэкенд-измерения «класс» нет (см. reports/part2_recon/W13_1_RECON_5_2.md §2) —
+// это чисто фронтовый заголовок-группировщик. №1..12 рендерятся прежним плоским
+// циклом и не затрагиваются.
+const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];
+const PART2_CLASS_TITLE = {
+  trig: 'Тригонометрические',
+  log: 'Логарифмические',
+  exp: 'Показательные',
+};
+
+function part2ClassOfTopicId(id) {
+  return String(id || '').split('.')[1] || '';
+}
+
+function appendPart2GroupedTopics(ch, topics) {
+  const byClass = new Map();
+  for (const t of (topics || [])) {
+    const cls = part2ClassOfTopicId(t.id);
+    if (!byClass.has(cls)) byClass.set(cls, []);
+    byClass.get(cls).push(t);
+  }
+  // порядок классов: явный (триг→лог→показ), затем любые незнакомые — в конце по id
+  const known = PART2_CLASS_ORDER.filter(c => byClass.has(c));
+  const extra = [...byClass.keys()].filter(c => !PART2_CLASS_ORDER.includes(c)).sort();
+  for (const cls of [...known, ...extra]) {
+    const list = byClass.get(cls);
+    if (!list || !list.length) continue;
+    const head = document.createElement('div');
+    head.className = 'node class-head';
+    head.innerHTML = `<div class="row"><span class="class-head-title">${esc(PART2_CLASS_TITLE[cls] || cls)}</span></div>`;
+    ch.appendChild(head);
+    for (const t of list) ch.appendChild(renderTopicRow(t));
+  }
+}
+
 function renderSectionNode(sec) {
   const node = document.createElement('div');
   node.className = 'node section';
@@ -2926,8 +2963,12 @@ function renderSectionNode(sec) {
   `;
 
   const ch = $('.children', node);
-  for (const t of sec.topics) {
-    ch.appendChild(renderTopicRow(t));
+  if (String(sec.id) === '13') {
+    appendPart2GroupedTopics(ch, sec.topics); // W13.1 §5.4: класс-группировка только для №13
+  } else {
+    for (const t of sec.topics) {
+      ch.appendChild(renderTopicRow(t));
+    }
   }
 
   // раскрытие/сворачивание секции + показ/скрытие кнопки «Уникальные прототипы»
@@ -2999,6 +3040,12 @@ function renderTopicRow(topic) {
   row.className = 'node topic';
   row.dataset.id = topic.id;
 
+  // W13.1 §5.4: для подтем части 2 (id с буквенными сегментами, напр. 13.trig.factor)
+  // не показываем внутренний id-префикс — только название метода (класс несёт заголовок-
+  // группировщик). Часть 1 (числовые id вида 12.1) рендерится как раньше: «12.1. Тема».
+  const isPart2Topic = /[a-z]/i.test(String(topic.id || ''));
+  const topicLabel = isPart2Topic ? String(topic.title || '') : `${topic.id}. ${topic.title}`;
+
   row.innerHTML = `
     <div class="row">
       <div class="countbox">
@@ -3009,15 +3056,15 @@ function renderTopicRow(topic) {
       </div>
       <span class="badge gray home-last10-badge home-topic-badge" data-tip="Последние 3 задачи"><i class="acc-bar" aria-hidden="true"></i><b>—</b><span class="small"></span></span>
       <div class="row-title">
-      <div class="title">${esc(`${topic.id}. ${topic.title}`)}</div>
+      <div class="title">${esc(topicLabel)}</div>
       </div>
       <div class="spacer"></div>
-      
+
     </div>
   `;
 
   const titleEl = $('.title', row);
-  if (titleEl) titleEl.dataset.baseTitle = `${topic.id}. ${topic.title}`;
+  if (titleEl) titleEl.dataset.baseTitle = topicLabel;
   if (CAN_PROTO_MODAL && titleEl) {
     titleEl.classList.add('proto-clickable');
     titleEl.setAttribute('role', 'button');
