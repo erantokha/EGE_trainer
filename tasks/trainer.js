@@ -1,31 +1,31 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-17-221628';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-17-221628';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-21-223122';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-21-223122';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-17-221628';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-17-221628';
+} from '../app/providers/catalog.js?v=2026-06-18-21-223122';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-21-223122';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-17-221628';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-21-223122';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-17-221628';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-17-221628';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-17-221628';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-21-223122';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-21-223122';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-21-223122';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-17-221628';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-17-221628';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-17-221628';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore, typesetEl } from './part2_render.js?v=2026-06-18-17-221628';
-import { submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-17-221628';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-17-221628';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-17-221628';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-17-221628';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-17-221628';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-17-221628';
+import { withBuild } from '../app/build.js?v=2026-06-18-21-223122';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-21-223122';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-21-223122';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore, typesetEl } from './part2_render.js?v=2026-06-18-21-223122';
+import { submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-21-223122';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-21-223122';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-21-223122';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-21-223122';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-21-223122';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-21-223122';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -313,14 +313,34 @@ function showSummaryScreen({ total, correct, avg_ms, duration_ms, insert_ok, ins
 
   const statsEl = document.getElementById('stats');
   if (statsEl) {
-    statsEl.innerHTML =
-      `<div class="stat-compact stat-score ${scoreCls}">${correct}/${total} ${pctText}</div>` +
-      `<div class="stat-compact stat-time">Общее время: ${formatHms(duration_ms || 0)}</div>` +
-      `<div class="stat-full">Всего: ${total}</div>` +
-      `<div class="stat-full">Верно: ${correct}</div>` +
-      `<div class="stat-full">Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
-      `<div class="stat-full">Общее время: ${formatHms(duration_ms || 0)}</div>` +
-      `<div class="stat-full">Среднее на задачу: ${formatHms(avg_ms || 0)}</div>`;
+    const p2list = (SESSION?.questions || []).filter(isPart2Question);
+    const hasP2 = p2list.length > 0;
+    if (total === 0 && hasP2) {
+      // Тренировка только из части 2 (№13) — нет автопроверяемой части 1, не показываем «0/0».
+      statsEl.innerHTML =
+        `<div class="stat-full">Часть 1: автопроверяемых задач нет</div>` +
+        `<div class="stat-full">Общее время: ${formatHms(duration_ms || 0)}</div>`;
+    } else {
+      statsEl.innerHTML =
+        `<div class="stat-compact stat-score ${scoreCls}">${correct}/${total} ${pctText}</div>` +
+        `<div class="stat-compact stat-time">Общее время: ${formatHms(duration_ms || 0)}</div>` +
+        `<div class="stat-full">Всего: ${total}</div>` +
+        `<div class="stat-full">Верно: ${correct}</div>` +
+        `<div class="stat-full">Точность: ${Math.round((100 * correct) / Math.max(1, total))}%</div>` +
+        `<div class="stat-full">Общее время: ${formatHms(duration_ms || 0)}</div>` +
+        `<div class="stat-full">Среднее на задачу: ${formatHms(avg_ms || 0)}</div>`;
+    }
+    // Часть 2 (№13): свод самооценки (балл из q.self_score; max = 2 за задачу).
+    if (hasP2) {
+      const inRange = (v) => v === 0 || v === 1 || v === 2;
+      const scored = p2list.filter(q => inRange(q.self_score));
+      const selfSum = scored.reduce((s, q) => s + Number(q.self_score), 0);
+      const note = scored.length < p2list.length ? ` (оценено ${scored.length} из ${p2list.length})` : '';
+      const block = document.createElement('div');
+      block.className = 'stat-full';
+      block.innerHTML = `<b>Часть 2 (№13):</b> ${p2list.length} зад. · самооценка <b>${selfSum} из ${p2list.length * 2}</b>${note}`;
+      statsEl.appendChild(block);
+    }
   }
 
   REVIEW_ONLY_WRONG = false;
@@ -1635,7 +1655,7 @@ function renderCurrent() {
       mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
       mount.appendChild(buildPart2SelfScore({
         savedScore: q.self_score ?? null,
-        onSave: (score) => submitPart2SelfScore(q.question_id, score, { source: 'test' }),
+        onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },
       }));
     }
   } else {
@@ -1769,7 +1789,7 @@ function renderSheetList() {
       ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
       ansWrap.appendChild(buildPart2SelfScore({
         savedScore: q.self_score ?? null,
-        onSave: (score) => submitPart2SelfScore(q.question_id, score, { source: 'test' }),
+        onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },
       }));
       card.appendChild(ansWrap);
     } else {
@@ -1823,7 +1843,8 @@ async function onFinishClick() {
     } catch (_) {}
 
     const total = SESSION.questions.length;
-    const empty = SESSION.questions.filter(q => !String(q.chosen_text ?? '').trim()).length;
+    // Часть 2 (№13) не имеет поля ответа (только самооценка) — не считаем её «пустой».
+    const empty = SESSION.questions.filter(q => !isPart2Question(q) && !String(q.chosen_text ?? '').trim()).length;
     if (empty > 0) {
       const ok = await confirmFinish({ empty, total, kind: 'training' });
       if (!ok) return; // «Продолжить решение» — ничего не отправляем
@@ -2136,8 +2157,10 @@ async function finishSession() {
     }
   } catch (_) {}
 
-  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный"
+  // Проверяем/дозаполняем ответы, чтобы в разборе всегда был "Правильный".
+  // Часть 2 (№13) не автопроверяется — пропускаем (балл = самооценка, см. q.self_score).
   for (const q of SESSION.questions) {
+    if (isPart2Question(q)) { q.time_ms = q.time_ms || 0; continue; }
     const raw = q.chosen_text ?? '';
     const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer || {}, raw);
     q.correct = correct;
@@ -2147,9 +2170,10 @@ async function finishSession() {
     q.time_ms = q.time_ms || 0;
   }
 
-  const total = SESSION.questions.length;
+  // X/Y — только по части 1 (часть 2 — ручная самооценка, не gradeable).
+  const total = SESSION.questions.filter(q => !isPart2Question(q)).length;
   const correct = SESSION.questions.reduce(
-    (s, q) => s + (q.correct ? 1 : 0),
+    (s, q) => s + (!isPart2Question(q) && q.correct ? 1 : 0),
     0,
   );
   const avg_ms = Math.round(SESSION.total_ms / Math.max(1, total));
@@ -2299,8 +2323,10 @@ function renderReviewCards() {
     const head = document.createElement('div');
     head.className = 'hw-review-head';
 
+    const p2 = isPart2Question(q);
     const num = document.createElement('div');
-    num.className = 'task-num ' + (q.correct ? 'ok' : 'bad');
+    // Часть 2 (№13) не автопроверяется — без красного/зелёного маркера.
+    num.className = 'task-num' + (p2 ? '' : (q.correct ? ' ok' : ' bad'));
     num.textContent = String(idx + 1);
 
     head.appendChild(num);
@@ -2331,17 +2357,34 @@ const analogBtnHtml = (topicId && protoId)
   ? `<button type="button" class="analog-btn" data-topic-id="${esc(topicId)}" data-base-proto="${esc(protoId)}">Решить аналог</button>`
   : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`;
 
-ans.innerHTML =
-  `<div class="hw-ans-line">` +
-  `<span>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></span>` +
-  `</div>` +
-  `<div class="hw-ans-line">` +
-  `<span>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></span>` +
-  `<span class="hw-actions">` +
-  `<span class="video-solution-slot" data-video-proto="${esc(protoId)}"></span>` +
-  analogBtnHtml +
-  `</span>` +
-  `</div>`;
+if (p2) {
+  // Часть 2 (№13): вместо «Ваш/Правильный ответ» — эталон («Показать эталон») + самооценка.
+  ans.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+  ans.appendChild(buildPart2SelfScore({
+    savedScore: q.self_score ?? null,
+    onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },
+  }));
+  const actions = document.createElement('div');
+  actions.className = 'hw-ans-line';
+  actions.innerHTML =
+    `<span class="hw-actions">` +
+    `<span class="video-solution-slot" data-video-proto="${esc(protoId)}"></span>` +
+    analogBtnHtml +
+    `</span>`;
+  ans.appendChild(actions);
+} else {
+  ans.innerHTML =
+    `<div class="hw-ans-line">` +
+    `<span>Ваш ответ: <span class="muted">${esc(q.chosen_text || '')}</span></span>` +
+    `</div>` +
+    `<div class="hw-ans-line">` +
+    `<span>Правильный ответ: <span class="muted">${esc(q.correct_text || '')}</span></span>` +
+    `<span class="hw-actions">` +
+    `<span class="video-solution-slot" data-video-proto="${esc(protoId)}"></span>` +
+    analogBtnHtml +
+    `</span>` +
+    `</div>`;
+}
 card.appendChild(ans);
 
 
