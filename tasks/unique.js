@@ -7,14 +7,14 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-23-231425';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-23-231425';
-import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-18-23-231425';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-23-231425';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-23-231425';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-23-231425';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-23-231425';
-import { isPart2Id, renderPart2Stem, buildPart2EtalonBlock, part2Label, part2ClassKey, part2ClassOrder, part2ClassTitle } from './part2_render.js?v=2026-06-18-23-231425';
+import { withBuild } from '../app/build.js?v=2026-06-18-24-231445';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-24-231445';
+import { setStem, mountInlineSvg } from '../app/ui/safe_dom.js?v=2026-06-18-24-231445';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-24-231445';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-24-231445';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-24-231445';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-24-231445';
+import { isPart2Id, renderPart2Stem, buildPart2EtalonBlock, part2Label, part2ClassKey, part2ClassOrder, part2ClassTitle } from './part2_render.js?v=2026-06-18-24-231445';
 
 // Кэш манифестов по темам, чтобы не грузить один и тот же JSON дважды
 // (например, сначала для подсчёта количества, а затем при раскрытии аккордеона).

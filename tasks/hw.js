@@ -10,23 +10,23 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-23-231425';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-23-231425';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-24-231445';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-24-231445';
 
-import { CONFIG } from '../app/config.js?v=2026-06-18-23-231425';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-23-231425';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-23-231425';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-23-231425';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-23-231425';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-23-231425';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-23-231425';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-23-231425';
+import { CONFIG } from '../app/config.js?v=2026-06-18-24-231445';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-24-231445';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-24-231445';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-24-231445';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-24-231445';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-24-231445';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-24-231445';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-24-231445';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-23-231425';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-23-231425';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore } from './part2_render.js?v=2026-06-18-23-231425';
-import { confirmPart2TeacherScore, getPart2ReviewsForAttempt, submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-23-231425';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-24-231445';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-24-231445';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore } from './part2_render.js?v=2026-06-18-24-231445';
+import { confirmPart2TeacherScore, getPart2ReviewsForAttempt, submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-24-231445';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
