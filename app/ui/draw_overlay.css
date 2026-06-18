@@ -55,6 +55,8 @@
 .dro-row { display: flex; gap: 5px; align-items: center; }
 .dro-lbl { font-size: 11px; color: #9aa0a6; width: 46px; flex: 0 0 auto; }
 .dro-tools, .dro-thick, .dro-style { display: flex; gap: 5px; }
+.dro-solids, .dro-axes { display: flex; gap: 5px; flex-wrap: wrap; max-width: 272px; }
+.dro-tbtn.dro-tbtn-solid { min-width: 34px; padding: 0 5px; }
 .dro-tbtn {
   min-width: 36px; height: 34px; padding: 0 9px; border: 1px solid #3a3f47; background: #2f333a; color: #e8eaed;
   border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;

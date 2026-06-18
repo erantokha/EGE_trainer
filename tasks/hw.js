@@ -10,23 +10,23 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-12-195748';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-12-195748';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-15-214923';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-15-214923';
 
-import { CONFIG } from '../app/config.js?v=2026-06-18-12-195748';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-12-195748';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-12-195748';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-12-195748';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-12-195748';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-12-195748';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-12-195748';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-12-195748';
+import { CONFIG } from '../app/config.js?v=2026-06-18-15-214923';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-15-214923';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-15-214923';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-15-214923';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-15-214923';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-15-214923';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-15-214923';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-15-214923';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-12-195748';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-12-195748';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore } from './part2_render.js?v=2026-06-18-12-195748';
-import { confirmPart2TeacherScore, getPart2ReviewsForAttempt, submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-12-195748';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-15-214923';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-15-214923';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore } from './part2_render.js?v=2026-06-18-15-214923';
+import { confirmPart2TeacherScore, getPart2ReviewsForAttempt, submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-15-214923';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -234,6 +234,7 @@ async function showSummaryAfterSave({ total, correct, duration_ms, avg_ms } = {}
   // иначе сразу после «завершить» самооценка части 2 показывается «—» (хотя записана и видна при переоткрытии).
   await ensurePart2ReviewsLoaded();
   renderReviewCards();
+  renderPart2StatsBlock(); // W13.4 (#1): свод части 2 после загрузки ревью
 
   // Заметный итог сдачи: статус + счёт + следующие действия (вместо тихой серой строки)
   const summaryPanel = $('#summary .panel') || $('#summary');
@@ -248,13 +249,19 @@ async function showSummaryAfterSave({ total, correct, duration_ms, avg_ms } = {}
     const t = Number(total) || 0;
     const c = Number(correct) || 0;
     const acc = t ? Math.round((c / t) * 100) : 0;
+    // W13.4 (#1): для ДЗ только из части 2 (№13) нет автопроверяемой части 1 — вместо «0 из 0»
+    // показываем самооценку части 2; иначе — обычный счёт части 1.
+    const p2t = part2Tally();
+    const scoreLine = (t === 0 && p2t.n)
+      ? `Часть 2 (№13): самооценка <b>${p2t.selfSum} из ${p2t.maxPrimary}</b>`
+      : `Верно: <b>${c} из ${t}</b> · Точность: <b>${acc}%</b>`;
 
     hero.style.cssText = 'border:1px solid rgba(22,163,74,.45);border-radius:12px;padding:14px;margin-bottom:14px;';
     hero.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px">
         <span style="color:#16a34a" aria-hidden="true">✓</span><span>ДЗ сдано!</span>
       </div>
-      <div style="margin-top:6px;font-size:14px">Верно: <b>${c} из ${t}</b> · Точность: <b>${acc}%</b></div>
+      <div style="margin-top:6px;font-size:14px">${scoreLine}</div>
       <div class="muted" style="margin-top:2px;font-size:12.5px">Результат сохранён.</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button id="hwHeroReview" type="button">Смотреть разбор</button>
@@ -1032,6 +1039,16 @@ function renderStats({ total, correct, duration_ms, avg_ms } = {}) {
   const statsEl = $('#stats');
   if (!statsEl) return;
 
+  // W13.4 (#1): ДЗ только из части 2 (№13) — нет автопроверяемой части 1. Не показываем
+  // «0/0 0%» (выглядит как провал); свод части 2 даёт renderPart2StatsBlock().
+  const hasP2 = (SESSION?.questions || []).some(isPart2Question);
+  if (t === 0 && hasP2) {
+    statsEl.innerHTML =
+      `<div class="stat-full">Часть 1: автопроверяемых задач нет</div>` +
+      `<div class="stat-full">Общее время: ${formatHms(d)}</div>`;
+    return;
+  }
+
   const badgeClassByPct = (pct) => {
   if (pct === null || pct === undefined || Number.isNaN(pct)) return 'gray';
   if (pct >= 90) return 'green';
@@ -1125,6 +1142,7 @@ async function showAttemptSummaryFromRow(row) {
 
   await ensurePart2ReviewsLoaded(); // W13.2c: пред-заполнить баллы части 2 для обзора
   renderReviewCards();
+  renderPart2StatsBlock(); // W13.4 (#1): свод части 2 после загрузки ревью
 }
 
 async function maybeShowExistingAttempt(reason = '') {
@@ -2117,6 +2135,48 @@ async function ensurePart2ReviewsLoaded() {
       if (qid) _PART2_REVIEWS.set(qid, r);
     }
   } catch (_) { /* мягкая деградация: контролы без пред-заполнения */ }
+}
+
+// W13.4 (#1): свод по части 2 (№13) для отчёта ДЗ. Часть 2 не автопроверяется и НЕ входит в
+// «Верно X из Y», поэтому считаем её отдельно: max = 2 балла за задачу. Зовётся ПОСЛЕ
+// ensurePart2ReviewsLoaded() (иначе _PART2_REVIEWS пуст).
+function part2Tally() {
+  const inRange = (v) => v === 0 || v === 1 || v === 2;
+  const p2 = (SESSION?.questions || []).filter(isPart2Question);
+  let selfSum = 0, selfScored = 0, teacherSum = 0, teacherCount = 0;
+  for (const q of p2) {
+    const qid = String(q.question_id || q.id || '').trim();
+    const rev = _PART2_REVIEWS.get(qid) || {};
+    if (inRange(rev.self_score)) { selfSum += rev.self_score; selfScored++; }
+    if (inRange(rev.teacher_score)) { teacherSum += rev.teacher_score; teacherCount++; }
+  }
+  return { n: p2.length, maxPrimary: p2.length * 2, selfSum, selfScored, teacherSum, teacherCount };
+}
+
+// W13.4 (#1): отдельная строка свода части 2 в #stats (самооценка + балл учителя), чтобы
+// ДЗ-только-из-№13 не показывал «Верно 0 из 0». Идемпотентно (переиспользует #part2Stats).
+function renderPart2StatsBlock() {
+  const statsEl = $('#stats');
+  if (!statsEl) return;
+  let block = $('#part2Stats');
+  const t = part2Tally();
+  if (!t.n) { if (block) block.remove(); return; }
+  if (!block) {
+    block = document.createElement('div');
+    block.id = 'part2Stats';
+    block.className = 'stat-full';
+    statsEl.appendChild(block);
+  }
+  const parts = [`<b>Часть 2 (№13):</b> ${t.n} зад.`,
+    `самооценка <b>${t.selfSum} из ${t.maxPrimary}</b>${t.selfScored < t.n ? ` (оценено ${t.selfScored} из ${t.n})` : ''}`];
+  if (t.teacherCount >= t.n) {
+    parts.push(`подтверждено учителем <b>${t.teacherSum} из ${t.maxPrimary}</b>`);
+  } else if (t.teacherCount > 0) {
+    parts.push(`учитель проверил ${t.teacherCount} из ${t.n} (<b>${t.teacherSum} б.</b>)`);
+  } else {
+    parts.push(`<span class="muted">на проверке у учителя</span>`);
+  }
+  block.innerHTML = parts.join(' · ');
 }
 
 // Блок проверки части 2: баллы (самооценка/учитель) + контрол подтверждения 0/1/2 (только учитель).

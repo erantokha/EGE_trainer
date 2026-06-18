@@ -12,7 +12,7 @@
 // снапшоты objects. Картинки грузим как data:-URL (CSP img-src не пускает blob:).
 // Печать: корень = body>div + position:fixed → прячется print.css/print_lifecycle (+ @media print).
 
-import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-18-12-195748';
+import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-18-15-214923';
 
 const COLORS = [
   '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',
@@ -25,6 +25,34 @@ const THICK_NAMES = ['супертонкий', 'тонкий', 'средний',
 const RECT_ICON = '<svg width="20" height="13" viewBox="0 0 22 14" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="1.6" y="1.6" width="18.8" height="10.8" rx="2"/></svg>';
 const RECTF_ICON = '<svg width="20" height="13" viewBox="0 0 22 14" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="20" height="12" rx="2"/></svg>';
 const TOOLS = [['pen', '✎'], ['line', '／'], ['rect', RECT_ICON], ['rectF', RECTF_ICON], ['ellipse', '◯'], ['ellipseF', '⬤']];
+
+// Объёмные фигуры (параметрические, рисуются по рамке — НЕ картинки). Иконки — мини-SVG
+// (stroke=currentColor, как у RECT_ICON). Геометрия каждой фигуры — в drawSolid().
+const S_BOX = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M5 9h10v10H5z"/><path d="M5 9l4-4h10v10l-4 4"/><path d="M15 9l4-4"/></svg>';
+const S_PYR4 = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 4.5 16 12 19 19.5 16z"/><path d="M12 4 12 19"/></svg>';
+const S_PYR3 = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M4.5 15 12 4 19.5 15z"/><path d="M4.5 15 12 19.5 19.5 15"/><path d="M12 4 12 19.5"/></svg>';
+const S_PRISM3 = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 5 6.5 9 17.5 9z"/><path d="M12 14 6.5 18 17.5 18z"/><path d="M12 5 12 14M6.5 9 6.5 18M17.5 9 17.5 18"/></svg>';
+const S_CONE = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 5.5 17.5M12 4l6.5 13.5"/><path d="M5.5 17.5a6.5 2.4 0 0 0 13 0"/></svg>';
+const S_CYL = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><ellipse cx="12" cy="6" rx="6.5" ry="2.4"/><path d="M5.5 6v12M18.5 6v12"/><path d="M5.5 18a6.5 2.4 0 0 0 13 0"/></svg>';
+const S_SPHERE = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M4 12a8 2.8 0 0 0 16 0"/></svg>';
+const SOLIDS = [
+  ['box', S_BOX, 'параллелепипед / куб'],
+  ['pyr4', S_PYR4, 'правильная 4-угольная пирамида'],
+  ['pyr3', S_PYR3, 'правильная 3-угольная пирамида'],
+  ['prism3', S_PRISM3, 'правильная 3-угольная призма'],
+  ['cone', S_CONE, 'конус'],
+  ['cyl', S_CYL, 'цилиндр'],
+  ['sphere', S_SPHERE, 'шар'],
+];
+const SOLID_SET = new Set(SOLIDS.map((s) => s[0]));
+const SOLID_DEPTH = 0.34;                 // глубина проекции как доля min(w,h)
+const SOLID_ANG = 42 * Math.PI / 180;     // угол косых рёбер (кабинетная проекция, вверх-вправо)
+
+// Параметрические схемы (оси). Пока — тригонометрическая окружность (drawTrig). Растягиваются
+// рамкой, наследуют цвет/толщину пера. Эталон вида — content/.../part2/13/img Б13-*.svg.
+const S_TRIG = '<svg width="21" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M2 12h20M12 22V2"/></svg>';
+const AXES = [['trig', S_TRIG, 'тригонометрическая окружность']];
+const AXIS_SET = new Set(AXES.map((a) => a[0]));
 
 const ICON = {
   drag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9 2 12l3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>',
@@ -117,6 +145,8 @@ function build(btn) {
     </div>
     <div class="dro-pop dro-pop-pen" hidden>
       <div class="dro-row"><span class="dro-lbl">инстр.:</span><span class="dro-tools"></span></div>
+      <div class="dro-row"><span class="dro-lbl">объём:</span><span class="dro-solids"></span></div>
+      <div class="dro-row"><span class="dro-lbl">оси:</span><span class="dro-axes"></span></div>
       <div class="dro-row"><span class="dro-lbl">толщина:</span><span class="dro-thick"></span></div>
     </div>
     <div class="dro-pop dro-pop-color" hidden><div class="dro-grid"></div></div>
@@ -174,7 +204,107 @@ function build(btn) {
     else { for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]); }
     ctx.stroke();
   }
+  // ----- объёмные фигуры: рисуются по рамке {x0,y0,x1,y1}; скрытые рёбра — пунктир -----
+  // Глубина уходит вверх-вправо (dx>0 на экране, dyAbs — подъём). Вся фигура вписана в рамку.
+  function solidDepth(w, h) { const D = SOLID_DEPTH * Math.min(w, h); return [D * Math.cos(SOLID_ANG), D * Math.sin(SOLID_ANG)]; }
+  function drawSolid(ctx, o) {
+    const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
+    if (w < 2 || h < 2) return;
+    ctx.save();
+    ctx.strokeStyle = o.color; ctx.lineWidth = o.size; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    const d = Math.max(5, o.size * 1.6);
+    const solid = () => ctx.setLineDash([]);
+    const hidden = () => ctx.setLineDash([d, d * 0.85]);
+    const seg = (a, b) => { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); };
+    const poly = (p, close) => { ctx.beginPath(); ctx.moveTo(p[0][0], p[0][1]); for (let i = 1; i < p.length; i++) ctx.lineTo(p[i][0], p[i][1]); if (close) ctx.closePath(); ctx.stroke(); };
+    const arc = (cx, cy, rx, ry, a0, a1) => { ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, a0, a1); ctx.stroke(); };
+    const PI = Math.PI;
+    if (o.shape === 'box') {
+      const [dx, dy] = solidDepth(w, h), wf = w - dx;
+      const FBL = [x, y + h], FBR = [x + wf, y + h], FTR = [x + wf, y + dy], FTL = [x, y + dy];
+      const BBL = [x + dx, y + h - dy], BBR = [x + w, y + h - dy], BTR = [x + w, y], BTL = [x + dx, y];
+      solid(); poly([FBL, FBR, FTR, FTL], true); seg(FTL, BTL); seg(FTR, BTR); seg(BTL, BTR); seg(FBR, BBR); seg(BBR, BTR);
+      hidden(); seg(BBL, BBR); seg(BBL, BTL); seg(BBL, FBL);
+    } else if (o.shape === 'pyr4') {
+      const [dx, dy] = solidDepth(w, h), wb = w - dx;
+      const PBL = [x, y + h], PBR = [x + wb, y + h], BR = [x + w, y + h - dy], BL = [x + dx, y + h - dy], apex = [x + w / 2, y];
+      solid(); seg(PBL, PBR); seg(PBR, BR); seg(apex, PBL); seg(apex, PBR); seg(apex, BR);
+      hidden(); seg(BL, PBL); seg(BL, BR); seg(apex, BL);
+    } else if (o.shape === 'pyr3') {
+      const [, dy] = solidDepth(w, h);
+      const Fv = [x + w / 2, y + h], BL = [x, y + h - dy], BR = [x + w, y + h - dy], apex = [x + w / 2, y];
+      solid(); seg(Fv, BL); seg(Fv, BR); seg(apex, Fv); seg(apex, BL); seg(apex, BR);
+      hidden(); seg(BL, BR);
+    } else if (o.shape === 'prism3') {
+      const [, dy] = solidDepth(w, h);
+      const FvB = [x + w / 2, y + h], BLB = [x, y + h - dy], BRB = [x + w, y + h - dy];
+      const FvT = [x + w / 2, y + dy], BLT = [x, y], BRT = [x + w, y];
+      solid(); seg(FvB, BLB); seg(FvB, BRB); seg(FvT, BLT); seg(FvT, BRT); seg(BLT, BRT); seg(FvB, FvT); seg(BLB, BLT); seg(BRB, BRT);
+      hidden(); seg(BLB, BRB);
+    } else if (o.shape === 'cyl') {
+      const cx = x + w / 2, rx = w / 2, ry = Math.min(h * 0.28, rx * 0.5), cyT = y + ry, cyB = y + h - ry;
+      solid(); arc(cx, cyT, rx, ry, 0, PI * 2); seg([cx - rx, cyT], [cx - rx, cyB]); seg([cx + rx, cyT], [cx + rx, cyB]); arc(cx, cyB, rx, ry, 0, PI);
+      hidden(); arc(cx, cyB, rx, ry, PI, PI * 2);
+    } else if (o.shape === 'cone') {
+      const cx = x + w / 2, rx = w / 2, ry = Math.min(h * 0.22, rx * 0.5), cyB = y + h - ry, apex = [cx, y];
+      // Образующие — касательные из вершины к эллипсу: касаются ВЫШЕ горизонтального диаметра,
+      // в точке y0=-ry²/H от центра (H — высота вершины над центром основания). Граница
+      // видимое/скрытое идёт через точки касания, иначе задняя дуга «торчит» из-под образующих.
+      const H = cyB - y;
+      const yo = -ry * ry / H, xo = rx * Math.sqrt(Math.max(0, 1 - (ry * ry) / (H * H)));
+      const tR = Math.atan2(yo / ry, xo / rx), tL = PI - tR;   // углы точек касания (право/лево)
+      solid();
+      seg(apex, [cx + xo, cyB + yo]); seg(apex, [cx - xo, cyB + yo]);
+      arc(cx, cyB, rx, ry, tR, tL);                 // видимая дуга: через низ и боковые точки
+      hidden();
+      arc(cx, cyB, rx, ry, tL, tR + 2 * PI);        // скрытая короткая дуга между касаниями (верх)
+    } else if (o.shape === 'sphere') {
+      const r = Math.min(w, h) / 2, cx = x + w / 2, cy = y + h / 2, ry = r * 0.32;
+      solid(); arc(cx, cy, r, r, 0, PI * 2); arc(cx, cy, r, ry, 0, PI);
+      hidden(); arc(cx, cy, r, ry, PI, PI * 2);
+    }
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  // ----- тригонометрическая окружность (параметрически по рамке) -----
+  // Оси во всю рамку со стрелками, круг по меньшей стороне (всегда круглый), подписи cos x/sin x.
+  // Всё — текущим цветом/толщиной пера (видно и на тёмном фоне рисовалки).
+  function trigArrow(ctx, px, py, up, s) {
+    ctx.beginPath();
+    if (up) { ctx.moveTo(px, py); ctx.lineTo(px - s * 0.7, py + s * 1.4); ctx.lineTo(px + s * 0.7, py + s * 1.4); }
+    else { ctx.moveTo(px, py); ctx.lineTo(px - s * 1.4, py - s * 0.7); ctx.lineTo(px - s * 1.4, py + s * 0.7); }
+    ctx.closePath(); ctx.fill();
+  }
+  function drawTrig(ctx, o) {
+    const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
+    // Жёстко пропорциональная фигура: ЕДИНЫЙ масштаб S=min(w,h), все метрики — доли S,
+    // центр в середине рамки. Меняется размер — всё (круг, оси, стрелки, подписи) растёт вместе.
+    const S = Math.min(w, h);
+    if (S < 28) return;
+    const cx = x + w / 2, cy = y + h / 2;
+    const r = S * 0.38;                              // радиус окружности
+    const L = S * 0.45;                              // полудлина осей (стрелки на ±L)
+    const ah = Math.max(6, S * 0.045);               // размер стрелки
+    const fs = Math.max(11, Math.round(S * 0.05));   // кегль подписи
+    const gap = Math.max(5, S * 0.03);               // отступ подписи от кончика стрелки
+    ctx.save();
+    ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineWidth = o.size; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(cx - L, cy); ctx.lineTo(cx + L, cy); ctx.stroke();   // ось cos (гориз.)
+    ctx.beginPath(); ctx.moveTo(cx, cy + L); ctx.lineTo(cx, cy - L); ctx.stroke();   // ось sin (верт.)
+    trigArrow(ctx, cx + L, cy, false, ah); trigArrow(ctx, cx, cy - L, true, ah);     // стрелки
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();               // окружность
+    ctx.beginPath(); ctx.arc(cx, cy, Math.max(1.5, o.size * 0.7), 0, Math.PI * 2); ctx.fill();  // центр
+    ctx.font = `italic ${fs}px Georgia, "Times New Roman", serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText('sin x', cx + gap + ah * 0.4, cy - L);            // справа от верт. стрелки, на её уровне
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('cos x', cx + L, cy - gap - ah * 0.4);            // сверху от гор. стрелки, над кончиком
+    ctx.restore();
+  }
+
   function drawShape(ctx, o) {
+    if (o.kind === 'solid') { drawSolid(ctx, o); return; }
+    if (o.kind === 'trig') { drawTrig(ctx, o); return; }
     ctx.lineWidth = o.size; ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
     if (o.kind === 'line') { ctx.beginPath(); ctx.moveTo(o.x0, o.y0); ctx.lineTo(o.x1, o.y1); ctx.stroke(); return; }
     const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
@@ -263,6 +393,8 @@ function build(btn) {
     const [x, y] = pos(e);
     if (state.tool === 'eraser') { erasedThisDrag = false; if (eraseAt(x, y)) { erasedThisDrag = true; renderAll(); } return; }
     if (state.tool === 'pen') current = { kind: 'stroke', style: state.engine, points: [[x, y, pressureOf(e)]], color: state.color, size: state.size, pointerType: e.pointerType };
+    else if (SOLID_SET.has(state.tool)) current = { kind: 'solid', shape: state.tool, x0: x, y0: y, x1: x, y1: y, color: state.color, size: state.size };
+    else if (AXIS_SET.has(state.tool)) current = { kind: state.tool, x0: x, y0: y, x1: x, y1: y, color: state.color, size: state.size };
     else current = { kind: shapeKind(state.tool), x0: x, y0: y, x1: x, y1: y, color: state.color, size: state.size, filled: state.tool.endsWith('F') };
   }
   function onMove(e) {
@@ -330,8 +462,10 @@ function build(btn) {
   });
 
   // ====================== UI ======================
-  const toolsBox = $('.dro-tools'), thickBox = $('.dro-thick'), grid = $('.dro-grid'), moreRow = $('.dro-more-row');
+  const toolsBox = $('.dro-tools'), solidsBox = $('.dro-solids'), axesBox = $('.dro-axes'), thickBox = $('.dro-thick'), grid = $('.dro-grid'), moreRow = $('.dro-more-row');
   TOOLS.forEach(([t, g]) => { const b = document.createElement('button'); b.className = 'dro-tbtn'; b.dataset.tool = t; b.innerHTML = g; b.title = t; toolsBox.appendChild(b); });
+  SOLIDS.forEach(([t, g, title]) => { const b = document.createElement('button'); b.className = 'dro-tbtn dro-tbtn-solid'; b.dataset.tool = t; b.innerHTML = g; b.title = title; solidsBox.appendChild(b); });
+  AXES.forEach(([t, g, title]) => { const b = document.createElement('button'); b.className = 'dro-tbtn dro-tbtn-solid'; b.dataset.tool = t; b.innerHTML = g; b.title = title; axesBox.appendChild(b); });
   THICKS.forEach((t, i) => { const b = document.createElement('button'); b.className = 'dro-tbtn'; b.dataset.thick = String(t); b.title = THICK_NAMES[i]; const d = Math.min(18, Math.max(3, t)); b.innerHTML = `<span class="dro-dot" style="width:${d}px;height:${d}px"></span>`; thickBox.appendChild(b); });
   COLORS.forEach(c => { const b = document.createElement('button'); b.className = 'dro-cell' + (c === '#ffffff' ? ' dro-light' : ''); b.dataset.color = c; b.style.background = c; b.title = c; grid.appendChild(b); });
   moreRow.innerHTML = '<button class="dro-tbtn dro-tbtn-style" data-more="pressure">нажим: выкл</button>'
@@ -356,6 +490,8 @@ function build(btn) {
     $('.dro-select-btn').classList.toggle('active', state.tool === 'select');
     cdot.style.background = state.color;
     toolsBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === state.tool));
+    solidsBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === state.tool));
+    axesBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', b.dataset.tool === state.tool));
     thickBox.querySelectorAll('.dro-tbtn').forEach(b => b.classList.toggle('on', Number(b.dataset.thick) === state.size));
     grid.querySelectorAll('.dro-cell').forEach(b => b.classList.toggle('on', b.dataset.color === state.color));
   }
@@ -382,6 +518,8 @@ function build(btn) {
     else if (act === 'close') setActive(false);
   });
   toolsBox.addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; setTool(b.dataset.tool); });
+  solidsBox.addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; setTool(b.dataset.tool); });
+  axesBox.addEventListener('click', (e) => { const b = e.target.closest('[data-tool]'); if (!b) return; setTool(b.dataset.tool); });
   thickBox.addEventListener('click', (e) => { const b = e.target.closest('[data-thick]'); if (!b) return; state.size = Number(b.dataset.thick); updateActive(); });
   grid.addEventListener('click', (e) => { const b = e.target.closest('[data-color]'); if (!b) return; state.color = b.dataset.color; updateActive(); closePops(); });
   moreRow.addEventListener('click', (e) => {

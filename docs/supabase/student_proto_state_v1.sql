@@ -6,6 +6,17 @@
 -- This v1 SQL artifact currently approximates has_independent_correct with
 -- has_correct because answer_events does not yet expose a stronger
 -- independent-success signal.
+--
+-- W13.4 (part 2 / №13): protos under theme_id='13' are NOT auto-checked — their
+-- score lives in public.part2_attempt_reviews (self_score / teacher_score, 0..2,
+-- max_primary). Per operator decision the visible градусник/% uses
+-- coalesce(teacher_score, self_score): self shows immediately as preliminary and
+-- the teacher score replaces it once confirmed. The answer_events write-path is
+-- left untouched (it stores part-2 rows with correct=false); analytics simply
+-- IGNORES answer_events for theme '13' and aggregates from part2_attempt_reviews
+-- instead. The "accuracy"/"last3_accuracy" of a part-2 proto is the average of
+-- per-attempt score ratio (coalesce(teacher,self) / max_primary). Part-1 protos
+-- (theme_id <> '13') are computed byte-for-byte as before.
 
 begin;
 
@@ -103,7 +114,8 @@ begin
   visible_questions as (
     select
       q.question_id,
-      q.unic_id
+      q.unic_id,
+      u.theme_id
     from public.catalog_question_dim q
     join visible_unics u
       on u.unic_id = q.unic_id
@@ -112,6 +124,8 @@ begin
     where coalesce(q.is_enabled, true) = true
       and coalesce(q.is_hidden, false) = false
   ),
+  -- Part 1 (theme_id <> '13'): correct-based proto aggregation from answer_events,
+  -- unchanged from the original. Part-2 protos are excluded here and handled below.
   proto_events as (
     select
       vq.unic_id,
@@ -123,6 +137,7 @@ begin
     join visible_questions vq
       on vq.question_id = ae.question_id
     where ae.student_id = p_student_id
+      and vq.theme_id <> '13'
       and (
         v_source = 'all'
         or ae.source = v_source
@@ -149,9 +164,64 @@ begin
       join visible_questions vq
         on vq.question_id = ae.question_id
       where ae.student_id = p_student_id
+        and vq.theme_id <> '13'
         and (
           v_source = 'all'
           or ae.source = v_source
+        )
+    ) e
+    group by e.unic_id
+  ),
+  -- W13.4 — Part 2 (theme_id = '13'): score-based proto aggregation from
+  -- part2_attempt_reviews. accuracy = avg(score ratio) where ratio =
+  -- coalesce(teacher_score, self_score) / max_primary. correct = full-mark attempt.
+  part2_events as (
+    select
+      vq.unic_id,
+      count(*)::int as attempt_count_total,
+      count(*) filter (
+        where coalesce(r.teacher_score, r.self_score) >= r.max_primary
+      )::int as correct_count_total,
+      count(distinct r.question_id)::int as unique_question_ids_seen,
+      max(coalesce(r.reviewed_at, r.updated_at)) as last_attempt_at,
+      avg(
+        coalesce(r.teacher_score, r.self_score)::numeric
+        / nullif(r.max_primary, 0)
+      ) as accuracy
+    from public.part2_attempt_reviews r
+    join visible_questions vq
+      on vq.question_id = r.question_id
+    where r.student_id = p_student_id
+      and coalesce(r.teacher_score, r.self_score) is not null
+      and (
+        v_source = 'all'
+        or r.source = v_source
+      )
+    group by vq.unic_id
+  ),
+  part2_last3 as (
+    select
+      e.unic_id,
+      count(*) filter (where e.rn <= 3)::int as last3_total,
+      count(*) filter (where e.rn <= 3 and e.ratio >= 1)::int as last3_correct,
+      avg(e.ratio) filter (where e.rn <= 3) as last3_accuracy
+    from (
+      select
+        vq.unic_id,
+        coalesce(r.teacher_score, r.self_score)::numeric
+          / nullif(r.max_primary, 0) as ratio,
+        row_number() over (
+          partition by vq.unic_id
+          order by coalesce(r.reviewed_at, r.updated_at) desc, r.created_at desc, r.id desc
+        ) as rn
+      from public.part2_attempt_reviews r
+      join visible_questions vq
+        on vq.question_id = r.question_id
+      where r.student_id = p_student_id
+        and coalesce(r.teacher_score, r.self_score) is not null
+        and (
+          v_source = 'all'
+          or r.source = v_source
         )
     ) e
     group by e.unic_id
@@ -166,17 +236,24 @@ begin
       vu.theme_sort_order,
       vu.subtopic_sort_order,
       vu.unic_sort_order,
-      coalesce(pe.attempt_count_total, 0)::int as attempt_count_total,
-      coalesce(pe.correct_count_total, 0)::int as correct_count_total,
-      coalesce(pe.unique_question_ids_seen, 0)::int as unique_question_ids_seen,
-      pe.last_attempt_at,
-      coalesce(pl3.last3_total, 0)::int as last3_total,
-      coalesce(pl3.last3_correct, 0)::int as last3_correct
+      (vu.theme_id = '13') as is_part2,
+      coalesce(pe.attempt_count_total, p2e.attempt_count_total, 0)::int as attempt_count_total,
+      coalesce(pe.correct_count_total, p2e.correct_count_total, 0)::int as correct_count_total,
+      coalesce(pe.unique_question_ids_seen, p2e.unique_question_ids_seen, 0)::int as unique_question_ids_seen,
+      coalesce(pe.last_attempt_at, p2e.last_attempt_at) as last_attempt_at,
+      coalesce(pl3.last3_total, p2l3.last3_total, 0)::int as last3_total,
+      coalesce(pl3.last3_correct, p2l3.last3_correct, 0)::int as last3_correct,
+      p2e.accuracy as p2_accuracy,
+      p2l3.last3_accuracy as p2_last3_accuracy
     from visible_unics vu
     left join proto_events pe
       on pe.unic_id = vu.unic_id
     left join proto_last3 pl3
       on pl3.unic_id = vu.unic_id
+    left join part2_events p2e
+      on p2e.unic_id = vu.unic_id
+    left join part2_last3 p2l3
+      on p2l3.unic_id = vu.unic_id
   ),
   metrics as (
     select
@@ -187,12 +264,14 @@ begin
       (b.attempt_count_total > 0) as covered,
       (b.correct_count_total > 0) as solved,
       case
+        when b.is_part2 then b.p2_accuracy
         when b.attempt_count_total > 0
           then (b.correct_count_total::numeric / b.attempt_count_total::numeric)
         else null::numeric
       end as accuracy,
       -- WL3.1: ratio по последним 3 попыткам; null при отсутствии попыток в окне.
       case
+        when b.is_part2 then b.p2_last3_accuracy
         when b.last3_total > 0
           then (b.last3_correct::numeric / b.last3_total::numeric)
         else null::numeric

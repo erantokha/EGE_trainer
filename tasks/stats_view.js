@@ -3,14 +3,14 @@
 // WSA-1a: prototype-aware статусы (охват прототипов × качество × рекомендация)
 // вместо наивной окраски по проценту окна. См. WSA_PLAN.md.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-12-195748';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-15-214923';
 import {
   subtopicStatus,
   themeStatus,
   overallCoverage,
   rankTrainingTargets,
-} from './wsa_status.js?v=2026-06-18-12-195748';
-import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-12-195748';
+} from './wsa_status.js?v=2026-06-18-15-214923';
+import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-15-214923';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
@@ -237,7 +237,9 @@ function renderSections(root, dash, catalog, opts = {}) {
   }
 
   const order = [];
-  for (let i = 1; i <= 12; i++) order.push(String(i));
+  // W13.4: №13 (часть 2) теперь имеет осмысленный градусник по подтемам (балл из
+  // part2_attempt_reviews через student_proto_state_v1), поэтому выводим и его.
+  for (let i = 1; i <= 13; i++) order.push(String(i));
 
   for (const sid of order) {
     const sec = secMap.get(sid) || { section_id: sid, coverage: { unics_attempted: 0, unics_total: 0, pct: null } };
