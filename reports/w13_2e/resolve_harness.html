@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+  <meta name="app-build" content="2026-06-18-8-182354"><title>W13.2e resolve harness</title></head>
+<body><pre id="out">running…</pre>
+<script type="module">
+import { pickQuestionsScopedForList } from '/tasks/pick_engine.js';
+
+const log = (...a) => { document.getElementById('out').textContent += '\n' + a.join(' '); };
+
+// Мок пула: возвращает {manifest,type,proto} для топика по его id.
+const POOLS = {
+  '13.trig.factor': [
+    { id: '13.trig.factor.46.1' }, { id: '13.trig.factor.46.2' }, { id: '13.trig.factor.46.3' },
+    { id: '13.trig.factor.50.1' }, { id: '13.trig.factor.50.2' }, { id: '13.trig.factor.50.3' },
+  ].map(p => ({ manifest: { topic: '13.trig.factor' }, type: { id: '13.trig.factor' }, proto: p })),
+  '9.9': [
+    { id: '9.9.1.1' }, { id: '9.9.1.2' }, { id: '9.9.2.1' },
+  ].map(p => ({ manifest: { topic: '9.9' }, type: { id: '9.9.1' }, proto: p })),
+};
+const loadTopicPool = async (topic) => POOLS[String(topic?.id || '')] || [];
+
+const topic13 = { id: '13.trig.factor', parent: '13', path: 'x' };
+const topic99 = { id: '9.9', parent: '9', path: 'x' };
+const topicById = new Map([['13.trig.factor', topic13], ['9.9', topic99]]);
+const sections = [
+  { id: '9',  topics: [topic99] },
+  { id: '13', topics: [topic13] },
+];
+const buildQuestion = (_m, _t, p) => String(p?.id || '');
+
+const base = { sections, topicById, choiceSections: {}, shuffleTasks: false,
+  teacherStudentId: '', teacherFilters: {}, prioActive: false, loadTopicPool, buildQuestion };
+
+async function run(label, choiceProtos, choiceTopics) {
+  try {
+    const qs = await pickQuestionsScopedForList({ ...base, choiceProtos, choiceTopics });
+    log(`${label}: [${(qs || []).join(', ')}]  (n=${(qs || []).length})`);
+  } catch (e) { log(`${label}: ERROR ${e?.message || e}`); }
+}
+
+(async () => {
+  document.getElementById('out').textContent = 'RESULTS:';
+  await run('part2 choiceProtos {13.trig.factor.46:1}', { '13.trig.factor.46': 1 }, {});
+  await run('part2 choiceTopics {13.trig.factor:2}', {}, { '13.trig.factor': 2 });
+  await run('part1 choiceProtos {9.9.1:1}',          { '9.9.1': 1 }, {});
+  await run('part1 choiceTopics {9.9:2}',            {}, { '9.9': 2 });
+  document.body.dataset.ready = '1';
+})();
+</script></body></html>

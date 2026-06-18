@@ -2,23 +2,23 @@
 // Создание ДЗ (MVP): задачи берутся из выбора на главном аккордеоне и попадают в "ручной список" (fixed).
 // После создания выдаёт ссылку /tasks/hw.html?token=...
 
-import { CONFIG } from '../app/config.js?v=2026-06-18-8-043518';
-import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-18-8-043518';
-import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-18-8-043518';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-8-043518';
+import { CONFIG } from '../app/config.js?v=2026-06-18-8-182354';
+import { supabase, getSession, signInWithGoogle, signOut, finalizeOAuthRedirect } from '../app/providers/supabase.js?v=2026-06-18-8-182354';
+import { createHomework, createHomeworkLink, listMyStudents, assignHomeworkToStudent } from '../app/providers/homework.js?v=2026-06-18-8-182354';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-8-182354';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-8-043518';
+} from '../app/providers/catalog.js?v=2026-06-18-8-182354';
 import {
   baseIdFromProtoId,
   uniqueBaseCount,
   sampleKByBase,
   interleaveBatches,
-} from '../app/core/pick.js?v=2026-06-18-8-043518';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-8-043518';
+} from '../app/core/pick.js?v=2026-06-18-8-182354';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-8-182354';
 
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-8-043518';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-8-182354';
 
 
 // Главная учителя → страница создания ДЗ: автоподстановка ученика
@@ -394,9 +394,17 @@ function compareId(a, b) {
 }
 
 function inferTopicIdFromQuestionId(qid) {
-  const parts = String(qid || '').trim().split('.');
-  if (parts.length >= 2) return `${parts[0]}.${parts[1]}`;
-  return '';
+  const parts = String(qid || '').trim().split('.').filter(Boolean);
+  if (parts.length < 2) return '';
+  // W13.2e: longest-prefix-match по каталогу (как resolve в pick_engine/prefill). Поддерживает
+  // 3-сегментные подтемы: стерео "3.1.1" и часть 2 "13.trig.factor" — у которых 2-сегментный
+  // префикс ("3.1"/"13.trig") НЕ является подтемой. Для обычных 2-сегментных тем (9.9, 4.1, …)
+  // результат идентичен прежнему. Fallback на 2 сегмента, если каталог не загружен/нет совпадения.
+  for (let n = parts.length - 1; n >= 2; n--) {
+    const cand = parts.slice(0, n).join('.');
+    if (TOPIC_BY_ID && typeof TOPIC_BY_ID.has === 'function' && TOPIC_BY_ID.has(cand)) return cand;
+  }
+  return `${parts[0]}.${parts[1]}`;
 }
 
 function findProtoById(manifest, qid) {
@@ -1755,7 +1763,7 @@ async function enforceTeacherGate() {
 
   let role = '';
   try {
-    const rMod = await import('../app/providers/supabase-rest.js?v=2026-06-18-8-043518');
+    const rMod = await import('../app/providers/supabase-rest.js?v=2026-06-18-8-182354');
     const rows = await rMod.supaRest.select('profiles', { select: 'role', id: `eq.${session.user.id}` }, { timeoutMs: 12000 });
     role = String(rows?.[0]?.role || '').trim().toLowerCase();
   } catch (_) {
