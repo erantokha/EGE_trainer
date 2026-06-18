@@ -1,3 +1,19 @@
+-- ============================================================================
+-- W13.4 — вторичные поверхности №13 (минимально-когерентно).
+-- Исключаем часть 2 (№13) из legacy correct-поверхностей, чтобы НИГДЕ не было
+-- ложных 0% по №13. Реальный сигнал №13 = градусник (subtopic_last3_avg_pct,
+-- уже работает) + карточки ревью. Все три — идемпотентные create or replace,
+-- read-only RPC, сигнатуры не меняются. Применять в Supabase SQL editor целиком.
+--
+-- 1) student_analytics_screen_v1 — №13 вон из оконных метрик/overall (raw_events).
+-- 2) teacher_topic_rollup_v1     — №13 вон из correct-роллапа по темам.
+-- 3) teacher_type_rollup_v1      — №13 вон из correct-роллапа по типам.
+--
+-- Основа — репо-версии (для topic_state репо совпало с продом). Если ты с тех пор
+-- хотфиксил эти функции прямо на проде — скажи, выгрузим прод-тело и пере-впишем.
+-- ============================================================================
+
+-- ========================= [1/3] student_analytics_screen_v1 ================
 -- student_analytics_screen_v1.sql
 -- Stage-3 canonical backend-driven screen contract for student analytics surfaces.
 -- Designed from docs/navigation/student_analytics_screen_v1_spec.md.
@@ -801,6 +817,206 @@ revoke execute on function public.student_analytics_screen_v1(
 
 grant execute on function public.student_analytics_screen_v1(
   text, uuid, integer, text, text
+) to authenticated;
+
+commit;
+
+-- ========================= [2/3] teacher_topic_rollup_v1 ====================
+-- teacher_topic_rollup_v1.sql
+-- Live-BD extract synchronized on 2026-03-29.
+-- Source: pg_get_functiondef('public.teacher_topic_rollup_v1(uuid,text[])'::regprocedure)
+
+begin;
+
+create or replace function public.teacher_topic_rollup_v1(
+  p_student_id uuid,
+  p_topic_ids text[]
+)
+returns table(
+  topic_id text,
+  total_questions integer,
+  attempted_questions integer,
+  never_questions integer,
+  last_attempt_at_max timestamp with time zone,
+  acc_avg numeric,
+  acc_min numeric
+)
+language sql
+stable
+security definer
+set search_path to 'public', 'pg_temp'
+set row_security to 'off'
+as $function$
+with
+guard as (
+  select
+    public.is_allowed_teacher() as is_ok,
+    exists(
+      select 1
+      from public.teacher_students ts
+      where ts.teacher_id = auth.uid()
+        and ts.student_id = p_student_id
+    ) as is_linked
+),
+qb as (
+  select
+    qb.topic_id,
+    qb.question_id
+  from public.question_bank qb
+  cross join guard g
+  where g.is_ok and g.is_linked
+    and qb.topic_id = any(p_topic_ids)
+    and coalesce(qb.is_enabled, true) = true
+    and coalesce(qb.is_hidden, false) = false
+    -- W13.4: часть 2 (№13) не оценивается по correct — её балл в part2_attempt_reviews
+    -- (виден в градуснике/карточках ревью). Исключаем из correct-роллапа, чтобы не было ложных 0%.
+    and qb.section_id <> '13'
+),
+j as (
+  select
+    qb.topic_id,
+    qb.question_id,
+    coalesce(s.total, 0)::int as total,
+    coalesce(s.correct, 0)::int as correct,
+    s.last_attempt_at as last_attempt_at,
+    case
+      when coalesce(s.total, 0) > 0 then (s.correct::numeric / s.total::numeric)
+      else null
+    end as acc
+  from qb
+  left join public.student_question_stats s
+    on s.student_id = p_student_id
+   and s.question_id = qb.question_id
+)
+select
+  j.topic_id,
+  count(*)::int as total_questions,
+  count(*) filter (where j.total > 0)::int as attempted_questions,
+  (count(*)::int - count(*) filter (where j.total > 0)::int) as never_questions,
+  max(j.last_attempt_at) as last_attempt_at_max,
+  avg(j.acc) filter (where j.total > 0) as acc_avg,
+  min(j.acc) filter (where j.total > 0) as acc_min
+from j
+group by j.topic_id
+order by j.topic_id;
+$function$;
+
+revoke execute on function public.teacher_topic_rollup_v1(
+  uuid, text[]
+) from anon;
+
+grant execute on function public.teacher_topic_rollup_v1(
+  uuid, text[]
+) to authenticated;
+
+commit;
+
+-- ========================= [3/3] teacher_type_rollup_v1 =====================
+-- teacher_type_rollup_v1.sql
+-- Live-BD extract synchronized on 2026-03-29.
+-- Source: pg_get_functiondef('public.teacher_type_rollup_v1(uuid,text[])'::regprocedure)
+
+begin;
+
+create or replace function public.teacher_type_rollup_v1(
+  p_student_id uuid,
+  p_topic_ids text[]
+)
+returns table(
+  type_id text,
+  topic_id text,
+  section_id text,
+  unic_question_id text,
+  total_analogs integer,
+  attempted_analogs integer,
+  total_attempts integer,
+  correct_attempts integer,
+  acc numeric,
+  last_attempt_at_max timestamp with time zone
+)
+language sql
+stable
+security definer
+set search_path to 'public'
+set row_security to 'off'
+as $function$
+  with allowed as (
+    select 1
+    from public.teacher_students ts
+    where ts.teacher_id = auth.uid()
+      and ts.student_id = p_student_id
+    limit 1
+  ),
+  target_types as (
+    select
+      qb.type_id,
+      qb.topic_id,
+      qb.section_id,
+      min(qb.base_id) as unic_question_id,
+      count(*)::int as total_analogs
+    from public.question_bank qb
+    where exists (select 1 from allowed)
+      and qb.topic_id = any(coalesce(p_topic_ids, '{}'::text[]))
+      and coalesce(qb.is_enabled, true) = true
+      and coalesce(qb.is_hidden, false) = false
+      and nullif(trim(qb.type_id), '') is not null
+      -- W13.4: часть 2 (№13) не оценивается по correct (балл в part2_attempt_reviews,
+      -- виден в градуснике/карточках ревью). Исключаем из correct-роллапа — без ложных 0%.
+      and qb.section_id <> '13'
+    group by qb.type_id, qb.topic_id, qb.section_id
+  ),
+  student_events as (
+    select
+      qb.type_id,
+      ae.question_id,
+      ae.correct,
+      coalesce(ae.occurred_at, ae.created_at) as occurred_at
+    from public.answer_events ae
+    left join public.question_bank qb
+      on qb.question_id = ae.question_id
+    where exists (select 1 from allowed)
+      and ae.student_id = p_student_id
+      and nullif(trim(qb.type_id), '') is not null
+  ),
+  agg as (
+    select
+      tt.type_id,
+      count(se.question_id)::int as total_attempts,
+      count(*) filter (where se.correct)::int as correct_attempts,
+      count(distinct se.question_id)::int as attempted_analogs,
+      max(se.occurred_at) as last_attempt_at_max
+    from target_types tt
+    left join student_events se
+      on se.type_id = tt.type_id
+    group by tt.type_id
+  )
+  select
+    tt.type_id,
+    tt.topic_id,
+    tt.section_id,
+    tt.unic_question_id,
+    tt.total_analogs,
+    coalesce(a.attempted_analogs, 0)::int as attempted_analogs,
+    coalesce(a.total_attempts, 0)::int as total_attempts,
+    coalesce(a.correct_attempts, 0)::int as correct_attempts,
+    case
+      when coalesce(a.total_attempts, 0) > 0
+        then (a.correct_attempts::numeric / a.total_attempts::numeric)
+      else null::numeric
+    end as acc,
+    a.last_attempt_at_max
+  from target_types tt
+  left join agg a
+    on a.type_id = tt.type_id
+  order by tt.section_id, tt.topic_id, tt.type_id;
+$function$;
+
+revoke execute on function public.teacher_type_rollup_v1(
+  uuid, text[]
+) from anon;
+
+grant execute on function public.teacher_type_rollup_v1(
+  uuid, text[]
 ) to authenticated;
 
 commit;

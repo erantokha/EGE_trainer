@@ -46,6 +46,9 @@ as $function$
       and coalesce(qb.is_enabled, true) = true
       and coalesce(qb.is_hidden, false) = false
       and nullif(trim(qb.type_id), '') is not null
+      -- W13.4: часть 2 (№13) не оценивается по correct (балл в part2_attempt_reviews,
+      -- виден в градуснике/карточках ревью). Исключаем из correct-роллапа — без ложных 0%.
+      and qb.section_id <> '13'
     group by qb.type_id, qb.topic_id, qb.section_id
   ),
   student_events as (

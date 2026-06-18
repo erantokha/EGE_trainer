@@ -44,6 +44,9 @@ qb as (
     and qb.topic_id = any(p_topic_ids)
     and coalesce(qb.is_enabled, true) = true
     and coalesce(qb.is_hidden, false) = false
+    -- W13.4: часть 2 (№13) не оценивается по correct — её балл в part2_attempt_reviews
+    -- (виден в градуснике/карточках ревью). Исключаем из correct-роллапа, чтобы не было ложных 0%.
+    and qb.section_id <> '13'
 ),
 j as (
   select
