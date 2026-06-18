@@ -3,8 +3,8 @@
 // авторизованного ученика (student_konspekts_list_v1) по датам; открыть/скачать PDF по
 // подписанному URL (клиент мьютит сам через Storage REST, доступ гейтит storage.objects RLS).
 
-import { studentKonspektsList, signedUrl } from '../app/providers/konspekts.js?v=2026-06-18-10-191123';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-10-191123';
+import { studentKonspektsList, signedUrl } from '../app/providers/konspekts.js?v=2026-06-18-10-192904';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-18-10-192904';
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);

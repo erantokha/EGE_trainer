@@ -11,9 +11,9 @@
 // Path-конвенция объектов: {teacher_id}/{student_id}/{konspekt_id}/<file>
 //   снимок карточки → snap_<ordinal>.png ; финальный PDF → konspekt.pdf
 
-import { CONFIG } from '../config.js?v=2026-06-18-10-191123';
-import { getSession } from './supabase.js?v=2026-06-18-10-191123';
-import { supaRest } from './supabase-rest.js?v=2026-06-18-10-191123';
+import { CONFIG } from '../config.js?v=2026-06-18-10-192904';
+import { getSession } from './supabase.js?v=2026-06-18-10-192904';
+import { supaRest } from './supabase-rest.js?v=2026-06-18-10-192904';
 
 const BUCKET = 'konspekts';
 
@@ -229,10 +229,10 @@ async function decodeBlobToCanvas(blob) {
   } finally { URL.revokeObjectURL(url); }
 }
 
-// Обрезать снимок ПО СОДЕРЖИМОМУ со всех сторон (bounding box контента + пометок). Условие в
-// фокусе теперь в верхнем-левом углу → левый край bbox = левый край условия (или штриха, если
-// нарисовано левее — корректно войдёт). Это убирает пустые поля и делает карточку плотной и
-// левовыровненной, без «магии центрирования».
+// Обрезать снимок ТОЛЬКО по вертикали (верхнее/нижнее пустое поле); ШИРИНУ СОХРАНЯЕМ. Горизонтальную
+// обрезку НЕ делаем намеренно: иначе карточки с разным по ширине контентом дают снимки разной ширины,
+// и в PDF/конспекте они масштабируются по-разному → разный кажущийся размер шрифта. Единая ширина =
+// единый масштаб = одинаковый шрифт во всём конспекте.
 export async function trimSnapshot(blob) {
   try {
     const c = await decodeBlobToCanvas(blob);
@@ -246,24 +246,24 @@ export async function trimSnapshot(blob) {
       if (bg[3] < 12) return true;                      // фон прозрачный, тут непрозрачный → контент
       return Math.abs(data[i] - bg[0]) > T || Math.abs(data[i + 1] - bg[1]) > T || Math.abs(data[i + 2] - bg[2]) > T;
     };
-    let top = -1, bottom = -1, left = w, right = -1;
+    // Только вертикаль: ищем верхнюю/нижнюю границу контента; левый/правый край НЕ трогаем.
+    let top = -1, bottom = -1;
     for (let y = 0; y < h; y++) {
       const base = y * w * 4;
       let rowHas = false;
       for (let x = 0; x < w; x++) {
-        if (isContent(base + x * 4)) { rowHas = true; if (x < left) left = x; if (x > right) right = x; }
+        if (isContent(base + x * 4)) { rowHas = true; break; }
       }
       if (rowHas) { if (top < 0) top = y; bottom = y; }
     }
     if (top < 0) return blob;                           // всё пусто → не режем
-    const PAD = 6;   // небольшое поле вокруг контента (чтобы условие в карточке начиналось вплотную к номеру, как в рисовалке)
-    const x0 = Math.max(0, left - PAD), y0 = Math.max(0, top - PAD);
-    const x1 = Math.min(w - 1, right + PAD), y1 = Math.min(h - 1, bottom + PAD);
-    const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
-    if (cw >= w - 2 && ch >= h - 2) return blob;        // обрезать практически нечего
+    const PAD = 6;                                      // небольшое вертикальное поле вокруг контента
+    const y0 = Math.max(0, top - PAD), y1 = Math.min(h - 1, bottom + PAD);
+    const ch = y1 - y0 + 1;
+    if (ch >= h - 2) return blob;                       // по вертикали резать практически нечего
     const out = document.createElement('canvas');
-    out.width = cw; out.height = ch;
-    out.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, cw, ch);
+    out.width = w; out.height = ch;                     // ШИРИНА = исходная (горизонталь не трогаем)
+    out.getContext('2d').drawImage(c, 0, y0, w, ch, 0, 0, w, ch);
     return await new Promise((res) => out.toBlob((b) => res(b || blob), 'image/png'));
   } catch (_) {
     return blob;                                        // любая ошибка (taint и т.п.) → исходный снимок
@@ -290,7 +290,7 @@ export async function konspektStart(studentId) {
 // метаданные → сервер (для счётчика + гейта публикации). БАЙТЫ В STORAGE НЕ ЛЬЁМ — это ускоряет
 // добавление и устраняет потерю карточек: collect соберёт PDF из IndexedDB по konspekt.id.
 export async function addSnapshot(konspekt, { questionId, blob }) {
-  const trimmed = await trimSnapshot(blob);          // обрезать по содержимому со всех сторон
+  const trimmed = await trimSnapshot(blob);          // обрезать пустые поля сверху/снизу (ширину сохраняем)
   const ordinal = await idbNextOrdinal(konspekt.id); // монотонный ключ (безопасно после удалений)
   await idbPut(konspekt.id, ordinal, trimmed, ordinal); // локально; order=ordinal → новая карточка в конец
   const path = snapshotPath(konspekt, ordinal);      // логический путь (байты не заливаются)

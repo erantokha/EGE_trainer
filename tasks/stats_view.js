@@ -3,14 +3,14 @@
 // WSA-1a: prototype-aware статусы (охват прототипов × качество × рекомендация)
 // вместо наивной окраски по проценту окна. См. WSA_PLAN.md.
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-10-191123';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-10-192904';
 import {
   subtopicStatus,
   themeStatus,
   overallCoverage,
   rankTrainingTargets,
-} from './wsa_status.js?v=2026-06-18-10-191123';
-import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-10-191123';
+} from './wsa_status.js?v=2026-06-18-10-192904';
+import { applyMetricHelp, buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-10-192904';
 
 function $(sel, root = document) {
   return root.querySelector(sel);
