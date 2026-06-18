@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; object-src 'none'; form-action 'self'; img-src 'self' data: https:; font-src 'self' data: https:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.sentry-cdn.com https://browser.sentry-cdn.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://knhozdhvjhcovyjbjfji.supabase.co https://api.ege-trainer.ru https://ege-supabase-proxy.erantokha.workers.dev https://*.ingest.sentry.io https://*.sentry.io https://cdn.jsdelivr.net; frame-src https://rutube.ru;">
-  <meta name="app-build" content="2026-06-18-7-034926">
+  <meta name="app-build" content="2026-06-18-7-042206">
   <!-- cache-check:start -->
   <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -45,7 +45,7 @@
   <!-- WSF: пре-раскрытие рельса ДО первой отрисовки (из localStorage) — рельс рисуется раскрытым
        с первого кадра, transition не срабатывает → нет слайда/мигания при холодной навигации. -->
   <script>(function(){try{if(window.matchMedia('(min-width:1025px)').matches&&localStorage.getItem('ege_sidebar_open')!=='0'){document.documentElement.classList.add('ht-rail-open');}}catch(e){}})();</script>
-  <script src="./app/diag_bootstrap.js?v=2026-06-18-7-034926"></script>
+  <script src="./app/diag_bootstrap.js?v=2026-06-18-7-042206"></script>
 
   <script id="sentry-loader"
   src="https://js.sentry-cdn.com/931c8cc8254b6dcb3de991c6c9844397.min.js"
@@ -107,14 +107,14 @@
 })();
 </script>
 
-  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-18-7-034926">
-  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-18-7-034926">
-  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-06-18-7-034926">
-  <link rel="stylesheet" href="./tasks/home_teacher.layout.css?v=2026-06-18-7-034926">
+  <link rel="stylesheet" href="./tasks/trainer/tokens.css?v=2026-06-18-7-042206">
+  <link rel="stylesheet" href="./tasks/trainer/base.css?v=2026-06-18-7-042206">
+  <link rel="stylesheet" href="./tasks/home_teacher.mobile.css?v=2026-06-18-7-042206">
+  <link rel="stylesheet" href="./tasks/home_teacher.layout.css?v=2026-06-18-7-042206">
   <!-- WSF-restyle: общий студенческий CSS причёсывает учителя (аккордеон/каркас/карточки);
        грузится ПОСЛЕ учительского. Собственные #accordion-правила учителя удалены → без конфликта. -->
-  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-18-7-034926">
-  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-18-7-034926">
+  <link rel="stylesheet" href="./tasks/trainer/pages/home-student.css?v=2026-06-18-7-042206">
+  <link rel="stylesheet" href="./tasks/home_student.mobile.css?v=2026-06-18-7-042206">
 </head>
 <body data-home-variant="teacher">
 <main class="container">
@@ -783,9 +783,9 @@
   </div>
 </div>
 
-<script type="module" src="./tasks/home_guard.js?v=2026-06-18-7-034926"></script>
-<script src="./tasks/theme.js?v=2026-06-18-7-034926" defer></script>
-<script type="module" src="./tasks/picker.js?v=2026-06-18-7-034926"></script>
+<script type="module" src="./tasks/home_guard.js?v=2026-06-18-7-042206"></script>
+<script src="./tasks/theme.js?v=2026-06-18-7-042206" defer></script>
+<script type="module" src="./tasks/picker.js?v=2026-06-18-7-042206"></script>
 <script>
 (function () {
   var sidebar      = document.getElementById('htSidebar');

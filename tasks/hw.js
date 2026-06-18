@@ -10,23 +10,23 @@
 // Даже если колонки ещё не добавлены, скрипт попытается записать попытку,
 // а при ошибке "unknown column" — запишет без этих полей, сохранив мета в payload.
 
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-7-034926';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-7-034926';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-7-042206';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-7-042206';
 
-import { CONFIG } from '../app/config.js?v=2026-06-18-7-034926';
-import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-7-034926';
-import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-7-034926';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-7-034926';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-7-034926';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-7-034926';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-7-034926';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-7-034926';
+import { CONFIG } from '../app/config.js?v=2026-06-18-7-042206';
+import { getHomeworkByToken, startHomeworkAttempt, submitHomeworkAttempt, getHomeworkAttempt, normalizeStudentKey } from '../app/providers/homework.js?v=2026-06-18-7-042206';
+import { supabase, getSession } from '../app/providers/supabase.js?v=2026-06-18-7-042206';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-7-042206';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-7-042206';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-7-042206';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-7-042206';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-7-042206';
 
 
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-7-034926';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-7-034926';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock } from './part2_render.js?v=2026-06-18-7-034926';
-import { confirmPart2TeacherScore, getPart2ReviewsForAttempt } from '../app/providers/part2.js?v=2026-06-18-7-034926';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-7-042206';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-7-042206';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore } from './part2_render.js?v=2026-06-18-7-042206';
+import { confirmPart2TeacherScore, getPart2ReviewsForAttempt, submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-7-042206';
 // build/version (cache-busting)
 // Берём реальный билд из URL модуля (script type="module" ...?v=...)
 // Это устраняет ручной BUILD, который легко "забыть" обновить.
@@ -1645,8 +1645,10 @@ async function onFinishClick() {
     q.chosen_text = String(el.value ?? '');
   });
 
-  const total = SESSION.questions.length;
-  const empty = SESSION.questions.filter(q => !String(q.chosen_text ?? '').trim()).length;
+  // W13.2d: «пусто»/total — только по части 1 (часть 2 без текстового ответа, оценивается отдельно).
+  const part1 = SESSION.questions.filter(q => !isPart2Question(q));
+  const total = part1.length;
+  const empty = part1.filter(q => !String(q.chosen_text ?? '').trim()).length;
   if (empty > 0) {
     const ok = await confirmFinish({ empty, total, kind: 'homework' });
     if (!ok) return; // «Продолжить решение»
@@ -1665,6 +1667,7 @@ function renderHomeworkList() {
   SESSION.questions.forEach((q, idx) => {
     const card = document.createElement('div');
     card.className = 'task-card q-card';
+    const isP2 = isPart2Question(q); // W13.2d: часть 2 решается с эталоном + самооценкой
 
     const num = document.createElement('div');
     num.className = 'task-num';
@@ -1673,7 +1676,8 @@ function renderHomeworkList() {
 
     const stem = document.createElement('div');
     stem.className = 'task-stem';
-    setStem(stem, q.stem);
+    if (isP2) renderPart2Stem(stem, q.stem); // условие а/б без литерального <br>
+    else setStem(stem, q.stem);
     card.appendChild(stem);
 
     if (q.figure?.img) {
@@ -1698,29 +1702,42 @@ function renderHomeworkList() {
       card.appendChild(figWrap);
     }
 
-    const ansRow = document.createElement('div');
-    ansRow.className = 'task-ans';
+    if (isP2) {
+      // W13.2d: часть 2 — эталон для сверки + самооценка 0/1/2 (source='hw'); без текстового поля.
+      const wrap = document.createElement('div');
+      wrap.className = 'task-ans';
+      wrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      const hwAttemptId = SESSION.meta?.homeworkAttemptId || null;
+      wrap.appendChild(buildPart2SelfScore({
+        savedScore: q.self_score ?? null,
+        onSave: (score) => submitPart2SelfScore(q.question_id, score, { source: 'hw', hwAttemptId }),
+      }));
+      card.appendChild(wrap);
+    } else {
+      const ansRow = document.createElement('div');
+      ansRow.className = 'task-ans';
 
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.placeholder = 'Ответ';
-    input.autocomplete = 'off';
-    input.dataset.idx = String(idx);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'Ответ';
+      input.autocomplete = 'off';
+      input.dataset.idx = String(idx);
 
-    input.addEventListener('input', () => {
-      const i = Number(input.dataset.idx);
-      const qq = SESSION.questions[i];
-      if (!qq) return;
-      qq.chosen_text = String(input.value ?? '');
-    });
+      input.addEventListener('input', () => {
+        const i = Number(input.dataset.idx);
+        const qq = SESSION.questions[i];
+        if (!qq) return;
+        qq.chosen_text = String(input.value ?? '');
+      });
 
-    ansRow.appendChild(input);
-    card.appendChild(ansRow);
+      ansRow.appendChild(input);
+      card.appendChild(ansRow);
 
-    const pal = document.createElement('div');
-    pal.className = 'print-ans-line';
-    pal.textContent = 'Ответ: ________________________';
-    card.appendChild(pal);
+      const pal = document.createElement('div');
+      pal.className = 'print-ans-line';
+      pal.textContent = 'Ответ: ________________________';
+      card.appendChild(pal);
+    }
 
     listEl.appendChild(card);
   });
@@ -1937,7 +1954,8 @@ async function finishSession() {
   try { saveTimeForCurrent(); } catch (_) {}
   try { stopTick(); } catch (_) {}
 
-  const total = SESSION.questions.length;
+  // W13.2d: X/Y считаем только по части 1 (часть 2 — ручная проверка учителем, не gradeable).
+  const total = SESSION.questions.filter(q => !isPart2Question(q)).length;
 
   // Считываем ответы из полей (на случай, если input event не успел)
   document.querySelectorAll('#taskList input[type="text"][data-idx]').forEach((el) => {
@@ -1947,8 +1965,9 @@ async function finishSession() {
     q.chosen_text = String(el.value ?? '');
   });
 
-  // Проверяем все ответы
+  // Проверяем все ответы (часть 2 пропускаем — у неё нет автопроверки).
   for (const q of SESSION.questions) {
+    if (isPart2Question(q)) { q.time_ms = q.time_ms || 0; continue; }
     const raw = q.chosen_text ?? '';
     const { correct, chosen_text, normalized_text, correct_text } = checkFree(q.answer, raw);
     q.correct = correct;
@@ -1958,7 +1977,7 @@ async function finishSession() {
     q.time_ms = q.time_ms || 0;
   }
 
-  const correct = SESSION.questions.reduce((s, q) => s + (q.correct ? 1 : 0), 0);
+  const correct = SESSION.questions.reduce((s, q) => s + (!isPart2Question(q) && q.correct ? 1 : 0), 0);
   const duration_ms = Math.max(0, Date.now() - (SESSION.started_at || Date.now()));
   const avg_ms = Math.round(duration_ms / Math.max(1, total));
 
