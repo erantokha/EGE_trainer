@@ -2,15 +2,15 @@
 // Тест из одного задания: "аналог" к задаче из отчёта ДЗ.
 // Источник: sessionStorage['analog_request_v1'] (topic_id + base_question_id)
 
-import { withBuild } from '../app/build.js?v=2026-06-18-10-192904';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-10-192904';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-10-192904';
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-10-192904';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-10-192904';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-10-192904';
-import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-10-192904';
-import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-10-192904';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-10-192904';
+import { withBuild } from '../app/build.js?v=2026-06-18-11-193124';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-11-193124';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-11-193124';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-11-193124';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-11-193124';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-11-193124';
+import { loadCatalogIndexLike } from '../app/providers/catalog.js?v=2026-06-18-11-193124';
+import { ensureSessionReady } from '../app/ui/ensure_session.js?v=2026-06-18-11-193124';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-11-193124';
 
 const $ = (sel, root = document) => root.querySelector(sel);
 

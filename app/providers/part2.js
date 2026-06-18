@@ -2,7 +2,7 @@
 // Провайдер части 2 (№13): самооценка ученика (W13.2b) + учительское подтверждение (W13.2c).
 // Тонкие обёртки над RPC + RLS-чтения. См. docs/supabase/part2_attempt_reviews.sql + part2_teacher_review.sql.
 
-import { supaRest } from './supabase-rest.js?v=2026-06-18-10-192904';
+import { supaRest } from './supabase-rest.js?v=2026-06-18-11-193124';
 
 // W13.2b — записать самооценку ученика (0/1/2) за задачу части 2.
 // questionId — proto.id (напр. 13.trig.factor.46.1); source 'test'|'hw'; hwAttemptId — для ДЗ (иначе null).

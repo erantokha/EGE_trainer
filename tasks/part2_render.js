@@ -10,7 +10,7 @@
 //
 // Извлечено из tasks/trainer.js (W13.1) без изменения поведения.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-10-192904';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-11-193124';
 
 // Порядок классов = как в аккордеоне = Тип 1/2/3.
 const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];
