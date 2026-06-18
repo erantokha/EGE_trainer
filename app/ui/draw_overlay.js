@@ -12,7 +12,7 @@
 // снапшоты objects. Картинки грузим как data:-URL (CSP img-src не пускает blob:).
 // Печать: корень = body>div + position:fixed → прячется print.css/print_lifecycle (+ @media print).
 
-import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-18-22-223202';
+import { getStroke } from '../vendor/perfect-freehand.mjs?v=2026-06-18-23-231425';
 
 const COLORS = [
   '#ffffff', '#e8453c', '#f5a623', '#2bb24c', '#2d8cf0',
@@ -269,39 +269,41 @@ function build(btn) {
   // ----- тригонометрическая окружность (параметрически по рамке) -----
   // Оси во всю рамку со стрелками, круг по меньшей стороне (всегда круглый), подписи cos x/sin x.
   // Всё — текущим цветом/толщиной пера (видно и на тёмном фоне рисовалки).
-  // Аккуратный наконечник (узкий длинный треугольник). len — длина, hw — полуширина у основания.
+  // Открытый наконечник (две линии-усика, как у оси →). len — длина, hw — полуширина основания (узкая).
   function trigArrow(ctx, px, py, up, len, hw) {
     ctx.beginPath();
-    if (up) { ctx.moveTo(px, py); ctx.lineTo(px - hw, py + len); ctx.lineTo(px + hw, py + len); }
-    else { ctx.moveTo(px, py); ctx.lineTo(px - len, py - hw); ctx.lineTo(px - len, py + hw); }
-    ctx.closePath(); ctx.fill();
+    if (up) { ctx.moveTo(px - hw, py + len); ctx.lineTo(px, py); ctx.lineTo(px + hw, py + len); }
+    else { ctx.moveTo(px - len, py - hw); ctx.lineTo(px, py); ctx.lineTo(px - len, py + hw); }
+    ctx.stroke();   // НЕ заливка — открытый наконечник
   }
   function drawTrig(ctx, o) {
     const x = Math.min(o.x0, o.x1), y = Math.min(o.y0, o.y1), w = Math.abs(o.x1 - o.x0), h = Math.abs(o.y1 - o.y0);
-    // Жёстко пропорциональная фигура: ЕДИНЫЙ масштаб S=min(w,h). РАЗМЕР стрелок, подписей, отступов
-    // и КАП толщины — всё от S, НЕ от толщины пера: иначе толстое перо раздувает стрелки до окружности
-    // и плодит кашу. Перо влияет только на толщину линий, и то с потолком ~S*0.025.
+    // Самостоятельная схема: ВСЕ метрики — доли S=min(w,h); толщина пера НЕ участвует («за скобки»).
+    // Раз и линия, и вес подписи оба от S, их отношение константно → подпись всегда в тон линиям при
+    // любом размере (никакого «маятника»). Стрелка растёт МЕДЛЕННЕЕ фигуры (база + малая доля S) и
+    // ложится сразу за окружностью.
     const S = Math.min(w, h);
     if (S < 28) return;
     const cx = x + w / 2, cy = y + h / 2;
-    const lw = Math.max(1, Math.min(o.size, S * 0.025));  // толщина линий: наследует перо, но с потолком по размеру
-    const r = S * 0.36;                              // радиус окружности
-    const L = S * 0.49;                              // полудлина осей > r → наконечник ложится СНАРУЖИ круга
-    const aLen = S * 0.06, aHw = S * 0.033;          // наконечник — от размера фигуры (не от пера)
-    const fs = Math.max(11, Math.round(S * 0.052));  // кегль подписи — от размера фигуры
-    const lab = Math.max(S * 0.028, aHw + fs * 0.2); // отступ подписи от кончика стрелки (зазор над наконечником)
+    const lw = Math.max(1.6, S * 0.009);             // толщина всех линий (от S, не от пера)
+    const r = S * 0.37;                              // радиус окружности
+    const aLen = 6 + S * 0.018;                      // длина наконечника — растёт медленнее фигуры
+    const aHw = aLen * 0.32;                         // узкое основание усиков (вдвое острее обычного)
+    const L = r + aLen + lw * 2;                     // кончик стрелки — сразу за окружностью
+    const fs = Math.max(11, Math.round(S * 0.05));   // кегль подписи (от S)
+    const gap = Math.max(S * 0.02, aHw + fs * 0.18); // отступ подписи от кончика стрелки
     ctx.save();
     ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineWidth = lw; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.setLineDash([]);
     ctx.beginPath(); ctx.moveTo(cx - L, cy); ctx.lineTo(cx + L, cy); ctx.stroke();   // ось cos (гориз.)
     ctx.beginPath(); ctx.moveTo(cx, cy + L); ctx.lineTo(cx, cy - L); ctx.stroke();   // ось sin (верт.)
     trigArrow(ctx, cx + L, cy, false, aLen, aHw); trigArrow(ctx, cx, cy - L, true, aLen, aHw);  // стрелки
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();               // окружность
-    ctx.beginPath(); ctx.arc(cx, cy, Math.max(1.5, lw * 0.9), 0, Math.PI * 2); ctx.fill();  // центр
-    // Подписи: натуральный вес, кегль от размера фигуры (от толщины пера НЕ зависят).
-    ctx.font = `italic ${fs}px Georgia, "Times New Roman", serif`;
+    ctx.beginPath(); ctx.arc(cx, cy, lw * 1.1, 0, Math.PI * 2); ctx.fill();          // центр
+    // Подписи: вес — полужирным начертанием в тон линиям (обе метрики от S → отношение стабильно).
+    ctx.font = `italic 600 ${fs}px Georgia, "Times New Roman", serif`;
     const label = (t, lx, ly, al, bl) => { ctx.textAlign = al; ctx.textBaseline = bl; ctx.fillText(t, lx, ly); };
-    label('sin x', cx + lab, cy - L, 'left', 'middle');           // справа от верт. стрелки, на её уровне
-    label('cos x', cx + L, cy - lab, 'center', 'bottom');         // сверху от гор. стрелки, над кончиком
+    label('sin x', cx + aHw + gap, cy - L, 'left', 'middle');     // справа от кончика верт. стрелки, на его уровне
+    label('cos x', cx + L, cy - gap, 'center', 'bottom');         // сверху над кончиком гор. стрелки
     ctx.restore();
   }
 
