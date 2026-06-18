@@ -11,12 +11,12 @@ import {
   computeTargetTopics,
   interleaveBatches,
   shuffleInPlace,
-} from '../app/core/pick.js?v=2026-06-18-11-193124';
+} from '../app/core/pick.js?v=2026-06-18-11-195651';
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-11-193124';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-11-195651';
 
-import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-18-11-193124';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-11-193124';
+import { questionStatsForTeacherV1, pickQuestionsForTeacherV1, pickQuestionsForTeacherV2, teacherTopicRollupV1, pickQuestionsForTeacherTopicsV1, teacherTypeRollupV1, pickQuestionsForTeacherTypesV1 } from '../app/providers/homework.js?v=2026-06-18-11-195651';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-11-195651';
 
 function compareId(a, b) {
   const as = String(a).split('.').map(Number);

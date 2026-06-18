@@ -7,8 +7,8 @@
 // (там есть таймаут и fallback), а все RPC/REST вызовы делаем только через app/providers/supabase-rest.js
 // (там есть таймаут и 401-ретрай с принудительным refresh).
 
-import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-11-193124';
-import { buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-11-193124';
+import { loadCatalogLegacy } from '../app/providers/catalog.js?v=2026-06-18-11-195651';
+import { buildLegend } from '../app/ui/metric_help.js?v=2026-06-18-11-195651';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 const BUILD = document.querySelector('meta[name="app-build"]')?.content?.trim() || '';

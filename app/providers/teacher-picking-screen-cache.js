@@ -1,4 +1,4 @@
-import { readRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-18-11-193124';
+import { readRuntimeCache, writeRuntimeCache } from './runtime-cache.js?v=2026-06-18-11-195651';
 
 const NAMESPACE = 'teacher_picking_screen_v2';
 const SESSION_TTL_MS = 2 * 60 * 1000;
