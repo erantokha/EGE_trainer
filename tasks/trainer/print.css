@@ -432,4 +432,23 @@
     color: #000;
   }
 
+  /* ───────── W13.3: часть 2 (№13) в печати ─────────
+     Интерактив (тоггл эталона, контрол самооценки) — экранный, в печать не идёт.
+     Эталон по умолчанию НЕ печатается (модель «решает на бумаге»); вместо него — рабочее
+     место под решение. Часть 1 не затрагивается: классов .part2-* у №1..12 нет.
+     `:has()` уже используется в этом файле (правила .print-ans-line выше). */
+  body.print-layout-active .part2-box,
+  body.print-layout-active .part2-selfscore {
+    display: none !important;
+  }
+  body.print-layout-active .task-ans:has(.part2-box)::after,
+  body.print-layout-active .ws-ans:has(.part2-box)::after {
+    content: "Решение:";
+    display: block;
+    min-height: 9cm;
+    margin-top: 6px;
+    color: #000;
+    font-weight: 600;
+  }
+
 }
