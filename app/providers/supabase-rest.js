@@ -5,8 +5,8 @@
 // - 1 ретрай при 401 с принудительным refresh (forceRefresh)
 // - единый формат ошибок (code/status/endpoint/details)
 
-import { CONFIG } from '../config.js?v=2026-06-23-8-075136';
-import { getSession, requireSession, fetchWithRetry } from './supabase.js?v=2026-06-23-8-075136';
+import { CONFIG } from '../config.js?v=2026-06-23-13-181807';
+import { getSession, requireSession, fetchWithRetry } from './supabase.js?v=2026-06-23-13-181807';
 
 // Сколько раз повторять при сетевом сбое/таймауте (status=0). По умолчанию:
 // чтения (rpc/select) — 2 ретрая; записи (insert/update/remove) — 0.
@@ -15,6 +15,23 @@ function __resolveRetries(opts, def) {
   if (opts?.retry === false) return 0;
   const r = Number(opts?.retries);
   return Number.isFinite(r) ? Math.max(0, r) : def;
+}
+
+function __resolveFailover(opts, def) {
+  if (typeof opts?.failover === 'boolean') return opts.failover;
+  return !!def;
+}
+
+function __isMutatingRpcName(fnName) {
+  const name = String(fnName || '').trim().toLowerCase();
+  if (!name) return true;
+
+  // RPC is POST in PostgREST for both reads and writes. Keep automatic origin
+  // failover off for write-shaped contracts unless a caller explicitly opts in.
+  return /^(create|start|submit|assign|add|remove|update|delete|cancel|respond|revoke|write|confirm)_/.test(name)
+    || name === 'teacher_invite_student'
+    || name === 'lesson_item_upsert_v1'
+    || /^konspekt_(start|add|delete|publish)_/.test(name);
 }
 
 function __baseUrl() {
@@ -50,11 +67,16 @@ function __makeErr(code, meta = null) {
   return e;
 }
 
-async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 9000, meta = {}, retries = 0) {
+async function __fetchWithTimeout(url, fetchOpts = {}, timeoutMs = 9000, meta = {}, retries = 0, failover = false) {
   const ms = Math.max(0, Number(timeoutMs || 0) || 0);
   try {
     // fetchWithRetry: per-attempt таймаут + ретраи сетевых сбоев + тихие промежуточные попытки.
-    return await fetchWithRetry(url, fetchOpts, { retries, timeoutMs: ms });
+    return await fetchWithRetry(url, fetchOpts, {
+      retries,
+      timeoutMs: ms,
+      failover: !!failover,
+      failoverStatuses: failover ? [502, 503, 504] : [],
+    });
   } catch (e) {
     if (e?.code === 'TIMEOUT' || e?.name === 'AbortError') {
       throw __makeErr('TIMEOUT', {
@@ -79,13 +101,14 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
   const timeoutMs = Number(opts?.timeoutMs ?? 9000) || 9000;
   const sessionTimeoutMs = Number(opts?.sessionTimeoutMs ?? 900) || 900;
   const retries = Math.max(0, Number(opts?.retries ?? 0) || 0);
+  const failover = opts?.failover === true;
 
   // 1) anon: без сессии, без ретрая
   if (authMode === 'anon') {
     return await __fetchWithTimeout(url, {
       ...options,
       headers: __headers('', options.headers || {}),
-    }, timeoutMs, meta, retries);
+    }, timeoutMs, meta, retries, failover);
   }
 
   // 2) auto: не требуем сессию; если она есть — добавляем Authorization
@@ -96,7 +119,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
     let res = await __fetchWithTimeout(url, {
       ...options,
       headers: __headers(token, options.headers || {}),
-    }, timeoutMs, meta, retries);
+    }, timeoutMs, meta, retries, failover);
 
     // ретрай имеет смысл только если мы реально ходили с Authorization
     if (token && res.status === 401 && retry401) {
@@ -106,7 +129,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
       res = await __fetchWithTimeout(url, {
         ...options,
         headers: __headers(s2.access_token, options.headers || {}),
-      }, timeoutMs, meta, retries);
+      }, timeoutMs, meta, retries, failover);
     }
 
     return res;
@@ -126,7 +149,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
   let res = await __fetchWithTimeout(url, {
     ...options,
     headers: __headers(session.access_token, options.headers || {}),
-  }, timeoutMs, meta, retries);
+  }, timeoutMs, meta, retries, failover);
 
   if (res.status === 401 && retry401) {
     const s2 = await getSession({ forceRefresh: true, timeoutMs: sessionTimeoutMs });
@@ -135,7 +158,7 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
     res = await __fetchWithTimeout(url, {
       ...options,
       headers: __headers(s2.access_token, options.headers || {}),
-    }, timeoutMs, meta, retries);
+    }, timeoutMs, meta, retries, failover);
   }
 
   return res;
@@ -145,11 +168,14 @@ async function __fetchWithAuth(url, options = {}, opts = {}, meta = {}) {
 async function rpc(fnName, args = {}, opts = {}) {
   const base = __baseUrl();
   const url = `${base}/rest/v1/rpc/${encodeURIComponent(fnName)}`;
+  const mutating = __isMutatingRpcName(fnName);
+  const retries = __resolveRetries(opts, mutating ? 0 : 2);
+  const failover = __resolveFailover(opts, retries > 0 && !mutating);
 
   const res = await __fetchWithAuth(url, {
     method: 'POST',
     body: JSON.stringify(args ?? {}),
-  }, { ...opts, retries: __resolveRetries(opts, 2) }, { endpoint: `rpc:${fnName}` });
+  }, { ...opts, retries, failover }, { endpoint: `rpc:${fnName}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -175,7 +201,9 @@ async function select(table, query = {}, opts = {}) {
   }
   const url = `${base}/rest/v1/${encodeURIComponent(table)}${qs ? `?${qs}` : ''}`;
 
-  const res = await __fetchWithAuth(url, { method: 'GET' }, { ...opts, retries: __resolveRetries(opts, 2) }, { endpoint: `table:${table}` });
+  const retries = __resolveRetries(opts, 2);
+  const failover = __resolveFailover(opts, retries > 0);
+  const res = await __fetchWithAuth(url, { method: 'GET' }, { ...opts, retries, failover }, { endpoint: `table:${table}` });
   const data = await __readBody(res);
 
   if (!res.ok) {
@@ -197,11 +225,13 @@ async function insert(table, rows, opts = {}) {
     ? 'return=minimal'
     : 'return=representation';
 
+  const retries = __resolveRetries(opts, 0);
+  const failover = __resolveFailover(opts, false);
   const res = await __fetchWithAuth(url, {
     method: 'POST',
     headers: { Prefer: prefer },
     body: JSON.stringify(rows),
-  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `insert:${table}` });
+  }, { ...opts, retries, failover }, { endpoint: `insert:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -224,11 +254,13 @@ async function update(table, query, patchObj, opts = {}) {
     ? 'return=minimal'
     : 'return=representation';
 
+  const retries = __resolveRetries(opts, 0);
+  const failover = __resolveFailover(opts, false);
   const res = await __fetchWithAuth(url, {
     method: 'PATCH',
     headers: { Prefer: prefer },
     body: JSON.stringify(patchObj),
-  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `update:${table}` });
+  }, { ...opts, retries, failover }, { endpoint: `update:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {
@@ -251,10 +283,12 @@ async function remove(table, query, opts = {}) {
     ? 'return=minimal'
     : 'return=representation';
 
+  const retries = __resolveRetries(opts, 0);
+  const failover = __resolveFailover(opts, false);
   const res = await __fetchWithAuth(url, {
     method: 'DELETE',
     headers: { Prefer: prefer },
-  }, { ...opts, retries: __resolveRetries(opts, 0) }, { endpoint: `delete:${table}` });
+  }, { ...opts, retries, failover }, { endpoint: `delete:${table}` });
 
   const data = await __readBody(res);
   if (!res.ok) {

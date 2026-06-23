@@ -11,7 +11,7 @@
 // Канонический renderer эталонных решений №13: контрактное оформление одно для preview,
 // тренажёра, списка, уникальных прототипов и домашних работ.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-23-8-075136';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-23-13-181807';
 
 // Порядок классов = как в аккордеоне = Тип 1/2/3.
 const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];

@@ -5,7 +5,7 @@
 // - anonKey НЕ подходит как Authorization для RLS-операций учителя.
 // - Для операций учителя используем access_token из supabase.auth.getSession().
 
-import { CONFIG } from '../config.js?v=2026-06-23-8-075136';
+import { CONFIG } from '../config.js?v=2026-06-23-13-181807';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.89.0/+esm';
 
 // --- Сетевые ретраи (resilience к интермиттентным дропам RF→VPS, инцидент 2026-06-06) ---
@@ -13,6 +13,11 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 // возвращаем сразу — это не сетевой сбой. Промежуточные попытки помечаем init.__egeNoOverlay,
 // чтобы диаг-оверлей (app/diag_bootstrap.js) всплывал только после ИСЧЕРПАНИЯ ретраев.
 const __RETRY_BACKOFFS_MS = [350, 800, 1500];
+const __DEFAULT_SUPABASE_FALLBACK_URLS = [
+  'https://ege-supabase-proxy.erantokha.workers.dev',
+  'https://knhozdhvjhcovyjbjfji.supabase.co',
+];
+const __FAILOVER_WARNED = new Set();
 
 function __retrySleep(ms) { return new Promise((r) => setTimeout(r, Math.max(0, ms | 0))); }
 
@@ -32,33 +37,172 @@ function __mkTimeoutErr(input, timeoutMs) {
   return e;
 }
 
-// Единый ретраящий fetch. opts: { retries, timeoutMs }.
+function __mkFailoverHttpErr(input, status) {
+  const e = new Error(`HTTP_${status}`);
+  e.code = 'HTTP_FAILOVER';
+  e.status = Number(status || 0) || 0;
+  e.url = __inputUrl(input);
+  e.details = 'gateway_status';
+  return e;
+}
+
+function __originOf(urlLike) {
+  try {
+    const s = String(urlLike || '').trim();
+    if (!s) return '';
+    return new URL(s).origin.replace(/\/+$/g, '');
+  } catch (_) {
+    return '';
+  }
+}
+
+function __inputUrl(input) {
+  try {
+    if (typeof input === 'string') return input;
+    if (input instanceof URL) return input.toString();
+    if (input?.url) return String(input.url);
+    return '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function __requestMethod(input, init) {
+  try {
+    return String(init?.method || input?.method || 'GET').toUpperCase();
+  } catch (_) {
+    return 'GET';
+  }
+}
+
+function __rewriteInputOrigin(input, targetOrigin) {
+  try {
+    const raw = __inputUrl(input);
+    if (!raw) return input;
+    const next = new URL(raw);
+    const target = new URL(String(targetOrigin || ''));
+    next.protocol = target.protocol;
+    next.host = target.host;
+
+    if (typeof input === 'string') return next.toString();
+    if (input instanceof URL) return new URL(next.toString());
+    if (typeof Request !== 'undefined' && input instanceof Request) {
+      return new Request(next.toString(), input);
+    }
+    return next.toString();
+  } catch (_) {
+    return input;
+  }
+}
+
+function __isSdkFailoverSafe(input, init) {
+  try {
+    const raw = __inputUrl(input);
+    if (!raw) return false;
+    const url = new URL(raw);
+    const method = __requestMethod(input, init);
+    if (url.pathname.startsWith('/auth/v1/')) return true;
+    if (method === 'GET' || method === 'HEAD') return true;
+    // Direct supabase.rpc() callers still use the SDK global fetch. Keep the auth
+    // pre-check resilient, but do not auto-replay profile/write RPCs through fallbacks.
+    if (url.pathname === '/rest/v1/rpc/auth_email_exists') return true;
+  } catch (_) {}
+  return false;
+}
+
+function __supabaseFailoverInputs(input, enabled) {
+  const out = [{ input, origin: __originOf(__inputUrl(input)) }];
+  if (!enabled) return out;
+
+  const primary = __originOf(CONFIG?.supabase?.url || '');
+  const current = __originOf(__inputUrl(input));
+  if (!primary || !current || current !== primary) return out;
+
+  const configured = Array.isArray(CONFIG?.supabase?.fallbackUrls)
+    ? CONFIG.supabase.fallbackUrls
+    : __DEFAULT_SUPABASE_FALLBACK_URLS;
+  const seen = new Set([primary]);
+
+  for (const raw of configured) {
+    const origin = __originOf(raw);
+    if (!origin || seen.has(origin)) continue;
+    seen.add(origin);
+    out.push({ input: __rewriteInputOrigin(input, origin), origin });
+  }
+  return out;
+}
+
+function __warnFailover(origin, err) {
+  try {
+    if (!origin || __FAILOVER_WARNED.has(origin)) return;
+    __FAILOVER_WARNED.add(origin);
+    console.warn('[supabase] primary request failed, trying fallback', {
+      fallbackOrigin: origin,
+      reason: String(err?.code || err?.name || err?.message || err || ''),
+    });
+  } catch (_) {}
+}
+
+// Единый ретраящий fetch. opts: { retries, timeoutMs, failover, failoverPrimaryTimeoutMs }.
 // timeoutMs применяется per-attempt (если у init нет своего signal).
 export async function fetchWithRetry(input, init = {}, opts = {}) {
   const retries = Math.max(0, Number(opts?.retries ?? 0) || 0);
   const timeoutMs = Math.max(0, Number(opts?.timeoutMs ?? 0) || 0);
+  const candidates = __supabaseFailoverInputs(input, opts?.failover === true);
+  const failoverPrimaryTimeoutMs = Math.max(0, Number(opts?.failoverPrimaryTimeoutMs ?? 2500) || 0);
+  const failoverStatuses = new Set(
+    Array.isArray(opts?.failoverStatuses)
+      ? opts.failoverStatuses.map((x) => Number(x || 0)).filter(Boolean)
+      : [],
+  );
   const base = init || {};
   let lastErr = null;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const isLast = attempt === retries;
-    const useTimeout = timeoutMs > 0 && !base.signal;
-    const ctrl = useTimeout ? new AbortController() : null;
-    const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i];
+    // Если primary не отвечает, не тратим все ретраи на него: один timeout и сразу fallback.
+    const attemptsForOrigin = (i === 0 && candidates.length > 1) ? 0 : retries;
 
-    const attemptInit = { ...base };
-    if (ctrl) attemptInit.signal = ctrl.signal;
-    // тихо на всех попытках, кроме финальной — оверлей покажет только финальный фейл
-    if (!isLast) attemptInit.__egeNoOverlay = true;
+    for (let attempt = 0; attempt <= attemptsForOrigin; attempt++) {
+      const isLast = (i === candidates.length - 1) && (attempt === attemptsForOrigin);
+      const attemptTimeoutMs = (i === 0 && candidates.length > 1 && failoverPrimaryTimeoutMs > 0 && timeoutMs > failoverPrimaryTimeoutMs)
+        ? failoverPrimaryTimeoutMs
+        : timeoutMs;
+      const useTimeout = attemptTimeoutMs > 0 && !base.signal;
+      const ctrl = useTimeout ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), attemptTimeoutMs) : null;
 
-    try {
-      return await fetch(input, attemptInit);
-    } catch (e) {
-      lastErr = (e && e.name === 'AbortError') ? __mkTimeoutErr(input, timeoutMs) : e;
-      if (isLast || !__isRetryableNetErr(e)) throw lastErr;
-      await __retrySleep(__RETRY_BACKOFFS_MS[Math.min(attempt, __RETRY_BACKOFFS_MS.length - 1)]);
-    } finally {
-      if (timer) clearTimeout(timer);
+      const attemptInit = { ...base };
+      if (ctrl) attemptInit.signal = ctrl.signal;
+      // тихо на всех попытках, кроме финальной — оверлей покажет только финальный фейл
+      if (!isLast) attemptInit.__egeNoOverlay = true;
+
+      try {
+        const res = await fetch(candidate.input, attemptInit);
+        if (i < candidates.length - 1 && failoverStatuses.has(Number(res?.status || 0))) {
+          lastErr = __mkFailoverHttpErr(candidate.input, res.status);
+          __warnFailover(candidates[i + 1]?.origin, lastErr);
+          break;
+        }
+        return res;
+      } catch (e) {
+        lastErr = (e && e.name === 'AbortError') ? __mkTimeoutErr(candidate.input, attemptTimeoutMs) : e;
+        if (!__isRetryableNetErr(e)) throw lastErr;
+
+        if (attempt < attemptsForOrigin) {
+          await __retrySleep(__RETRY_BACKOFFS_MS[Math.min(attempt, __RETRY_BACKOFFS_MS.length - 1)]);
+          continue;
+        }
+
+        if (i < candidates.length - 1) {
+          __warnFailover(candidates[i + 1]?.origin, lastErr);
+          break;
+        }
+
+        throw lastErr;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
     }
   }
   throw lastErr;
@@ -68,7 +212,14 @@ export async function fetchWithRetry(input, init = {}, opts = {}) {
 // выдачи токена → ретраим сетевые сбои/таймауты. На код-обмен/ротацию refresh повторный HTTP-ответ
 // «code/token already used» НЕ ретраится (это ответ, не сетевой сбой).
 function __sdkFetch(input, init) {
-  return fetchWithRetry(input, init || {}, { retries: 2, timeoutMs: 9000 });
+  const safe = __isSdkFailoverSafe(input, init || {});
+  return fetchWithRetry(input, init || {}, {
+    retries: safe ? 2 : 0,
+    timeoutMs: 9000,
+    failover: safe,
+    failoverPrimaryTimeoutMs: 4500,
+    failoverStatuses: safe ? [502, 503, 504] : [],
+  });
 }
 
 // Если пользователь нажал «Выйти», а затем «Войти»,
@@ -183,7 +334,13 @@ function __writeStoredSession(key, raw, newObj) {
 
 async function __fetchJson(url, { method = 'GET', headers = {}, body = null, timeoutMs = 12000 } = {}) {
   // ретраи сетевых сбоев/таймаутов; таймаут per-attempt внутри fetchWithRetry.
-  const res = await fetchWithRetry(url, { method, headers, body }, { retries: 2, timeoutMs });
+  const res = await fetchWithRetry(url, { method, headers, body }, {
+    retries: 2,
+    timeoutMs,
+    failover: true,
+    failoverPrimaryTimeoutMs: 4500,
+    failoverStatuses: [502, 503, 504],
+  });
   const text = await res.text().catch(() => '');
   let data = null;
   try { data = text ? JSON.parse(text) : null; } catch (_) { data = text || null; }

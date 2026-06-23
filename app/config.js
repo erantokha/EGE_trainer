@@ -7,12 +7,16 @@ export const CONFIG = {
     // Откат: 'https://ege-supabase-proxy.erantokha.workers.dev' (Cloudflare Worker)
     //   или 'https://knhozdhvjhcovyjbjfji.supabase.co' (напрямую) — CSP разрешает все три.
     url: 'https://api.ege-trainer.ru',
+    fallbackUrls: [
+      'https://ege-supabase-proxy.erantokha.workers.dev',
+      'https://knhozdhvjhcovyjbjfji.supabase.co',
+    ],
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtuaG96ZGh2amhjb3Z5amJqZmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE0MzA2NTYsImV4cCI6MjA3NzAwNjY1Nn0.RSwb6_1DRqN1_DVCikxKyJ144UlQbG78MZVq-vQedPg',
     // Таблица attempts используется тренажёром (tasks) и ДЗ.
     // Чтение статистики/админки удалены, поэтому view/админ-параметры не нужны.
   },
   content: {
-    version: '2026-06-23-8-075136' // меняй при обновлении контента
+    version: '2026-06-23-13-181807' // меняй при обновлении контента
   }
 };
 
