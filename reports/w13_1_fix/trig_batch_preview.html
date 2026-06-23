@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-23-8-075136">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>W13 trigonometry batch preview</title>
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-23-8-075136">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-23-8-075136">
+<link rel="stylesheet" href="/tasks/trainer/part2.css?v=2026-06-23-8-075136">
+<link rel="stylesheet" href="/tasks/unique.css?v=2026-06-23-8-075136">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+  body { padding:24px; max-width:1120px; margin:0 auto; background:#f8fafc; }
+  .preview-note {
+    font:13px/1.5 system-ui;
+    color:#64748b;
+    background:#fff;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:8px;
+    padding:10px 14px;
+    margin:0 0 18px;
+  }
+  .preview-h { font:700 18px/1.35 system-ui; margin:0 0 14px; color:#0f172a; }
+  .batch-list { display:grid; gap:18px; }
+  .batch-item {
+    background:#fff;
+    border:1px solid rgba(15,23,42,.12);
+    border-radius:10px;
+    box-shadow:0 10px 28px rgba(15,23,42,.05);
+    padding:18px;
+  }
+  .batch-meta {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 12px;
+    margin:0 0 12px;
+    font:13px/1.4 system-ui;
+    color:#64748b;
+  }
+  .batch-meta code {
+    color:#0f172a;
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .ws-stem {
+    font-family:"Times New Roman", Times, serif;
+    font-size:22.5px;
+    font-weight:400;
+    line-height:1.75;
+    color:#000;
+  }
+  .part2-solution-panel {
+    margin-top:18px;
+    padding:18px;
+    border:1px solid rgba(15,23,42,.12);
+    border-radius:10px;
+    background:#fff;
+  }
+  .part2-solution-card {
+    display:grid;
+    gap:18px;
+    font-family:"Times New Roman", Times, serif;
+    font-size:22.5px;
+    font-weight:400;
+    line-height:1.75;
+    color:#000;
+  }
+  .part2-solution-section { display:grid; gap:12px; }
+  .part2-section-head { display:block; margin:0; font:inherit; line-height:1.9; color:#000; }
+  .part2-section-mark,
+  .part2-section-title { display:inline; font:inherit; color:#000; }
+  .solution-steps,
+  .solution-roots,
+  .solution-answer { display:grid; gap:6px; }
+  .solution-steps { gap:20px; }
+  .solution-line {
+    min-width:0;
+    overflow:visible;
+    padding-block:3px;
+    scrollbar-width:none;
+  }
+  .solution-line::-webkit-scrollbar,
+  .solution-family-line::-webkit-scrollbar,
+  .solution-variant-line::-webkit-scrollbar { display:none; }
+  .solution-simple-list {
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
+    column-gap:16px;
+    row-gap:20px;
+    min-width:0;
+  }
+  .solution-steps + .solution-simple-list { margin-top:8px; }
+  .solution-simple-item {
+    display:grid;
+    grid-template-columns:max-content minmax(0, 1fr);
+    column-gap:8px;
+    align-items:baseline;
+    min-width:0;
+    padding:0;
+    border:0;
+    background:transparent;
+  }
+  .solution-simple-number { white-space:nowrap; line-height:1.35; }
+  .solution-simple-body { display:grid; gap:20px; min-width:0; }
+  .solution-simple-equation { min-width:0; line-height:1.35; }
+  .solution-single-simple {
+    display:grid;
+    justify-items:center;
+    gap:20px;
+    min-width:0;
+    margin-top:8px;
+  }
+  .solution-family-lines,
+  .solution-variant-lines {
+    display:grid;
+    gap:20px;
+    padding-left:0;
+    min-width:0;
+  }
+  .solution-family-line,
+  .solution-variant-line {
+    min-width:0;
+    overflow:visible;
+    padding-block:0;
+    line-height:1.35;
+    scrollbar-width:none;
+  }
+  .solution-figure {
+    display:grid;
+    justify-items:center;
+    gap:6px;
+  }
+  .solution-figure img {
+    display:block;
+    max-width:510px;
+    width:100%;
+    height:auto;
+    background:#fff;
+  }
+  .solution-figure-caption { color:#000; font:inherit; }
+  .solution-roots { justify-content:center; justify-items:start; }
+  .solution-roots .solution-line { width:max-content; max-width:100%; min-width:0; }
+  .solution-roots mjx-container[display="true"] { text-align:left !important; }
+  .solution-answer {
+    padding-top:12px;
+    border-top:1px solid rgba(15,23,42,.12);
+    gap:12px;
+  }
+  .solution-family-list {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    column-gap:0;
+    row-gap:4px;
+    min-width:0;
+    max-width:100%;
+  }
+  .solution-family-unit,
+  .solution-family-note {
+    display:inline-flex;
+    align-items:baseline;
+    max-width:100%;
+  }
+  .solution-family-note { white-space:nowrap; }
+  .solution-answer-title,
+  .solution-answer-row { font:inherit; color:#000; }
+  .solution-answer-row {
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    gap:0 6px;
+    min-width:0;
+  }
+  mjx-container {
+    overflow:visible !important;
+    scrollbar-width:none;
+    padding-block:2px;
+  }
+  mjx-container::-webkit-scrollbar { display:none; }
+  mjx-container svg { overflow:visible !important; }
+  .ws-stem mjx-container,
+  .part2-solution-panel mjx-container {
+    font-size:100% !important;
+  }
+  .part2-solution-panel mjx-container[display="true"] { margin:0 !important; }
+</style>
+</head>
+<body>
+<p class="preview-note">
+  <b>Объединённый тригонометрический проход:</b> группировка, однородные и остальные тригонометрические методы. Варианты после произведения начинаются с уравнения множителя, табличный косинус записан через \(\pm\), а переход к \(\operatorname{tg}x\) в однородных расписан подробнее.
+</p>
+<div class="preview-h">Проверка оставшихся тригонометрических задач №13</div>
+<div id="pager" class="preview-note"></div>
+<div id="host" class="batch-list"></div>
+
+<script type="module">
+import { renderPart2Stem, mkEl } from '/tasks/part2_render.js';
+
+const BATCH_SECTIONS = [
+  {
+    title: 'Группировка',
+    manifest: '/content/tasks/part2/13/13.trig.group.json',
+    ids: [
+      '13.trig.group.76.1',
+      '13.trig.group.76.2',
+      '13.trig.group.76.3',
+      '13.trig.group.77.1',
+      '13.trig.group.77.2',
+      '13.trig.group.77.3',
+    ],
+  },
+  {
+    title: 'Однородные',
+    manifest: '/content/tasks/part2/13/13.trig.homog.json',
+    ids: [
+      '13.trig.homog.5.1',
+      '13.trig.homog.5.2',
+      '13.trig.homog.5.3',
+    ],
+  },
+  {
+    title: 'Остальное',
+    manifest: '/content/tasks/part2/13/13.trig.other.json',
+    ids: [
+      '13.trig.other.16.1',
+      '13.trig.other.16.2',
+      '13.trig.other.16.3',
+      '13.trig.other.81.1',
+      '13.trig.other.81.2',
+      '13.trig.other.81.3',
+      '13.trig.other.83.1',
+      '13.trig.other.83.2',
+      '13.trig.other.83.3',
+      '13.trig.other.85.1',
+      '13.trig.other.85.2',
+      '13.trig.other.85.3',
+      '13.trig.other.89-98.1',
+      '13.trig.other.89-98.2',
+      '13.trig.other.89-98.3',
+      '13.trig.other.101.1',
+      '13.trig.other.101.2',
+      '13.trig.other.101.3',
+    ],
+  },
+];
+
+async function getJson(p) {
+  return (await fetch(p, { cache: 'no-store' })).json();
+}
+function asset(p) {
+  return '/' + String(p || '').replace(/^\/+/, '');
+}
+function normalizeDisplayTex(tex) {
+  return String(tex || '')
+    .replace(/\\tfrac\b/g, '\\frac')
+    .replace(/\\dfrac\b/g, '\\frac');
+}
+function normTex(tex) {
+  return String(tex || '')
+    .replace(/\\tfrac\b/g, '\\frac')
+    .replace(/\\dfrac\b/g, '\\frac')
+    .replace(/\s+/g, '')
+    .replace(/\\,/g, '')
+    .replace(/\\quad/g, '')
+    .replace(/\\left/g, '')
+    .replace(/\\right/g, '');
+}
+function displayTex(tex) {
+  const body = normalizeDisplayTex(tex).trim().replace(/^\\displaystyle\s+/, '');
+  return `\\displaystyle ${body}`;
+}
+function displayInlineMath(html) {
+  return String(html || '').replace(/\\\((.*?)\\\)/gs, (_, body) => `\\( ${displayTex(body)} \\)`);
+}
+function mathLine(tex, cls = 'solution-line') {
+  return mkEl('div', cls, `\\[ ${displayTex(tex)} \\]`);
+}
+function inlineMathList(items) {
+  return (items || []).map(item => `\\( ${displayTex(item)} \\)`).join('; ');
+}
+function stripIntegerNote(tex) {
+  return String(tex || '')
+    .replace(/\\\s+/g, ' ')
+    .replace(/(?:,|\s|\\quad|\\,|\\;|\\:)*\\?n\s*\\in\s*\\mathbb\{Z\}\s*$/g, '')
+    .replace(/(?:,|\s|\\quad|\\,|\\;|\\:)+$/g, '')
+    .trim();
+}
+function buildFamilyList(items) {
+  const clean = (items || []).map(stripIntegerNote).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-family-list');
+  clean.forEach((item) => {
+    const unit = mkEl('span', 'solution-family-unit');
+    unit.appendChild(document.createTextNode(`\\( ${displayTex(item)} \\),\u00a0\u00a0`));
+    wrap.appendChild(unit);
+  });
+  wrap.appendChild(mkEl('span', 'solution-family-note', '\\( n \\in \\mathbb{Z} \\)'));
+  return wrap;
+}
+function buildFamilyLines(items) {
+  const clean = (items || []).map(stripIntegerNote).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-family-lines');
+  clean.forEach((item, idx) => {
+    const tail = idx === clean.length - 1 ? ',\u00a0\u00a0\\( n \\in \\mathbb{Z} \\)' : ',';
+    wrap.appendChild(mkEl('div', 'solution-family-line', `\\( ${displayTex(item)} \\)${tail}`));
+  });
+  return wrap;
+}
+function buildVariantLines(items) {
+  const clean = (items || []).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-variant-lines');
+  clean.forEach((item) => wrap.appendChild(mkEl('div', 'solution-variant-line', `\\( ${displayTex(item)} \\)`)));
+  return wrap;
+}
+function extractInterval(stem) {
+  const text = String(stem || '');
+  const m = text.match(/отрезку\s+\\\((.*?)\\\)/i);
+  return m ? m[1] : '';
+}
+function sectionHead(mark, title) {
+  const head = mkEl('h4', 'part2-section-head');
+  head.appendChild(mkEl('span', 'part2-section-mark', mark));
+  head.appendChild(document.createTextNode(' '));
+  head.appendChild(mkEl('span', 'part2-section-title', title));
+  return head;
+}
+function buildPart2SolutionContent(proto) {
+  const sol = proto.solution || {};
+  const ans = proto.answer || {};
+  const wrap = mkEl('div', 'part2-solution-card');
+
+  const partA = mkEl('section', 'part2-solution-section');
+  partA.appendChild(sectionHead('а)', 'Преобразуем исходное уравнение:'));
+  if (Array.isArray(sol.steps) && sol.steps.length) {
+    const steps = mkEl('div', 'solution-steps');
+    sol.steps.forEach(step => steps.appendChild(mathLine(step)));
+    partA.appendChild(steps);
+  }
+  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
+    if (sol.gen_groups.length === 1) {
+      const group = sol.gen_groups[0];
+      const lastStep = Array.isArray(sol.steps) ? sol.steps[sol.steps.length - 1] : '';
+      const duplicateHead = group.head && normTex(group.head) === normTex(lastStep);
+      const single = mkEl('div', 'solution-single-simple');
+      if (group.head && !duplicateHead) single.appendChild(mkEl('div', 'solution-simple-equation', `\\( ${displayTex(group.head)} \\)`));
+      const variantLines = buildVariantLines(group.steps || []);
+      if (variantLines) single.appendChild(variantLines);
+      const series = buildFamilyLines(group.series || []);
+      if (series) single.appendChild(series);
+      partA.appendChild(single);
+    } else {
+      const list = mkEl('div', 'solution-simple-list');
+      sol.gen_groups.forEach((group, idx) => {
+        const item = mkEl('div', 'solution-simple-item');
+        item.appendChild(mkEl('span', 'solution-simple-number', `${idx + 1})`));
+        const body = mkEl('div', 'solution-simple-body');
+        if (group.head) body.appendChild(mkEl('div', 'solution-simple-equation', `\\( ${displayTex(group.head)} \\)`));
+        const variantLines = buildVariantLines(group.steps || []);
+        if (variantLines) body.appendChild(variantLines);
+        const series = buildFamilyLines(group.series || []);
+        if (series) body.appendChild(series);
+        item.appendChild(body);
+        list.appendChild(item);
+      });
+      partA.appendChild(list);
+    }
+  }
+  wrap.appendChild(partA);
+
+  const partB = mkEl('section', 'part2-solution-section');
+  const interval = extractInterval(proto.stem);
+  partB.appendChild(sectionHead('б)', interval
+    ? `Отберем корни с помощью тригонометрической окружности на отрезке \\( ${displayTex(interval)} \\):`
+    : 'Отберем корни с помощью тригонометрической окружности:'));
+  if (sol.figure) {
+    const fig = mkEl('div', 'solution-figure');
+    const img = mkEl('img');
+    img.alt = 'Окружность отбора корней';
+    img.loading = 'lazy';
+    img.src = asset(sol.figure);
+    fig.appendChild(img);
+    fig.appendChild(mkEl('div', 'solution-figure-caption', 'Отмечаем подходящие корни на окружности'));
+    partB.appendChild(fig);
+  }
+  if (Array.isArray(sol.below) && sol.below.length) {
+    const roots = mkEl('div', 'solution-roots');
+    sol.below.forEach(line => roots.appendChild(mathLine(line)));
+    partB.appendChild(roots);
+  }
+
+  const answer = mkEl('div', 'solution-answer');
+  answer.appendChild(mkEl('div', 'solution-answer-title', 'Ответ:'));
+  if (Array.isArray(ans.general) && ans.general.length) {
+    const row = mkEl('div', 'solution-answer-row');
+    row.appendChild(document.createTextNode('а) '));
+    const families = buildFamilyList(ans.general);
+    if (families) row.appendChild(families);
+    answer.appendChild(row);
+  }
+  if (Array.isArray(ans.roots) && ans.roots.length) {
+    answer.appendChild(mkEl('div', 'solution-answer-row', `б) ${inlineMathList(ans.roots)}`));
+  }
+  if (answer.childElementCount) partB.appendChild(answer);
+  wrap.appendChild(partB);
+  return wrap;
+}
+
+function normalizeSimpleVariantRows() {
+  document.querySelectorAll('.solution-simple-item').forEach(item => {
+    item.style.paddingTop = '';
+  });
+
+  document.querySelectorAll('.solution-simple-list').forEach(list => {
+    const rows = [];
+    for (const item of list.querySelectorAll('.solution-simple-item')) {
+      const top = Math.round(item.getBoundingClientRect().top);
+      let row = rows.find(candidate => Math.abs(candidate.top - top) <= 4);
+      if (!row) {
+        row = { top, items: [] };
+        rows.push(row);
+      }
+      row.items.push(item);
+    }
+
+    for (const row of rows) {
+      if (row.items.length < 2) continue;
+      const metrics = row.items.map(item => {
+        const math = item.querySelector('.solution-simple-equation mjx-container');
+        if (!math) return null;
+        const itemTop = item.getBoundingClientRect().top;
+        const mathTop = math.getBoundingClientRect().top;
+        return { item, offset: mathTop - itemTop };
+      }).filter(Boolean);
+      const maxOffset = Math.max(0, ...metrics.map(entry => entry.offset));
+      metrics.forEach(({ item, offset }) => {
+        const shift = Math.max(0, maxOffset - offset);
+        item.style.paddingTop = shift > 0.5 ? `${shift.toFixed(1)}px` : '';
+      });
+    }
+  });
+}
+
+let normalizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(normalizeTimer);
+  normalizeTimer = setTimeout(normalizeSimpleVariantRows, 120);
+});
+
+function afterLayout() {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
+const host = document.getElementById('host');
+const pager = document.getElementById('pager');
+const manifests = await Promise.all(BATCH_SECTIONS.map(section => getJson(section.manifest)));
+const protos = manifests.flatMap(manifest => manifest.types.flatMap(t => t.prototypes || []));
+const byId = new Map(protos.map(p => [p.id, p]));
+const total = BATCH_SECTIONS.reduce((sum, section) => sum + section.ids.length, 0);
+
+pager.textContent = `Показаны все задачи объединённого trig-прохода: ${total}.`;
+
+for (const section of BATCH_SECTIONS) {
+  host.appendChild(mkEl('div', 'preview-h', section.title));
+  for (const id of section.ids) {
+    const proto = byId.get(id);
+    if (!proto) continue;
+    const card = mkEl('article', 'batch-item');
+    const meta = mkEl('div', 'batch-meta');
+    meta.innerHTML = `<span><code>${id}</code></span><span>${proto.cid || ''}</span><span>${proto.method || ''}</span>`;
+    card.appendChild(meta);
+    const stem = mkEl('div', 'ws-stem');
+    renderPart2Stem(stem, displayInlineMath(proto.stem));
+    card.appendChild(stem);
+    const panel = mkEl('div', 'part2-solution-panel');
+    panel.appendChild(buildPart2SolutionContent(proto));
+    card.appendChild(panel);
+    host.appendChild(card);
+  }
+}
+
+if (window.MathJax && window.MathJax.startup) {
+  await window.MathJax.startup.promise;
+  await window.MathJax.typesetPromise();
+}
+await afterLayout();
+normalizeSimpleVariantRows();
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>

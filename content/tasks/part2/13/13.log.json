@@ -25,7 +25,7 @@
             "замена переменной"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{2}^2(2\\sin x) - 5 \\cdot \\log_{2}(2\\sin x) + 2 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{2}^2\\bigl(2\\sin x\\bigr) - 5 \\cdot \\log_{2}\\bigl(2\\sin x\\bigr) + 2 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -41,12 +41,16 @@
           },
           "solution": {
             "steps": [
+              "2 \\cdot \\log_{2}^2\\bigl(2\\sin x\\bigr) - 5 \\cdot \\log_{2}\\bigl(2\\sin x\\bigr) + 2 = 0",
               "\\text{ОДЗ: } 2\\sin x > 0",
-              "\\text{замена } w = \\log_{2}(2\\sin x)",
+              "w = \\log_{2}\\bigl(2\\sin x\\bigr)",
               "2 w^2 - 5 w + 2 = 0",
-              "2\\left(w - \\frac{1}{2}\\right)\\left(w - 2\\right) = 0",
-              "2\\sin x = 2^{\\frac{1}{2}},\\quad 2\\sin x = 2^{2}",
-              "\\sin x = \\frac{\\sqrt{2}}{2},\\quad \\sin x = 2\\;(>1\\text{ — посторонний})"
+              "2\\bigl(w - \\frac{1}{2}\\bigr)\\bigl(w - 2\\bigr) = 0",
+              "w = \\frac{1}{2},\\quad w = 2",
+              "\\log_{2}\\bigl(2\\sin x\\bigr) = \\frac{1}{2},\\quad \\log_{2}\\bigl(2\\sin x\\bigr) = 2",
+              "2\\sin x = 2^{\\frac{1}{2}},\\quad 2\\sin x = 2^2",
+              "\\sin x = \\frac{\\sqrt{2}}{2},\\quad \\sin x = 2",
+              "\\sin x = 2 \\text{ не подходит, так как } |\\sin x| \\le 1"
             ],
             "gen_groups": [
               {
@@ -75,7 +79,7 @@
             "замена переменной"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\log_{2}^2(4\\sin x) - 4 \\cdot \\log_{2}(4\\sin x) + 3 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\log_{2}^2\\bigl(4\\sin x\\bigr) - 4 \\cdot \\log_{2}\\bigl(4\\sin x\\bigr) + 3 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -91,12 +95,16 @@
           },
           "solution": {
             "steps": [
+              "\\log_{2}^2\\bigl(4\\sin x\\bigr) - 4 \\cdot \\log_{2}\\bigl(4\\sin x\\bigr) + 3 = 0",
               "\\text{ОДЗ: } 4\\sin x > 0",
-              "\\text{замена } w = \\log_{2}(4\\sin x)",
+              "w = \\log_{2}\\bigl(4\\sin x\\bigr)",
               "w^2 - 4 w + 3 = 0",
-              "\\left(w - 1\\right)\\left(w - 3\\right) = 0",
-              "4\\sin x = 2^{1},\\quad 4\\sin x = 2^{3}",
-              "\\sin x = \\frac{1}{2},\\quad \\sin x = 2\\;(>1\\text{ — посторонний})"
+              "\\bigl(w - 1\\bigr)\\bigl(w - 3\\bigr) = 0",
+              "w = 1,\\quad w = 3",
+              "\\log_{2}\\bigl(4\\sin x\\bigr) = 1,\\quad \\log_{2}\\bigl(4\\sin x\\bigr) = 3",
+              "4\\sin x = 2^1,\\quad 4\\sin x = 2^3",
+              "\\sin x = \\frac{1}{2},\\quad \\sin x = 2",
+              "\\sin x = 2 \\text{ не подходит, так как } |\\sin x| \\le 1"
             ],
             "gen_groups": [
               {
@@ -124,7 +132,7 @@
             "замена переменной"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{3}^2(2\\sin x) - 3 \\cdot \\log_{3}(2\\sin x) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(2 \\cdot \\log_{3}^2\\bigl(2\\sin x\\bigr) - 3 \\cdot \\log_{3}\\bigl(2\\sin x\\bigr) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -140,12 +148,16 @@
           },
           "solution": {
             "steps": [
+              "2 \\cdot \\log_{3}^2\\bigl(2\\sin x\\bigr) - 3 \\cdot \\log_{3}\\bigl(2\\sin x\\bigr) + 1 = 0",
               "\\text{ОДЗ: } 2\\sin x > 0",
-              "\\text{замена } w = \\log_{3}(2\\sin x)",
+              "w = \\log_{3}\\bigl(2\\sin x\\bigr)",
               "2 w^2 - 3 w + 1 = 0",
-              "2\\left(w - \\frac{1}{2}\\right)\\left(w - 1\\right) = 0",
-              "2\\sin x = 3^{\\frac{1}{2}},\\quad 2\\sin x = 3^{1}",
-              "\\sin x = \\frac{\\sqrt{3}}{2},\\quad \\sin x = \\frac{3}{2}\\;(>1\\text{ — посторонний})"
+              "2\\bigl(w - \\frac{1}{2}\\bigr)\\bigl(w - 1\\bigr) = 0",
+              "w = \\frac{1}{2},\\quad w = 1",
+              "\\log_{3}\\bigl(2\\sin x\\bigr) = \\frac{1}{2},\\quad \\log_{3}\\bigl(2\\sin x\\bigr) = 1",
+              "2\\sin x = 3^{\\frac{1}{2}},\\quad 2\\sin x = 3^1",
+              "\\sin x = \\frac{\\sqrt{3}}{2},\\quad \\sin x = \\frac{3}{2}",
+              "\\sin x = \\frac{3}{2} \\text{ не подходит, так как } |\\sin x| \\le 1"
             ],
             "gen_groups": [
               {

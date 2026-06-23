@@ -1,31 +1,31 @@
 // tasks/trainer.js
 // Страница сессии: ТОЛЬКО режим тестирования (по сохранённому выбору).
 
-import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-18-24-231445';
-import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-18-24-231445';
+import { insertAttempt } from '../app/providers/supabase-write.js?v=2026-06-23-8-075136';
+import { uniqueBaseCount, sampleKByBase, computeTargetTopics, interleaveBatches } from '../app/core/pick.js?v=2026-06-23-8-075136';
 import {
   loadCatalogIndexLike,
   lookupQuestionsByIdsV1,
-} from '../app/providers/catalog.js?v=2026-06-18-24-231445';
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-24-231445';
+} from '../app/providers/catalog.js?v=2026-06-23-8-075136';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-23-8-075136';
 
-import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-18-24-231445';
+import { loadSmartMode, saveSmartMode, clearSmartMode, ensureSmartDefaults, isSmartModeActive } from './smart_mode.js?v=2026-06-23-8-075136';
 
-import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-18-24-231445';
-import { pickProtosByPriority } from './pick_priority.js?v=2026-06-18-24-231445';
-import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-18-24-231445';
+import { questionStatsForTeacherV1 } from '../app/providers/homework.js?v=2026-06-23-8-075136';
+import { pickProtosByPriority } from './pick_priority.js?v=2026-06-23-8-075136';
+import { pickQuestionsScopedForList } from './pick_engine.js?v=2026-06-23-8-075136';
 
 
-import { withBuild } from '../app/build.js?v=2026-06-18-24-231445';
-import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-18-24-231445';
-import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-18-24-231445';
-import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore, typesetEl } from './part2_render.js?v=2026-06-18-24-231445';
-import { submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-18-24-231445';
-import { setStem } from '../app/ui/safe_dom.js?v=2026-06-18-24-231445';
-import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-18-24-231445';
-import { getSession } from '../app/providers/supabase.js?v=2026-06-18-24-231445';
-import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-18-24-231445';
-import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-18-24-231445';
+import { withBuild } from '../app/build.js?v=2026-06-23-8-075136';
+import { hydrateVideoLinks, wireVideoSolutionModal } from '../app/video_solutions.js?v=2026-06-23-8-075136';
+import { safeEvalExpr } from '../app/core/safe_expr.mjs?v=2026-06-23-8-075136';
+import { isPart2Question, renderPart2Stem, buildPart2EtalonBlock, buildPart2SelfScore, typesetEl } from './part2_render.js?v=2026-06-23-8-075136';
+import { submitPart2SelfScore } from '../app/providers/part2.js?v=2026-06-23-8-075136';
+import { setStem } from '../app/ui/safe_dom.js?v=2026-06-23-8-075136';
+import { registerStandardPrintPageLifecycle } from '../app/ui/print_lifecycle.js?v=2026-06-23-8-075136';
+import { getSession } from '../app/providers/supabase.js?v=2026-06-23-8-075136';
+import { supaRest } from '../app/providers/supabase-rest.js?v=2026-06-23-8-075136';
+import { confirmFinish } from '../app/ui/confirm_finish.js?v=2026-06-23-8-075136';
 const $ = (sel, root = document) => root.querySelector(sel);
 
 // Режим выдачи листом (как ДЗ). Для отладки можно включить пошаговый режим через ?step=1
@@ -1652,7 +1652,7 @@ function renderCurrent() {
     if (answerRow) answerRow.style.display = 'none';
     if (res) res.style.display = 'none';
     if (mount) {
-      mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      mount.appendChild(buildPart2EtalonBlock(q.solution, q.answer2, { stem: q.stem }));
       mount.appendChild(buildPart2SelfScore({
         savedScore: q.self_score ?? null,
         onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },
@@ -1786,7 +1786,7 @@ function renderSheetList() {
       // Оборачиваем в .task-ans → grid-область "ans" карточки (full-width низ).
       const ansWrap = document.createElement('div');
       ansWrap.className = 'task-ans';
-      ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+      ansWrap.appendChild(buildPart2EtalonBlock(q.solution, q.answer2, { stem: q.stem }));
       ansWrap.appendChild(buildPart2SelfScore({
         savedScore: q.self_score ?? null,
         onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },
@@ -2358,8 +2358,8 @@ const analogBtnHtml = (topicId && protoId)
   : `<button type="button" class="analog-btn" disabled>Решить аналог</button>`;
 
 if (p2) {
-  // Часть 2 (№13): вместо «Ваш/Правильный ответ» — эталон («Показать эталон») + самооценка.
-  ans.appendChild(buildPart2EtalonBlock(q.solution, q.answer2));
+  // Часть 2 (№13): вместо «Ваш/Правильный ответ» — решение («Показать решение») + самооценка.
+  ans.appendChild(buildPart2EtalonBlock(q.solution, q.answer2, { stem: q.stem }));
   ans.appendChild(buildPart2SelfScore({
     savedScore: q.self_score ?? null,
     onSave: (score) => { q.self_score = score; return submitPart2SelfScore(q.question_id, score, { source: 'test' }); },

@@ -4,20 +4,215 @@
    (параллель общему JS-модулю part2_render.js). Все классы — новые, аддитивно; часть 1 не затронута. */
 
 /* строки stem части 2 (пункты а)/б) отдельными абзацами вместо <br>) */
-.q-line { margin: 0 0 6px; }
+.q-line {
+  margin: 0 0 6px;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 22.5px;
+  font-weight: 400;
+  line-height: 1.75;
+  color: #000;
+}
 .q-line:last-child { margin-bottom: 0; }
 
 /* блок «показать эталон» */
 .part2-box { margin-top: 10px; }
 .part2-etalon-btn { margin: 0; }
 .part2-etalon {
-  margin-top: 12px;
-  padding: 14px 16px;
-  border: 1px solid rgba(148, 163, 184, .25);
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(15, 23, 42, .12);
   border-radius: 10px;
-  background: rgba(148, 163, 184, .06);
+  background: #fff;
+  color: #000;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 22.5px;
+  font-weight: 400;
+  line-height: 1.75;
 }
 .part2-etalon[hidden] { display: none; }
+
+.part2-etalon-inner { min-width: 0; }
+
+.part2-solution-card {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  color: #000;
+  font: inherit;
+}
+
+.part2-solution-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.part2-section-head {
+  display: block;
+  margin: 0;
+  font: inherit;
+  line-height: 1.9;
+  color: #000;
+}
+
+.part2-section-mark,
+.part2-section-title {
+  display: inline;
+  font: inherit;
+  color: #000;
+}
+
+.solution-steps,
+.solution-roots,
+.solution-answer {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.solution-steps { gap: 20px; }
+
+.solution-line {
+  min-width: 0;
+  overflow: visible;
+  padding-block: 3px;
+  scrollbar-width: none;
+}
+
+.solution-simple-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  column-gap: 16px;
+  row-gap: 20px;
+  min-width: 0;
+}
+
+.solution-steps + .solution-simple-list { margin-top: 8px; }
+
+.solution-simple-item {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.solution-simple-number {
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.solution-simple-body {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.solution-simple-equation {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.solution-single-simple {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  min-width: 0;
+  margin-top: 8px;
+}
+
+.solution-family-lines,
+.solution-variant-lines {
+  display: grid;
+  gap: 20px;
+  padding-left: 0;
+  min-width: 0;
+}
+
+.solution-family-line,
+.solution-variant-line {
+  min-width: 0;
+  overflow: visible;
+  padding-block: 6px;
+  line-height: 1.6;
+  scrollbar-width: none;
+}
+
+.solution-figure {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.solution-figure img {
+  display: block;
+  max-width: 510px;
+  width: 100%;
+  height: auto;
+  background: #fff;
+}
+
+.solution-figure-caption {
+  color: #000;
+  font: inherit;
+}
+
+.solution-roots {
+  justify-content: center;
+  justify-items: start;
+}
+
+.solution-roots .solution-line {
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.solution-roots mjx-container[display="true"] {
+  text-align: left !important;
+}
+
+.solution-answer {
+  padding-top: 12px;
+  border-top: 1px solid rgba(15, 23, 42, .12);
+  gap: 12px;
+}
+
+.solution-family-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0;
+  row-gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.solution-family-unit,
+.solution-family-note {
+  display: inline-flex;
+  align-items: baseline;
+  max-width: 100%;
+}
+
+.solution-family-note { white-space: nowrap; }
+
+.solution-answer-title,
+.solution-answer-row {
+  font: inherit;
+  color: #000;
+}
+
+.solution-answer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+  min-width: 0;
+}
 
 .part2-etalon .etalon-section { margin: 0 0 14px; }
 .part2-etalon .etalon-section:last-child { margin-bottom: 0; }
@@ -30,7 +225,139 @@
 .part2-etalon .etalon-step,
 .part2-etalon .etalon-genhead,
 .part2-etalon .etalon-series,
-.part2-etalon .etalon-below { margin: 2px 0; overflow-x: auto; }
+.part2-etalon .etalon-below {
+  margin: 2px 0;
+  padding-block: 4px;
+  line-height: 1.55;
+  overflow: visible;
+}
+
+.part2-etalon mjx-container {
+  overflow: visible !important;
+  scrollbar-width: none;
+}
+
+.part2-etalon mjx-container::-webkit-scrollbar { display: none; }
+.part2-etalon mjx-container svg { overflow: visible !important; }
+
+.part2-etalon .etalon-formula-hint {
+  margin: 8px 0;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid rgba(37, 99, 235, .22);
+  border-left: 4px solid rgba(37, 99, 235, .72);
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #0f172a;
+  overflow: visible;
+}
+
+.part2-etalon .solution-formula-hint {
+  display: grid;
+  gap: 5px;
+  margin: 2px auto;
+  max-width: min(760px, 100%);
+  padding: 9px 12px 9px 14px;
+  border: 1px solid rgba(37, 99, 235, .22);
+  border-left: 4px solid rgba(37, 99, 235, .72);
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #0f172a;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 21px;
+  line-height: 1.45;
+  overflow: visible;
+}
+
+.part2-etalon .etalon-formula-hint-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+  margin: 8px 0;
+  min-width: 0;
+}
+
+.part2-etalon .etalon-formula-hint-group .etalon-formula-hint {
+  flex: 0 1 auto;
+  margin: 0;
+  max-width: 100%;
+}
+
+.part2-etalon .solution-formula-hint-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 8px;
+  margin: 2px auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.part2-etalon .solution-formula-hint-strip .solution-formula-hint {
+  flex: 0 1 auto;
+  margin: 0;
+  max-width: 100%;
+}
+
+.part2-etalon .etalon-formula-hint-list {
+  display: grid;
+  gap: 6px;
+}
+
+.part2-etalon .solution-formula-hint-list {
+  display: grid;
+  gap: 6px;
+}
+
+.part2-etalon .etalon-formula-hint-row {
+  display: grid;
+  gap: 2px;
+}
+
+.part2-etalon .solution-formula-hint-row {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.part2-etalon .etalon-formula-hint-tex {
+  margin: 0;
+  overflow: visible;
+}
+
+.part2-etalon .solution-formula-hint-tex {
+  min-width: 0;
+  overflow: visible;
+}
+
+.part2-etalon .etalon-formula-hint mjx-container {
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.part2-etalon .solution-formula-hint mjx-container {
+  margin: 0 !important;
+  overflow: visible !important;
+}
+
+.solution-line::-webkit-scrollbar,
+.solution-family-line::-webkit-scrollbar,
+.solution-variant-line::-webkit-scrollbar {
+  display: none;
+}
+
+.part2-etalon mjx-container[display="true"] {
+  margin: 0 !important;
+}
+
+.part2-etalon mjx-container {
+  font-size: 100% !important;
+  overflow: visible !important;
+  scrollbar-width: none;
+  padding-block: 2px;
+}
 
 /* окружность отбора корней */
 .part2-etalon .etalon-fig { text-align: center; }

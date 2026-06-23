@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-23-8-075136">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Контракт оформления решений №13</title>
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+  body {
+    margin:0;
+    background:#f8fafc;
+    color:#111827;
+    font:16px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  main {
+    max-width:1120px;
+    margin:0 auto;
+    padding:28px 24px 48px;
+  }
+  h1 {
+    margin:0 0 8px;
+    font-size:28px;
+    line-height:1.2;
+  }
+  h2 {
+    margin:28px 0 12px;
+    font-size:20px;
+    line-height:1.25;
+  }
+  p {
+    margin:0 0 12px;
+  }
+  .note {
+    margin:14px 0 22px;
+    padding:12px 14px;
+    border:1px solid #d8dee8;
+    border-radius:8px;
+    background:#fff;
+    color:#475569;
+  }
+  table {
+    width:100%;
+    border-collapse:collapse;
+    background:#fff;
+    border:1px solid #d8dee8;
+  }
+  th,
+  td {
+    vertical-align:top;
+    padding:10px 12px;
+    border:1px solid #d8dee8;
+  }
+  th {
+    background:#eef2f7;
+    text-align:left;
+    font-weight:650;
+  }
+  td.formula {
+    font-family:"Times New Roman", Times, serif;
+    font-size:20px;
+    color:#000;
+  }
+  .status {
+    white-space:nowrap;
+    color:#64748b;
+  }
+  .section {
+    margin-top:18px;
+  }
+  ul {
+    margin:8px 0 0 22px;
+    padding:0;
+  }
+  li {
+    margin:5px 0;
+  }
+  code {
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size:0.92em;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Контракт оформления решений №13</h1>
+  <p class="note">
+    Это рабочий контракт для эталонных решений. Всё, что мы утверждаем здесь, должно попадать в данные, batch-скрипты и аудит: каждое следующее равенство является понятным продолжением предыдущего, а простейшие тригонометрические уравнения записываются школьно и без лишней громоздкости.
+  </p>
+
+  <h2>1. Общий ритм решения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Правило</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Преобразования исходного уравнения</td>
+        <td>В одной строке делаем одно понятное действие: формула приведения, раскрытие скобок, вынесение множителя, деление на ненулевой коэффициент, замена выражения равносильным.</td>
+        <td class="status">принято</td>
+      </tr>
+      <tr>
+        <td>Скачок к простейшим</td>
+        <td>Нельзя перескакивать от сложного множителя сразу к готовому простейшему уравнению. Сначала приводим множитель к виду с коэффициентом 1 перед \(\sin x\) или \(\cos x\).</td>
+        <td class="status">принято</td>
+      </tr>
+      <tr>
+        <td>Произведение равно нулю</td>
+        <td>После получения произведения сразу переходим к вариантам \(1)\), \(2)\), без отдельной подписи «Решение простейших уравнений» и без строки с «или».</td>
+        <td class="status">принято</td>
+      </tr>
+      <tr>
+        <td>После произведения</td>
+        <td>Каждый множитель сначала приравниваем к нулю отдельным вариантом. Нельзя сразу перескакивать от множителя \(2\sin x+2\) к готовому \(\sin x=-1\).</td>
+        <td class="status">принято</td>
+      </tr>
+      <tr>
+        <td>Одна ветка решения</td>
+        <td>Если после преобразований остаётся одно простейшее уравнение, его не нумеруем. Нумерация нужна только для нескольких вариантов.</td>
+        <td class="status">принято</td>
+      </tr>
+      <tr>
+        <td>Ответ пункта а)</td>
+        <td>В итоговом ответе перечисляем все семейства через запятую, после всех семейств пишем \(n \in \mathbb Z\) один раз.</td>
+        <td class="status">принято</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2. Разветвление после произведения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>До вариантов</th>
+        <th>Как оформляем варианты</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="formula">\(\cos x\bigl(\sin x+\frac12\bigr)=0\)</td>
+        <td class="formula">
+          \(1)\ \cos x=0\)<br>
+          \(x=\frac{\pi}{2}+\pi n,\ n\in\mathbb Z\)<br><br>
+          \(2)\ \sin x+\frac12=0\)<br>
+          \(\sin x=-\frac12\)<br>
+          \(x=\frac{7\pi}{6}+2\pi n,\)<br>
+          \(x=\frac{11\pi}{6}+2\pi n,\ n\in\mathbb Z\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. Простейшие уравнения: специальные случаи</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Уравнение</th>
+        <th>Стандартная запись</th>
+        <th>Комментарий</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="formula">\(\sin x=0\)</td>
+        <td class="formula">\(x=\pi n,\ n\in\mathbb Z\)</td>
+        <td>Короткая стандартная форма.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=0\)</td>
+        <td class="formula">\(x=\frac{\pi}{2}+\pi n,\ n\in\mathbb Z\)</td>
+        <td>Не расписываем двумя семействами через \(2\pi n\).</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=1\)</td>
+        <td class="formula">\(x=\frac{\pi}{2}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Одна точка на периоде.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=-1\)</td>
+        <td class="formula">\(x=-\frac{\pi}{2}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Можно заменить на \(x=\frac{3\pi}{2}+2\pi n\); нужно выбрать единый стиль.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=1\)</td>
+        <td class="formula">\(x=2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Одна точка на периоде.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=-1\)</td>
+        <td class="formula">\(x=\pi+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Одна точка на периоде.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Простейшие уравнения: табличные значения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Уравнение</th>
+        <th>Предпочтительная запись в решении</th>
+        <th>Комментарий</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="formula">\(\sin x=\frac12\)</td>
+        <td class="formula">\(x=\frac{\pi}{6}+2\pi n,\)<br>\(x=\frac{5\pi}{6}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=-\frac12\)</td>
+        <td class="formula">\(x=\frac{7\pi}{6}+2\pi n,\)<br>\(x=\frac{11\pi}{6}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=\frac{\sqrt2}{2}\)</td>
+        <td class="formula">\(x=\frac{\pi}{4}+2\pi n,\)<br>\(x=\frac{3\pi}{4}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=-\frac{\sqrt2}{2}\)</td>
+        <td class="formula">\(x=\frac{5\pi}{4}+2\pi n,\)<br>\(x=\frac{7\pi}{4}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=\frac{\sqrt3}{2}\)</td>
+        <td class="formula">\(x=\frac{\pi}{3}+2\pi n,\)<br>\(x=\frac{2\pi}{3}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\sin x=-\frac{\sqrt3}{2}\)</td>
+        <td class="formula">\(x=\frac{4\pi}{3}+2\pi n,\)<br>\(x=\frac{5\pi}{3}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Школьная запись двумя семействами.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=\frac12\)</td>
+        <td class="formula">\(x=\pm\frac{\pi}{3}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Для косинуса используем \(\pm\), если точки симметричны относительно горизонтальной оси.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=-\frac12\)</td>
+        <td class="formula">\(x=\pm\frac{2\pi}{3}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Компактная стандартная форма. Две симметричные семьи не пишем.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=\frac{\sqrt2}{2}\)</td>
+        <td class="formula">\(x=\pm\frac{\pi}{4}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Компактная стандартная форма.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=-\frac{\sqrt2}{2}\)</td>
+        <td class="formula">\(x=\pm\frac{3\pi}{4}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Компактная стандартная форма.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=\frac{\sqrt3}{2}\)</td>
+        <td class="formula">\(x=\pm\frac{\pi}{6}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Компактная стандартная форма.</td>
+      </tr>
+      <tr>
+        <td class="formula">\(\cos x=-\frac{\sqrt3}{2}\)</td>
+        <td class="formula">\(x=\pm\frac{5\pi}{6}+2\pi n,\ n\in\mathbb Z\)</td>
+        <td>Компактная стандартная форма. Две симметричные семьи не пишем.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5. Метод: вынесение общего множителя</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Получили общий множитель</td>
+        <td>Сначала явно выносим множитель, затем при необходимости приводим второй множитель к виду с коэффициентом 1 перед \(\sin x\) или \(\cos x\).</td>
+        <td class="formula">
+          \(\cos x(2\sin x+1)=0\)<br>
+          \(2\cos x\bigl(\sin x+\frac12\bigr)=0\)<br>
+          \(\cos x\bigl(\sin x+\frac12\bigr)=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>Переход к вариантам</td>
+        <td>После произведения сразу пишем варианты \(1)\), \(2)\). В каждом варианте сначала уравнение множителя, затем его приведение и корни.</td>
+        <td class="formula">
+          \(1)\ \cos x=0\)<br>
+          \(x=\frac{\pi}{2}+\pi n,\ n\in\mathbb Z\)<br><br>
+          \(2)\ \sin x+\frac12=0\)<br>
+          \(\sin x=-\frac12\)
+        </td>
+      </tr>
+      <tr>
+        <td>Школьное вынесение общего множителя</td>
+        <td>Выносим именно общий множитель-скобку, а оставшийся числовой коэффициент оставляем во второй скобке, если так переход понятнее.</td>
+        <td class="formula">
+          \(2\sin x\bigl(\cos x-\frac{\sqrt2}{2}\bigr)+2\bigl(\cos x-\frac{\sqrt2}{2}\bigr)=0\)<br>
+          \(\bigl(\cos x-\frac{\sqrt2}{2}\bigr)\bigl(2\sin x+2\bigr)=0\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Метод: сведение к квадратному</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Полное квадратное уравнение относительно \(\sin x\), \(\cos x\) или \(\operatorname{tg}x\)</td>
+        <td>Замену вводим только для полного квадратного уравнения вида \(at^2+bt+c=0\), где \(a\ne0\), \(b\ne0\), \(c\ne0\). После решения квадратного уравнения возвращаемся к тригонометрическим уравнениям.</td>
+        <td class="formula">
+          Пусть \(t=\sin x\).<br>
+          \(2t^2-3t+1=0\)<br>
+          \(t=\frac12\) или \(t=1\)<br>
+          \(\sin x=\frac12\) или \(\sin x=1\)
+        </td>
+      </tr>
+      <tr>
+        <td>Квадратное даёт два значения</td>
+        <td>Каждое значение оформляем отдельным вариантом. Если значение невозможно, отдельно пишем, что корней нет.</td>
+        <td class="formula">
+          \(1)\ \sin x=\frac12\)<br>
+          \(2)\ \sin x=-\frac12\)
+        </td>
+      </tr>
+      <tr>
+        <td>Полное квадратное имеет постороннее значение</td>
+        <td>Проверяем область значений: для \(\sin x\) и \(\cos x\) допустимы только значения от \(-1\) до \(1\).</td>
+        <td class="formula">
+          \(t=2\) не подходит, так как \(|\sin x|\le 1\).
+        </td>
+      </tr>
+      <tr>
+        <td>Неполное квадратное без свободного члена</td>
+        <td>Не вводим замену. Выносим общий множитель и дальше решаем как произведение.</td>
+        <td class="formula">
+          \(a\sin^2x+b\sin x=0\)<br>
+          \(\sin x(a\sin x+b)=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>Неполное квадратное вида \(a\sin^2x+c=0\) или \(a\cos^2x+c=0\)</td>
+        <td>Не вводим замену. Переносим свободный член и решаем как уравнение с квадратом тригонометрической функции.</td>
+        <td class="formula">
+          \(a\cos^2x+c=0\)<br>
+          \(\cos^2x=-\frac{c}{a}\)
+        </td>
+      </tr>
+      <tr>
+        <td>Квадратная скобка с полным квадратом</td>
+        <td>Не сворачиваем выражение в квадрат без объяснения. Если множитель имеет вид \(4\cos^2x-4\cos x+1\), решаем его как квадратное через замену и дискриминант.</td>
+        <td class="formula">
+          \(4\cos^2x-4\cos x+1=0\)<br>
+          \(t=\cos x\)<br>
+          \(4t^2-4t+1=0\)<br>
+          \(D=0\)<br>
+          \(t=\frac12\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>7. Метод: уравнение с квадратом тригонометрической функции</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>\(\sin^2x=a\) или \(\cos^2x=a\)</td>
+        <td>Это неполный квадратный случай, замену не вводим. Сначала извлекаем корень и получаем два простейших уравнения. Нельзя сразу писать готовые семейства без строки \(\sin x=\pm...\) или \(\cos x=\pm...\).</td>
+        <td class="formula">
+          \(\cos^2x=\frac14\)<br>
+          \(\cos x=\pm\frac12\)
+        </td>
+      </tr>
+      <tr>
+        <td>Правая часть отрицательна</td>
+        <td>Отдельно фиксируем, что решений нет, потому что квадрат неотрицателен.</td>
+        <td class="formula">
+          \(\sin^2x=-\frac12\) — корней нет.
+        </td>
+      </tr>
+      <tr>
+        <td>Правая часть больше 1</td>
+        <td>Отдельно фиксируем, что решений нет, потому что \(\sin^2x\le1\) и \(\cos^2x\le1\).</td>
+        <td class="formula">
+          \(\cos^2x=2\) — корней нет.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>8. Метод: однородные тригонометрические уравнения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Однородное уравнение первой степени</td>
+        <td>Приводим к виду \(a\sin x+b\cos x=0\). Затем делим на \(\cos x\), предварительно отмечая, что \(\cos x=0\) не является корнем, если это нужно.</td>
+        <td class="formula">
+          \(a\sin x+b\cos x=0\)<br>
+          \(\cos x\ne0\)<br>
+          \(a\operatorname{tg}x+b=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>Однородное уравнение второй степени</td>
+        <td>Проверяем \(\cos x=0\) отдельно, затем делим на \(\cos^2x\) и получаем квадратное относительно \(\operatorname{tg}x\).</td>
+        <td class="formula">
+          \(a\sin^2x+b\sin x\cos x+c\cos^2x=0\)<br>
+          \(\cos x=0\) проверяем отдельно.<br>
+          \(a\operatorname{tg}^2x+b\operatorname{tg}x+c=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>Получили \(\operatorname{tg}x=a\)</td>
+        <td>Пишем одну серию \(x=\arctg a+\pi n\), а для табличных значений используем стандартный угол.</td>
+        <td class="formula">
+          \(\operatorname{tg}x=-\frac{\sqrt3}{3}\)<br>
+          \(x=-\frac{\pi}{6}+\pi n,\ n\in\mathbb Z\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>9. Метод: группировка</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Слагаемые группируются в пары</td>
+        <td>Показываем группировку скобками, затем в каждой группе выносим общий множитель, затем общий множитель между группами.</td>
+        <td class="formula">
+          \((A+B)+(C+D)=0\)<br>
+          \(m(\ldots)+n(\ldots)=0\)<br>
+          \((\ldots)(m+n)=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>После группировки получили произведение</td>
+        <td>Дальше действуем как при вынесении общего множителя: варианты \(1)\), \(2)\), без строки «или».</td>
+        <td class="formula">
+          \(1)\ \ldots=0\)<br>
+          \(2)\ \ldots=0\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>10. Метод: формулы приведения и преобразование аргументов</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Используется формула приведения</td>
+        <td>Показываем замену в отдельной строке, если без неё следующий переход выглядит резким.</td>
+        <td class="formula">
+          \(\cos(\pi-x)=-\cos x\)<br>
+          \(\sin\bigl(\frac{\pi}{2}-x\bigr)=\cos x\)
+        </td>
+      </tr>
+      <tr>
+        <td>Используется формула двойного угла</td>
+        <td>Пишем отдельную строку с заменой \(\sin2x=2\sin x\cos x\) или \(\cos2x=...\).</td>
+        <td class="formula">
+          \(\sin2x-\cos(\pi-x)=0\)<br>
+          \(2\sin x\cos x+\cos x=0\)
+        </td>
+      </tr>
+      <tr>
+        <td>Аргумент содержит \(x\pm\alpha\)</td>
+        <td>Раскрываем по формулам сложения/разности отдельной строкой, не объединяя раскрытие и сокращение в один скачок.</td>
+        <td class="formula">
+          \(\cos\bigl(x+\frac{\pi}{4}\bigr)=\frac{\sqrt2}{2}\cos x-\frac{\sqrt2}{2}\sin x\)
+        </td>
+      </tr>
+      <tr>
+        <td>Аргумент содержит \(\frac{x}{2}\)</td>
+        <td>Вводим замену \(\alpha=\frac{x}{2}\), решаем относительно \(\alpha\), затем возвращаемся к \(x=2\alpha\).</td>
+        <td class="formula">
+          \(\alpha=\frac{x}{2},\quad x=2\alpha\)<br>
+          \(\cos\alpha=0\)<br>
+          \(\alpha=\frac{\pi}{2}+\pi n\)<br>
+          \(x=\pi+2\pi n\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>11. Метод: логарифмические уравнения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Есть логарифмы</td>
+        <td>Сначала выписываем ОДЗ, затем преобразуем логарифмическое уравнение.</td>
+        <td class="formula">
+          \(\begin{cases} f(x)>0,\\ g(x)>0. \end{cases}\)
+        </td>
+      </tr>
+      <tr>
+        <td>Переход от логарифмов к алгебраическому уравнению</td>
+        <td>Показываем основание и равносильный переход. После нахождения корней проверяем ОДЗ.</td>
+        <td class="formula">
+          \(\log_a f(x)=\log_a g(x)\)<br>
+          \(f(x)=g(x)\), где \(a>0,\ a\ne1\)
+        </td>
+      </tr>
+      <tr>
+        <td>Возврат после замены</td>
+        <td>После нахождения \(w\) отдельно возвращаемся к логарифмическим уравнениям, затем к тригонометрическим. Невозможные значения \(\sin x\) или \(\cos x\) отбрасываем отдельной строкой.</td>
+        <td class="formula">
+          \(w=\frac12,\quad w=2\)<br>
+          \(\log_2(2\sin x)=\frac12,\quad \log_2(2\sin x)=2\)<br>
+          \(\sin x=\frac{\sqrt2}{2},\quad \sin x=2\)<br>
+          \(\sin x=2\) не подходит.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>12. Метод: показательные уравнения</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Ситуация</th>
+        <th>Как оформляем</th>
+        <th>Пример</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Сведение к одной базе</td>
+        <td>Показываем замену степеней одной базой, затем приравниваем показатели или делаем замену.</td>
+        <td class="formula">
+          \(a^{f(x)}=a^{g(x)}\)<br>
+          \(f(x)=g(x)\), где \(a>0,\ a\ne1\)
+        </td>
+      </tr>
+      <tr>
+        <td>Сведение к квадратному относительно степени</td>
+        <td>Вводим замену \(t=a^x\), обязательно пишем \(t>0\), решаем алгебраическое уравнение и возвращаемся к \(x\).</td>
+        <td class="formula">
+          Пусть \(t=2^x,\ t>0\).<br>
+          \(t^2-5t+4=0\)<br>
+          \(t=1\) или \(t=4\)
+        </td>
+      </tr>
+      <tr>
+        <td>Возврат после показательной замены</td>
+        <td>После корней для новой переменной возвращаемся к степеням с той же базой, затем приравниваем показатели.</td>
+        <td class="formula">
+          \(u=4^{\sin x},\quad u>0\)<br>
+          \(u=\frac12\)<br>
+          \(4^{\sin x}=\frac12=4^{-\frac12}\)<br>
+          \(\sin x=-\frac12\)
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>13. Машинный gate перед preview</h2>
+  <div class="section note">
+    Перед тем как отдавать новую партию на просмотр, запускаем <code>node tools/audit_part2_13_solution_rules.mjs</code>. Нарушения уровня <code>high</code> по правилам этого контракта должны быть исправлены до показа.
+    <ul>
+      <li>\(\cos x=0\) не должен быть записан двумя семействами через \(2\pi n\).</li>
+      <li>\(\cos x=a\), где \(a\ne0,\pm1\), должен быть записан через \(\pm\alpha+2\pi n\); две симметричные семьи считаются high-ошибкой.</li>
+      <li>В вариантах не должно оставаться неприведённых простейших вроде \(2\sin x+1=0\), если следующая строка не приводит их к \(\sin x=-\frac12\).</li>
+      <li>После произведения не должно быть строки с «или» между вариантами; варианты оформляются как \(1)\), \(2)\).</li>
+      <li>Если ветка одна, её не нумеруем; если веток несколько, каждый множитель приравниваем к нулю отдельно.</li>
+      <li>Полный квадрат внутри множителя нужно раскрывать через квадратное уравнение и дискриминант, если это не очевидный простейший случай.</li>
+      <li>Уравнения с \(\frac{x}{2}\) решаются через замену \(\alpha=\frac{x}{2}\) и обратный переход к \(x\).</li>
+      <li>В показательных заменах обязательно фиксируем положительность новой переменной и отдельно возвращаемся к степеням с одной базой.</li>
+      <li>В логарифмических после замены отдельно возвращаемся к логарифмическим уравнениям и явно отбрасываем невозможные значения.</li>
+      <li>В итоговом ответе пункта а) \(n\in\mathbb Z\) пишется один раз после всех семейств.</li>
+      <li>Решение не должно делать скачок через несколько действий в одной строке.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>

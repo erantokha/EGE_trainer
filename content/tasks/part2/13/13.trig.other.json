@@ -26,7 +26,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(4 \\cdot \\cos\\left(x + \\frac{\\pi}{4}\\right) + 2 \\sqrt{2} \\cdot \\cos(\\pi + x) = \\sqrt{2}\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + 2 \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) = \\sqrt{2}\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -42,10 +42,28 @@
           },
           "solution": {
             "steps": [
-              "4 \\cos\\left(x + \\frac{\\pi}{4}\\right) - 2 \\sqrt{2} \\cos x - \\sqrt{2} = 0",
-              "4 \\left(\\frac{\\sqrt{2}}{2} \\cos x - \\frac{\\sqrt{2}}{2} \\sin x\\right) - 2 \\sqrt{2} \\cos x - \\sqrt{2} = 0",
+              "4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + 2 \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) = \\sqrt{2}",
+              "4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + 2 \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) - \\sqrt{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha + \\beta\\bigr) = \\cos\\alpha\\cos\\beta - \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\pi + x\\bigr) = -\\cos x"
+                  }
+                ]
+              },
+              "4 \\bigl(\\frac{\\sqrt{2}}{2} \\cos x - \\frac{\\sqrt{2}}{2} \\sin x\\bigr) - 2 \\sqrt{2} \\cos x - \\sqrt{2} = 0",
               "2 \\sqrt{2} \\cos x - 2 \\sqrt{2} \\sin x - 2 \\sqrt{2} \\cos x - \\sqrt{2} = 0",
               "-2 \\sqrt{2} \\sin x - \\sqrt{2} = 0",
+              "-2 \\sqrt{2} \\sin x = \\sqrt{2}",
               "\\sin x = - \\frac{1}{2}"
             ],
             "gen_groups": [
@@ -76,7 +94,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(4 \\cdot \\cos\\left(x + \\frac{\\pi}{3}\\right) + 2 \\cdot \\cos(\\pi + x) = 3\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{3}\\bigr) + 2 \\cdot \\cos\\bigl(\\pi + x\\bigr) = 3\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -92,10 +110,28 @@
           },
           "solution": {
             "steps": [
-              "4 \\cos\\left(x + \\frac{\\pi}{3}\\right) - 2 \\cos x - 3 = 0",
-              "4 \\left(\\frac{1}{2} \\cos x - \\frac{\\sqrt{3}}{2} \\sin x\\right) - 2 \\cos x - 3 = 0",
+              "4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{3}\\bigr) + 2 \\cdot \\cos\\bigl(\\pi + x\\bigr) = 3",
+              "4 \\cdot \\cos\\bigl(x + \\frac{\\pi}{3}\\bigr) + 2 \\cdot \\cos\\bigl(\\pi + x\\bigr) - 3 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha + \\beta\\bigr) = \\cos\\alpha\\cos\\beta - \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\pi + x\\bigr) = -\\cos x"
+                  }
+                ]
+              },
+              "4 \\bigl(\\frac{1}{2} \\cos x - \\frac{\\sqrt{3}}{2} \\sin x\\bigr) - 2 \\cos x - 3 = 0",
               "2 \\cos x - 2 \\sqrt{3} \\sin x - 2 \\cos x - 3 = 0",
               "-2 \\sqrt{3} \\sin x - 3 = 0",
+              "-2 \\sqrt{3} \\sin x = 3",
               "\\sin x = - \\frac{\\sqrt{3}}{2}"
             ],
             "gen_groups": [
@@ -125,7 +161,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(2 \\cdot \\cos\\left(x + \\frac{\\pi}{4}\\right) + \\sqrt{2} \\cdot \\cos(\\pi + x) = -1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(2 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) = -1\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{9 \\pi}{2};\\ - 3 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -141,10 +177,28 @@
           },
           "solution": {
             "steps": [
-              "2 \\cos\\left(x + \\frac{\\pi}{4}\\right) - \\sqrt{2} \\cos x + 1 = 0",
-              "2 \\left(\\frac{\\sqrt{2}}{2} \\cos x - \\frac{\\sqrt{2}}{2} \\sin x\\right) - \\sqrt{2} \\cos x + 1 = 0",
+              "2 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) = -1",
+              "2 \\cdot \\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + \\sqrt{2} \\cdot \\cos\\bigl(\\pi + x\\bigr) + 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha + \\beta\\bigr) = \\cos\\alpha\\cos\\beta - \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\pi + x\\bigr) = -\\cos x"
+                  }
+                ]
+              },
+              "2 \\bigl(\\frac{\\sqrt{2}}{2} \\cos x - \\frac{\\sqrt{2}}{2} \\sin x\\bigr) - \\sqrt{2} \\cos x + 1 = 0",
               "\\sqrt{2} \\cos x - \\sqrt{2} \\sin x - \\sqrt{2} \\cos x + 1 = 0",
               "-\\sqrt{2} \\sin x + 1 = 0",
+              "-\\sqrt{2} \\sin x = -1",
               "\\sin x = \\frac{\\sqrt{2}}{2}"
             ],
             "gen_groups": [
@@ -179,10 +233,8 @@
           },
           "answer": {
             "general": [
-              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- 5 \\pi",
@@ -192,23 +244,53 @@
           },
           "solution": {
             "steps": [
+              "4\\sin x \\cos^2 x - 2\\sin 2x + \\sin x = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              "4\\sin x\\cos^2 x - 2\\bigl(2\\sin x\\cos x\\bigr) + \\sin x = 0",
               "4 \\sin x \\cos^2 x - 4 \\sin x \\cos x + \\sin x = 0",
-              "\\sin x\\left(4 \\cos^2 x - 4 \\cos x + 1\\right) = 0",
-              "\\sin x \\left(2 \\cos x - 1\\right)^2 = 0"
+              "\\sin x\\bigl(4 \\cos^2 x - 4 \\cos x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\sin x = 0",
                 "series": [
-                  "x = 2\\pi n",
-                  "x = \\pi + 2\\pi n"
+                  "x = \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = \\frac{1}{2}",
+                "head": "4 \\cos^2 x - 4 \\cos x + 1 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 - 4t + 1 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = \\bigl(-4\\bigr)^2 - 4 \\cdot 4 \\cdot 1 = 16 - 16 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = \\frac{4}{8} = \\frac{1}{2}",
+                  "\\cos x = \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{3} + 2\\pi n",
-                  "x = \\frac{\\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 2\\pi n"
                 ]
               }
             ],
@@ -237,10 +319,8 @@
           },
           "answer": {
             "general": [
-              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- 5 \\pi",
@@ -250,23 +330,53 @@
           },
           "solution": {
             "steps": [
+              "4\\sin x \\cos^2 x - 2\\sqrt{2}\\,\\sin 2x + 2\\sin x = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              "4\\sin x\\cos^2 x - 2\\sqrt{2}\\bigl(2\\sin x\\cos x\\bigr) + 2\\sin x = 0",
               "4 \\sin x \\cos^2 x - 4 \\sqrt{2} \\sin x \\cos x + 2 \\sin x = 0",
-              "\\sin x\\left(4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2\\right) = 0",
-              "\\sin x \\left(2 \\cos x - \\sqrt{2}\\right)^2 = 0"
+              "\\sin x\\bigl(4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\sin x = 0",
                 "series": [
-                  "x = 2\\pi n",
-                  "x = \\pi + 2\\pi n"
+                  "x = \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = \\frac{\\sqrt{2}}{2}",
+                "head": "4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 - 4\\sqrt{2}t + 2 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = \\bigl(-4\\sqrt{2}\\bigr)^2 - 4 \\cdot 4 \\cdot 2 = 32 - 32 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = \\frac{4\\sqrt{2}}{8} = \\frac{\\sqrt{2}}{2}",
+                  "\\cos x = \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{4} + 2\\pi n",
-                  "x = \\frac{\\pi}{4} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{4} + 2\\pi n"
                 ]
               }
             ],
@@ -294,10 +404,8 @@
           },
           "answer": {
             "general": [
-              "x = 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{16 \\pi}{3}",
@@ -308,23 +416,53 @@
           },
           "solution": {
             "steps": [
+              "4\\sin x \\cos^2 x + 2\\sin 2x + \\sin x = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              "4\\sin x\\cos^2 x + 2\\bigl(2\\sin x\\cos x\\bigr) + \\sin x = 0",
               "4 \\sin x \\cos^2 x + 4 \\sin x \\cos x + \\sin x = 0",
-              "\\sin x\\left(4 \\cos^2 x + 4 \\cos x + 1\\right) = 0",
-              "\\sin x \\left(2 \\cos x + 1\\right)^2 = 0"
+              "\\sin x\\bigl(4 \\cos^2 x + 4 \\cos x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\sin x = 0",
                 "series": [
-                  "x = 2\\pi n",
-                  "x = \\pi + 2\\pi n"
+                  "x = \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = - \\frac{1}{2}",
+                "head": "4 \\cos^2 x + 4 \\cos x + 1 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 + 4t + 1 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = 4^2 - 4 \\cdot 4 \\cdot 1 = 16 - 16 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = -\\frac{4}{8} = -\\frac{1}{2}",
+                  "\\cos x = - \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{2 \\pi}{3} + 2\\pi n",
-                  "x = \\frac{2 \\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{2 \\pi}{3} + 2\\pi n"
                 ]
               }
             ],
@@ -353,10 +491,8 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\frac{\\pi}{2} + \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{11 \\pi}{2}",
@@ -366,23 +502,55 @@
           },
           "solution": {
             "steps": [
+              "4\\cos^3 x - 2\\cos 2x + \\cos x = 2",
+              "4\\cos^3 x - 2\\cos 2x + \\cos x - 2 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2x = 2\\cos^2 x - 1"
+                  }
+                ]
+              },
+              "4\\cos^3 x - 2\\bigl(2\\cos^2 x - 1\\bigr) + \\cos x - 2 = 0",
+              "4\\cos^3 x - 4\\cos^2 x + 2 + \\cos x - 2 = 0",
               "4 \\cos^3 x - 4 \\cos^2 x + \\cos x = 0",
-              "\\cos x\\left(4 \\cos^2 x - 4 \\cos x + 1\\right) = 0",
-              "\\cos x \\left(2 \\cos x - 1\\right)^2 = 0"
+              "\\cos x\\bigl(4 \\cos^2 x - 4 \\cos x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\cos x = 0",
                 "series": [
-                  "x = - \\frac{\\pi}{2} + 2\\pi n",
-                  "x = \\frac{\\pi}{2} + 2\\pi n"
+                  "x = \\frac{\\pi}{2} + \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = \\frac{1}{2}",
+                "head": "4 \\cos^2 x - 4 \\cos x + 1 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 - 4t + 1 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = \\bigl(-4\\bigr)^2 - 4 \\cdot 4 \\cdot 1 = 16 - 16 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = \\frac{4}{8} = \\frac{1}{2}",
+                  "\\cos x = \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{3} + 2\\pi n",
-                  "x = \\frac{\\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 2\\pi n"
                 ]
               }
             ],
@@ -411,10 +579,8 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\frac{\\pi}{2} + \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{11 \\pi}{2}",
@@ -424,23 +590,55 @@
           },
           "solution": {
             "steps": [
+              "4\\cos^3 x - 2\\sqrt{2}\\,\\cos 2x + 2\\cos x = 2\\sqrt{2}",
+              "4\\cos^3 x - 2\\sqrt{2}\\,\\cos 2x + 2\\cos x - 2\\sqrt{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2x = 2\\cos^2 x - 1"
+                  }
+                ]
+              },
+              "4\\cos^3 x - 2\\sqrt{2}\\bigl(2\\cos^2 x - 1\\bigr) + 2\\cos x - 2\\sqrt{2} = 0",
+              "4\\cos^3 x - 4\\sqrt{2}\\cos^2 x + 2\\sqrt{2} + 2\\cos x - 2\\sqrt{2} = 0",
               "4 \\cos^3 x - 4 \\sqrt{2} \\cos^2 x + 2 \\cos x = 0",
-              "\\cos x\\left(4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2\\right) = 0",
-              "\\cos x \\left(2 \\cos x - \\sqrt{2}\\right)^2 = 0"
+              "\\cos x\\bigl(4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\cos x = 0",
                 "series": [
-                  "x = - \\frac{\\pi}{2} + 2\\pi n",
-                  "x = \\frac{\\pi}{2} + 2\\pi n"
+                  "x = \\frac{\\pi}{2} + \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = \\frac{\\sqrt{2}}{2}",
+                "head": "4 \\cos^2 x - 4 \\sqrt{2} \\cos x + 2 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 - 4\\sqrt{2}t + 2 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = \\bigl(-4\\sqrt{2}\\bigr)^2 - 4 \\cdot 4 \\cdot 2 = 32 - 32 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = \\frac{4\\sqrt{2}}{8} = \\frac{\\sqrt{2}}{2}",
+                  "\\cos x = \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{4} + 2\\pi n",
-                  "x = \\frac{\\pi}{4} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{4} + 2\\pi n"
                 ]
               }
             ],
@@ -468,10 +666,8 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\frac{\\pi}{2} + \\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{11 \\pi}{2}",
@@ -482,23 +678,55 @@
           },
           "solution": {
             "steps": [
+              "4\\cos^3 x + 2\\sqrt{2}\\,\\cos 2x + 2\\cos x = -2\\sqrt{2}",
+              "4\\cos^3 x + 2\\sqrt{2}\\,\\cos 2x + 2\\cos x + 2\\sqrt{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2x = 2\\cos^2 x - 1"
+                  }
+                ]
+              },
+              "4\\cos^3 x + 2\\sqrt{2}\\bigl(2\\cos^2 x - 1\\bigr) + 2\\cos x + 2\\sqrt{2} = 0",
+              "4\\cos^3 x + 4\\sqrt{2}\\cos^2 x - 2\\sqrt{2} + 2\\cos x + 2\\sqrt{2} = 0",
               "4 \\cos^3 x + 4 \\sqrt{2} \\cos^2 x + 2 \\cos x = 0",
-              "\\cos x\\left(4 \\cos^2 x + 4 \\sqrt{2} \\cos x + 2\\right) = 0",
-              "\\cos x \\left(2 \\cos x + \\sqrt{2}\\right)^2 = 0"
+              "\\cos x\\bigl(4 \\cos^2 x + 4 \\sqrt{2} \\cos x + 2\\bigr) = 0"
             ],
             "gen_groups": [
               {
                 "head": "\\cos x = 0",
                 "series": [
-                  "x = - \\frac{\\pi}{2} + 2\\pi n",
-                  "x = \\frac{\\pi}{2} + 2\\pi n"
+                  "x = \\frac{\\pi}{2} + \\pi n"
                 ]
               },
               {
-                "head": "\\cos x = - \\frac{\\sqrt{2}}{2}",
+                "head": "4 \\cos^2 x + 4 \\sqrt{2} \\cos x + 2 = 0",
+                "steps": [
+                  "t = \\cos x",
+                  "4t^2 + 4\\sqrt{2}t + 2 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "D = b^2 - 4ac"
+                      }
+                    ]
+                  },
+                  "D = \\bigl(4\\sqrt{2}\\bigr)^2 - 4 \\cdot 4 \\cdot 2 = 32 - 32 = 0",
+                  {
+                    "kind": "formula_hint",
+                    "formulas": [
+                      {
+                        "tex": "t = \\frac{-b}{2a}"
+                      }
+                    ]
+                  },
+                  "t = \\frac{-b}{2a} = -\\frac{4\\sqrt{2}}{8} = -\\frac{\\sqrt{2}}{2}",
+                  "\\cos x = - \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{3 \\pi}{4} + 2\\pi n",
-                  "x = \\frac{3 \\pi}{4} + 2\\pi n"
+                  "x = \\pm \\frac{3 \\pi}{4} + 2\\pi n"
                 ]
               }
             ],
@@ -527,8 +755,7 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{16 \\pi}{3}",
@@ -537,16 +764,25 @@
           },
           "solution": {
             "steps": [
-              "\\cos^2 x \\left(2 \\cos x + 1\\right) + \\left(2 \\cos x + 1\\right) = 0",
-              "\\left(2 \\cos x + 1\\right) \\left(\\cos^2 x + 1\\right) = 0",
-              "\\cos^2 x + 1 > 0 \\Rightarrow \\cos x = - \\frac{1}{2}"
+              "2\\cos^3 x + \\cos^2 x + 2\\cos x + 1 = 0",
+              "\\cos^2 x\\bigl(2 \\cos x + 1\\bigr) + \\bigl(2 \\cos x + 1\\bigr) = 0",
+              "\\bigl(2 \\cos x + 1\\bigr)\\bigl(\\cos^2 x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = - \\frac{1}{2}",
+                "head": "2 \\cos x + 1 = 0",
+                "steps": [
+                  "\\cos x = - \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{2 \\pi}{3} + 2\\pi n",
-                  "x = \\frac{2 \\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{2 \\pi}{3} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos^2 x + 1 = 0",
+                "steps": [
+                  "\\cos^2 x = -1",
+                  "\\text{корней нет, так как } \\cos^2 x \\ge 0"
                 ]
               }
             ],
@@ -574,8 +810,7 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{3 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{21 \\pi}{4}",
@@ -584,16 +819,25 @@
           },
           "solution": {
             "steps": [
-              "\\cos^2 x \\left(2 \\cos x + \\sqrt{2}\\right) + \\left(2 \\cos x + \\sqrt{2}\\right) = 0",
-              "\\left(2 \\cos x + \\sqrt{2}\\right) \\left(\\cos^2 x + 1\\right) = 0",
-              "\\cos^2 x + 1 > 0 \\Rightarrow \\cos x = - \\frac{\\sqrt{2}}{2}"
+              "2\\cos^3 x + \\sqrt{2}\\,\\cos^2 x + 2\\cos x + \\sqrt{2} = 0",
+              "\\cos^2 x\\bigl(2 \\cos x + \\sqrt{2}\\bigr) + \\bigl(2 \\cos x + \\sqrt{2}\\bigr) = 0",
+              "\\bigl(2 \\cos x + \\sqrt{2}\\bigr)\\bigl(\\cos^2 x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = - \\frac{\\sqrt{2}}{2}",
+                "head": "2 \\cos x + \\sqrt{2} = 0",
+                "steps": [
+                  "\\cos x = - \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{3 \\pi}{4} + 2\\pi n",
-                  "x = \\frac{3 \\pi}{4} + 2\\pi n"
+                  "x = \\pm \\frac{3 \\pi}{4} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos^2 x + 1 = 0",
+                "steps": [
+                  "\\cos^2 x = -1",
+                  "\\text{корней нет, так как } \\cos^2 x \\ge 0"
                 ]
               }
             ],
@@ -620,8 +864,7 @@
           },
           "answer": {
             "general": [
-              "x = - \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{13 \\pi}{3}",
@@ -630,16 +873,25 @@
           },
           "solution": {
             "steps": [
-              "\\cos^2 x \\left(2 \\cos x - 1\\right) + \\left(2 \\cos x - 1\\right) = 0",
-              "\\left(2 \\cos x - 1\\right) \\left(\\cos^2 x + 1\\right) = 0",
-              "\\cos^2 x + 1 > 0 \\Rightarrow \\cos x = \\frac{1}{2}"
+              "2\\cos^3 x - \\cos^2 x + 2\\cos x - 1 = 0",
+              "\\cos^2 x\\bigl(2 \\cos x - 1\\bigr) + \\bigl(2 \\cos x - 1\\bigr) = 0",
+              "\\bigl(2 \\cos x - 1\\bigr)\\bigl(\\cos^2 x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = \\frac{1}{2}",
+                "head": "2 \\cos x - 1 = 0",
+                "steps": [
+                  "\\cos x = \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{3} + 2\\pi n",
-                  "x = \\frac{\\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 2\\pi n"
+                ]
+              },
+              {
+                "head": "\\cos^2 x + 1 = 0",
+                "steps": [
+                  "\\cos^2 x = -1",
+                  "\\text{корней нет, так как } \\cos^2 x \\ge 0"
                 ]
               }
             ],
@@ -661,15 +913,14 @@
             "формулы двойного угла"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\cos x + \\sin\\left(\\frac{3\\pi}{2} - \\frac{x}{2}\\right) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\cos x + \\sin\\bigl(\\frac{3\\pi}{2} - \\frac{x}{2}\\bigr) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
           "answer": {
             "general": [
               "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{2 \\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{2 \\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{2 \\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- 5 \\pi",
@@ -678,23 +929,49 @@
           },
           "solution": {
             "steps": [
-              "\\cos x - \\cos\\frac{x}{2} + 1 = 0",
-              "2 \\cos^2\\frac{x}{2} - \\cos\\frac{x}{2} = 0",
-              "\\cos\\frac{x}{2}\\left(2 \\cos\\frac{x}{2} - 1\\right) = 0",
-              "\\cos\\frac{x}{2} = 0,\\quad \\cos\\frac{x}{2} = \\frac{1}{2}"
+              "\\cos x + \\sin\\bigl(\\frac{3\\pi}{2} - \\frac{x}{2}\\bigr) + 1 = 0",
+              "\\text{Пусть } \\alpha = \\frac{x}{2},\\quad x = 2\\alpha",
+              "\\cos 2\\alpha + \\sin\\bigl(\\frac{3\\pi}{2} - \\alpha\\bigr) + 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2\\alpha = 2\\cos^2\\alpha - 1"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(\\frac{3\\pi}{2} - \\alpha\\bigr) = -\\cos\\alpha"
+                  }
+                ]
+              },
+              "2 \\cos^2\\alpha - 1 - \\cos\\alpha + 1 = 0",
+              "2 \\cos^2\\alpha - \\cos\\alpha = 0",
+              "\\cos\\alpha\\bigl(2\\cos\\alpha - 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos\\frac{x}{2} = 0",
+                "head": "\\cos\\alpha = 0",
+                "steps": [
+                  "\\alpha = \\frac{\\pi}{2} + \\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
                   "x = \\pi + 2\\pi n"
                 ]
               },
               {
-                "head": "\\cos\\frac{x}{2} = \\frac{1}{2}",
+                "head": "2\\cos\\alpha - 1 = 0",
+                "steps": [
+                  "\\cos\\alpha = \\frac{1}{2}",
+                  "\\alpha = \\pm \\frac{\\pi}{3} + 2\\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
-                  "x = - \\frac{2 \\pi}{3} + 4\\pi n",
-                  "x = \\frac{2 \\pi}{3} + 4\\pi n"
+                  "x = \\pm \\frac{2 \\pi}{3} + 4\\pi n"
                 ]
               }
             ],
@@ -717,15 +994,14 @@
             "формулы двойного угла"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\cos x + \\sqrt{2} \\cdot \\sin\\left(\\frac{3\\pi}{2} - \\frac{x}{2}\\right) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\cos x + \\sqrt{2} \\cdot \\sin\\bigl(\\frac{3\\pi}{2} - \\frac{x}{2}\\bigr) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
           "answer": {
             "general": [
               "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{2} + 4\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{2} + 4\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{\\pi}{2} + 4\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- 5 \\pi",
@@ -734,23 +1010,49 @@
           },
           "solution": {
             "steps": [
-              "\\cos x - \\sqrt{2} \\cos\\frac{x}{2} + 1 = 0",
-              "2 \\cos^2\\frac{x}{2} - \\sqrt{2} \\cos\\frac{x}{2} = 0",
-              "\\cos\\frac{x}{2}\\left(2 \\cos\\frac{x}{2} - \\sqrt{2}\\right) = 0",
-              "\\cos\\frac{x}{2} = 0,\\quad \\cos\\frac{x}{2} = \\frac{\\sqrt{2}}{2}"
+              "\\cos x + \\sqrt{2} \\cdot \\sin\\bigl(\\frac{3\\pi}{2} - \\frac{x}{2}\\bigr) + 1 = 0",
+              "\\text{Пусть } \\alpha = \\frac{x}{2},\\quad x = 2\\alpha",
+              "\\cos 2\\alpha + \\sqrt{2}\\sin\\bigl(\\frac{3\\pi}{2} - \\alpha\\bigr) + 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2\\alpha = 2\\cos^2\\alpha - 1"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(\\frac{3\\pi}{2} - \\alpha\\bigr) = -\\cos\\alpha"
+                  }
+                ]
+              },
+              "2 \\cos^2\\alpha - 1 - \\sqrt{2}\\cos\\alpha + 1 = 0",
+              "2 \\cos^2\\alpha - \\sqrt{2}\\cos\\alpha = 0",
+              "\\cos\\alpha\\bigl(2\\cos\\alpha - \\sqrt{2}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos\\frac{x}{2} = 0",
+                "head": "\\cos\\alpha = 0",
+                "steps": [
+                  "\\alpha = \\frac{\\pi}{2} + \\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
                   "x = \\pi + 2\\pi n"
                 ]
               },
               {
-                "head": "\\cos\\frac{x}{2} = \\frac{\\sqrt{2}}{2}",
+                "head": "2\\cos\\alpha - \\sqrt{2} = 0",
+                "steps": [
+                  "\\cos\\alpha = \\frac{\\sqrt{2}}{2}",
+                  "\\alpha = \\pm \\frac{\\pi}{4} + 2\\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{2} + 4\\pi n",
-                  "x = \\frac{\\pi}{2} + 4\\pi n"
+                  "x = \\pm \\frac{\\pi}{2} + 4\\pi n"
                 ]
               }
             ],
@@ -772,15 +1074,14 @@
             "формулы двойного угла"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\cos x + \\sqrt{3} \\cdot \\cos\\left(\\pi - \\frac{x}{2}\\right) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\cos x + \\sqrt{3} \\cdot \\cos\\bigl(\\pi - \\frac{x}{2}\\bigr) + 1 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
           "answer": {
             "general": [
               "x = \\pi + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{\\pi}{3} + 4\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- 5 \\pi",
@@ -789,23 +1090,49 @@
           },
           "solution": {
             "steps": [
-              "\\cos x - \\sqrt{3} \\cos\\frac{x}{2} + 1 = 0",
-              "2 \\cos^2\\frac{x}{2} - \\sqrt{3} \\cos\\frac{x}{2} = 0",
-              "\\cos\\frac{x}{2}\\left(2 \\cos\\frac{x}{2} - \\sqrt{3}\\right) = 0",
-              "\\cos\\frac{x}{2} = 0,\\quad \\cos\\frac{x}{2} = \\frac{\\sqrt{3}}{2}"
+              "\\cos x + \\sqrt{3} \\cdot \\cos\\bigl(\\pi - \\frac{x}{2}\\bigr) + 1 = 0",
+              "\\text{Пусть } \\alpha = \\frac{x}{2},\\quad x = 2\\alpha",
+              "\\cos 2\\alpha + \\sqrt{3}\\cos\\bigl(\\pi - \\alpha\\bigr) + 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos 2\\alpha = 2\\cos^2\\alpha - 1"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\pi - \\alpha\\bigr) = -\\cos\\alpha"
+                  }
+                ]
+              },
+              "2 \\cos^2\\alpha - 1 - \\sqrt{3}\\cos\\alpha + 1 = 0",
+              "2 \\cos^2\\alpha - \\sqrt{3}\\cos\\alpha = 0",
+              "\\cos\\alpha\\bigl(2\\cos\\alpha - \\sqrt{3}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos\\frac{x}{2} = 0",
+                "head": "\\cos\\alpha = 0",
+                "steps": [
+                  "\\alpha = \\frac{\\pi}{2} + \\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
                   "x = \\pi + 2\\pi n"
                 ]
               },
               {
-                "head": "\\cos\\frac{x}{2} = \\frac{\\sqrt{3}}{2}",
+                "head": "2\\cos\\alpha - \\sqrt{3} = 0",
+                "steps": [
+                  "\\cos\\alpha = \\frac{\\sqrt{3}}{2}",
+                  "\\alpha = \\pm \\frac{\\pi}{6} + 2\\pi n",
+                  "x = 2\\alpha"
+                ],
                 "series": [
-                  "x = - \\frac{\\pi}{3} + 4\\pi n",
-                  "x = \\frac{\\pi}{3} + 4\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 4\\pi n"
                 ]
               }
             ],
@@ -833,8 +1160,7 @@
           "answer": {
             "general": [
               "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{2 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{2\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{7 \\pi}{2}",
@@ -843,22 +1169,38 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x + \\sin x = 2\\cos x + 1",
+              "\\sin 2x + \\sin x - 2\\cos x - 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x + \\sin x - 2 \\cos x - 1 = 0",
-              "2\\cos x \\left(\\sin x - 1\\right) + \\left(\\sin x - 1\\right) = 0",
-              "\\left(\\sin x - 1\\right) \\left(2 \\cos x + 1\\right) = 0"
+              "2\\cos x \\bigl(\\sin x - 1\\bigr) + \\bigl(\\sin x - 1\\bigr) = 0",
+              "\\bigl(\\sin x - 1\\bigr) \\bigl(2 \\cos x + 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\sin x = 1",
+                "head": "\\sin x - 1 = 0",
                 "series": [
                   "x = \\frac{\\pi}{2} + 2\\pi n"
+                ],
+                "steps": [
+                  "\\sin x = 1"
                 ]
               },
               {
-                "head": "\\cos x = - \\frac{1}{2}",
+                "head": "2 \\cos x + 1 = 0",
                 "series": [
-                  "x = - \\frac{2 \\pi}{3} + 2\\pi n",
-                  "x = \\frac{2 \\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{2\\pi}{3} + 2\\pi n"
+                ],
+                "steps": [
+                  "2 \\cos x = - 1",
+                  "\\cos x = - \\frac{1}{2}"
                 ]
               }
             ],
@@ -887,8 +1229,7 @@
           "answer": {
             "general": [
               "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{5\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{7 \\pi}{2}",
@@ -897,22 +1238,38 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x + \\sqrt{3}\\,\\sin x = 2\\cos x + \\sqrt{3}",
+              "\\sin 2x + \\sqrt{3}\\,\\sin x - 2\\cos x - \\sqrt{3} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x + \\sqrt{3} \\sin x - 2 \\cos x - \\sqrt{3} = 0",
-              "2\\cos x \\left(\\sin x - 1\\right) + \\sqrt{3} \\left(\\sin x - 1\\right) = 0",
-              "\\left(\\sin x - 1\\right) \\left(2 \\cos x + \\sqrt{3}\\right) = 0"
+              "2\\cos x \\bigl(\\sin x - 1\\bigr) + \\sqrt{3} \\bigl(\\sin x - 1\\bigr) = 0",
+              "\\bigl(\\sin x - 1\\bigr) \\bigl(2 \\cos x + \\sqrt{3}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\sin x = 1",
+                "head": "\\sin x - 1 = 0",
                 "series": [
                   "x = \\frac{\\pi}{2} + 2\\pi n"
+                ],
+                "steps": [
+                  "\\sin x = 1"
                 ]
               },
               {
-                "head": "\\cos x = - \\frac{\\sqrt{3}}{2}",
+                "head": "2 \\cos x + \\sqrt{3} = 0",
                 "series": [
-                  "x = - \\frac{5 \\pi}{6} + 2\\pi n",
-                  "x = \\frac{5 \\pi}{6} + 2\\pi n"
+                  "x = \\pm \\frac{5\\pi}{6} + 2\\pi n"
+                ],
+                "steps": [
+                  "2 \\cos x = - \\sqrt{3}",
+                  "\\cos x = - \\frac{\\sqrt{3}}{2}"
                 ]
               }
             ],
@@ -940,8 +1297,7 @@
           "answer": {
             "general": [
               "x = \\frac{\\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = - \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{13 \\pi}{3}",
@@ -951,22 +1307,38 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x - \\sin x = 2\\cos x - 1",
+              "\\sin 2x - \\sin x - 2\\cos x + 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - \\sin x - 2 \\cos x + 1 = 0",
-              "2\\cos x \\left(\\sin x - 1\\right) + -1 \\left(\\sin x - 1\\right) = 0",
-              "\\left(\\sin x - 1\\right) \\left(2 \\cos x - 1\\right) = 0"
+              "2\\cos x \\bigl(\\sin x - 1\\bigr) - \\bigl(\\sin x - 1\\bigr) = 0",
+              "\\bigl(\\sin x - 1\\bigr) \\bigl(2 \\cos x - 1\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\sin x = 1",
+                "head": "\\sin x - 1 = 0",
                 "series": [
                   "x = \\frac{\\pi}{2} + 2\\pi n"
+                ],
+                "steps": [
+                  "\\sin x = 1"
                 ]
               },
               {
-                "head": "\\cos x = \\frac{1}{2}",
+                "head": "2 \\cos x - 1 = 0",
                 "series": [
-                  "x = - \\frac{\\pi}{3} + 2\\pi n",
-                  "x = \\frac{\\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 2\\pi n"
+                ],
+                "steps": [
+                  "2 \\cos x = 1",
+                  "\\cos x = \\frac{1}{2}"
                 ]
               }
             ],

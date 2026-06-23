@@ -8,9 +8,10 @@
 //   для MathJax, окружность отбора корней — как <img> (Решение 5 контракта, без safe_dom).
 // - subtopic_id (13.trig.factor) — несущий; здесь только ОТОБРАЖЕНИЕ (слаг не показываем).
 //
-// Извлечено из tasks/trainer.js (W13.1) без изменения поведения.
+// Канонический renderer эталонных решений №13: контрактное оформление одно для preview,
+// тренажёра, списка, уникальных прототипов и домашних работ.
 
-import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-18-24-231445';
+import { toAbsUrl } from '../app/core/url_path.js?v=2026-06-23-8-075136';
 
 // Порядок классов = как в аккордеоне = Тип 1/2/3.
 const PART2_CLASS_ORDER = ['trig', 'log', 'exp'];
@@ -67,12 +68,91 @@ export function mkEl(tag, cls, text) {
 }
 
 export function typesetEl(el) {
-  if (!el || !window.MathJax) return;
+  if (!el || !window.MathJax) return Promise.resolve();
   try {
-    if (window.MathJax.typesetPromise) window.MathJax.typesetPromise([el]).catch(err => console.error(err));
+    if (window.MathJax.typesetPromise) return window.MathJax.typesetPromise([el]).catch(err => console.error(err));
     else if (window.MathJax.typeset) window.MathJax.typeset([el]);
   } catch (e) {
     console.error('MathJax error', e);
+  }
+  return Promise.resolve();
+}
+
+function normalizeDisplayTex(tex) {
+  return String(tex || '')
+    .replace(/\\tfrac\b/g, '\\frac')
+    .replace(/\\dfrac\b/g, '\\frac');
+}
+
+function normTex(tex) {
+  return String(tex || '')
+    .replace(/\\tfrac\b/g, '\\frac')
+    .replace(/\\dfrac\b/g, '\\frac')
+    .replace(/\s+/g, '')
+    .replace(/\\,/g, '')
+    .replace(/\\quad/g, '')
+    .replace(/\\left/g, '')
+    .replace(/\\right/g, '');
+}
+
+function displayTex(tex) {
+  const body = normalizeDisplayTex(tex).trim().replace(/^\\displaystyle\s+/, '');
+  return `\\displaystyle ${body}`;
+}
+
+function displayInlineMath(html) {
+  return String(html || '').replace(/\\\((.*?)\\\)/gs, (_, body) => `\\( ${displayTex(body)} \\)`);
+}
+
+function isFormulaHintStep(step) {
+  return !!step && typeof step === 'object' && step.kind === 'formula_hint';
+}
+
+function formulaHintItems(step) {
+  if (!isFormulaHintStep(step)) return [];
+  if (Array.isArray(step.formulas)) return step.formulas;
+  if (typeof step.tex === 'string') return [{ tex: step.tex }];
+  return [];
+}
+
+function buildFormulaHint(step) {
+  const box = mkEl('div', 'solution-formula-hint');
+  const list = mkEl('div', 'solution-formula-hint-list');
+  for (const item of formulaHintItems(step)) {
+    if (!item || !item.tex) continue;
+    const row = mkEl('div', 'solution-formula-hint-row');
+    row.appendChild(mkEl('div', 'solution-formula-hint-tex', `\\[ ${displayTex(item.tex)} \\]`));
+    list.appendChild(row);
+  }
+  box.appendChild(list);
+  return box;
+}
+
+function buildFormulaHintGroup(steps) {
+  const group = mkEl('div', 'solution-formula-hint-strip');
+  for (const step of steps) group.appendChild(buildFormulaHint(step));
+  return group;
+}
+
+function appendEtalonLine(parent, step, lineCls) {
+  if (isFormulaHintStep(step)) parent.appendChild(buildFormulaHint(step));
+  else parent.appendChild(mkEl('div', lineCls, `\\[ ${displayTex(step)} \\]`));
+}
+
+function appendEtalonLines(parent, steps, lineCls) {
+  for (let i = 0; i < steps.length; i += 1) {
+    const step = steps[i];
+    if (!isFormulaHintStep(step)) {
+      appendEtalonLine(parent, step, lineCls);
+      continue;
+    }
+    const hints = [];
+    while (i < steps.length && isFormulaHintStep(steps[i])) {
+      hints.push(steps[i]);
+      i += 1;
+    }
+    i -= 1;
+    parent.appendChild(buildFormulaHintGroup(hints));
   }
 }
 
@@ -81,7 +161,7 @@ export function typesetEl(el) {
 export function renderPart2Stem(el, stem) {
   if (!el) return;
   el.textContent = '';
-  const lines = String(stem || '').split(/<br\s*\/?>/i);
+  const lines = displayInlineMath(stem).split(/<br\s*\/?>/i);
   for (const line of lines) {
     el.appendChild(mkEl('div', 'q-line', line));
   }
@@ -89,79 +169,233 @@ export function renderPart2Stem(el, stem) {
 
 // ───────── эталон ─────────
 // solution = { steps[], gen_groups[{head, series[]}], below[], figure }; answer = { general[], roots[] }.
-export function buildPart2EtalonContent(solution, answer) {
-  const sol = solution || {};
-  const wrap = mkEl('div', 'part2-etalon-inner');
+function lastMathStep(steps) {
+  return [...(steps || [])].reverse().find(item => typeof item === 'string') || '';
+}
 
-  const addSection = (title, lines, lineCls) => {
-    if (!Array.isArray(lines) || !lines.length) return;
-    const sec = mkEl('div', 'etalon-section');
-    sec.appendChild(mkEl('h4', 'etalon-h', title));
-    for (const ln of lines) sec.appendChild(mkEl('div', lineCls, `\\[ ${ln} \\]`));
-    wrap.appendChild(sec);
-  };
+function inlineMathList(items) {
+  return (items || []).map(item => `\\( ${displayTex(item)} \\)`).join('; ');
+}
 
-  // пошаговая цепочка преобразований
-  addSection('Решение', sol.steps, 'etalon-step');
+function stripIntegerNote(tex) {
+  return String(tex || '')
+    .replace(/\\\s+/g, ' ')
+    .replace(/(?:,|\s|\\quad|\\,|\\;|\\:)*\\?n\s*\\in\s*\\mathbb\{Z\}\s*$/g, '')
+    .replace(/(?:,|\s|\\quad|\\,|\\;|\\:)+$/g, '')
+    .trim();
+}
 
-  // общее решение (столбиками)
-  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
-    const sec = mkEl('div', 'etalon-section');
-    sec.appendChild(mkEl('h4', 'etalon-h', 'Общее решение'));
-    for (const g of sol.gen_groups) {
-      if (g && g.head) sec.appendChild(mkEl('div', 'etalon-genhead', `\\[ ${g.head} \\]`));
-      for (const s of ((g && g.series) || [])) sec.appendChild(mkEl('div', 'etalon-series', `\\[ ${s} \\]`));
+function buildFamilyList(items) {
+  const clean = (items || []).map(stripIntegerNote).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-family-list');
+  clean.forEach((item) => {
+    const unit = mkEl('span', 'solution-family-unit');
+    unit.appendChild(document.createTextNode(`\\( ${displayTex(item)} \\),\u00a0\u00a0`));
+    wrap.appendChild(unit);
+  });
+  wrap.appendChild(mkEl('span', 'solution-family-note', '\\( n \\in \\mathbb{Z} \\)'));
+  return wrap;
+}
+
+function buildFamilyLines(items) {
+  const clean = (items || []).map(stripIntegerNote).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-family-lines');
+  clean.forEach((item, idx) => {
+    const tail = idx === clean.length - 1 ? ',\u00a0\u00a0\\( n \\in \\mathbb{Z} \\)' : ',';
+    wrap.appendChild(mkEl('div', 'solution-family-line', `\\( ${displayTex(item)} \\)${tail}`));
+  });
+  return wrap;
+}
+
+function buildVariantLines(items) {
+  const clean = (items || []).filter(Boolean);
+  if (!clean.length) return null;
+  const wrap = mkEl('div', 'solution-variant-lines');
+  for (let i = 0; i < clean.length; i += 1) {
+    const item = clean[i];
+    if (!isFormulaHintStep(item)) {
+      wrap.appendChild(mkEl('div', 'solution-variant-line', `\\( ${displayTex(item)} \\)`));
+      continue;
     }
-    wrap.appendChild(sec);
+    const hints = [];
+    while (i < clean.length && isFormulaHintStep(clean[i])) {
+      hints.push(clean[i]);
+      i += 1;
+    }
+    i -= 1;
+    wrap.appendChild(buildFormulaHintGroup(hints));
   }
+  return wrap;
+}
 
-  // окружность отбора корней (SVG как <img>)
+function extractInterval(stem) {
+  const text = String(stem || '');
+  const m = text.match(/отрезку\s+\\\((.*?)\\\)/i);
+  return m ? m[1] : '';
+}
+
+function sectionHead(mark, title) {
+  const head = mkEl('h4', 'part2-section-head');
+  head.appendChild(mkEl('span', 'part2-section-mark', mark));
+  head.appendChild(document.createTextNode(' '));
+  head.appendChild(mkEl('span', 'part2-section-title', title));
+  return head;
+}
+
+export function normalizePart2SolutionLayout(root = document) {
+  const scope = root || document;
+  scope.querySelectorAll?.('.solution-simple-item').forEach(item => {
+    item.style.paddingTop = '';
+  });
+
+  scope.querySelectorAll?.('.solution-simple-list').forEach(list => {
+    const rows = [];
+    for (const item of list.querySelectorAll('.solution-simple-item')) {
+      const top = Math.round(item.getBoundingClientRect().top);
+      let row = rows.find(candidate => Math.abs(candidate.top - top) <= 4);
+      if (!row) {
+        row = { top, items: [] };
+        rows.push(row);
+      }
+      row.items.push(item);
+    }
+
+    for (const row of rows) {
+      if (row.items.length < 2) continue;
+      const metrics = row.items.map(item => {
+        const math = item.querySelector('.solution-simple-equation mjx-container');
+        if (!math) return null;
+        const itemTop = item.getBoundingClientRect().top;
+        const mathTop = math.getBoundingClientRect().top;
+        return { item, offset: mathTop - itemTop };
+      }).filter(Boolean);
+      const maxOffset = Math.max(0, ...metrics.map(entry => entry.offset));
+      metrics.forEach(({ item, offset }) => {
+        const shift = Math.max(0, maxOffset - offset);
+        item.style.paddingTop = shift > 0.5 ? `${shift.toFixed(1)}px` : '';
+      });
+    }
+  });
+}
+
+let normalizeTimer = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    clearTimeout(normalizeTimer);
+    normalizeTimer = setTimeout(() => normalizePart2SolutionLayout(document), 120);
+  });
+}
+
+export function buildPart2EtalonContent(solution, answer, opts = {}) {
+  const sol = solution || {};
+  const ans = answer || {};
+  const outer = mkEl('div', 'part2-etalon-inner');
+  const wrap = mkEl('div', 'part2-solution-card');
+
+  const partA = mkEl('section', 'part2-solution-section');
+  partA.appendChild(sectionHead('а)', 'Преобразуем исходное уравнение:'));
+  if (Array.isArray(sol.steps) && sol.steps.length) {
+    const steps = mkEl('div', 'solution-steps');
+    appendEtalonLines(steps, sol.steps, 'solution-line');
+    partA.appendChild(steps);
+  }
+  if (Array.isArray(sol.gen_groups) && sol.gen_groups.length) {
+    if (sol.gen_groups.length === 1) {
+      const group = sol.gen_groups[0];
+      const lastStep = Array.isArray(sol.steps) ? lastMathStep(sol.steps) : '';
+      const duplicateHead = group.head && normTex(group.head) === normTex(lastStep);
+      const single = mkEl('div', 'solution-single-simple');
+      if (group.head && !duplicateHead) single.appendChild(mkEl('div', 'solution-simple-equation', `\\( ${displayTex(group.head)} \\)`));
+      const variantLines = buildVariantLines(group.steps || []);
+      if (variantLines) single.appendChild(variantLines);
+      const series = buildFamilyLines(group.series || []);
+      if (series) single.appendChild(series);
+      partA.appendChild(single);
+    } else {
+      const list = mkEl('div', 'solution-simple-list');
+      sol.gen_groups.forEach((group, idx) => {
+        const item = mkEl('div', 'solution-simple-item');
+        item.appendChild(mkEl('span', 'solution-simple-number', `${idx + 1})`));
+        const body = mkEl('div', 'solution-simple-body');
+        if (group.head) body.appendChild(mkEl('div', 'solution-simple-equation', `\\( ${displayTex(group.head)} \\)`));
+        const variantLines = buildVariantLines(group.steps || []);
+        if (variantLines) body.appendChild(variantLines);
+        const series = buildFamilyLines(group.series || []);
+        if (series) body.appendChild(series);
+        item.appendChild(body);
+        list.appendChild(item);
+      });
+      partA.appendChild(list);
+    }
+  }
+  wrap.appendChild(partA);
+
+  const partB = mkEl('section', 'part2-solution-section');
+  const interval = extractInterval(opts.stem || '');
+  partB.appendChild(sectionHead('б)', interval
+    ? `Отберем корни с помощью тригонометрической окружности на отрезке \\( ${displayTex(interval)} \\):`
+    : 'Отберем корни с помощью тригонометрической окружности:'));
+
   if (sol.figure) {
-    const sec = mkEl('div', 'etalon-section etalon-fig');
+    const sec = mkEl('div', 'solution-figure');
     const img = mkEl('img');
     img.alt = 'Окружность отбора корней';
     img.loading = 'lazy';
     img.referrerPolicy = 'no-referrer';
     img.src = asset(sol.figure);
     sec.appendChild(img);
-    wrap.appendChild(sec);
+    sec.appendChild(mkEl('div', 'solution-figure-caption', 'Отмечаем подходящие корни на окружности'));
+    partB.appendChild(sec);
   }
 
-  // разложение корней по опорным
-  addSection('Отбор корней', sol.below, 'etalon-below');
+  if (Array.isArray(sol.below) && sol.below.length) {
+    const roots = mkEl('div', 'solution-roots');
+    sol.below.forEach(line => roots.appendChild(mkEl('div', 'solution-line', `\\[ ${displayTex(line)} \\]`)));
+    partB.appendChild(roots);
+  }
 
-  // ответ (а — общее решение, б — отобранные корни)
-  const ans = answer || {};
   const hasGeneral = Array.isArray(ans.general) && ans.general.length;
   const hasRoots = Array.isArray(ans.roots) && ans.roots.length;
   if (hasGeneral || hasRoots) {
-    const sec = mkEl('div', 'etalon-section etalon-answer');
-    sec.appendChild(mkEl('h4', 'etalon-h', 'Ответ'));
-    if (hasGeneral) sec.appendChild(mkEl('div', 'etalon-ans-line', 'а) ' + ans.general.map(g => `\\( ${g} \\)`).join(';\\quad ')));
-    if (hasRoots) sec.appendChild(mkEl('div', 'etalon-ans-line', 'б) ' + ans.roots.map(r => `\\( ${r} \\)`).join(';\\quad ')));
-    wrap.appendChild(sec);
+    const sec = mkEl('div', 'solution-answer');
+    sec.appendChild(mkEl('div', 'solution-answer-title', 'Ответ:'));
+    if (hasGeneral) {
+      const row = mkEl('div', 'solution-answer-row');
+      row.appendChild(document.createTextNode('а) '));
+      const families = buildFamilyList(ans.general);
+      if (families) row.appendChild(families);
+      sec.appendChild(row);
+    }
+    if (hasRoots) sec.appendChild(mkEl('div', 'solution-answer-row', `б) ${inlineMathList(ans.roots)}`));
+    partB.appendChild(sec);
   }
 
-  return wrap;
+  wrap.appendChild(partB);
+  outer.appendChild(wrap);
+  return outer;
 }
 
 // Самодостаточный блок: кнопка-тоггл + панель эталона (лениво наполняется и типсетится).
 // По умолчанию свёрнут. Используется в тренажёре, списке и уникальных прототипах.
-export function buildPart2EtalonBlock(solution, answer) {
+export function buildPart2EtalonBlock(solution, answer, opts = {}) {
   const box = mkEl('div', 'part2-box');
-  const btn = mkEl('button', 'btn part2-etalon-btn', 'Показать эталон');
+  const btn = mkEl('button', 'btn part2-etalon-btn', 'Показать решение');
   btn.type = 'button';
   const panel = mkEl('div', 'part2-etalon');
   panel.hidden = true;
   let rendered = false;
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', async () => {
     if (!rendered) {
-      panel.appendChild(buildPart2EtalonContent(solution, answer));
+      panel.appendChild(buildPart2EtalonContent(solution, answer, opts));
       rendered = true;
-      typesetEl(panel);
+      await typesetEl(panel);
+      normalizePart2SolutionLayout(panel);
     }
     panel.hidden = !panel.hidden;
-    btn.textContent = panel.hidden ? 'Показать эталон' : 'Скрыть эталон';
+    if (!panel.hidden) normalizePart2SolutionLayout(panel);
+    btn.textContent = panel.hidden ? 'Показать решение' : 'Скрыть решение';
   });
   box.appendChild(btn);
   box.appendChild(panel);

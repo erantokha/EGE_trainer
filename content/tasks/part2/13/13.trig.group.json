@@ -31,8 +31,7 @@
           },
           "answer": {
             "general": [
-              "x = \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{5 \\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
               "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
@@ -42,20 +41,36 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x - \\sin x + 2 \\cos x - 1 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - \\sin x + 2 \\cos x - 1 = 0",
-              "2 \\sin x\\left(\\cos x - \\frac{1}{2}\\right) + 2\\left(\\cos x - \\frac{1}{2}\\right) = 0",
-              "2\\left(\\cos x - \\frac{1}{2}\\right)\\left(\\sin x + 1\\right) = 0"
+              "\\sin x\\bigl(2\\cos x - 1\\bigr) + \\bigl(2\\cos x - 1\\bigr) = 0",
+              "2 \\sin x\\bigl(\\cos x - \\frac{1}{2}\\bigr) + 2\\bigl(\\cos x - \\frac{1}{2}\\bigr) = 0",
+              "\\bigl(\\cos x - \\frac{1}{2}\\bigr)\\bigl(2\\sin x + 2\\vphantom{\\frac{1}{2}}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = \\frac{1}{2}",
+                "head": "\\cos x - \\frac{1}{2} = 0",
+                "steps": [
+                  "\\cos x = \\frac{1}{2}"
+                ],
                 "series": [
-                  "x = \\frac{\\pi}{3} + 2\\pi n",
-                  "x = \\frac{5 \\pi}{3} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{3} + 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = -1",
+                "head": "2 \\sin x + 2 = 0",
+                "steps": [
+                  "\\sin x + 1 = 0",
+                  "\\sin x = -1"
+                ],
                 "series": [
                   "x = \\frac{3 \\pi}{2} + 2\\pi n"
                 ]
@@ -85,8 +100,7 @@
           },
           "answer": {
             "general": [
-              "x = \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{7 \\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{4} + 2\\pi n,\\ n \\in \\mathbb{Z}",
               "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
@@ -96,20 +110,36 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x - \\sqrt{2} \\sin x + 2 \\cos x - \\sqrt{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - \\sqrt{2} \\sin x + 2 \\cos x - \\sqrt{2} = 0",
-              "2 \\sin x\\left(\\cos x - \\frac{\\sqrt{2}}{2}\\right) + 2\\left(\\cos x - \\frac{\\sqrt{2}}{2}\\right) = 0",
-              "2\\left(\\cos x - \\frac{\\sqrt{2}}{2}\\right)\\left(\\sin x + 1\\right) = 0"
+              "\\sin x\\bigl(2\\cos x - \\sqrt{2}\\bigr) + \\bigl(2\\cos x - \\sqrt{2}\\bigr) = 0",
+              "2 \\sin x\\bigl(\\cos x - \\frac{\\sqrt{2}}{2}\\bigr) + 2\\bigl(\\cos x - \\frac{\\sqrt{2}}{2}\\bigr) = 0",
+              "\\bigl(\\cos x - \\frac{\\sqrt{2}}{2}\\bigr)\\bigl(2\\sin x + 2\\vphantom{\\frac{\\sqrt{2}}{2}}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = \\frac{\\sqrt{2}}{2}",
+                "head": "\\cos x - \\frac{\\sqrt{2}}{2} = 0",
+                "steps": [
+                  "\\cos x = \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
-                  "x = \\frac{\\pi}{4} + 2\\pi n",
-                  "x = \\frac{7 \\pi}{4} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{4} + 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = -1",
+                "head": "2 \\sin x + 2 = 0",
+                "steps": [
+                  "\\sin x + 1 = 0",
+                  "\\sin x = -1"
+                ],
                 "series": [
                   "x = \\frac{3 \\pi}{2} + 2\\pi n"
                 ]
@@ -138,8 +168,7 @@
           },
           "answer": {
             "general": [
-              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{11 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\pm \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
               "x = \\frac{3 \\pi}{2} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
@@ -149,20 +178,36 @@
           },
           "solution": {
             "steps": [
+              "\\sin 2x - \\sqrt{3} \\sin x + 2 \\cos x - \\sqrt{3} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - \\sqrt{3} \\sin x + 2 \\cos x - \\sqrt{3} = 0",
-              "2 \\sin x\\left(\\cos x - \\frac{\\sqrt{3}}{2}\\right) + 2\\left(\\cos x - \\frac{\\sqrt{3}}{2}\\right) = 0",
-              "2\\left(\\cos x - \\frac{\\sqrt{3}}{2}\\right)\\left(\\sin x + 1\\right) = 0"
+              "\\sin x\\bigl(2\\cos x - \\sqrt{3}\\bigr) + \\bigl(2\\cos x - \\sqrt{3}\\bigr) = 0",
+              "2 \\sin x\\bigl(\\cos x - \\frac{\\sqrt{3}}{2}\\bigr) + 2\\bigl(\\cos x - \\frac{\\sqrt{3}}{2}\\bigr) = 0",
+              "\\bigl(\\cos x - \\frac{\\sqrt{3}}{2}\\bigr)\\bigl(2\\sin x + 2\\vphantom{\\frac{\\sqrt{3}}{2}}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = \\frac{\\sqrt{3}}{2}",
+                "head": "\\cos x - \\frac{\\sqrt{3}}{2} = 0",
+                "steps": [
+                  "\\cos x = \\frac{\\sqrt{3}}{2}"
+                ],
                 "series": [
-                  "x = \\frac{\\pi}{6} + 2\\pi n",
-                  "x = \\frac{11 \\pi}{6} + 2\\pi n"
+                  "x = \\pm \\frac{\\pi}{6} + 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = -1",
+                "head": "2 \\sin x + 2 = 0",
+                "steps": [
+                  "\\sin x + 1 = 0",
+                  "\\sin x = -1"
+                ],
                 "series": [
                   "x = \\frac{3 \\pi}{2} + 2\\pi n"
                 ]
@@ -186,7 +231,7 @@
             "чётность/нечётность"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin(-x) + \\sqrt{2} \\cos(-x) - \\sqrt{2} = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + \\sqrt{2} \\cos\\bigl(-x\\bigr) - \\sqrt{2} = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -204,20 +249,50 @@
           },
           "solution": {
             "steps": [
-              "\\sin 2x - 2 \\sin x + \\sqrt{2} \\cos x - \\sqrt{2} = 0",
+              "\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + \\sqrt{2} \\cos\\bigl(-x\\bigr) - \\sqrt{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(-x\\bigr) = -\\sin x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(-x\\bigr) = \\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - 2 \\sin x + \\sqrt{2} \\cos x - \\sqrt{2} = 0",
-              "2 \\sin x\\left(\\cos x - 1\\right) + \\sqrt{2} \\left(\\cos x - 1\\right) = 0",
-              "\\left(\\cos x - 1\\right)\\left(2 \\sin x + \\sqrt{2}\\right) = 0"
+              "2 \\sin x\\bigl(\\cos x - 1\\bigr) + \\sqrt{2} \\bigl(\\cos x - 1\\bigr) = 0",
+              "\\bigl(\\cos x - 1\\bigr)\\bigl(2 \\sin x + \\sqrt{2}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = 1",
+                "head": "\\cos x - 1 = 0",
+                "steps": [
+                  "\\cos x = 1"
+                ],
                 "series": [
                   "x = 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = - \\frac{\\sqrt{2}}{2}",
+                "head": "2 \\sin x + \\sqrt{2} = 0",
+                "steps": [
+                  "\\sin x = - \\frac{\\sqrt{2}}{2}"
+                ],
                 "series": [
                   "x = \\frac{5 \\pi}{4} + 2\\pi n",
                   "x = \\frac{7 \\pi}{4} + 2\\pi n"
@@ -244,7 +319,7 @@
             "чётность/нечётность"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin(-x) + \\sqrt{3} \\cos(-x) - \\sqrt{3} = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + \\sqrt{3} \\cos\\bigl(-x\\bigr) - \\sqrt{3} = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -262,20 +337,50 @@
           },
           "solution": {
             "steps": [
-              "\\sin 2x - 2 \\sin x + \\sqrt{3} \\cos x - \\sqrt{3} = 0",
+              "\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + \\sqrt{3} \\cos\\bigl(-x\\bigr) - \\sqrt{3} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(-x\\bigr) = -\\sin x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(-x\\bigr) = \\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - 2 \\sin x + \\sqrt{3} \\cos x - \\sqrt{3} = 0",
-              "2 \\sin x\\left(\\cos x - 1\\right) + \\sqrt{3} \\left(\\cos x - 1\\right) = 0",
-              "\\left(\\cos x - 1\\right)\\left(2 \\sin x + \\sqrt{3}\\right) = 0"
+              "2 \\sin x\\bigl(\\cos x - 1\\bigr) + \\sqrt{3} \\bigl(\\cos x - 1\\bigr) = 0",
+              "\\bigl(\\cos x - 1\\bigr)\\bigl(2 \\sin x + \\sqrt{3}\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = 1",
+                "head": "\\cos x - 1 = 0",
+                "steps": [
+                  "\\cos x = 1"
+                ],
                 "series": [
                   "x = 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = - \\frac{\\sqrt{3}}{2}",
+                "head": "2 \\sin x + \\sqrt{3} = 0",
+                "steps": [
+                  "\\sin x = - \\frac{\\sqrt{3}}{2}"
+                ],
                 "series": [
                   "x = \\frac{4 \\pi}{3} + 2\\pi n",
                   "x = \\frac{5 \\pi}{3} + 2\\pi n"
@@ -301,7 +406,7 @@
             "чётность/нечётность"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin(-x) + 2 \\cos(-x) - 2 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + 2 \\cos\\bigl(-x\\bigr) - 2 = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -317,20 +422,50 @@
           },
           "solution": {
             "steps": [
-              "\\sin 2x - 2 \\sin x + 2 \\cos x - 2 = 0",
+              "\\sin 2x + 2 \\sin\\bigl(-x\\bigr) + 2 \\cos\\bigl(-x\\bigr) - 2 = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin 2x = 2\\sin x\\cos x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(-x\\bigr) = -\\sin x"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(-x\\bigr) = \\cos x"
+                  }
+                ]
+              },
               "2 \\sin x \\cos x - 2 \\sin x + 2 \\cos x - 2 = 0",
-              "2 \\sin x\\left(\\cos x - 1\\right) + 2 \\left(\\cos x - 1\\right) = 0",
-              "\\left(\\cos x - 1\\right)\\left(2 \\sin x + 2\\right) = 0"
+              "2 \\sin x\\bigl(\\cos x - 1\\bigr) + 2 \\bigl(\\cos x - 1\\bigr) = 0",
+              "\\bigl(\\cos x - 1\\bigr)\\bigl(2 \\sin x + 2\\bigr) = 0"
             ],
             "gen_groups": [
               {
-                "head": "\\cos x = 1",
+                "head": "\\cos x - 1 = 0",
+                "steps": [
+                  "\\cos x = 1"
+                ],
                 "series": [
                   "x = 2\\pi n"
                 ]
               },
               {
-                "head": "\\sin x = -1",
+                "head": "2 \\sin x + 2 = 0",
+                "steps": [
+                  "\\sin x = -1"
+                ],
                 "series": [
                   "x = \\frac{3 \\pi}{2} + 2\\pi n"
                 ]

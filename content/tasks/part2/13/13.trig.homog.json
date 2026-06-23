@@ -26,7 +26,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(3\\cos\\left(x - \\tfrac{\\pi}{6}\\right) - \\sqrt{3}\\,\\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
+          "stem": "а) Решите уравнение \\(3\\cos\\bigl(x - \\frac{\\pi}{6}\\bigr) - \\sqrt{3}\\,\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- \\frac{11 \\pi}{2};\\ - 4 \\pi\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -41,15 +41,42 @@
           },
           "solution": {
             "steps": [
-              "3 \\cos\\left(x - \\frac{\\pi}{6}\\right) - \\sqrt{3} \\cos x = 0",
-              "3 \\left(\\frac{\\sqrt{3}}{2} \\cos x + \\frac{1}{2} \\sin x\\right) - \\sqrt{3} \\cos x = 0",
+              "3\\cos\\bigl(x - \\frac{\\pi}{6}\\bigr) - \\sqrt{3}\\,\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha - \\beta\\bigr) = \\cos\\alpha\\cos\\beta + \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = \\cos x"
+                  }
+                ]
+              },
+              "3 \\bigl(\\frac{\\sqrt{3}}{2} \\cos x + \\frac{1}{2} \\sin x\\bigr) - \\sqrt{3} \\cos x = 0",
               "\\frac{3 \\sqrt{3}}{2} \\cos x + \\frac{3}{2} \\sin x - \\sqrt{3} \\cos x = 0",
               "\\frac{3}{2} \\sin x + \\frac{\\sqrt{3}}{2} \\cos x = 0",
+              "\\cos x \\ne 0",
+              "\\frac{3}{2}\\cdot\\frac{\\sin x}{\\cos x} + \\frac{\\sqrt{3}}{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\operatorname{tg} x = \\frac{\\sin x}{\\cos x}"
+                  }
+                ]
+              },
+              "\\frac{3}{2}\\operatorname{tg} x + \\frac{\\sqrt{3}}{2} = 0",
               "\\operatorname{tg} x = - \\frac{\\sqrt{3}}{3}"
             ],
             "gen_groups": [
               {
-                "head": "",
+                "head": "\\operatorname{tg} x = - \\frac{\\sqrt{3}}{3}",
                 "series": [
                   "x = - \\frac{\\pi}{6} + \\pi n"
                 ]
@@ -74,7 +101,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\cos\\left(x - \\tfrac{\\pi}{4}\\right) - \\sqrt{2}\\,\\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\cos\\bigl(x - \\frac{\\pi}{4}\\bigr) - \\sqrt{2}\\,\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -89,15 +116,42 @@
           },
           "solution": {
             "steps": [
-              "\\cos\\left(x - \\frac{\\pi}{4}\\right) - \\sqrt{2} \\cos x = 0",
-              "\\left(\\frac{\\sqrt{2}}{2} \\cos x + \\frac{\\sqrt{2}}{2} \\sin x\\right) - \\sqrt{2} \\cos x = 0",
+              "\\cos\\bigl(x - \\frac{\\pi}{4}\\bigr) - \\sqrt{2}\\,\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha - \\beta\\bigr) = \\cos\\alpha\\cos\\beta + \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = \\cos x"
+                  }
+                ]
+              },
+              "\\bigl(\\frac{\\sqrt{2}}{2} \\cos x + \\frac{\\sqrt{2}}{2} \\sin x\\bigr) - \\sqrt{2} \\cos x = 0",
               "\\frac{\\sqrt{2}}{2} \\cos x + \\frac{\\sqrt{2}}{2} \\sin x - \\sqrt{2} \\cos x = 0",
               "\\frac{\\sqrt{2}}{2} \\sin x - \\frac{\\sqrt{2}}{2} \\cos x = 0",
+              "\\cos x \\ne 0",
+              "\\frac{\\sqrt{2}}{2}\\cdot\\frac{\\sin x}{\\cos x} - \\frac{\\sqrt{2}}{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\operatorname{tg} x = \\frac{\\sin x}{\\cos x}"
+                  }
+                ]
+              },
+              "\\frac{\\sqrt{2}}{2}\\operatorname{tg} x - \\frac{\\sqrt{2}}{2} = 0",
               "\\operatorname{tg} x = 1"
             ],
             "gen_groups": [
               {
-                "head": "",
+                "head": "\\operatorname{tg} x = 1",
                 "series": [
                   "x = \\frac{\\pi}{4} + \\pi n"
                 ]
@@ -121,7 +175,7 @@
             "формулы сложения/разности аргументов"
           ],
           "max_primary": 2,
-          "stem": "а) Решите уравнение \\(\\cos\\left(x - \\tfrac{\\pi}{3}\\right) - \\sin\\left(\\tfrac{\\pi}{2} - x\\right) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
+          "stem": "а) Решите уравнение \\(\\cos\\bigl(x - \\frac{\\pi}{3}\\bigr) - \\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0\\).<br>б) Найдите все корни уравнения, принадлежащие отрезку \\(\\left[- 5 \\pi;\\ - \\frac{7 \\pi}{2}\\right]\\).",
           "answer_spec": {
             "type": "manual"
           },
@@ -136,15 +190,42 @@
           },
           "solution": {
             "steps": [
-              "\\cos\\left(x - \\frac{\\pi}{3}\\right) - \\cos x = 0",
-              "\\left(\\frac{1}{2} \\cos x + \\frac{\\sqrt{3}}{2} \\sin x\\right) - \\cos x = 0",
+              "\\cos\\bigl(x - \\frac{\\pi}{3}\\bigr) - \\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\cos\\bigl(\\alpha - \\beta\\bigr) = \\cos\\alpha\\cos\\beta + \\sin\\alpha\\sin\\beta"
+                  }
+                ]
+              },
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\sin\\bigl(\\frac{\\pi}{2} - x\\bigr) = \\cos x"
+                  }
+                ]
+              },
+              "\\bigl(\\frac{1}{2} \\cos x + \\frac{\\sqrt{3}}{2} \\sin x\\bigr) - \\cos x = 0",
               "\\frac{1}{2} \\cos x + \\frac{\\sqrt{3}}{2} \\sin x - \\cos x = 0",
               "\\frac{\\sqrt{3}}{2} \\sin x - \\frac{1}{2} \\cos x = 0",
+              "\\cos x \\ne 0",
+              "\\frac{\\sqrt{3}}{2}\\cdot\\frac{\\sin x}{\\cos x} - \\frac{1}{2} = 0",
+              {
+                "kind": "formula_hint",
+                "formulas": [
+                  {
+                    "tex": "\\operatorname{tg} x = \\frac{\\sin x}{\\cos x}"
+                  }
+                ]
+              },
+              "\\frac{\\sqrt{3}}{2}\\operatorname{tg} x - \\frac{1}{2} = 0",
               "\\operatorname{tg} x = \\frac{\\sqrt{3}}{3}"
             ],
             "gen_groups": [
               {
-                "head": "",
+                "head": "\\operatorname{tg} x = \\frac{\\sqrt{3}}{3}",
                 "series": [
                   "x = \\frac{\\pi}{6} + \\pi n"
                 ]

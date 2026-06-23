@@ -43,11 +43,15 @@
           },
           "solution": {
             "steps": [
-              "\\text{замена } u = 4^{\\sin x},\\quad 16^{\\sin x} = u^2",
+              "8 \\cdot 16^{\\sin x} - 6 \\cdot 4^{\\sin x} + 1 = 0",
+              "u = 4^{\\sin x},\\quad u > 0",
+              "16^{\\sin x} = \\bigl(4^{\\sin x}\\bigr)^2 = u^2",
               "8 u^2 - 6 u + 1 = 0",
-              "8\\left(u - \\frac{1}{4}\\right)\\left(u - \\frac{1}{2}\\right) = 0",
+              "8\\bigl(u - \\frac{1}{4}\\bigr)\\bigl(u - \\frac{1}{2}\\bigr) = 0",
+              "u = \\frac{1}{4},\\quad u = \\frac{1}{2}",
               "4^{\\sin x} = \\frac{1}{4},\\quad 4^{\\sin x} = \\frac{1}{2}",
-              "\\sin x = -1,\\quad \\sin x = - \\frac{1}{2}"
+              "4^{\\sin x} = 4^{-1},\\quad 4^{\\sin x} = 4^{-\\frac{1}{2}}",
+              "\\sin x = -1,\\quad \\sin x = -\\frac{1}{2}"
             ],
             "gen_groups": [
               {
@@ -57,7 +61,7 @@
                 ]
               },
               {
-                "head": "\\sin x = - \\frac{1}{2}",
+                "head": "\\sin x = -\\frac{1}{2}",
                 "series": [
                   "x = - \\frac{\\pi}{6} + 2\\pi n",
                   "x = \\frac{7 \\pi}{6} + 2\\pi n"
@@ -90,9 +94,8 @@
           "answer": {
             "general": [
               "x = - \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{31 \\pi}{6}",
@@ -102,15 +105,19 @@
           },
           "solution": {
             "steps": [
-              "\\text{замена } u = 16^{\\sin x},\\quad 256^{\\sin x} = u^2",
+              "4 \\cdot 256^{\\sin x} - 17 \\cdot 16^{\\sin x} + 4 = 0",
+              "u = 16^{\\sin x},\\quad u > 0",
+              "256^{\\sin x} = \\bigl(16^{\\sin x}\\bigr)^2 = u^2",
               "4 u^2 - 17 u + 4 = 0",
-              "4\\left(u - \\frac{1}{4}\\right)\\left(u - 4\\right) = 0",
+              "4\\bigl(u - \\frac{1}{4}\\bigr)\\bigl(u - 4\\bigr) = 0",
+              "u = \\frac{1}{4},\\quad u = 4",
               "16^{\\sin x} = \\frac{1}{4},\\quad 16^{\\sin x} = 4",
-              "\\sin x = - \\frac{1}{2},\\quad \\sin x = \\frac{1}{2}"
+              "16^{\\sin x} = 16^{-\\frac{1}{2}},\\quad 16^{\\sin x} = 16^{\\frac{1}{2}}",
+              "\\sin x = -\\frac{1}{2},\\quad \\sin x = \\frac{1}{2}"
             ],
             "gen_groups": [
               {
-                "head": "\\sin x = - \\frac{1}{2}",
+                "head": "\\sin x = -\\frac{1}{2}",
                 "series": [
                   "x = - \\frac{\\pi}{6} + 2\\pi n",
                   "x = \\frac{7 \\pi}{6} + 2\\pi n"
@@ -149,9 +156,8 @@
           "answer": {
             "general": [
               "x = - \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{7 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
-              "x = \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
+              "x = \\pm \\frac{5 \\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "x = \\frac{\\pi}{6} + 2\\pi n,\\ n \\in \\mathbb{Z}"
             ],
             "roots": [
               "- \\frac{31 \\pi}{6}",
@@ -161,15 +167,19 @@
           },
           "solution": {
             "steps": [
-              "\\text{замена } u = 25^{\\sin x},\\quad 625^{\\sin x} = u^2",
+              "5 \\cdot 625^{\\sin x} - 26 \\cdot 25^{\\sin x} + 5 = 0",
+              "u = 25^{\\sin x},\\quad u > 0",
+              "625^{\\sin x} = \\bigl(25^{\\sin x}\\bigr)^2 = u^2",
               "5 u^2 - 26 u + 5 = 0",
-              "5\\left(u - \\frac{1}{5}\\right)\\left(u - 5\\right) = 0",
+              "5\\bigl(u - \\frac{1}{5}\\bigr)\\bigl(u - 5\\bigr) = 0",
+              "u = \\frac{1}{5},\\quad u = 5",
               "25^{\\sin x} = \\frac{1}{5},\\quad 25^{\\sin x} = 5",
-              "\\sin x = - \\frac{1}{2},\\quad \\sin x = \\frac{1}{2}"
+              "25^{\\sin x} = 25^{-\\frac{1}{2}},\\quad 25^{\\sin x} = 25^{\\frac{1}{2}}",
+              "\\sin x = -\\frac{1}{2},\\quad \\sin x = \\frac{1}{2}"
             ],
             "gen_groups": [
               {
-                "head": "\\sin x = - \\frac{1}{2}",
+                "head": "\\sin x = -\\frac{1}{2}",
                 "series": [
                   "x = - \\frac{\\pi}{6} + 2\\pi n",
                   "x = \\frac{7 \\pi}{6} + 2\\pi n"

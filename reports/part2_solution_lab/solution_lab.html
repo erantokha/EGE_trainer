@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="app-build" content="2026-06-23-8-075136">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Лаборатория решения №13</title>
+  <link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-23-8-075136">
+  <link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-23-8-075136">
+  <link rel="stylesheet" href="/tasks/trainer/pages/trainer.css?v=2026-06-23-8-075136">
+  <link rel="stylesheet" href="/tasks/trainer/part2.css?v=2026-06-23-8-075136">
+  <link rel="stylesheet" href="./solution_lab.css?v=2026-06-23-8-075136">
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)'], ['$', '$']] },
+      svg: { fontCache: 'local' },
+      startup: { typeset: false }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+</head>
+<body>
+  <main class="solution-lab-shell">
+    <header class="lab-top">
+      <div>
+        <p class="lab-kicker">№13 · эталон решения</p>
+        <h1>Лаборатория решения</h1>
+      </div>
+      <label class="lab-picker">
+        <span>Прототип</span>
+        <select id="protoSelect"></select>
+      </label>
+    </header>
+
+    <section class="task-surface" aria-labelledby="taskTitle">
+      <div class="task-meta">
+        <span id="taskCid">—</span>
+        <span id="taskMethod">—</span>
+      </div>
+      <h2 id="taskTitle">Загрузка...</h2>
+      <div id="taskStem" class="task-stem"></div>
+    </section>
+
+    <section class="variant-grid" aria-label="Варианты оформления решения">
+      <article class="variant-pane">
+        <div class="variant-head">
+          <span class="variant-tag">A</span>
+          <h3>Текущий блок</h3>
+        </div>
+        <div id="currentMount" class="solution-mount"></div>
+      </article>
+
+      <article class="variant-pane is-featured">
+        <div class="variant-head">
+          <span class="variant-tag">B</span>
+          <h3>Чистый разбор</h3>
+        </div>
+        <div id="cleanMount" class="solution-mount"></div>
+      </article>
+
+      <article class="variant-pane">
+        <div class="variant-head">
+          <span class="variant-tag">C</span>
+          <h3>Экзаменационный лист</h3>
+        </div>
+        <div id="examMount" class="solution-mount"></div>
+      </article>
+    </section>
+  </main>
+
+  <script type="module" src="./solution_lab.js?v=2026-06-23-8-075136"></script>
+</body>
+</html>

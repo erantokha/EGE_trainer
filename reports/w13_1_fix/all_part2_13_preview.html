@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+  <meta name="app-build" content="2026-06-23-8-075136">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>W13 full preview</title>
+<link rel="stylesheet" href="/tasks/trainer/tokens.css?v=2026-06-23-8-075136">
+<link rel="stylesheet" href="/tasks/trainer/base.css?v=2026-06-23-8-075136">
+<link rel="stylesheet" href="/tasks/trainer/part2.css?v=2026-06-23-8-075136">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+  body { padding:24px; max-width:1120px; margin:0 auto; background:#f8fafc; }
+  .preview-note {
+    font:13px/1.5 system-ui;
+    color:#64748b;
+    background:#fff;
+    border:1px solid rgba(148,163,184,.35);
+    border-radius:8px;
+    padding:10px 14px;
+    margin:0 0 18px;
+  }
+  .preview-h { font:700 18px/1.35 system-ui; margin:0 0 14px; color:#0f172a; }
+  .batch-list { display:grid; gap:18px; }
+  .batch-item {
+    background:#fff;
+    border:1px solid rgba(15,23,42,.12);
+    border-radius:10px;
+    box-shadow:0 10px 28px rgba(15,23,42,.05);
+    padding:18px;
+  }
+  .batch-meta {
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 12px;
+    margin:0 0 12px;
+    font:13px/1.4 system-ui;
+    color:#64748b;
+  }
+  .batch-meta code {
+    color:#0f172a;
+    font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+  .ws-stem { margin:0 0 18px; }
+  .batch-item > .part2-etalon { margin-top:18px; }
+</style>
+</head>
+<body>
+<p class="preview-note">
+  <b>Полный preview №13:</b> все 75 прототипов из текущих манифестов части 2. Страница собрана для финального просмотра перед выкладкой: тригонометрия, логарифмические и показательные задачи идут в одном файле по подтемам.
+</p>
+<div class="preview-h">Финальная проверка всех задач №13</div>
+<div id="pager" class="preview-note"></div>
+<div id="host" class="batch-list"></div>
+
+<script type="module">
+import {
+  buildPart2EtalonContent,
+  mkEl,
+  normalizePart2SolutionLayout,
+  renderPart2Stem,
+} from '/tasks/part2_render.js';
+
+const BATCH_SECTIONS = [
+  {
+    title: 'Вынесение общего множителя',
+    manifest: '/content/tasks/part2/13/13.trig.factor.json',
+  },
+  {
+    title: 'Сведение к квадратному',
+    manifest: '/content/tasks/part2/13/13.trig.quad.json',
+  },
+  {
+    title: 'Группировка',
+    manifest: '/content/tasks/part2/13/13.trig.group.json',
+  },
+  {
+    title: 'Однородные',
+    manifest: '/content/tasks/part2/13/13.trig.homog.json',
+  },
+  {
+    title: 'Остальное',
+    manifest: '/content/tasks/part2/13/13.trig.other.json',
+  },
+  {
+    title: 'Логарифмические',
+    manifest: '/content/tasks/part2/13/13.log.json',
+  },
+  {
+    title: 'Показательные',
+    manifest: '/content/tasks/part2/13/13.exp.json',
+  },
+];
+
+async function getJson(p) {
+  return (await fetch(p, { cache: 'no-store' })).json();
+}
+function afterLayout() {
+  return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
+const host = document.getElementById('host');
+const pager = document.getElementById('pager');
+const manifests = await Promise.all(BATCH_SECTIONS.map(section => getJson(section.manifest)));
+const protos = manifests.flatMap(manifest => manifest.types.flatMap(t => t.prototypes || []));
+const byId = new Map(protos.map(p => [p.id, p]));
+const idsByManifest = new Map(manifests.map((manifest, idx) => [
+  BATCH_SECTIONS[idx].manifest,
+  manifest.types.flatMap(t => t.prototypes || []).map(p => p.id),
+]));
+const total = BATCH_SECTIONS.reduce((sum, section) => sum + (section.ids || idsByManifest.get(section.manifest) || []).length, 0);
+
+pager.textContent = `Показаны все прототипы №13: ${total}.`;
+
+for (const section of BATCH_SECTIONS) {
+  host.appendChild(mkEl('div', 'preview-h', section.title));
+  for (const id of section.ids || idsByManifest.get(section.manifest) || []) {
+    const proto = byId.get(id);
+    if (!proto) continue;
+    const card = mkEl('article', 'batch-item');
+    const meta = mkEl('div', 'batch-meta');
+    meta.innerHTML = `<span><code>${id}</code></span><span>${proto.cid || ''}</span><span>${proto.method || ''}</span>`;
+    card.appendChild(meta);
+    const stem = mkEl('div', 'ws-stem');
+    renderPart2Stem(stem, proto.stem);
+    card.appendChild(stem);
+    const panel = mkEl('div', 'part2-etalon');
+    panel.appendChild(buildPart2EtalonContent(proto.solution, proto.answer, { stem: proto.stem }));
+    card.appendChild(panel);
+    host.appendChild(card);
+  }
+}
+
+if (window.MathJax && window.MathJax.startup) {
+  await window.MathJax.startup.promise;
+  await window.MathJax.typesetPromise();
+}
+await afterLayout();
+normalizePart2SolutionLayout(document);
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>

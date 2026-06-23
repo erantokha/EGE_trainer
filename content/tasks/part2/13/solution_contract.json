@@ -1,0 +1,615 @@
+{
+  "id": "part2.13.solution_contract",
+  "title": "Контракт оформления решений №13",
+  "version": "2026-06-23-12",
+  "status": "draft-active",
+  "owner_note": "Этот файл является постоянным источником правил для эталонных решений №13. Новые правила сначала добавляются сюда, затем применяются к данным и проверяются аудитом.",
+  "sources": {
+    "manifests": [
+      "13.trig.factor.json",
+      "13.trig.quad.json",
+      "13.trig.group.json",
+      "13.trig.homog.json",
+      "13.trig.other.json",
+      "13.log.json",
+      "13.exp.json"
+    ],
+    "preview": "/reports/w13_1_fix/all_part2_13_preview.html",
+    "audit_report": "/reports/w13_1_fix/solution_contract_audit.html"
+  },
+  "workflow": [
+    {
+      "id": "workflow.rule-first",
+      "title": "Правило сначала",
+      "text": "Если появляется новое требование к оформлению или математической подробности, сначала заносим его в контракт, затем правим данные или генератор."
+    },
+    {
+      "id": "workflow.machine-check",
+      "title": "Проверка после правок",
+      "text": "После изменения задач запускаем contract-check, затем открываем общий preview и проверяем глазами."
+    },
+    {
+      "id": "workflow.no-hidden-rules",
+      "title": "Без скрытых правил",
+      "text": "Batch-скрипты не должны хранить самостоятельные правила, которые не отражены в этом контракте."
+    }
+  ],
+  "sections": [
+    {
+      "id": "layout",
+      "title": "Общее оформление",
+      "rules": [
+        {
+          "id": "layout.white-surface",
+          "level": "error",
+          "title": "Белый фон задания и решения",
+          "text": "Блок условия и блок решения показываются на белом фоне, чтобы картинки и формулы не выделялись посторонней подложкой."
+        },
+        {
+          "id": "layout.part-labels",
+          "level": "error",
+          "title": "Пункты а) и б)",
+          "text": "В условии и решении пункты обозначаются строчными буквами с закрывающей скобкой: а), б). Кружки и заглавные A/B не используем."
+        },
+        {
+          "id": "layout.single-font",
+          "level": "error",
+          "title": "Единый шрифт",
+          "text": "Условие и решение используют один шрифт, один масштаб текста и один масштаб формул."
+        },
+        {
+          "id": "layout.no-formula-scroll",
+          "level": "error",
+          "title": "Формулы не скроллятся внутри себя",
+          "text": "MathJax-контейнеры не должны иметь внутреннего вертикального или горизонтального скролла. Если формула не помещается, переносим блок или даём контейнеру расти."
+        },
+        {
+          "id": "layout.uniform-parens",
+          "level": "error",
+          "title": "Скобки одного размера в строке",
+          "text": "Круглые скобки в TeX задач №13 записываем канонически через \\bigl(...\\bigr). Не используем обычные (...) и авторазмер \\left(...\\right), потому что они дают разную высоту скобок в одной строке.",
+          "expected_tex": "\\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + \\cos\\bigl(\\pi + x\\bigr)",
+          "examples": [
+            {
+              "good_tex": "\\cos\\bigl(x + \\frac{\\pi}{4}\\bigr) + \\cos\\bigl(\\pi + x\\bigr)",
+              "bad_tex": "\\cos\\left(x + \\frac{\\pi}{4}\\right) + \\cos(\\pi + x)"
+            }
+          ]
+        },
+        {
+          "id": "layout.no-tight-trig-argument",
+          "level": "error",
+          "title": "Не прижимаем скобку к sin/cos",
+          "text": "После \\sin и \\cos не используем отрицательный отступ \\! перед скобкой аргумента. Пишем \\sin\\bigl(x + \\pi\\bigr), а не \\sin\\!\\bigl(x + \\pi\\bigr), чтобы скобка не прилипала к названию функции."
+        },
+        {
+          "id": "layout.trig-circle-size",
+          "level": "warning",
+          "title": "Тригонометрическая окружность",
+          "text": "Картинка окружности в решении пункта б) увеличена относительно исходного мелкого варианта и должна читаться без прищуривания."
+        }
+      ]
+    },
+    {
+      "id": "solution-rhythm",
+      "title": "Ритм математического решения",
+      "rules": [
+        {
+          "id": "rhythm.one-action-per-line",
+          "level": "warning",
+          "title": "Одна понятная операция в строке",
+          "text": "Каждая следующая строка является логичным продолжением предыдущей: формула приведения, раскрытие скобок, группировка, вынесение множителя, деление на ненулевой коэффициент или обратная замена."
+        },
+        {
+          "id": "rhythm.first-line-source-equation",
+          "level": "error",
+          "title": "Первая строка повторяет условие",
+          "text": "Пункт а) в решении начинается с исходного уравнения из условия без предварительных преобразований. Если дальше нужно перенести всё в одну сторону, это делается следующей строкой. Так формулы, применённые к исходному виду, всегда получают рамку перед строкой применения."
+        },
+        {
+          "id": "rhythm.no-jump-to-roots",
+          "level": "error",
+          "title": "Не перескакиваем к корням",
+          "text": "От сложного множителя нельзя сразу переходить к готовым корням. Сначала приравниваем множитель к нулю и приводим простейшее уравнение к явному виду."
+        },
+        {
+          "id": "rhythm.reduced-simple-head",
+          "level": "error",
+          "title": "Явный вид простейшего уравнения",
+          "text": "Перед перечислением семейств уравнение должно быть приведено к виду sin x = a, cos x = a, tg x = a или к короткой стандартной форме."
+        },
+        {
+          "id": "rhythm.no-solution-simple-caption",
+          "level": "warning",
+          "title": "Без лишней подписи перед вариантами",
+          "text": "После получения произведения не пишем отдельную подпись «Решение простейших уравнений». Сразу оформляем варианты 1), 2), ..."
+        },
+        {
+          "id": "rhythm.no-text-or",
+          "level": "warning",
+          "title": "Без строки «или»",
+          "text": "Разветвление после произведения оформляется через gen_groups и номера вариантов, а не через текстовую строку «или»."
+        },
+        {
+          "id": "rhythm.no-number-for-single-branch",
+          "level": "warning",
+          "title": "Одну ветку не нумеруем",
+          "text": "Если после преобразований остаётся одно простейшее уравнение, не создаём вариант 1). Продолжаем решение обычными строками."
+        },
+        {
+          "id": "rhythm.explicit-signed-pythagorean",
+          "level": "error",
+          "title": "ОТО со знаком показываем явно",
+          "text": "Если по основному тригонометрическому тождеству выражение вида a cos^2 x - a превращается в -a sin^2 x или a sin^2 x - a превращается в -a cos^2 x, сначала показываем смену знака и порядка: a cos^2 x - a = -a(1 - cos^2 x), затем отдельной строкой заменяем 1 - cos^2 x на sin^2 x. Аналогично для -a cos^2 x + a: сначала a(1 - cos^2 x), затем a sin^2 x.",
+          "examples": [
+            {
+              "good_tex": "2\\sin^2 x\\cos x + \\cos^2 x - 1 = 0;\\quad 2\\sin^2 x\\cos x - \\bigl(1 - \\cos^2 x\\bigr)=0;\\quad 2\\sin^2 x\\cos x - \\sin^2 x=0",
+              "bad_tex": "2\\sin^2 x\\cos x + \\cos^2 x - 1 = 0;\\quad 2\\sin^2 x\\cos x - \\sin^2 x=0"
+            }
+          ]
+        },
+        {
+          "id": "rhythm.expand-angle-sum-first",
+          "level": "error",
+          "title": "Сначала формула суммы/разности",
+          "text": "Если в решении используем \\sin(a ± b) или \\cos(a ± b), сначала записываем формулу суммы/разности в скобках, затем отдельной строкой подставляем значения синусов и косинусов известных углов, и только потом раскрываем внешние скобки или переносим слагаемые."
+        },
+        {
+          "id": "rhythm.negative-common-factor-explicit",
+          "level": "error",
+          "title": "Минус при вынесении множителя не теряем",
+          "text": "Если общий множитель выносится из строки с отрицательным старшим коэффициентом, сначала выносим отрицательный общий множитель, например -sin x(2 sin x - a)=0. Следующей строкой можно поделить всё уравнение на -1 и получить sin x(2 sin x - a)=0. Нельзя в одной строке одновременно вынести множитель и поделить на -1."
+        },
+        {
+          "id": "rhythm.negative-linear-reduction-visible",
+          "level": "error",
+          "title": "Отрицательное линейное уравнение приводим явно",
+          "text": "Если после преобразований получаем отрицательное линейное тригонометрическое уравнение вида -a sin x ± b = 0 или -a cos x ± b = 0, не перескакиваем сразу к sin x = c или cos x = c. Сначала переносим свободный член или делим на -1 отдельной строкой, затем отдельной строкой делим на коэффициент."
+        },
+        {
+          "id": "rhythm.tangent-division-visible",
+          "level": "error",
+          "title": "Переход к tg через деление",
+          "text": "Перед строкой с tg x показываем, что cos x не равен 0, затем явно делим на cos x: sin x / cos x. Только следующей строкой заменяем эту дробь на tg x."
+        },
+        {
+          "id": "rhythm.double-angle-before-factor",
+          "level": "error",
+          "title": "Синус двойного угла отдельно",
+          "text": "Если в строке есть sin 2x, сначала отдельной строкой заменяем его на 2 sin x cos x. Вынесение общего множителя или группировку делаем уже следующей строкой."
+        }
+      ]
+    },
+    {
+      "id": "formula-hints",
+      "title": "Рамки с используемыми формулами",
+      "rules": [
+        {
+          "id": "formula-hint.position-between-lines",
+          "level": "error",
+          "title": "Рамка стоит между строками",
+          "text": "Формульная подсказка ставится после строки, где выражение ещё не раскрыто, и перед строкой, где формула уже применена. Рамка объясняет именно переход между двумя соседними строками: строка до формулы → рамка → строка после применения формулы."
+        },
+        {
+          "id": "formula-hint.object-format",
+          "level": "error",
+          "title": "Формат данных formula_hint",
+          "text": "В solution.steps и gen_groups[].steps формульная рамка хранится объектом { kind: \"formula_hint\", formulas: [{ tex }] }. В объекте не пишем title/label: на экране должна быть только формула в рамке. Обычные шаги решения остаются строками TeX."
+        },
+        {
+          "id": "formula-hint.multiple-before-one-step",
+          "level": "warning",
+          "title": "Несколько формул перед одной строкой",
+          "text": "Если одна следующая строка раскрывает сразу несколько выражений по формулам приведения, двойного угла, суммы/разности или чётности/нечётности, перед ней ставим несколько отдельных рамок в один горизонтальный ряд: одна рамка — одна формула. Порядок рамок совпадает с порядком выражений в предыдущей строке слева направо. После этих рамок следующей строкой раскрываем все перечисленные выражения сразу. Подготовительные алгебраические строки для основного тождества, например cos^2 x - 1 = -(1 - cos^2 x), не склеиваем с применением тождества."
+        },
+        {
+          "id": "formula-hint.reduction-before-sum-difference",
+          "level": "error",
+          "title": "Формула приведения важнее общей суммы",
+          "text": "Если аргумент является стандартным случаем приведения, например x + pi, x - pi, pi - x, pi + x, pi/2 - x, используем конкретную формулу приведения. Не раскрываем такие случаи через общую формулу суммы/разности с sin pi и cos pi."
+        },
+        {
+          "id": "formula-hint.reduction-formulas",
+          "level": "error",
+          "title": "Формулы приведения",
+          "text": "Перед применением формул приведения показываем конкретную используемую формулу: например sin(-x)=-sin x, cos(-x)=cos x, cos(pi-x)=-cos x, cos(pi+2x)=-cos 2x, sin(pi/2-x)=cos x. Если формула применяется к выражению с коэффициентом, например -2cos(pi+2x), рамка всё равно ставится перед строкой, где оно стало +2cos 2x."
+        },
+        {
+          "id": "formula-hint.double-angle",
+          "level": "error",
+          "title": "Формулы двойного угла",
+          "text": "Перед применением формулы двойного угла показываем ровно ту форму, которая используется дальше: sin 2x = 2 sin x cos x; cos 2x = 2 cos^2 x - 1; cos 2x = 1 - 2 sin^2 x; cos 2x = cos^2 x - sin^2 x."
+        },
+        {
+          "id": "formula-hint.pythagorean-consequence",
+          "level": "error",
+          "title": "ОТО вместе со следствием",
+          "text": "Основное тригонометрическое тождество показываем вместе с используемым следствием в одной рамке: sin^2 x + cos^2 x = 1 => cos^2 x = 1 - sin^2 x или sin^2 x = 1 - cos^2 x. Рамка обязательна и для масштабированных переходов: 2sin^2 x -> 2 - 2cos^2 x, 2 - 2cos^2 x -> 2sin^2 x и аналогичных."
+        },
+        {
+          "id": "formula-hint.sum-difference-general",
+          "level": "error",
+          "title": "Сумма и разность аргументов",
+          "text": "Для формул суммы/разности в рамке показываем общую формулу с alpha и beta. В следующей строке решения уже раскрываем конкретный аргумент с нашими x и углом, например cos(x + pi/4) превращается в cos x cos(pi/4) - sin x sin(pi/4), а затем сразу подставляются значения известных углов."
+        },
+        {
+          "id": "formula-hint.tangent-definition",
+          "level": "warning",
+          "title": "Переход к тангенсу",
+          "text": "Перед заменой sin x / cos x на tg x ставим рамку tg x = sin x / cos x. Проверка cos x != 0 остаётся обычной строкой решения перед делением, не внутри рамки."
+        },
+        {
+          "id": "formula-hint.quadratic",
+          "level": "error",
+          "title": "Квадратные формулы в рамке",
+          "text": "При решении квадратного уравнения через дискриминант формулы D = b^2 - 4ac и t_{1,2} = (-b ± sqrt(D))/(2a) показываем в отдельных рамках перед численной подстановкой. Если D = 0, формулу t = -b/(2a) тоже показываем в рамке перед подстановкой."
+        },
+        {
+          "id": "formula-hint.no-zero-product-frame",
+          "level": "warning",
+          "title": "Нулевое произведение без рамки",
+          "text": "Правило нулевого произведения в формульную рамку не выносим, чтобы не создавать визуальный шум. Разветвление показывается структурой вариантов 1), 2), ..."
+        },
+        {
+          "id": "formula-hint.visual-style",
+          "level": "warning",
+          "title": "Светлая учебная рамка",
+          "text": "Рамка с формулой должна быть заметной, но спокойной: светло-синий фон или синяя левая полоса, без красного цвета как базового стиля."
+        }
+      ]
+    },
+    {
+      "id": "product",
+      "title": "Произведение равно нулю",
+      "rules": [
+        {
+          "id": "product.factor-each-multiplier",
+          "level": "error",
+          "title": "Каждый множитель отдельно",
+          "text": "После строки вида A(x)B(x)=0 останавливаем преобразования произведения и сразу переходим к вариантам 1), 2), ... Каждый множитель приравниваем к нулю в том виде, в котором он стоит в произведении; числовые коэффициенты и простейшие преобразования убираем уже внутри соответствующего варианта.",
+          "examples": [
+            {
+              "good_tex": "\\cos x\\bigl(2 \\sin x + 1\\bigr)=0;\\quad 1)\\ \\cos x=0;\\quad 2)\\ 2\\sin x+1=0",
+              "bad_tex": "\\cos x\\bigl(2 \\sin x + 1\\bigr)=0;\\quad 2\\cos x\\bigl(\\sin x+\\frac12\\bigr)=0;\\quad \\cos x\\bigl(\\sin x+\\frac12\\bigr)=0"
+            }
+          ]
+        },
+        {
+          "id": "product.keep-remaining-factor",
+          "level": "warning",
+          "title": "При группировке оставляем понятный второй множитель",
+          "text": "При вынесении общего множителя школьнее выносить общий скобочный множитель, а оставшийся множитель оставить во второй скобке и затем привести его отдельными строками."
+        },
+        {
+          "id": "product.no-positive-shortcut",
+          "level": "warning",
+          "title": "Не заменяем варианты shortcut-ом через положительность",
+          "text": "Если произведение уже разложено на множители, не дублируем решение строкой «множитель > 0, значит ...». Рассматриваем множители как варианты."
+        },
+        {
+          "id": "product.variants-aligned",
+          "level": "warning",
+          "title": "Варианты выровнены по верхней строке",
+          "text": "Если варианты расположены в две колонки, номера и первые уравнения вариантов стоят на одном уровне; последующие строки выровнены по началу уравнения, а не по номеру."
+        }
+      ]
+    },
+    {
+      "id": "simple-equations",
+      "title": "Простейшие тригонометрические уравнения",
+      "rules": [
+        {
+          "id": "simple.sin.zero",
+          "level": "error",
+          "title": "sin x = 0",
+          "text": "Пишем x = pi n, n in Z.",
+          "expected_tex": "x = \\pi n,\\ n \\in \\mathbb{Z}"
+        },
+        {
+          "id": "simple.cos.zero",
+          "level": "error",
+          "title": "cos x = 0",
+          "text": "Пишем x = pi/2 + pi n, n in Z. Не расписываем двумя семействами через 2pi n.",
+          "expected_tex": "x = \\frac{\\pi}{2} + \\pi n,\\ n \\in \\mathbb{Z}"
+        },
+        {
+          "id": "simple.cos.nonzero.pm",
+          "level": "error",
+          "title": "cos x = a, a не равно 0, 1, -1",
+          "text": "Симметричные решения по косинусу пишем через плюс-минус: x = ±alpha + 2pi n, n in Z.",
+          "examples": [
+            {
+              "good_tex": "x = \\pm \\frac{\\pi}{3} + 2\\pi n,\\ n \\in \\mathbb{Z}",
+              "bad_tex": "x = \\frac{\\pi}{3} + 2\\pi n;\\ x = \\frac{5\\pi}{3} + 2\\pi n"
+            }
+          ]
+        },
+        {
+          "id": "simple.sin.nonzero.two-families",
+          "level": "warning",
+          "title": "sin x = a, a не равно 0, 1, -1",
+          "text": "Для синуса используем школьную запись двумя семействами, каждое семейство на отдельной строке в варианте."
+        },
+        {
+          "id": "simple.tan",
+          "level": "warning",
+          "title": "tg x = a",
+          "text": "Для тангенса используем одну семью x = alpha + pi n, n in Z; не нумеруем единственную семью."
+        },
+        {
+          "id": "simple.integer-note-position",
+          "level": "note",
+          "title": "n принадлежит Z",
+          "text": "В варианте n in Z пишется на строке с последним семейством. В итоговом ответе пункта а) n in Z показывается один раз после всех семейств."
+        }
+      ]
+    },
+    {
+      "id": "quadratic",
+      "title": "Квадратные и неполные квадратные случаи",
+      "rules": [
+        {
+          "id": "quadratic.full-substitution",
+          "level": "warning",
+          "title": "Полное квадратное уравнение",
+          "text": "Если получается at^2 + bt + c = 0, где t = sin x, cos x или tg x, вводим замену и решаем квадратное уравнение."
+        },
+        {
+          "id": "quadratic.discriminant-detail",
+          "level": "warning",
+          "title": "Дискриминант подробно",
+          "text": "При решении через дискриминант формулу D = b^2 - 4ac показываем в рамке перед численной подстановкой, затем пишем строку с подстановкой и значением D. Корни t1, t2 считаем после рамки с формулой корней. Отдельную строку a = ..., b = ..., c = ... не пишем: коэффициенты видны из квадратного уравнения и сразу подставляются в формулу."
+        },
+        {
+          "id": "quadratic.grouping-over-bad-b",
+          "level": "warning",
+          "title": "Группировка вместо плохого b",
+          "text": "Если квадратное формально возможно, но коэффициенты делают решение через дискриминант громоздким, а группировка очевидна, выбираем группировку."
+        },
+        {
+          "id": "quadratic.no-constant-factor",
+          "level": "error",
+          "title": "Нет свободного члена",
+          "text": "Если уравнение вида a sin^2 x + b sin x = 0 или a cos^2 x + b cos x = 0, замену не вводим. Выносим общий множитель."
+        },
+        {
+          "id": "quadratic.incomplete-square",
+          "level": "error",
+          "title": "sin^2 x = a или cos^2 x = a",
+          "text": "Для неполного случая не вводим замену. Сразу извлекаем корень: cos^2 x = 3/4 -> cos x = ±sqrt(3)/2."
+        },
+        {
+          "id": "quadratic.perfect-square-not-collapsed",
+          "level": "warning",
+          "title": "Полный квадрат не сворачиваем без объяснения",
+          "text": "Если внутри решения появляется квадратный множитель, не полагаемся на неочевидное сворачивание. Решаем через замену и дискриминант, показывая D = 0."
+        }
+      ]
+    },
+    {
+      "id": "methods",
+      "title": "Методы и специальные случаи",
+      "rules": [
+        {
+          "id": "method.homogeneous",
+          "level": "warning",
+          "title": "Однородные",
+          "text": "Для однородных уравнений явно проверяем случай, на который делим, затем делим на нужную степень cos x или sin x и переходим к tg x."
+        },
+        {
+          "id": "method.half-angle",
+          "level": "warning",
+          "title": "Половинный угол",
+          "text": "Если встречается x/2, вводим замену alpha = x/2, решаем относительно alpha, затем возвращаемся к x = 2alpha."
+        },
+        {
+          "id": "method.log",
+          "level": "warning",
+          "title": "Логарифмические",
+          "text": "В логарифмических задачах явно фиксируем ОДЗ, затем выполняем равносильные преобразования и проверяем найденные корни по ОДЗ."
+        },
+        {
+          "id": "method.exp",
+          "level": "warning",
+          "title": "Показательные",
+          "text": "В показательных задачах явно показываем замену, если она используется, и возвращаемся к исходной переменной отдельной строкой."
+        }
+      ]
+    },
+    {
+      "id": "answer",
+      "title": "Итоговый ответ",
+      "rules": [
+        {
+          "id": "answer.label-colon",
+          "level": "error",
+          "title": "Ответ:",
+          "text": "Перед итоговым ответом обязательно пишем слово «Ответ:» с двоеточием."
+        },
+        {
+          "id": "answer.general-one-integer-note",
+          "level": "note",
+          "title": "n in Z один раз в пункте а)",
+          "text": "В визуальном ответе пункта а) семейства идут через запятую, между семействами делаем увеличенный пробел, n in Z пишется один раз после всех семейств."
+        },
+        {
+          "id": "answer.part-b-interval",
+          "level": "error",
+          "title": "В пункте б) повторяем отрезок",
+          "text": "Перед отбором корней пишем: «Отберем корни с помощью тригонометрической окружности на отрезке ...» и подставляем отрезок из условия."
+        },
+        {
+          "id": "answer.part-b-roots",
+          "level": "warning",
+          "title": "Корни на отрезке",
+          "text": "Подходящие корни под окружностью выравниваются в колонку; x1, x2, ... стоят друг под другом."
+        },
+        {
+          "id": "answer.spacing-between-a-b",
+          "level": "warning",
+          "title": "Отступ между ответами а) и б)",
+          "text": "Между строками ответа а) и б) должен быть достаточный вертикальный отступ, чтобы дроби не слипались."
+        }
+      ]
+    }
+  ],
+  "audit": {
+    "fail_levels": [
+      "error"
+    ],
+    "report_json": "reports/w13_1_fix/solution_contract_audit.json",
+    "report_html": "reports/w13_1_fix/solution_contract_audit.html",
+    "checks": [
+      {
+        "id": "layout.uniform.parens",
+        "contract_rule": "layout.uniform-parens",
+        "level": "error"
+      },
+      {
+        "id": "layout.no.tight.trig.argument",
+        "contract_rule": "layout.no-tight-trig-argument",
+        "level": "error"
+      },
+      {
+        "id": "simple.cos.zero.short",
+        "contract_rule": "simple.cos.zero",
+        "level": "error"
+      },
+      {
+        "id": "simple.sin.zero.review",
+        "contract_rule": "simple.sin.zero",
+        "level": "warning"
+      },
+      {
+        "id": "simple.cos.nonzero.pm",
+        "contract_rule": "simple.cos.nonzero.pm",
+        "level": "error"
+      },
+      {
+        "id": "answer.cos.nonzero.split",
+        "contract_rule": "simple.cos.nonzero.pm",
+        "level": "error"
+      },
+      {
+        "id": "answer.cos.zero.long",
+        "contract_rule": "simple.cos.zero",
+        "level": "error"
+      },
+      {
+        "id": "simple.unreduced.head",
+        "contract_rule": "rhythm.reduced-simple-head",
+        "level": "error"
+      },
+      {
+        "id": "product.text.or",
+        "contract_rule": "rhythm.no-text-or",
+        "level": "warning"
+      },
+      {
+        "id": "product.no.variants",
+        "contract_rule": "product.factor-each-multiplier",
+        "level": "warning"
+      },
+      {
+        "id": "product.no.post.factor.refactor",
+        "contract_rule": "product.factor-each-multiplier",
+        "level": "error"
+      },
+      {
+        "id": "product.group-head.matches-factor",
+        "contract_rule": "product.factor-each-multiplier",
+        "level": "error"
+      },
+      {
+        "id": "identity.hidden.signed.pythagorean",
+        "contract_rule": "rhythm.explicit-signed-pythagorean",
+        "level": "error"
+      },
+      {
+        "id": "factor.negative.common.factor",
+        "contract_rule": "rhythm.negative-common-factor-explicit",
+        "level": "error"
+      },
+      {
+        "id": "trig.negative.linear.reduction.visible",
+        "contract_rule": "rhythm.negative-linear-reduction-visible",
+        "level": "error"
+      },
+      {
+        "id": "trig.angle.sum.formula",
+        "contract_rule": "rhythm.expand-angle-sum-first",
+        "level": "error"
+      },
+      {
+        "id": "trig.tangent.division.visible",
+        "contract_rule": "rhythm.tangent-division-visible",
+        "level": "error"
+      },
+      {
+        "id": "trig.double.angle.before.factor",
+        "contract_rule": "rhythm.double-angle-before-factor",
+        "level": "error"
+      },
+      {
+        "id": "rhythm.first.line.source",
+        "contract_rule": "rhythm.first-line-source-equation",
+        "level": "error"
+      },
+      {
+        "id": "formula.hint.valid",
+        "contract_rule": "formula-hint.object-format",
+        "level": "error"
+      },
+      {
+        "id": "formula.hint.required",
+        "contract_rule": "formula-hint.position-between-lines",
+        "level": "warning"
+      },
+      {
+        "id": "formula.hint.no.pi.expansion",
+        "contract_rule": "formula-hint.reduction-before-sum-difference",
+        "level": "error"
+      },
+      {
+        "id": "quadratic.no.coefficient.line",
+        "contract_rule": "quadratic.discriminant-detail",
+        "level": "error"
+      },
+      {
+        "id": "quadratic.incomplete.substitution",
+        "contract_rule": "quadratic.incomplete-square",
+        "level": "error"
+      },
+      {
+        "id": "quadratic.no.constant.substitution",
+        "contract_rule": "quadratic.no-constant-factor",
+        "level": "error"
+      },
+      {
+        "id": "half.angle.no.substitution",
+        "contract_rule": "method.half-angle",
+        "level": "warning"
+      },
+      {
+        "id": "quadratic.perfect.square.collapsed",
+        "contract_rule": "quadratic.perfect-square-not-collapsed",
+        "level": "warning"
+      },
+      {
+        "id": "product.positive.factor.shortcut",
+        "contract_rule": "product.no-positive-shortcut",
+        "level": "warning"
+      },
+      {
+        "id": "answer.repeated.integer.note",
+        "contract_rule": "answer.general-one-integer-note",
+        "level": "note"
+      },
+      {
+        "id": "solution.no.steps",
+        "contract_rule": "rhythm.one-action-per-line",
+        "level": "warning"
+      }
+    ]
+  }
+}

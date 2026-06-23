@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Аудит контракта решений №13</title>
+<style>
+  body{margin:0;background:#f8fafc;color:#111827;font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  main{max-width:1500px;margin:0 auto;padding:28px 24px 48px}
+  h1{margin:0 0 8px;font-size:28px;line-height:1.2}
+  h2{margin:28px 0 10px;font-size:20px}
+  .note{padding:12px 14px;border:1px solid #d8dee8;border-radius:8px;background:#fff;color:#475569}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin:18px 0}
+  .card{padding:14px;border:1px solid #d8dee8;border-radius:8px;background:#fff}
+  .num{font-size:28px;font-weight:700}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #d8dee8}
+  th,td{vertical-align:top;padding:9px 10px;border:1px solid #d8dee8}
+  th{position:sticky;top:0;background:#eef2f7;text-align:left;z-index:1}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+  pre{max-width:430px;max-height:150px;margin:0;overflow:auto;white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
+  .muted{color:#64748b;font-size:12px;margin-top:3px}
+  .badge{display:inline-block;padding:2px 7px;border-radius:999px;background:#e2e8f0;font-size:12px;font-weight:650}
+  .level-error .badge{background:#fee2e2;color:#991b1b}
+  .level-warning .badge{background:#fef3c7;color:#92400e}
+  .level-note .badge{background:#dbeafe;color:#1e40af}
+</style>
+</head>
+<body>
+<main>
+  <h1>Аудит контракта решений №13</h1>
+  <p class="note">
+    Источник правил: <code>content/tasks/part2/13/solution_contract.json</code>,
+    версия <code>2026-06-23-12</code>.
+    Блокирующих нарушений: <b>0</b>.
+  </p>
+  <div class="grid">
+    <div class="card"><div class="muted">Прототипов</div><div class="num">75</div></div>
+    <div class="card"><div class="muted">Срабатываний</div><div class="num">65</div></div>
+    <div class="card"><div class="muted">Blocking</div><div class="num">0</div></div>
+    <div class="card"><div class="muted">Errors</div><div class="num">0</div></div>
+    <div class="card"><div class="muted">Warnings</div><div class="num">0</div></div>
+    <div class="card"><div class="muted">Notes</div><div class="num">65</div></div>
+  </div>
+
+  <h2>Сводка по правилам</h2>
+  <table><thead><tr><th>Правило контракта</th><th>Кол-во</th></tr></thead><tbody>
+    <tr><td><code>answer.general-one-integer-note</code></td><td>65</td></tr></tbody></table>
+
+  <h2>Сводка по файлам</h2>
+  <table><thead><tr><th>Файл</th><th>Кол-во</th></tr></thead><tbody>
+    <tr><td><code>13.exp.json</code></td><td>3</td></tr>
+    <tr><td><code>13.log.json</code></td><td>3</td></tr>
+    <tr><td><code>13.trig.factor.json</code></td><td>23</td></tr>
+    <tr><td><code>13.trig.group.json</code></td><td>6</td></tr>
+    <tr><td><code>13.trig.other.json</code></td><td>15</td></tr>
+    <tr><td><code>13.trig.quad.json</code></td><td>15</td></tr></tbody></table>
+
+  <h2>Все срабатывания</h2>
+  <table>
+    <thead><tr><th>Задача</th><th>Метод</th><th>Проверка</th><th>Правило</th><th>Проблема</th><th>Фрагмент</th><th>Что проверить</th></tr></thead>
+    <tbody>
+    <tr class="level-note">
+      <td><code>13.exp.92.1</code><div class="muted">Б13-067</div></td>
+      <td>13.exp<div class="muted">13.exp.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = - \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = - \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.exp.92.2</code><div class="muted">Б13-068</div></td>
+      <td>13.exp<div class="muted">13.exp.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = - \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.exp.92.3</code><div class="muted">Б13-069</div></td>
+      <td>13.exp<div class="muted">13.exp.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = - \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.log.93.1</code><div class="muted">Б13-070</div></td>
+      <td>13.log<div class="muted">13.log.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.log.93.2</code><div class="muted">Б13-071</div></td>
+      <td>13.log<div class="muted">13.log.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.log.93.3</code><div class="muted">Б13-072</div></td>
+      <td>13.log<div class="muted">13.log.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.46.1</code><div class="muted">Б13-007</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{11 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.46.2</code><div class="muted">Б13-008</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.50.1</code><div class="muted">Б13-025</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{11 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.50.2</code><div class="muted">Б13-026</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{4 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.50.3</code><div class="muted">Б13-027</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.58.1</code><div class="muted">Б13-028</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.58.2</code><div class="muted">Б13-029</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.58.3</code><div class="muted">Б13-030</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pi + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.66.1</code><div class="muted">Б13-037</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.66.2</code><div class="muted">Б13-038</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.66.3</code><div class="muted">Б13-039</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.84.1</code><div class="muted">Б13-031</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.84.2</code><div class="muted">Б13-032</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.84.3</code><div class="muted">Б13-033</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.87.1</code><div class="muted">Б13-046</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{11 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.87.2</code><div class="muted">Б13-047</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.87.3</code><div class="muted">Б13-048</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.90.1</code><div class="muted">Б13-034</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.90.2</code><div class="muted">Б13-035</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.90.3</code><div class="muted">Б13-036</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pi + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.99.1</code><div class="muted">Б13-049</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{4} + \pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.99.2</code><div class="muted">Б13-050</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{3} + \pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.factor.99.3</code><div class="muted">Б13-051</div></td>
+      <td>вынесение общего множителя<div class="muted">13.trig.factor.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = - \frac{\pi}{4} + \pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.76.1</code><div class="muted">Б13-040</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.76.2</code><div class="muted">Б13-041</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.76.3</code><div class="muted">Б13-042</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.77.1</code><div class="muted">Б13-043</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.77.2</code><div class="muted">Б13-044</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = 2\pi n,\ n \in \mathbb{Z} | x = \frac{4 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.group.77.3</code><div class="muted">Б13-045</div></td>
+      <td>группировка<div class="muted">13.trig.group.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.101.1</code><div class="muted">Б13-073</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{2 \pi}{3} + 4\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.101.2</code><div class="muted">Б13-074</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{2} + 4\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.101.3</code><div class="muted">Б13-075</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{3} + 4\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.16.1</code><div class="muted">Б13-064</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = - \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.16.2</code><div class="muted">Б13-065</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = - \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{4 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.16.3</code><div class="muted">Б13-066</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.81.1</code><div class="muted">Б13-052</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.81.2</code><div class="muted">Б13-053</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.81.3</code><div class="muted">Б13-054</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi n,\ n \in \mathbb{Z} | x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.83.1</code><div class="muted">Б13-055</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.83.2</code><div class="muted">Б13-056</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.83.3</code><div class="muted">Б13-057</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + \pi n,\ n \in \mathbb{Z} | x = \pm \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.89-98.1</code><div class="muted">Б13-061</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{2\pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.89-98.2</code><div class="muted">Б13-062</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{5\pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.other.89-98.3</code><div class="muted">Б13-063</div></td>
+      <td>остальное<div class="muted">13.trig.other.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.22.1</code><div class="muted">Б13-004</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.22.2</code><div class="muted">Б13-005</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{5 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.22.3</code><div class="muted">Б13-006</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{4 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.24.1</code><div class="muted">Б13-010</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.24.2</code><div class="muted">Б13-011</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.24.3</code><div class="muted">Б13-012</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.26.1</code><div class="muted">Б13-013</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.26.2</code><div class="muted">Б13-014</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.26.3</code><div class="muted">Б13-015</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{11 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.27.1</code><div class="muted">Б13-016</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{6} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{11 \pi}{6} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.27.2</code><div class="muted">Б13-017</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{3 \pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{\pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{3 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.27.3</code><div class="muted">Б13-018</div></td>
+      <td>группировка<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \frac{\pi}{2} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{5 \pi}{4} + 2\pi n,\ n \in \mathbb{Z} | x = \frac{7 \pi}{4} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.73.1</code><div class="muted">Б13-019</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{\pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.73.2</code><div class="muted">Б13-020</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z} | x = 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr>
+    <tr class="level-note">
+      <td><code>13.trig.quad.73.3</code><div class="muted">Б13-021</div></td>
+      <td>сведение к квадратному<div class="muted">13.trig.quad.json</div></td>
+      <td><span class="badge">note</span><br><code>answer.repeated.integer.note</code></td>
+      <td>Итоговый ответ<br><code>answer.general-one-integer-note</code><div class="muted">n in Z один раз в пункте а)</div></td>
+      <td>В данных answer.general n∈Z повторяется в нескольких семействах.</td>
+      <td><pre>x = \pi + 2\pi n,\ n \in \mathbb{Z} | x = \pm \frac{2 \pi}{3} + 2\pi n,\ n \in \mathbb{Z}</pre></td>
+      <td>Рендер показывает n∈Z один раз; можно позже нормализовать сами данные.</td>
+    </tr></tbody>
+  </table>
+</main>
+</body>
+</html>
